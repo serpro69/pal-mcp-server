@@ -90,6 +90,7 @@ class TestOpenRouterModelRegistry:
         test_cases = [
             ("opus", "anthropic/claude-opus-4.5"),  # opus now points to 4.5
             ("OPUS", "anthropic/claude-opus-4.5"),  # Case insensitive
+            ("claude-opus", "anthropic/claude-opus-4.5"),
             ("opus4.5", "anthropic/claude-opus-4.5"),
             ("opus4.1", "anthropic/claude-opus-4.1"),  # 4.1 still accessible
             ("sonnet", "anthropic/claude-sonnet-4.5"),

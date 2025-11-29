@@ -313,6 +313,16 @@ class TestOpenRouterRegistry:
         assert caps.model_name == "anthropic/claude-opus-4.5"
         assert caps.context_window == 200000  # Claude's context window
 
+        # Test using full model name for 4.5
+        caps = registry.get_capabilities("anthropic/claude-opus-4.5")
+        assert caps is not None
+        assert caps.model_name == "anthropic/claude-opus-4.5"
+
+        # Test opus4.5 alias
+        caps = registry.get_capabilities("opus4.5")
+        assert caps is not None
+        assert caps.model_name == "anthropic/claude-opus-4.5"
+
         # Test using full model name for 4.1
         caps = registry.get_capabilities("anthropic/claude-opus-4.1")
         assert caps is not None
