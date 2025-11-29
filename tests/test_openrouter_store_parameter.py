@@ -63,11 +63,6 @@ class TestStoreParameterHandling(unittest.TestCase):
     **Feature: openrouter-store-parameter-fix, Property 2: Direct OpenAI requests include store parameter**
     """
 
-    def setUp(self):
-        """Set up test fixtures."""
-        self.openrouter_provider = MockOpenRouterProvider("test-key")
-        self.openai_provider = MockOpenAIProvider("test-key")
-
     def test_openrouter_responses_omits_store_parameter(self):
         """Test that OpenRouter provider omits store parameter from responses endpoint.
 
