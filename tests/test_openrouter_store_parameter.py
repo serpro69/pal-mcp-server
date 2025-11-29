@@ -68,8 +68,7 @@ class TestStoreParameterHandling(unittest.TestCase):
         self.openrouter_provider = MockOpenRouterProvider("test-key")
         self.openai_provider = MockOpenAIProvider("test-key")
 
-    @patch.object(OpenAICompatibleProvider, "client", new_callable=lambda: property(lambda self: Mock()))
-    def test_openrouter_responses_omits_store_parameter(self, mock_client):
+    def test_openrouter_responses_omits_store_parameter(self):
         """Test that OpenRouter provider omits store parameter from responses endpoint.
 
         **Feature: openrouter-store-parameter-fix, Property 1: OpenRouter requests omit store parameter**
@@ -98,20 +97,16 @@ class TestStoreParameterHandling(unittest.TestCase):
             provider = MockOpenRouterProvider("test-key")
 
             # Call the method that builds completion_params
-            try:
-                provider._generate_with_responses_endpoint(
-                    model_name="openai/gpt-5-pro",
-                    messages=[{"role": "user", "content": "test"}],
-                    temperature=0.7,
-                )
-            except Exception:
-                pass  # We only care about the captured params
+            provider._generate_with_responses_endpoint(
+                model_name="openai/gpt-5-pro",
+                messages=[{"role": "user", "content": "test"}],
+                temperature=0.7,
+            )
 
         # Verify store parameter is NOT in the request
         self.assertNotIn("store", captured_params, "OpenRouter requests should NOT include 'store' parameter")
 
-    @patch.object(OpenAICompatibleProvider, "client", new_callable=lambda: property(lambda self: Mock()))
-    def test_openai_responses_includes_store_parameter(self, mock_client):
+    def test_openai_responses_includes_store_parameter(self):
         """Test that direct OpenAI provider includes store parameter in responses endpoint.
 
         **Feature: openrouter-store-parameter-fix, Property 2: Direct OpenAI requests include store parameter**
@@ -140,14 +135,11 @@ class TestStoreParameterHandling(unittest.TestCase):
             provider = MockOpenAIProvider("test-key")
 
             # Call the method that builds completion_params
-            try:
-                provider._generate_with_responses_endpoint(
-                    model_name="gpt-5-pro",
-                    messages=[{"role": "user", "content": "test"}],
-                    temperature=0.7,
-                )
-            except Exception:
-                pass  # We only care about the captured params
+            provider._generate_with_responses_endpoint(
+                model_name="gpt-5-pro",
+                messages=[{"role": "user", "content": "test"}],
+                temperature=0.7,
+            )
 
         # Verify store parameter IS in the request with value True
         self.assertIn("store", captured_params, "OpenAI requests should include 'store' parameter")
