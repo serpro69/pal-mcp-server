@@ -91,7 +91,7 @@ def is_dangerous_path(path: Path) -> bool:
     """
     Check if a path is in or under a dangerous directory.
 
-    Uses PREFIX MATCHING to block dangerous directories AND their subdirectories.
+    Uses Path.is_relative_to() to block dangerous directories AND their subdirectories.
     For example, if "/etc" is in DANGEROUS_PATHS, both "/etc" and "/etc/passwd"
     will be blocked.
 
@@ -102,31 +102,26 @@ def is_dangerous_path(path: Path) -> bool:
         True if the path is dangerous and should not be accessed
 
     Security:
-        Fixes path traversal vulnerability (CWE-22) reported in:
-        - https://github.com/BeehiveInnovations/zen-mcp-server/issues/293
-        - https://github.com/BeehiveInnovations/zen-mcp-server/issues/312
+        Fixes path traversal vulnerability (CWE-22)
     """
     try:
         resolved = path.resolve()
-        resolved_str = str(resolved)
 
         # Check 1: Root directory (filesystem root)
         if resolved.parent == resolved:
             return True
 
         # Check 2: Exact match or subdirectory of dangerous paths
+        # Use Path.is_relative_to() for correct cross-platform path comparison
         for dangerous in DANGEROUS_PATHS:
             # Skip root "/" - already handled above
             if dangerous == "/":
                 continue
 
-            # Exact match
-            if resolved_str == dangerous:
-                return True
-
-            # Subdirectory check: path starts with dangerous + separator
-            # Use os.sep for platform-appropriate separator
-            if resolved_str.startswith(dangerous + "/") or resolved_str.startswith(dangerous + "\\"):
+            dangerous_path = Path(dangerous)
+            # is_relative_to() correctly handles both exact matches and subdirectories
+            # Works properly on Windows with paths like "C:\" and "C:\Users"
+            if resolved == dangerous_path or resolved.is_relative_to(dangerous_path):
                 return True
 
         return False
