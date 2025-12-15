@@ -2,6 +2,28 @@
 
 <!-- version list -->
 
+## v9.8.2 (2025-12-15)
+
+### Bug Fixes
+
+- Allow home subdirectories through is_dangerous_path()
+  ([`e5548ac`](https://github.com/BeehiveInnovations/pal-mcp-server/commit/e5548acb984ca4f8b2ae8381f879a0285094257f))
+
+- Path traversal vulnerability - use prefix matching in is_dangerous_path()
+  ([`9ed15f4`](https://github.com/BeehiveInnovations/pal-mcp-server/commit/9ed15f405a9462b4db7aa44ca2d989e092c008e4))
+
+- Use Path.is_relative_to() for cross-platform dangerous path detection
+  ([`91ffb51`](https://github.com/BeehiveInnovations/pal-mcp-server/commit/91ffb51564e5655ec91111938039ed81e0d8e4c6))
+
+- **security**: Handle macOS symlinked system dirs
+  ([`ba08308`](https://github.com/BeehiveInnovations/pal-mcp-server/commit/ba08308a23d1c1491099c5d0eae548077bd88f9f))
+
+### Chores
+
+- Sync version to config.py [skip ci]
+  ([`c492735`](https://github.com/BeehiveInnovations/pal-mcp-server/commit/c4927358720277efa0373b339bd8e06ee06498d0))
+
+
 ## v9.8.1 (2025-12-15)
 
 ### Bug Fixes
