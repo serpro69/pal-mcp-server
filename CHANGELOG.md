@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v9.7.0 (2025-12-15)
+
+### Chores
+
+- Sync version to config.py [skip ci]
+  ([`aa85644`](https://github.com/BeehiveInnovations/pal-mcp-server/commit/aa85644c9b15893443107c3a62ec58cd7b9dc532))
+
+### Features
+
+- Re-enable web search for clink codex using correct --enable flag
+  ([`e7b9f3a`](https://github.com/BeehiveInnovations/pal-mcp-server/commit/e7b9f3a5d7e06c690c82b9fd13a93310bcf388ed))
+
+
 ## v9.6.0 (2025-12-15)
 
 ### Chores
