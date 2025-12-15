@@ -2,6 +2,24 @@
 
 <!-- version list -->
 
+## v9.8.0 (2025-12-15)
+
+### Chores
+
+- Sync version to config.py [skip ci]
+  ([`cb97a89`](https://github.com/BeehiveInnovations/pal-mcp-server/commit/cb97a891dec6ab7c56b8b35c277ab3680af384d9))
+
+### Features
+
+- Add Claude Opus 4.5 model via OpenRouter
+  ([`813ce5c`](https://github.com/BeehiveInnovations/pal-mcp-server/commit/813ce5c9f7db2910eb12d8c84d3d99f464c430ed))
+
+### Testing
+
+- Add comprehensive test coverage for Opus 4.5 aliases
+  ([`cf63fd2`](https://github.com/BeehiveInnovations/pal-mcp-server/commit/cf63fd25440d599f2ec006bb8cfda5b8a6f61524))
+
+
 ## v9.7.0 (2025-12-15)
 
 ### Chores
