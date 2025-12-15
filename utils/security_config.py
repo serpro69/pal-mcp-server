@@ -7,21 +7,30 @@ for file access control.
 
 from pathlib import Path
 
-# Dangerous paths that should never be scanned
-# These would give overly broad access and pose security risks
-DANGEROUS_PATHS = {
+# Dangerous system paths - block these AND all their subdirectories
+# These are system directories where user code should never reside
+DANGEROUS_SYSTEM_PATHS = {
     "/",
     "/etc",
     "/usr",
     "/bin",
     "/var",
     "/root",
-    "/home",
     "C:\\",
     "C:\\Windows",
     "C:\\Program Files",
+}
+
+# User home container paths - block ONLY the exact path, not subdirectories
+# Subdirectory access (e.g., /home/user/project) is controlled by is_home_directory_root()
+# This allows users to work in their home subdirectories while blocking overly broad access
+DANGEROUS_HOME_CONTAINERS = {
+    "/home",
     "C:\\Users",
 }
+
+# Combined set for backward compatibility
+DANGEROUS_PATHS = DANGEROUS_SYSTEM_PATHS | DANGEROUS_HOME_CONTAINERS
 
 # Directories to exclude from recursive file search
 # These typically contain generated code, dependencies, or build artifacts
@@ -91,9 +100,14 @@ def is_dangerous_path(path: Path) -> bool:
     """
     Check if a path is in or under a dangerous directory.
 
-    Uses Path.is_relative_to() to block dangerous directories AND their subdirectories.
-    For example, if "/etc" is in DANGEROUS_PATHS, both "/etc" and "/etc/passwd"
-    will be blocked.
+    This function handles two categories of dangerous paths differently:
+
+    1. System paths (DANGEROUS_SYSTEM_PATHS): Block the path AND all subdirectories.
+       Example: /etc is dangerous, so /etc/passwd is also blocked.
+
+    2. Home containers (DANGEROUS_HOME_CONTAINERS): Block ONLY the exact path.
+       Example: /home is blocked, but /home/user/project is allowed.
+       Subdirectory access control is delegated to is_home_directory_root().
 
     Args:
         path: Path to check
@@ -102,7 +116,8 @@ def is_dangerous_path(path: Path) -> bool:
         True if the path is dangerous and should not be accessed
 
     Security:
-        Fixes path traversal vulnerability (CWE-22)
+        Fixes path traversal vulnerability (CWE-22) while preserving
+        user access to home subdirectories.
     """
     try:
         resolved = path.resolve()
@@ -111,17 +126,24 @@ def is_dangerous_path(path: Path) -> bool:
         if resolved.parent == resolved:
             return True
 
-        # Check 2: Exact match or subdirectory of dangerous paths
-        # Use Path.is_relative_to() for correct cross-platform path comparison
-        for dangerous in DANGEROUS_PATHS:
+        # Check 2: System paths - block exact match AND all subdirectories
+        for dangerous in DANGEROUS_SYSTEM_PATHS:
             # Skip root "/" - already handled above
             if dangerous == "/":
                 continue
 
             dangerous_path = Path(dangerous)
             # is_relative_to() correctly handles both exact matches and subdirectories
-            # Works properly on Windows with paths like "C:\" and "C:\Users"
+            # Works properly on Windows with paths like "C:\" and "C:\Windows"
             if resolved == dangerous_path or resolved.is_relative_to(dangerous_path):
+                return True
+
+        # Check 3: Home containers - block ONLY exact match
+        # Subdirectories like /home/user/project should pass through here
+        # and be handled by is_home_directory_root() in resolve_and_validate_path()
+        for container in DANGEROUS_HOME_CONTAINERS:
+            container_path = Path(container)
+            if resolved == container_path:
                 return True
 
         return False

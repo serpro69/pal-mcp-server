@@ -7,6 +7,11 @@ Fixes vulnerability reported in:
 
 The vulnerability: is_dangerous_path() only did exact string matching,
 so /etc was blocked but /etc/passwd was allowed.
+
+Additionally, this fix properly handles home directory containers:
+- /home and C:\\Users are blocked (exact match only)
+- /home/user/project paths are allowed through is_dangerous_path()
+  and handled by is_home_directory_root() in resolve_and_validate_path()
 """
 
 from pathlib import Path
@@ -15,7 +20,7 @@ from utils.security_config import is_dangerous_path
 
 
 class TestPathTraversalFix:
-    """Test that subdirectories of dangerous paths are now blocked."""
+    """Test that subdirectories of dangerous system paths are blocked."""
 
     def test_exact_match_still_works(self):
         """Test that exact dangerous paths are still blocked."""
@@ -24,7 +29,7 @@ class TestPathTraversalFix:
         assert is_dangerous_path(Path("/var")) is True
 
     def test_subdirectory_now_blocked(self):
-        """Test that subdirectories are now blocked (the fix)."""
+        """Test that subdirectories of system paths are blocked (the fix)."""
         # These were allowed before the fix
         assert is_dangerous_path(Path("/etc/passwd")) is True
         assert is_dangerous_path(Path("/etc/shadow")) is True
@@ -32,7 +37,7 @@ class TestPathTraversalFix:
         assert is_dangerous_path(Path("/var/log/auth.log")) is True
 
     def test_deeply_nested_blocked(self):
-        """Test that deeply nested paths are blocked."""
+        """Test that deeply nested system paths are blocked."""
         assert is_dangerous_path(Path("/etc/ssh/sshd_config")) is True
         assert is_dangerous_path(Path("/usr/local/bin/python")) is True
 
@@ -51,6 +56,36 @@ class TestPathTraversalFix:
         # /etcbackup should NOT be blocked (it's not under /etc)
         assert is_dangerous_path(Path("/tmp/etcbackup")) is False
         assert is_dangerous_path(Path("/tmp/my_etc_files")) is False
+
+
+class TestHomeDirectoryHandling:
+    """Test that home directory containers are handled correctly.
+
+    Home containers (/home, C:\\Users) should only block the exact path,
+    not subdirectories. Subdirectory access control is delegated to
+    is_home_directory_root() in resolve_and_validate_path().
+    """
+
+    def test_home_container_blocked(self):
+        """Test that /home itself is blocked."""
+        assert is_dangerous_path(Path("/home")) is True
+
+    def test_home_subdirectories_allowed(self):
+        """Test that /home subdirectories pass through is_dangerous_path().
+
+        These paths should NOT be blocked by is_dangerous_path() because:
+        1. /home/user/project is a valid user workspace
+        2. Access control for /home/username is handled by is_home_directory_root()
+        """
+        # User home directories should pass is_dangerous_path()
+        # (they are handled by is_home_directory_root() separately)
+        assert is_dangerous_path(Path("/home/user")) is False
+        assert is_dangerous_path(Path("/home/user/project")) is False
+        assert is_dangerous_path(Path("/home/user/project/src/main.py")) is False
+
+    def test_home_deeply_nested_allowed(self):
+        """Test that deeply nested home paths are allowed."""
+        assert is_dangerous_path(Path("/home/user/documents/work/project/src")) is False
 
 
 class TestRegressionPrevention:
