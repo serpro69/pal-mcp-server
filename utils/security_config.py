@@ -16,7 +16,6 @@ DANGEROUS_SYSTEM_PATHS = {
     "/bin",
     "/var",
     "/root",
-    "C:\\",
     "C:\\Windows",
     "C:\\Program Files",
 }
@@ -122,6 +121,17 @@ def is_dangerous_path(path: Path) -> bool:
     try:
         resolved = path.resolve()
 
+        def _dangerous_variants(p: Path) -> set[Path]:
+            variants = {p}
+            # Only resolve paths that are absolute on the current platform.
+            # This avoids turning Windows-style strings into nonsense absolute paths on POSIX.
+            if p.is_absolute():
+                try:
+                    variants.add(p.resolve())
+                except Exception:
+                    pass
+            return variants
+
         # Check 1: Root directory (filesystem root)
         if resolved.parent == resolved:
             return True
@@ -132,19 +142,20 @@ def is_dangerous_path(path: Path) -> bool:
             if dangerous == "/":
                 continue
 
-            dangerous_path = Path(dangerous)
-            # is_relative_to() correctly handles both exact matches and subdirectories
-            # Works properly on Windows with paths like "C:\" and "C:\Windows"
-            if resolved == dangerous_path or resolved.is_relative_to(dangerous_path):
-                return True
+            for dangerous_path in _dangerous_variants(Path(dangerous)):
+                # is_relative_to() correctly handles both exact matches and subdirectories.
+                # Resolving the dangerous base path also handles platform symlinks
+                # (e.g., macOS /etc -> /private/etc, /var -> /private/var).
+                if resolved == dangerous_path or resolved.is_relative_to(dangerous_path):
+                    return True
 
         # Check 3: Home containers - block ONLY exact match
         # Subdirectories like /home/user/project should pass through here
         # and be handled by is_home_directory_root() in resolve_and_validate_path()
         for container in DANGEROUS_HOME_CONTAINERS:
-            container_path = Path(container)
-            if resolved == container_path:
-                return True
+            for container_path in _dangerous_variants(Path(container)):
+                if resolved == container_path:
+                    return True
 
         return False
 
