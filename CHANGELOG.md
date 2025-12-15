@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v9.6.0 (2025-12-15)
+
+### Chores
+
+- Sync version to config.py [skip ci]
+  ([`94ff26c`](https://github.com/BeehiveInnovations/pal-mcp-server/commit/94ff26c673a64087eb29f8f54c1828f1157c594a))
+
+### Features
+
+- Support native installed Claude CLI detection
+  ([`adc6231`](https://github.com/BeehiveInnovations/pal-mcp-server/commit/adc6231b98886f0bc35cb04d04d948eba2f0f058))
+
+
 ## v9.5.0 (2025-12-11)
 
 ### Bug Fixes
