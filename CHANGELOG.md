@@ -2,6 +2,27 @@
 
 <!-- version list -->
 
+## v9.8.1 (2025-12-15)
+
+### Bug Fixes
+
+- **providers**: Omit store parameter for OpenRouter responses endpoint
+  ([`1f8b58d`](https://github.com/BeehiveInnovations/pal-mcp-server/commit/1f8b58d607c2809b9fa78860718a69207cb66e32))
+
+### Chores
+
+- Sync version to config.py [skip ci]
+  ([`69a42a7`](https://github.com/BeehiveInnovations/pal-mcp-server/commit/69a42a71d19d66f1d94d51fa27db29323e3d9a63))
+
+### Refactoring
+
+- **tests**: Address code review feedback
+  ([`0c3e63c`](https://github.com/BeehiveInnovations/pal-mcp-server/commit/0c3e63c0c7f1556f4b6686f9c6f30e4bb4a48c7c))
+
+- **tests**: Remove unused setUp method
+  ([`b6a8d68`](https://github.com/BeehiveInnovations/pal-mcp-server/commit/b6a8d682d920c2283724b588818bc1162a865d74))
+
+
 ## v9.8.0 (2025-12-15)
 
 ### Chores
