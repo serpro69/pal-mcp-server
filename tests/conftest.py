@@ -6,9 +6,17 @@ import asyncio
 import importlib
 import os
 import sys
+import tempfile
 from pathlib import Path
 
 import pytest
+
+# On macOS, the default pytest temp dir is typically under /var (e.g. /private/var/folders/...).
+# If /var is considered a dangerous system path, tests must use a safe temp root (like /tmp).
+if sys.platform == "darwin":
+    os.environ["TMPDIR"] = "/tmp"
+    # tempfile caches the temp dir after first lookup; clear it so pytest fixtures pick up TMPDIR.
+    tempfile.tempdir = None
 
 # Ensure the parent directory is in the Python path for imports
 parent_dir = Path(__file__).resolve().parent.parent
