@@ -35,8 +35,8 @@ LABEL description="PAL MCP Server - AI-powered Model Context Protocol server"
 LABEL org.opencontainers.image.title="pal-mcp-server"
 LABEL org.opencontainers.image.description="AI-powered Model Context Protocol server with multi-provider support"
 LABEL org.opencontainers.image.version="1.0.0"
-LABEL org.opencontainers.image.source="https://github.com/BeehiveInnovations/pal-mcp-server"
-LABEL org.opencontainers.image.documentation="https://github.com/BeehiveInnovations/pal-mcp-server/blob/main/README.md"
+LABEL org.opencontainers.image.source="https://github.com/serpro69/pal-mcp-server"
+LABEL org.opencontainers.image.documentation="https://github.com/serpro69/pal-mcp-server/blob/main/README.md"
 LABEL org.opencontainers.image.licenses="Apache 2.0 License"
 
 # Create non-root user for security

@@ -157,7 +157,7 @@ For best results when using [Codex CLI](https://developers.openai.com/codex/cli)
 
 **Option A: Clone and Automatic Setup** (recommended)
 ```bash
-git clone https://github.com/BeehiveInnovations/pal-mcp-server.git
+git clone https://github.com/serpro69/pal-mcp-server.git
 cd pal-mcp-server
 
 # Handles everything: setup, config, API keys from system environment. 
@@ -174,7 +174,7 @@ cd pal-mcp-server
   "mcpServers": {
     "pal": {
       "command": "bash",
-      "args": ["-c", "for p in $(which uvx 2>/dev/null) $HOME/.local/bin/uvx /opt/homebrew/bin/uvx /usr/local/bin/uvx uvx; do [ -x \"$p\" ] && exec \"$p\" --from git+https://github.com/BeehiveInnovations/pal-mcp-server.git pal-mcp-server; done; echo 'uvx not found' >&2; exit 1"],
+      "args": ["-c", "for p in $(which uvx 2>/dev/null) $HOME/.local/bin/uvx /opt/homebrew/bin/uvx /usr/local/bin/uvx uvx; do [ -x \"$p\" ] && exec \"$p\" --from git+https://github.com/serpro69/pal-mcp-server.git pal-mcp-server; done; echo 'uvx not found' >&2; exit 1"],
       "env": {
         "PATH": "/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin:~/.local/bin",
         "GEMINI_API_KEY": "your-key-here",
@@ -447,4 +447,4 @@ Built with the power of **Multi-Model AI** collaboration 🤝
 
 ### Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=BeehiveInnovations/pal-mcp-server&type=Date)](https://www.star-history.com/#BeehiveInnovations/pal-mcp-server&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=serpro69/pal-mcp-server&type=Date)](https://www.star-history.com/#serpro69/pal-mcp-server&Date)

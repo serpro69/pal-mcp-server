@@ -22,11 +22,11 @@
     Runs code quality checks with detailed output.
 
 .NOTES
-    Project Author     : BeehiveInnovations
+    Project Author     : serpro69
     Script Author      : GiGiDKR (https://github.com/GiGiDKR)
     Date               : 07-05-2025
     Version            : See project documentation
-    References         : https://github.com/BeehiveInnovations/pal-mcp-server
+    References         : https://github.com/serpro69/pal-mcp-server
 #>
 #Requires -Version 5.1
 [CmdletBinding()]
