@@ -81,7 +81,7 @@ Choose your AI coding assistant and add the corresponding configuration:
       "command": "sh",
       "args": [
         "-c", 
-        "for p in $(which uvx 2>/dev/null) $HOME/.local/bin/uvx /opt/homebrew/bin/uvx /usr/local/bin/uvx uvx; do [ -x \"$p\" ] && exec \"$p\" --from git+https://github.com/BeehiveInnovations/pal-mcp-server.git pal-mcp-server; done; echo 'uvx not found' >&2; exit 1"
+        "for p in $(which uvx 2>/dev/null) $HOME/.local/bin/uvx /opt/homebrew/bin/uvx /usr/local/bin/uvx uvx; do [ -x \"$p\" ] && exec \"$p\" --from git+https://github.com/serpro69/pal-mcp-server.git pal-mcp-server; done; echo 'uvx not found' >&2; exit 1"
       ],
       "env": {
         "PATH": "/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin:~/.local/bin",
@@ -102,7 +102,7 @@ Create `.mcp.json` in your project root:
       "command": "sh", 
       "args": [
         "-c",
-        "for p in $(which uvx 2>/dev/null) $HOME/.local/bin/uvx /opt/homebrew/bin/uvx /usr/local/bin/uvx uvx; do [ -x \"$p\" ] && exec \"$p\" --from git+https://github.com/BeehiveInnovations/pal-mcp-server.git pal-mcp-server; done; echo 'uvx not found' >&2; exit 1"
+        "for p in $(which uvx 2>/dev/null) $HOME/.local/bin/uvx /opt/homebrew/bin/uvx /usr/local/bin/uvx uvx; do [ -x \"$p\" ] && exec \"$p\" --from git+https://github.com/serpro69/pal-mcp-server.git pal-mcp-server; done; echo 'uvx not found' >&2; exit 1"
       ],
       "env": {
         "PATH": "/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin:~/.local/bin",
@@ -123,7 +123,7 @@ Edit `~/.gemini/settings.json`:
       "command": "sh",
       "args": [
         "-c",
-        "for p in $(which uvx 2>/dev/null) $HOME/.local/bin/uvx /opt/homebrew/bin/uvx /usr/local/bin/uvx uvx; do [ -x \"$p\" ] && exec \"$p\" --from git+https://github.com/BeehiveInnovations/pal-mcp-server.git pal-mcp-server; done; echo 'uvx not found' >&2; exit 1"  
+        "for p in $(which uvx 2>/dev/null) $HOME/.local/bin/uvx /opt/homebrew/bin/uvx /usr/local/bin/uvx uvx; do [ -x \"$p\" ] && exec \"$p\" --from git+https://github.com/serpro69/pal-mcp-server.git pal-mcp-server; done; echo 'uvx not found' >&2; exit 1"  
       ],
       "env": {
         "PATH": "/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin:~/.local/bin",
@@ -140,7 +140,7 @@ Edit `~/.codex/config.toml`:
 ```toml
 [mcp_servers.pal]
 command = "bash"
-args = ["-c", "for p in $(which uvx 2>/dev/null) $HOME/.local/bin/uvx /opt/homebrew/bin/uvx /usr/local/bin/uvx uvx; do [ -x \\\"$p\\\" ] && exec \\\"$p\\\" --from git+https://github.com/BeehiveInnovations/pal-mcp-server.git pal-mcp-server; done; echo 'uvx not found' >&2; exit 1"]
+args = ["-c", "for p in $(which uvx 2>/dev/null) $HOME/.local/bin/uvx /opt/homebrew/bin/uvx /usr/local/bin/uvx uvx; do [ -x \\\"$p\\\" ] && exec \\\"$p\\\" --from git+https://github.com/serpro69/pal-mcp-server.git pal-mcp-server; done; echo 'uvx not found' >&2; exit 1"]
 tool_timeout_sec = 1200  # 20 minutes; added automatically by the setup script so upstream providers can respond
 
 [mcp_servers.pal.env]
@@ -168,7 +168,7 @@ Create or edit `~/.qwen/settings.json`:
       "command": "bash",
       "args": [
         "-c",
-        "for p in $(which uvx 2>/dev/null) $HOME/.local/bin/uvx /opt/homebrew/bin/uvx /usr/local/bin/uvx uvx; do [ -x \"$p\" ] && exec \"$p\" --from git+https://github.com/BeehiveInnovations/pal-mcp-server.git pal-mcp-server; done; echo 'uvx not found' >&2; exit 1"
+        "for p in $(which uvx 2>/dev/null) $HOME/.local/bin/uvx /opt/homebrew/bin/uvx /usr/local/bin/uvx uvx; do [ -x \"$p\" ] && exec \"$p\" --from git+https://github.com/serpro69/pal-mcp-server.git pal-mcp-server; done; echo 'uvx not found' >&2; exit 1"
       ],
       "cwd": "/path/to/pal-mcp-server",
       "env": {
@@ -216,7 +216,7 @@ PAL works in GUI IDEs that speak MCP. The configuration mirrors the CLI examples
 1. Open Cursor → `Settings` (`Cmd+,`/`Ctrl+,`) → **Integrations › Model Context Protocol (MCP)**.
 2. Click **Add MCP Server** and supply the following values:
    - Command: `sh`
-   - Args: `-c` and `for p in $(which uvx 2>/dev/null) $HOME/.local/bin/uvx /opt/homebrew/bin/uvx /usr/local/bin/uvx uvx; do [ -x "$p" ] && exec "$p" --from git+https://github.com/BeehiveInnovations/pal-mcp-server.git pal-mcp-server; done; echo 'uvx not found' >&2; exit 1`
+   - Args: `-c` and `for p in $(which uvx 2>/dev/null) $HOME/.local/bin/uvx /opt/homebrew/bin/uvx /usr/local/bin/uvx uvx; do [ -x "$p" ] && exec "$p" --from git+https://github.com/serpro69/pal-mcp-server.git pal-mcp-server; done; echo 'uvx not found' >&2; exit 1`
    - Environment (example):
      - `PATH=/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin:~/.local/bin`
      - `GEMINI_API_KEY=your_api_key_here`
@@ -232,7 +232,7 @@ PAL works in GUI IDEs that speak MCP. The configuration mirrors the CLI examples
    - Environment: add the API keys you need (e.g. `GEMINI_API_KEY`, `OPENAI_API_KEY`)
 4. Save the JSON snippet the extension generates. VS Code will reload the server automatically the next time you interact with Claude.
 
-👉 Pro tip: If you prefer a one-line command, replace the long loop with `uvx --from git+https://github.com/BeehiveInnovations/pal-mcp-server.git pal-mcp-server`—just make sure `uvx` is on your PATH for every client.
+👉 Pro tip: If you prefer a one-line command, replace the long loop with `uvx --from git+https://github.com/serpro69/pal-mcp-server.git pal-mcp-server`—just make sure `uvx` is on your PATH for every client.
 
 **Benefits of uvx method:**
 - ✅ Zero manual setup required
@@ -244,7 +244,7 @@ PAL works in GUI IDEs that speak MCP. The configuration mirrors the CLI examples
 
 ```bash
 # Clone the repository
-git clone https://github.com/BeehiveInnovations/pal-mcp-server.git
+git clone https://github.com/serpro69/pal-mcp-server.git
 cd pal-mcp-server
 
 # One-command setup (handles everything)

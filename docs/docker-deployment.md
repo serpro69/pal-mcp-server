@@ -6,7 +6,7 @@ This guide covers deploying PAL MCP Server using Docker and Docker Compose for p
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/BeehiveInnovations/pal-mcp-server.git
+   git clone https://github.com/serpro69/pal-mcp-server.git
    cd pal-mcp-server
    ```
 

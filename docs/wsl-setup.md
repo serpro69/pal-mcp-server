@@ -27,7 +27,7 @@ npm install -g @anthropic-ai/claude-code
    cd ~
    
    # Clone the repository
-   git clone https://github.com/BeehiveInnovations/pal-mcp-server.git
+   git clone https://github.com/serpro69/pal-mcp-server.git
    cd pal-mcp-server
    ```
 
