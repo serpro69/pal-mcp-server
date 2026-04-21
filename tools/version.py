@@ -7,11 +7,16 @@ It also checks for updates from the GitHub repository.
 """
 
 import logging
+import os
 import platform
 import re
 import sys
 from pathlib import Path
 from typing import Any, Optional
+
+DEFAULT_VERSION_CHECK_URL = (
+    "https://raw.githubusercontent.com/serpro69/pal-mcp-server/main/config.py"
+)
 
 try:
     from urllib.error import HTTPError, URLError
@@ -79,9 +84,17 @@ def compare_versions(current: str, remote: str) -> int:
         return 0
 
 
+def is_version_check_enabled() -> bool:
+    """Return True if the remote update check is explicitly enabled."""
+    return os.getenv("PAL_VERSION_CHECK", "").strip().lower() in ("1", "true", "yes", "on")
+
+
 def fetch_github_version() -> Optional[tuple[str, str]]:
     """
-    Fetch the latest version information from GitHub repository.
+    Fetch the latest version information from the configured repository.
+
+    Opt-in: only runs when PAL_VERSION_CHECK is truthy. The target URL
+    defaults to this fork and can be overridden via PAL_VERSION_CHECK_URL.
 
     Returns:
         Tuple of (version, last_updated) if successful, None if failed
@@ -90,7 +103,10 @@ def fetch_github_version() -> Optional[tuple[str, str]]:
         logger.warning("urllib not available, cannot check for updates")
         return None
 
-    github_url = "https://raw.githubusercontent.com/BeehiveInnovations/pal-mcp-server/main/config.py"
+    github_url = os.getenv("PAL_VERSION_CHECK_URL", DEFAULT_VERSION_CHECK_URL).strip()
+    if not github_url.startswith("https://"):
+        logger.warning("PAL_VERSION_CHECK_URL must use https; skipping update check")
+        return None
 
     try:
         # Set a 10-second timeout
@@ -252,53 +268,56 @@ class VersionTool(BaseTool):
         # Check for updates from GitHub
         output_lines.append("## Update Status")
 
-        try:
-            github_info = fetch_github_version()
+        if not is_version_check_enabled():
+            output_lines.append("")
+            output_lines.append("ℹ️ **Remote update check disabled**")
+            output_lines.append(
+                "Set `PAL_VERSION_CHECK=1` to enable (optionally override the source with "
+                "`PAL_VERSION_CHECK_URL`)."
+            )
+        else:
+            try:
+                github_info = fetch_github_version()
+                if github_info:
+                    remote_version, remote_updated = github_info
+                    comparison = compare_versions(__version__, remote_version)
 
-            if github_info:
-                remote_version, remote_updated = github_info
-                comparison = compare_versions(__version__, remote_version)
+                    output_lines.append(f"**Latest Version (GitHub)**: {remote_version}")
+                    output_lines.append(f"**Latest Updated**: {remote_updated}")
 
-                output_lines.append(f"**Latest Version (GitHub)**: {remote_version}")
-                output_lines.append(f"**Latest Updated**: {remote_updated}")
-
-                if comparison < 0:
-                    # Update available
-                    output_lines.append("")
-                    output_lines.append("🚀 **UPDATE AVAILABLE!**")
-                    output_lines.append(
-                        f"Your version `{__version__}` is older than the latest version `{remote_version}`"
-                    )
-                    output_lines.append("")
-                    output_lines.append("**To update:**")
-                    output_lines.append("```bash")
-                    output_lines.append(f"cd {current_path}")
-                    output_lines.append("git pull")
-                    output_lines.append("```")
-                    output_lines.append("")
-                    output_lines.append("*Note: Restart your session after updating to use the new version.*")
-                elif comparison == 0:
-                    # Up to date
-                    output_lines.append("")
-                    output_lines.append("✅ **UP TO DATE**")
-                    output_lines.append("You are running the latest version.")
+                    if comparison < 0:
+                        output_lines.append("")
+                        output_lines.append("🚀 **UPDATE AVAILABLE!**")
+                        output_lines.append(
+                            f"Your version `{__version__}` is older than the latest version `{remote_version}`"
+                        )
+                        output_lines.append("")
+                        output_lines.append("**To update:**")
+                        output_lines.append("```bash")
+                        output_lines.append(f"cd {current_path}")
+                        output_lines.append("git pull")
+                        output_lines.append("```")
+                        output_lines.append("")
+                        output_lines.append("*Note: Restart your session after updating to use the new version.*")
+                    elif comparison == 0:
+                        output_lines.append("")
+                        output_lines.append("✅ **UP TO DATE**")
+                        output_lines.append("You are running the latest version.")
+                    else:
+                        output_lines.append("")
+                        output_lines.append("🔬 **DEVELOPMENT VERSION**")
+                        output_lines.append(
+                            f"Your version `{__version__}` is ahead of the published version `{remote_version}`"
+                        )
+                        output_lines.append("You may be running a development or custom build.")
                 else:
-                    # Ahead of remote (development version)
-                    output_lines.append("")
-                    output_lines.append("🔬 **DEVELOPMENT VERSION**")
-                    output_lines.append(
-                        f"Your version `{__version__}` is ahead of the published version `{remote_version}`"
-                    )
-                    output_lines.append("You may be running a development or custom build.")
-            else:
-                output_lines.append("❌ **Could not check for updates**")
-                output_lines.append("Unable to connect to GitHub or parse version information.")
-                output_lines.append("Check your internet connection or try again later.")
-
-        except Exception as e:
-            logger.error(f"Error during version check: {e}")
-            output_lines.append("❌ **Error checking for updates**")
-            output_lines.append(f"Error: {str(e)}")
+                    output_lines.append("❌ **Could not check for updates**")
+                    output_lines.append("Unable to connect to GitHub or parse version information.")
+                    output_lines.append("Check your internet connection or try again later.")
+            except Exception as e:
+                logger.error(f"Error during version check: {e}")
+                output_lines.append("❌ **Error checking for updates**")
+                output_lines.append(f"Error: {str(e)}")
 
         output_lines.append("")
 
