@@ -318,3 +318,7 @@ isort --check-only .
 - Proper API keys configured in `.env` file
 
 This guide provides everything needed to efficiently work with the PAL MCP Server codebase using Claude. Always run quality checks before and after making changes to ensure code integrity.
+
+# capy — MANDATORY routing rules
+
+@.claude/capy/CLAUDE.md

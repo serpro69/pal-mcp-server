@@ -1,7 +1,63 @@
 {
+  "effortLevel": "high",
+  "enabledMcpjsonServers": [],
+  "enabledPlugins": {
+    "kk@claude-toolbox": true
+  },
+  "env": {
+    "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "64000",
+    "CLAUDE_STATUSLINE_MODE": "dark",
+    "CLAUDE_STATUSLINE_THEME": "catppuccin",
+    "MAX_MCP_OUTPUT_TOKENS": "64000"
+  },
+  "extraKnownMarketplaces": {
+    "claude-toolbox": {
+      "source": {
+        "source": "github",
+        "repo": "serpro69/claude-toolbox"
+      }
+    }
+  },
+  "model": "opus[1m]",
   "permissions": {
     "allow": [
+      "Bash(cat:*)",
+      "Bash(grep:*)",
+      "Bash(ls:*)",
+      "Bash(mkdir:*)",
+      "Bash(sort:*)",
+      "WebSearch"
     ],
-    "deny": []
+    "ask": [],
+    "defaultMode": "default",
+    "deny": [
+      "Bash(rm:*)",
+      "Read(./examples)",
+      "Read(./**/consensus*.md)",
+      "Read(./**/review*.md)",
+      "Read(./**/.env)",
+      "Read(./**/service-account-key.json)",
+      "Read(*.csv)",
+      "Read(*.log)",
+      "Read(*.pyc)",
+      "Read(./**/*.lock*)",
+      "Read(.git/)",
+      "Read(.idea/)",
+      "Read(.vscode/)",
+      "Read(.next/)",
+      "Read(./**/.ansible/)",
+      "Read(./**/.terraform/)",
+      "Read(./**/build/)",
+      "Read(./**/data/)",
+      "Read(./**/dist/)",
+      "Read(./**/out/)",
+      "Read(./**/node_modules/)",
+      "Read(./**/venv/)",
+      "Read(./**/__pycache__/)"
+    ]
+  },
+  "statusLine": {
+    "command": "bash $CLAUDE_PROJECT_DIR/.claude/scripts/statusline_enhanced.sh",
+    "type": "command"
   }
 }
