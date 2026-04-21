@@ -1,0 +1,16 @@
+{
+  "schema_version": "1",
+  "upstream_repo": "serpro69/claude-toolbox",
+  "template_version": "aff3ba2aa712e95a0678412daa22c21cda4b5aa0",
+  "synced_at": "2026-04-07T18:45:49Z",
+  "variables": {
+    "PROJECT_NAME": "capy",
+    "LANGUAGES": "go",
+    "CC_MODEL": "opus[1m]",
+    "CC_STATUSLINE": "enhanced",
+    "SERENA_INITIAL_PROMPT": "",
+    "CC_EFFORT_LEVEL": "high",
+    "CC_PERMISSION_MODE": "default"
+  },
+  "plugin_migrated": true
+}
