@@ -75,6 +75,7 @@ We practice coordinated disclosure. Please allow reasonable time to address issu
 3. **Use Local Models**: For sensitive codebases, consider using Ollama with local models
 4. **Network Security**: When self-hosting, ensure appropriate network controls
 5. **Keep Updated**: Regularly update to the latest version for security fixes
+6. **`clink` CLI execution**: The `clink` tool forwards prompts from the MCP client to external AI CLIs. By default, write-enabling flags (`--permission-mode acceptEdits`, `--yolo`, `--dangerously-bypass-approvals-and-sandbox`) are **not** applied — opt in explicitly via `allow_edits=true`, and prefer scoping with `editable_paths` where supported. See [`docs/tools/clink.md`](docs/tools/clink.md) for details.
 
 ## Recognition
 
