@@ -190,3 +190,6 @@ logs/
 test_simulation_files/
 .mcp.json
 .capy/**
+
+!.capy/knowledge.db
+!.mcp.json
