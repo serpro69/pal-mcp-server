@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import logging
+import os
 import re
+from contextvars import ContextVar
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -12,7 +14,7 @@ from mcp.types import TextContent
 from pydantic import BaseModel, Field
 
 from clink import get_registry
-from clink.agents import AgentOutput, CLIAgentError, create_agent
+from clink.agents import AgentOutput, CLIAgentError, create_agent, get_agent_class
 from clink.models import ResolvedCLIClient, ResolvedCLIRole
 from config import TEMPERATURE_BALANCED
 from tools.models import ToolModelCategory, ToolOutput
@@ -24,6 +26,11 @@ logger = logging.getLogger(__name__)
 
 MAX_RESPONSE_CHARS = 20_000
 SUMMARY_PATTERN = re.compile(r"<SUMMARY>(.*?)</SUMMARY>", re.IGNORECASE | re.DOTALL)
+
+# Request-scoped system prompt. Stored in a ContextVar so concurrent asyncio
+# invocations of CLinkTool.execute() can't cross-contaminate each other's
+# prompts — the CLinkTool instance is a shared singleton on the MCP server.
+_active_system_prompt: ContextVar[str] = ContextVar("clink_active_system_prompt", default="")
 
 
 class CLinkRequest(BaseModel):
@@ -85,7 +92,6 @@ class CLinkTool(SimpleTool):
             self._default_cli_name = "gemini"
         else:
             self._default_cli_name = self._cli_names[0] if self._cli_names else None
-        self._active_system_prompt: str = ""
         super().__init__()
 
     def get_name(self) -> str:
@@ -98,7 +104,9 @@ class CLinkTool(SimpleTool):
         )
 
     def get_annotations(self) -> dict[str, Any]:
-        return {"readOnlyHint": True}
+        # Opt-in edits via `allow_edits=true` + `editable_paths` mean this tool
+        # can modify the filesystem. Hint must not claim read-only.
+        return {"readOnlyHint": False}
 
     def requires_model(self) -> bool:
         return False
@@ -110,7 +118,7 @@ class CLinkTool(SimpleTool):
         return TEMPERATURE_BALANCED
 
     def get_system_prompt(self) -> str:
-        return self._active_system_prompt or ""
+        return _active_system_prompt.get()
 
     def get_request_model(self):
         return CLinkRequest
@@ -222,6 +230,12 @@ class CLinkTool(SimpleTool):
         except KeyError as exc:
             self._raise_tool_error(str(exc))
 
+        if request.editable_paths and not get_agent_class(client_config).supports_path_restrictions:
+            self._raise_tool_error(
+                f"CLI '{client_config.name}' does not support editable_paths; "
+                "only 'claude' supports scoped edit allow-listing."
+            )
+
         absolute_file_paths = self.get_request_files(request)
         images = self.get_request_images(request)
         continuation_id = self.get_request_continuation_id(request)
@@ -237,17 +251,13 @@ class CLinkTool(SimpleTool):
                 role_config,
                 system_prompt=system_prompt_text,
                 include_system_prompt=include_system_prompt,
+                cli_name=client_config.name,
             )
         except Exception as exc:
             logger.exception("Failed to prepare clink prompt")
             self._raise_tool_error(f"Failed to prepare prompt: {exc}")
 
         agent = create_agent(client_config)
-        if request.editable_paths and not agent.supports_path_restrictions:
-            self._raise_tool_error(
-                f"CLI '{client_config.name}' does not support editable_paths; "
-                "only 'claude' supports scoped edit allow-listing."
-            )
         try:
             result = await agent.run(
                 role=role_config,
@@ -314,6 +324,7 @@ class CLinkTool(SimpleTool):
             role_config,
             system_prompt=system_prompt_text,
             include_system_prompt=include_system_prompt,
+            cli_name=client_config.name,
         )
 
     async def _prepare_prompt_for_role(
@@ -323,12 +334,13 @@ class CLinkTool(SimpleTool):
         *,
         system_prompt: str,
         include_system_prompt: bool,
+        cli_name: str,
     ) -> str:
         """Load the role prompt and assemble the final user message."""
-        self._active_system_prompt = system_prompt
+        token = _active_system_prompt.set(system_prompt)
         try:
             user_content = self.handle_prompt_file_with_fallback(request).strip()
-            guidance = self._agent_capabilities_guidance()
+            guidance = self._agent_capabilities_guidance(cli_name)
             file_section = self._format_file_references(self.get_request_files(request))
 
             sections: list[str] = []
@@ -349,7 +361,7 @@ class CLinkTool(SimpleTool):
             sections.append("Provide your response below using your own CLI tools as needed:")
             return "\n\n".join(sections)
         finally:
-            self._active_system_prompt = ""
+            _active_system_prompt.reset(token)
 
     def _use_external_system_prompt(self, client: ResolvedCLIClient) -> bool:
         runner_name = (client.runner or client.name).lower()
@@ -491,22 +503,50 @@ class CLinkTool(SimpleTool):
         error_output = ToolOutput(status="error", content=message, content_type="text", metadata=metadata)
         raise ToolExecutionError(error_output.model_dump_json())
 
-    def _agent_capabilities_guidance(self) -> str:
+    def _agent_capabilities_guidance(self, cli_name: str) -> str:
         return (
-            "You are operating through the Gemini CLI agent. You have access to your full suite of "
+            f"You are operating through the {cli_name} CLI agent. You have access to your full suite of "
             "CLI capabilities—including launching web searches, reading files, and using any other "
             "available tools. Gather current information yourself and deliver the final answer without "
             "asking the PAL MCP host to perform searches or file reads."
         )
 
+    # Characters that could confuse Claude CLI's `--allowedTools Edit(<path>)`
+    # argument parser. `)` is the closing paren of the tool-args grammar; the
+    # rest are shell metacharacters that should never appear in a legitimate
+    # absolute filesystem path on any platform we target.
+    _FORBIDDEN_PATH_CHARS = frozenset("()*?[]!\"'`$;&|<>\n\r\t")
+
     def _validate_editable_paths(self, request: CLinkRequest) -> str | None:
+        """Validate and canonicalize editable_paths.
+
+        Mutates ``request.editable_paths`` so downstream agent args receive
+        the resolved, absolute path — this ensures the allow-list enforced
+        by the CLI matches what was actually validated here.
+        """
+        canonical: list[str] = []
         for raw_path in request.editable_paths:
+            if not raw_path:
+                return "editable_paths entries must not be empty."
+            forbidden = self._FORBIDDEN_PATH_CHARS.intersection(raw_path)
+            if forbidden:
+                return (
+                    f"editable_paths entries must not contain shell-metacharacters or parens: "
+                    f"{raw_path} (contains {''.join(sorted(forbidden))!r})"
+                )
+            # os.path.normpath collapses `..` traversal without dereferencing
+            # symlinks — we want `/safe/../etc` → `/etc` but NOT `/tmp` → `/private/tmp`
+            # on macOS (which would surprise callers and make the allow-list
+            # non-obvious).
+            normalized = os.path.normpath(raw_path)
             try:
-                path = Path(raw_path)
+                path = Path(normalized)
             except (TypeError, ValueError):
                 return f"Invalid editable path: {raw_path}"
             if not path.is_absolute():
                 return f"editable_paths must be absolute paths: {raw_path}"
+            canonical.append(str(path))
+        request.editable_paths = canonical
         return None
 
     def _format_file_references(self, files: list[str]) -> str:

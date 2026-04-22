@@ -16,10 +16,19 @@ _AGENTS: dict[str, type[BaseCLIAgent]] = {
 }
 
 
-def create_agent(client: ResolvedCLIClient) -> BaseCLIAgent:
+def get_agent_class(client: ResolvedCLIClient) -> type[BaseCLIAgent]:
+    """Look up the agent class for a client without instantiating it.
+
+    Use this when you need to check class-level attributes (e.g.
+    ``supports_path_restrictions``) during request validation — before any
+    I/O or object construction has happened.
+    """
     agent_key = (client.runner or client.name).lower()
-    agent_cls = _AGENTS.get(agent_key, BaseCLIAgent)
-    return agent_cls(client)
+    return _AGENTS.get(agent_key, BaseCLIAgent)
+
+
+def create_agent(client: ResolvedCLIClient) -> BaseCLIAgent:
+    return get_agent_class(client)(client)
 
 
 __all__ = [
@@ -27,4 +36,5 @@ __all__ = [
     "BaseCLIAgent",
     "CLIAgentError",
     "create_agent",
+    "get_agent_class",
 ]
