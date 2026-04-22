@@ -6,15 +6,15 @@
 > Created: 2026-04-22
 
 ## Task 1: Extend config model and registry with safe_args / edit_args
-- **Status:** pending
+- **Status:** done
 - **Depends on:** —
 - **Docs:** [implementation.md#1-extend-the-cli-client-config-model](./implementation.md#1-extend-the-cli-client-config-model), [#2](./implementation.md#2-propagate-new-fields-through-the-registry)
 
 ### Subtasks
-- [ ] 1.1 Add optional `safe_args: list[str]` and `edit_args: list[str]` fields (default `[]`) to `CLIClientConfig` in `clink/models.py`, with a `field_validator(mode="before")` that accepts a list or single string (mirror the existing `additional_args` validator).
-- [ ] 1.2 Add the same two fields (default `[]`) to `ResolvedCLIClient` in `clink/models.py`.
-- [ ] 1.3 In `clink/registry.py` `_resolve_config`, read `raw.safe_args` / `raw.edit_args` and pass them into the `ResolvedCLIClient(...)` constructor.
-- [ ] 1.4 Verify: unit test loading a config with `safe_args`/`edit_args` populated — assert they round-trip into `ResolvedCLIClient`.
+- [x] 1.1 Add optional `safe_args: list[str]` and `edit_args: list[str]` fields (default `[]`) to `CLIClientConfig` in `clink/models.py`, with a `field_validator(mode="before")` that accepts a list or single string (mirror the existing `additional_args` validator).
+- [x] 1.2 Add the same two fields (default `[]`) to `ResolvedCLIClient` in `clink/models.py`.
+- [x] 1.3 In `clink/registry.py` `_resolve_config`, read `raw.safe_args` / `raw.edit_args` and pass them into the `ResolvedCLIClient(...)` constructor.
+- [x] 1.4 Verify: unit test loading a config with `safe_args`/`edit_args` populated — assert they round-trip into `ResolvedCLIClient`.
 
 ## Task 2: Base agent plumbing for allow_edits and path restrictions
 - **Status:** pending
