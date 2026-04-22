@@ -279,6 +279,8 @@ python -m pytest tests/ -v
 4. Run full simulator test suite (optional): `./run_integration_tests.sh --with-simulator`
 5. Verify all tests pass 100%
 
+**NEVER commit `./.capy/knowledge.db`!**
+
 ### Common Troubleshooting
 
 #### Server Issues
