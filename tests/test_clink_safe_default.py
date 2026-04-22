@@ -142,8 +142,28 @@ def test_request_validation_accepts_absolute_editable_paths():
     assert err is None
 
 
-def test_non_claude_agent_rejects_editable_paths():
+def test_non_claude_agent_rejects_editable_paths_without_invoking_agent(monkeypatch):
+    """Rejection must happen during pre-await validation, NOT after agent.run is reached.
+
+    Regression guard: if the supports_path_restrictions check drifts back below
+    _prepare_prompt_for_role / create_agent, this test catches it — because
+    create_agent is monkeypatched to a factory that tracks calls.
+    """
     tool = CLinkTool()
+    agent_factory_calls: list = []
+
+    class _ShouldNotRun:
+        supports_path_restrictions = False
+
+        async def run(self, **kwargs):  # pragma: no cover - must not be reached
+            raise AssertionError("agent.run must not be invoked on a rejected request")
+
+    def tracking_factory(client):
+        agent_factory_calls.append(client.name)
+        return _ShouldNotRun()
+
+    monkeypatch.setattr("tools.clink.create_agent", tracking_factory)
+
     with pytest.raises(ToolExecutionError) as exc:
         asyncio.run(
             tool.execute(
@@ -156,6 +176,9 @@ def test_non_claude_agent_rejects_editable_paths():
             )
         )
     assert "does not support editable_paths" in str(exc.value)
+    # The agent factory itself must not have been called either — the guard
+    # fires before create_agent in the new placement.
+    assert agent_factory_calls == []
 
 
 def test_schema_exposes_new_fields():
@@ -165,30 +188,54 @@ def test_schema_exposes_new_fields():
 
 
 @pytest.mark.asyncio
-async def test_prompt_relabels_as_untrusted_and_adds_policy_when_safe():
+async def test_prompt_relabels_as_untrusted_and_adds_policy_when_safe(tmp_path):
     tool = CLinkTool()
-    from clink import get_registry
-
-    role = get_registry().get_client("claude").get_role("default")
+    # Use a stub role backed by a temp prompt file — avoid depending on
+    # the real registry / conf/cli_clients/*.json being present.
+    prompt_file = tmp_path / "role.txt"
+    prompt_file.write_text("role-system-prompt")
+    role = ResolvedCLIRole(name="default", prompt_path=prompt_file, role_args=[])
 
     safe_prompt = await tool._prepare_prompt_for_role(
         CLinkRequest(prompt="do things"),
         role,
         system_prompt="SYS",
         include_system_prompt=False,
+        cli_name="claude",
     )
     assert "UNTRUSTED USER REQUEST" in safe_prompt
     assert "EXECUTION POLICY" in safe_prompt
     assert "do things" in safe_prompt
+    assert "claude CLI" in safe_prompt  # _agent_capabilities_guidance is parameterized
 
     edit_prompt = await tool._prepare_prompt_for_role(
         CLinkRequest(prompt="do things", allow_edits=True),
         role,
         system_prompt="SYS",
         include_system_prompt=False,
+        cli_name="claude",
     )
     assert "UNTRUSTED USER REQUEST" in edit_prompt
     assert "EXECUTION POLICY" not in edit_prompt
+
+
+@pytest.mark.asyncio
+async def test_agent_capabilities_guidance_uses_actual_cli_name(tmp_path):
+    """Guidance string must name the CLI in use, not hardcode 'Gemini'."""
+    tool = CLinkTool()
+    prompt_file = tmp_path / "role.txt"
+    prompt_file.write_text("role")
+    role = ResolvedCLIRole(name="default", prompt_path=prompt_file, role_args=[])
+
+    for cli_name in ("claude", "codex", "gemini"):
+        prompt = await tool._prepare_prompt_for_role(
+            CLinkRequest(prompt="hi"),
+            role,
+            system_prompt="SYS",
+            include_system_prompt=False,
+            cli_name=cli_name,
+        )
+        assert f"{cli_name} CLI" in prompt, f"guidance must name {cli_name}"
 
 
 @pytest.mark.parametrize(
@@ -221,7 +268,81 @@ def test_empty_string_editable_path_rejected():
     err = tool._validate_editable_paths(
         CLinkRequest(prompt="x", allow_edits=True, editable_paths=[""])
     )
-    assert err is not None
+    assert err is not None and "must not be empty" in err
+
+
+@pytest.mark.parametrize("bad_char", ["(", ")", "$", ";", "|", "&", "`", "*", "?"])
+def test_editable_path_with_shell_metacharacter_rejected(bad_char):
+    tool = CLinkTool()
+    err = tool._validate_editable_paths(
+        CLinkRequest(prompt="x", allow_edits=True, editable_paths=[f"/tmp/foo{bad_char}bar"])
+    )
+    assert err is not None and "shell-metacharacters" in err
+
+
+def test_editable_paths_canonicalized_in_place():
+    """`/safe/../etc` traversal is normalized so the downstream allow-list matches what was validated."""
+    tool = CLinkTool()
+    req = CLinkRequest(prompt="x", allow_edits=True, editable_paths=["/tmp/safe/../etc"])
+    err = tool._validate_editable_paths(req)
+    assert err is None
+    # After validation, the path is the canonical form (no '..' component).
+    assert req.editable_paths == ["/tmp/etc"]
+
+
+def test_config_rejects_dangerous_flag_in_additional_args():
+    """model_validator: --yolo in additional_args is a config-level error."""
+    from clink.models import CLIClientConfig
+
+    with pytest.raises(ValueError, match="write-enabling"):
+        CLIClientConfig(name="x", additional_args=["--yolo"])
+
+
+def test_config_rejects_claude_accept_edits_in_additional_args():
+    """model_validator: '--permission-mode acceptEdits' sequence in additional_args rejected."""
+    from clink.models import CLIClientConfig
+
+    with pytest.raises(ValueError, match="acceptEdits"):
+        CLIClientConfig(name="x", additional_args=["--permission-mode", "acceptEdits"])
+
+
+def test_config_rejects_identical_safe_and_edit_args():
+    """model_validator: identical safe_args and edit_args make allow_edits a no-op."""
+    from clink.models import CLIClientConfig
+
+    with pytest.raises(ValueError, match="must differ"):
+        CLIClientConfig(
+            name="x",
+            safe_args=["--shared", "value"],
+            edit_args=["--shared", "value"],
+        )
+
+
+def test_config_allows_same_flag_with_different_values_in_each_bucket():
+    """Flag name can appear in both buckets — only the values differ. This is the
+    legitimate Claude pattern (--permission-mode default vs acceptEdits)."""
+    from clink.models import CLIClientConfig
+
+    c = CLIClientConfig(
+        name="x",
+        safe_args=["--permission-mode", "default"],
+        edit_args=["--permission-mode", "acceptEdits"],
+    )
+    assert c.safe_args[1] == "default"
+    assert c.edit_args[1] == "acceptEdits"
+
+
+def test_config_accepts_valid_three_bucket_layout():
+    """Sanity: the shipped config shape loads without tripping the validator."""
+    from clink.models import CLIClientConfig
+
+    c = CLIClientConfig(
+        name="claude",
+        additional_args=["--model", "sonnet"],
+        safe_args=["--permission-mode", "default"],
+        edit_args=["--permission-mode", "acceptEdits"],
+    )
+    assert c.safe_args == ["--permission-mode", "default"]
 
 
 @pytest.mark.asyncio

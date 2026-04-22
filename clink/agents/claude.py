@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+from clink.models import ResolvedCLIRole
 from clink.parsers.base import ParserError
 
 from .base import AgentOutput, BaseCLIAgent
@@ -14,12 +15,19 @@ class ClaudeAgent(BaseCLIAgent):
 
     supports_path_restrictions = True
 
-    def _extra_command_args(self, *, system_prompt: str | None) -> list[str]:
+    def _extra_command_args(
+        self, *, system_prompt: str | None, role: ResolvedCLIRole
+    ) -> list[str]:
         if not system_prompt:
             return []
         if any(
             "--append-system-prompt" in bucket
-            for bucket in (self.client.config_args, self.client.safe_args, self.client.edit_args)
+            for bucket in (
+                self.client.config_args,
+                self.client.safe_args,
+                self.client.edit_args,
+                role.role_args,
+            )
         ):
             return []
         return ["--append-system-prompt", system_prompt]
