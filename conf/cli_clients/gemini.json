@@ -1,7 +1,8 @@
 {
   "name": "gemini",
   "command": "gemini",
-  "additional_args": [
+  "additional_args": [],
+  "edit_args": [
     "--yolo"
   ],
   "env": {},
