@@ -2,7 +2,7 @@
 
 > Design: [./design.md](./design.md)
 > Implementation: [./implementation.md](./implementation.md)
-> Status: pending
+> Status: done
 > Created: 2026-04-22
 
 ## Task 1: Extend config model and registry with safe_args / edit_args
@@ -99,11 +99,11 @@
 - [x] 8.7 Audit existing `tests/` — updated `test_registry_lists_roles` to reflect config migration (dangerous flag moved to `edit_args`).
 
 ## Task 9: Final verification
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 1, Task 2, Task 3, Task 4, Task 5, Task 6, Task 7, Task 8
 
 ### Subtasks
-- [ ] 9.1 Run `test` skill to verify all tasks — full unit test suite via `./code_quality_checks.sh`.
-- [ ] 9.2 Run `document` skill to update any relevant docs (README, SECURITY.md if it references clink, etc.).
-- [ ] 9.3 Run `review-code` skill with Python as the project language input to review the implementation.
-- [ ] 9.4 Run `review-spec` skill to verify implementation matches design and implementation docs.
+- [x] 9.1 Run `test` skill — full unit suite at 899 passing. Added parametrized real-config verification to close a coverage gap the skill flagged.
+- [x] 9.2 Run `document` skill — updated `docs/tools/clink.md` (rewrote the outdated CAUTION box and Configuration section, documented `allow_edits` / `editable_paths`) and added a note to `SECURITY.md`.
+- [x] 9.3 Run `review-code` skill (isolated mode) — 10 findings. 0 P0. All fixed in commit 411428c; 16 new tests added covering the fixes. Findings indexed as `kk:review-findings`.
+- [x] 9.4 Run `review-spec` skill (isolated mode) — 9 findings, all doc drift (no functional deviations). design.md and implementation.md updated to reflect the post-review-code state.
