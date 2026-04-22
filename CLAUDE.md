@@ -10,7 +10,9 @@ Before making any changes or submitting PRs, always run the comprehensive qualit
 
 ```bash
 # Activate virtual environment first
-source venv/bin/activate
+workon pal
+
+# if
 
 # Run all quality checks (linting, formatting, tests)
 ./code_quality_checks.sh
