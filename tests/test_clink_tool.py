@@ -60,13 +60,26 @@ def test_registry_lists_roles():
     assert "default" in roles
     assert "default" in registry.list_roles("codex")
     codex_client = registry.get_client("codex")
-    # Verify codex uses --enable web_search_request (not --search which is unsupported by exec)
+    # Codex uses --enable web_search_request (not --search which is unsupported by exec).
+    # The write-enabling --dangerously-bypass-approvals-and-sandbox flag is gated behind
+    # allow_edits=true, so it lives in edit_args, not config_args.
     assert codex_client.config_args == [
         "--json",
-        "--dangerously-bypass-approvals-and-sandbox",
         "--enable",
         "web_search_request",
     ]
+    assert codex_client.edit_args == ["--dangerously-bypass-approvals-and-sandbox"]
+    assert codex_client.safe_args == []
+
+    gemini_client = registry.get_client("gemini")
+    assert gemini_client.config_args == []
+    assert gemini_client.edit_args == ["--yolo"]
+    assert gemini_client.safe_args == []
+
+    claude_client = registry.get_client("claude")
+    assert claude_client.config_args == ["--model", "sonnet"]
+    assert claude_client.safe_args == ["--permission-mode", "default"]
+    assert claude_client.edit_args == ["--permission-mode", "acceptEdits"]
 
 
 @pytest.mark.asyncio

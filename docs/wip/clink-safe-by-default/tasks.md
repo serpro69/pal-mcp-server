@@ -85,18 +85,18 @@
 - [x] 7.4 Verify: unit test asserting the new section headers and that `EXECUTION POLICY` only appears when `allow_edits=False`.
 
 ## Task 8: Unit tests
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 3, Task 4, Task 6, Task 7
 - **Docs:** [implementation.md#10-tests](./implementation.md#10-tests)
 
 ### Subtasks
-- [ ] 8.1 Add/extend `tests/test_clink_tool.py` — default request omits `edit_args` for all three CLIs; `allow_edits=True` includes `edit_args`.
-- [ ] 8.2 Test: Claude with two absolute `editable_paths` emits the correct `--allowedTools Edit(...)` / `Write(...)` entries.
-- [ ] 8.3 Test: Gemini / Codex with `editable_paths` errors cleanly.
-- [ ] 8.4 Test: relative path in `editable_paths` errors.
-- [ ] 8.5 Test: `editable_paths` without `allow_edits` errors.
-- [ ] 8.6 Test: prompt always includes `UNTRUSTED USER REQUEST`; `EXECUTION POLICY` conditional on `allow_edits=False`.
-- [ ] 8.7 Audit existing `tests/` for assertions on the old `USER REQUEST` header and update.
+- [x] 8.1 Add `tests/test_clink_safe_default.py` — default request omits `edit_args`; `allow_edits=True` includes `edit_args`.
+- [x] 8.2 Test: Claude with two absolute `editable_paths` emits the correct `--allowedTools Edit(...)` / `Write(...)` entries.
+- [x] 8.3 Test: Gemini / Codex with `editable_paths` errors cleanly.
+- [x] 8.4 Test: relative path in `editable_paths` errors.
+- [x] 8.5 Test: `editable_paths` without `allow_edits` errors.
+- [x] 8.6 Test: prompt always includes `UNTRUSTED USER REQUEST`; `EXECUTION POLICY` conditional on `allow_edits=False`.
+- [x] 8.7 Audit existing `tests/` — updated `test_registry_lists_roles` to reflect config migration (dangerous flag moved to `edit_args`).
 
 ## Task 9: Final verification
 - **Status:** pending
