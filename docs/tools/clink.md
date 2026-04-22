@@ -146,11 +146,13 @@ Clink configurations live in `conf/cli_clients/`. Each preset splits its CLI arg
 
 Shipped presets:
 
-| CLI    | Default command (safe mode)                                                      | Added when `allow_edits=true`                       |
-| ------ | -------------------------------------------------------------------------------- | --------------------------------------------------- |
-| gemini | `gemini --telemetry false -o json`                                               | `--yolo`                                            |
-| claude | `claude --print --output-format json --model sonnet --permission-mode default`   | replaces `--permission-mode default` with `acceptEdits` |
-| codex  | `codex exec --json --enable web_search_request`                                  | `--dangerously-bypass-approvals-and-sandbox`        |
+| CLI    | Default command (safe mode)                                                      | Command with `allow_edits=true`                    |
+| ------ | -------------------------------------------------------------------------------- | -------------------------------------------------- |
+| gemini | `gemini --telemetry false -o json`                                               | `gemini --telemetry false -o json --yolo`          |
+| claude | `claude --print --output-format json --model sonnet --permission-mode default`   | `claude --print --output-format json --model sonnet --permission-mode acceptEdits` |
+| codex  | `codex exec --json --enable web_search_request`                                  | `codex exec --json --enable web_search_request --dangerously-bypass-approvals-and-sandbox` |
+
+The modes are not constructed by runtime string replacement; each CLI's config declares two disjoint arg buckets (`safe_args` and `edit_args`), and the tool picks exactly one at command-build time based on `allow_edits`. The dangerous flag is therefore absent from the command line in safe mode by construction — there is no runtime sanitization pass to bypass.
 
 In safe mode the forwarded prompt also carries an explicit "EXECUTION POLICY" section instructing the CLI not to modify the filesystem — defense in depth on top of the flag being absent.
 
