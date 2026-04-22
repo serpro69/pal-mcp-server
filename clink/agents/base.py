@@ -47,6 +47,10 @@ class CLIAgentError(RuntimeError):
 class BaseCLIAgent:
     """Execute a configured CLI command and parse its output."""
 
+    # Subclasses set True when the CLI can honor per-path edit allow-lists
+    # (e.g. Claude's --allowedTools Edit(path) / Write(path)).
+    supports_path_restrictions: bool = False
+
     def __init__(self, client: ResolvedCLIClient):
         self.client = client
         self._parser: BaseParser = get_parser(client.parser)
@@ -60,12 +64,19 @@ class BaseCLIAgent:
         system_prompt: str | None = None,
         files: Sequence[str],
         images: Sequence[str],
+        allow_edits: bool = False,
+        editable_paths: Sequence[str] = (),
     ) -> AgentOutput:
         # Files and images are already embedded into the prompt by the tool; they are
         # accepted here only to keep parity with SimpleTool callers.
         _ = (files, images)
         # The runner simply executes the configured CLI command for the selected role.
-        command = self._build_command(role=role, system_prompt=system_prompt)
+        command = self._build_command(
+            role=role,
+            system_prompt=system_prompt,
+            allow_edits=allow_edits,
+            editable_paths=editable_paths,
+        )
         env = self._build_environment()
 
         # Resolve executable path for cross-platform compatibility (especially Windows)
@@ -190,13 +201,40 @@ class BaseCLIAgent:
             output_file_content=output_file_content,
         )
 
-    def _build_command(self, *, role: ResolvedCLIRole, system_prompt: str | None) -> list[str]:
+    def _build_command(
+        self,
+        *,
+        role: ResolvedCLIRole,
+        system_prompt: str | None,
+        allow_edits: bool = False,
+        editable_paths: Sequence[str] = (),
+    ) -> list[str]:
         base = list(self.client.executable)
         base.extend(self.client.internal_args)
         base.extend(self.client.config_args)
+        base.extend(self.client.edit_args if allow_edits else self.client.safe_args)
+        base.extend(self._extra_command_args(system_prompt=system_prompt))
+        base.extend(
+            self._build_path_restriction_args(editable_paths, allow_edits=allow_edits)
+        )
         base.extend(role.role_args)
 
         return base
+
+    def _extra_command_args(self, *, system_prompt: str | None) -> list[str]:
+        """Hook for subclasses to inject agent-specific args (e.g. system prompt flags)."""
+        _ = system_prompt
+        return []
+
+    def _build_path_restriction_args(
+        self,
+        editable_paths: Sequence[str],
+        *,
+        allow_edits: bool,
+    ) -> list[str]:
+        """Hook for subclasses that can scope edits to specific paths. Default: no restriction."""
+        _ = (editable_paths, allow_edits)
+        return []
 
     def _build_environment(self) -> dict[str, str]:
         env = os.environ.copy()

@@ -17,17 +17,17 @@
 - [x] 1.4 Verify: unit test loading a config with `safe_args`/`edit_args` populated — assert they round-trip into `ResolvedCLIClient`.
 
 ## Task 2: Base agent plumbing for allow_edits and path restrictions
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 1
 - **Docs:** [implementation.md#3-update-base-agent-command-construction](./implementation.md#3-update-base-agent-command-construction)
 
 ### Subtasks
-- [ ] 2.1 In `clink/agents/base.py`, add class attribute `supports_path_restrictions: bool = False` to `BaseCLIAgent`.
-- [ ] 2.2 Add method `_build_path_restriction_args(self, editable_paths: Sequence[str], *, allow_edits: bool) -> list[str]` returning `[]`.
-- [ ] 2.3 Add method `_extra_command_args(self, *, system_prompt: str | None) -> list[str]` returning `[]` (hook for Claude's `--append-system-prompt`).
-- [ ] 2.4 Extend `run(...)` with kwargs `allow_edits: bool = False`, `editable_paths: Sequence[str] = ()`; pass them to `_build_command`.
-- [ ] 2.5 Rewrite `_build_command` to compose: `executable + internal_args + config_args + (edit_args if allow_edits else safe_args) + _extra_command_args(system_prompt=...) + _build_path_restriction_args(...) + role.role_args`.
-- [ ] 2.6 Verify: unit test with a stub `ResolvedCLIClient` asserting command list for both `allow_edits=False` and `True`.
+- [x] 2.1 In `clink/agents/base.py`, add class attribute `supports_path_restrictions: bool = False` to `BaseCLIAgent`.
+- [x] 2.2 Add method `_build_path_restriction_args(self, editable_paths: Sequence[str], *, allow_edits: bool) -> list[str]` returning `[]`.
+- [x] 2.3 Add method `_extra_command_args(self, *, system_prompt: str | None) -> list[str]` returning `[]` (hook for Claude's `--append-system-prompt`).
+- [x] 2.4 Extend `run(...)` with kwargs `allow_edits: bool = False`, `editable_paths: Sequence[str] = ()`; pass them to `_build_command`.
+- [x] 2.5 Rewrite `_build_command` to compose: `executable + internal_args + config_args + (edit_args if allow_edits else safe_args) + _extra_command_args(system_prompt=...) + _build_path_restriction_args(...) + role.role_args`.
+- [x] 2.6 Verify: unit test with a stub `ResolvedCLIClient` asserting command list for both `allow_edits=False` and `True`.
 
 ## Task 3: Claude agent — adopt base, add path restrictions, keep system-prompt injection
 - **Status:** pending
