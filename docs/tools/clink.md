@@ -4,7 +4,7 @@
 
 The `clink` tool transforms your CLI into a multi-agent orchestrator. Launch isolated Codex instances from _within_ Codex, delegate to Gemini's 1M context, or run specialized Claude agents—all while preserving conversation continuity. Instead of context-switching or token bloat, spawn fresh subagents that handle complex tasks in isolation and return only the results you need.
 
-> **CAUTION**: Clink launches real CLI agents with relaxed permission flags (Gemini ships with `--yolo`, Codex with `--dangerously-bypass-approvals-and-sandbox`, Claude with `--permission-mode acceptEdits`) so they can edit files and run tools autonomously via MCP. If that’s more access than you want, remove those flags—the CLI can still open/read files and report findings, it just won’t auto-apply edits. You can also tighten role prompts or system prompts with stop-words/guardrails, or disable clink entirely. Otherwise, keep the shipped presets confined to workspaces you fully trust.
+> **Safe by default**: Clink runs external CLIs **without** their write-enabling flags (`--permission-mode acceptEdits`, `--yolo`, `--dangerously-bypass-approvals-and-sandbox`) unless you explicitly opt in. The CLI can still read files and report findings; it just won't auto-apply edits. To allow edits, pass `allow_edits=true` — optionally scope them to specific paths with `editable_paths` (Claude only). See [Tool Parameters](#tool-parameters) and [Configuration](#configuration) below.
 
 ## Why Use Clink (CLI + Link)?
 
@@ -83,6 +83,8 @@ You can make your own custom roles in `conf/cli_clients/` or tweak any of the sh
 - `files`: Optional file paths for context (references only, CLI opens files itself)
 - `images`: Optional image paths for visual context
 - `continuation_id`: Continue previous clink conversations
+- `allow_edits`: Opt in to filesystem edits (default: `false`). When false, the CLI is launched **without** its write-enabling flag and is prompted not to modify files. Set to `true` when you deliberately want the CLI to apply changes.
+- `editable_paths`: Optional list of absolute paths the CLI may edit when `allow_edits=true`. Honored by the `claude` CLI via `--allowedTools Edit(path)/Write(path)`. Other CLIs reject this field — they lack a native per-path allow-list and will error rather than silently ignore the scope.
 
 ## Usage Examples
 
@@ -136,15 +138,25 @@ then codereview to verify the implementation"
 
 ## Configuration
 
-Clink configurations live in `conf/cli_clients/`. We ship presets for the supported CLIs:
+Clink configurations live in `conf/cli_clients/`. Each preset splits its CLI arguments across three buckets so that write-enabling flags can be gated behind `allow_edits`:
 
-- `gemini.json` – runs `gemini --telemetry false --yolo -o json`
-- `claude.json` – runs `claude --print --output-format json --permission-mode acceptEdits --model sonnet`
-- `codex.json` – runs `codex exec --json --dangerously-bypass-approvals-and-sandbox`
+- `additional_args`: always applied
+- `safe_args`: applied when `allow_edits=false` (the default)
+- `edit_args`: applied when `allow_edits=true`
 
-> **CAUTION**: These flags intentionally bypass each CLI's safety prompts so they can edit files or launch tools autonomously via MCP. Only enable them in trusted sandboxes and tailor role prompts or CLI configs if you need more guardrails.
+Shipped presets:
 
-Each preset points to role-specific prompts in `systemprompts/clink/`. Duplicate those files to add more roles or adjust CLI flags.
+| CLI    | Default command (safe mode)                                                      | Added when `allow_edits=true`                       |
+| ------ | -------------------------------------------------------------------------------- | --------------------------------------------------- |
+| gemini | `gemini --telemetry false -o json`                                               | `--yolo`                                            |
+| claude | `claude --print --output-format json --model sonnet --permission-mode default`   | replaces `--permission-mode default` with `acceptEdits` |
+| codex  | `codex exec --json --enable web_search_request`                                  | `--dangerously-bypass-approvals-and-sandbox`        |
+
+In safe mode the forwarded prompt also carries an explicit "EXECUTION POLICY" section instructing the CLI not to modify the filesystem — defense in depth on top of the flag being absent.
+
+> **Editable-paths allow-listing (Claude only)**: When invoking `claude` with `allow_edits=true`, you can pass `editable_paths=["/abs/path/1", "/abs/path/2"]` to restrict edits to those directories via `--allowedTools Edit(path)/Write(path)`. Gemini and Codex don't currently expose per-path allow-listing, so they reject `editable_paths` with an error rather than silently ignoring it.
+
+Each preset points to role-specific prompts in `systemprompts/clink/`. Duplicate those files to add more roles or adjust CLI flags. When authoring a new preset, keep write-enabling flags out of `additional_args` so the safe-by-default invariant holds.
 
 > **Why `--yolo` for Gemini?** The Gemini CLI currently requires automatic approvals to execute its own tools (for example `run_shell_command`). Without the flag it errors with `Tool "run_shell_command" not found in registry`. See [issue #5382](https://github.com/google-gemini/gemini-cli/issues/5382) for more details.
 
