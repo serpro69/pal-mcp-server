@@ -162,6 +162,8 @@ class ClinkRegistry:
             executable=executable,
             internal_args=internal_args,
             config_args=config_args,
+            safe_args=list(raw.safe_args),
+            edit_args=list(raw.edit_args),
             env=env,
             timeout_seconds=int(timeout_seconds),
             parser=parser_name,
