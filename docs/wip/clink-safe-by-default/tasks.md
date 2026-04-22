@@ -30,16 +30,16 @@
 - [x] 2.6 Verify: unit test with a stub `ResolvedCLIClient` asserting command list for both `allow_edits=False` and `True`.
 
 ## Task 3: Claude agent — adopt base, add path restrictions, keep system-prompt injection
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 2
 - **Docs:** [implementation.md#4-simplify-claudeagent](./implementation.md#4-simplify-claudeagent)
 
 ### Subtasks
-- [ ] 3.1 Remove `ClaudeAgent._build_command` override in `clink/agents/claude.py`.
-- [ ] 3.2 Set `supports_path_restrictions = True` on `ClaudeAgent`.
-- [ ] 3.3 Override `_extra_command_args` to inject `["--append-system-prompt", system_prompt]` when `system_prompt` is non-empty and `--append-system-prompt` is not already in `config_args` / `safe_args` / `edit_args`.
-- [ ] 3.4 Override `_build_path_restriction_args`: when `allow_edits=True` and paths non-empty, emit `["--allowedTools", f"Edit({path})", "--allowedTools", f"Write({path})"]` for each path.
-- [ ] 3.5 Verify: unit test builds a Claude command with `allow_edits=True` + two `editable_paths` and checks the expected flags + order.
+- [x] 3.1 Remove `ClaudeAgent._build_command` override in `clink/agents/claude.py`.
+- [x] 3.2 Set `supports_path_restrictions = True` on `ClaudeAgent`.
+- [x] 3.3 Override `_extra_command_args` to inject `["--append-system-prompt", system_prompt]` when `system_prompt` is non-empty and `--append-system-prompt` is not already in `config_args` / `safe_args` / `edit_args`.
+- [x] 3.4 Override `_build_path_restriction_args`: when `allow_edits=True` and paths non-empty, emit `["--allowedTools", f"Edit({path})", "--allowedTools", f"Write({path})"]` for each path.
+- [x] 3.5 Verify: unit test builds a Claude command with `allow_edits=True` + two `editable_paths` and checks the expected flags + order.
 
 ## Task 4: Migrate CLI config JSON files
 - **Status:** pending
