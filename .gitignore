@@ -193,3 +193,5 @@ test_simulation_files/
 
 !.capy/knowledge.db
 !.mcp.json
+
+!.claude/settings.local.json
