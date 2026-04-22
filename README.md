@@ -2,6 +2,10 @@
 
 <div align="center">
 
+  <b>🚧 Fork in progress, expect some dust 🚧</b>
+
+  > _This is a fork of the original pal-mcp-server (originally aka zen-mcp-server) by BeehiveInnovations. I found this tool quite useful, and have it deeply integrated within my [claude-toolbox](https://github.com/serpro69/claude-toolbox). It does, however, appear to be unmaintained (a not unexpected outcome in today's ultra-fast-paced software development world), with even the most critical issues not addressed for months. So I decided to fork and maintain my own version, building upon the existing foundation, fixing outstanding issues, and eventually bringing in more features and improvements._
+
   <em>Your AI's PAL – a Provider Abstraction Layer</em><br />
   <sub><a href="docs/name-change.md">Formerly known as Zen MCP</a></sub>
 
@@ -18,6 +22,13 @@
 Gemini · OpenAI · Anthropic · Grok · Azure · Ollama · OpenRouter · DIAL · On-Device Model
 
 </div>
+
+> [!IMPORTANT]
+> This project is maintained with the help of Claude-Code. Is it, however, reviewed, tested, and reworked with a human-in-the-loop.
+>
+> No AI slop here. Purely AI-made<->AI-consumed tooling is hot garbage, and that's putting it mildly.
+>
+> That said, if you have any problems with code that is written by AI - you've been warned. But, then again, why would you be interested in an AI-related tool in the first place... `¯\_(ツ)_/¯`
 
 ---
 
