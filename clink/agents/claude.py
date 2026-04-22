@@ -2,25 +2,41 @@
 
 from __future__ import annotations
 
-from clink.models import ResolvedCLIRole
+from collections.abc import Sequence
+
 from clink.parsers.base import ParserError
 
 from .base import AgentOutput, BaseCLIAgent
 
 
 class ClaudeAgent(BaseCLIAgent):
-    """Claude CLI agent with system-prompt injection support."""
+    """Claude CLI agent with system-prompt injection and scoped-edit allow-listing."""
 
-    def _build_command(self, *, role: ResolvedCLIRole, system_prompt: str | None) -> list[str]:
-        command = list(self.client.executable)
-        command.extend(self.client.internal_args)
-        command.extend(self.client.config_args)
+    supports_path_restrictions = True
 
-        if system_prompt and "--append-system-prompt" not in self.client.config_args:
-            command.extend(["--append-system-prompt", system_prompt])
+    def _extra_command_args(self, *, system_prompt: str | None) -> list[str]:
+        if not system_prompt:
+            return []
+        if any(
+            "--append-system-prompt" in bucket
+            for bucket in (self.client.config_args, self.client.safe_args, self.client.edit_args)
+        ):
+            return []
+        return ["--append-system-prompt", system_prompt]
 
-        command.extend(role.role_args)
-        return command
+    def _build_path_restriction_args(
+        self,
+        editable_paths: Sequence[str],
+        *,
+        allow_edits: bool,
+    ) -> list[str]:
+        if not allow_edits or not editable_paths:
+            return []
+        args: list[str] = []
+        for path in editable_paths:
+            args.extend(["--allowedTools", f"Edit({path})"])
+            args.extend(["--allowedTools", f"Write({path})"])
+        return args
 
     def _recover_from_error(
         self,

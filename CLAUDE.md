@@ -20,13 +20,15 @@ mkvirtualenv pal
 ```
 
 This script automatically runs:
+
 - Ruff linting with auto-fix
-- Black code formatting 
+- Black code formatting
 - Import sorting with isort
 - Complete unit test suite (excluding integration tests)
 - Verification that all checks pass 100%
 
 **Run Integration Tests (requires API keys):**
+
 ```bash
 # Run integration tests that make real API calls
 ./run_integration_tests.sh
@@ -38,12 +40,14 @@ This script automatically runs:
 ### Server Management
 
 #### Setup/Update the Server
+
 ```bash
 # Run setup script (handles everything)
 ./run-server.sh
 ```
 
 This script will:
+
 - Set up Python virtual environment
 - Install all dependencies
 - Create/update .env file
@@ -51,6 +55,7 @@ This script will:
 - Verify API keys
 
 #### View Logs
+
 ```bash
 # Follow logs in real-time
 ./run-server.sh -f
@@ -62,6 +67,7 @@ tail -f logs/mcp_server.log
 ### Log Management
 
 #### View Server Logs
+
 ```bash
 # View last 500 lines of server logs
 tail -n 500 logs/mcp_server.log
@@ -78,6 +84,7 @@ grep "tool_name" logs/mcp_activity.log
 ```
 
 #### Monitor Tool Executions Only
+
 ```bash
 # View tool activity log (focused on tool calls and completions)
 tail -n 100 logs/mcp_activity.log
@@ -92,15 +99,17 @@ tail -f logs/mcp_activity.log | grep -E "(TOOL_CALL|TOOL_COMPLETED|ERROR|WARNING
 #### Available Log Files
 
 **Current log files (with proper rotation):**
+
 ```bash
 # Main server log (all activity including debug info) - 20MB max, 10 backups
 tail -f logs/mcp_server.log
 
-# Tool activity only (TOOL_CALL, TOOL_COMPLETED, etc.) - 20MB max, 5 backups  
+# Tool activity only (TOOL_CALL, TOOL_COMPLETED, etc.) - 20MB max, 5 backups
 tail -f logs/mcp_activity.log
 ```
 
 **For programmatic log analysis (used by tests):**
+
 ```python
 # Import the LogUtils class from simulator tests
 from simulator_tests.log_utils import LogUtils
@@ -118,11 +127,12 @@ matches = LogUtils.search_logs_for_pattern("TOOL_CALL.*debug")
 ### Testing
 
 Simulation tests are available to test the MCP server in a 'live' scenario, using your configured
-API keys to ensure the models are working and the server is able to communicate back and forth. 
+API keys to ensure the models are working and the server is able to communicate back and forth.
 
 **IMPORTANT**: After any code changes, restart your Claude session for the changes to take effect.
 
 #### Run All Simulator Tests
+
 ```bash
 # Run the complete test suite
 python communication_simulator_test.py
@@ -132,6 +142,7 @@ python communication_simulator_test.py --verbose
 ```
 
 #### Quick Test Mode (Recommended for Time-Limited Testing)
+
 ```bash
 # Run quick test mode - 6 essential tests that provide maximum functionality coverage
 python communication_simulator_test.py --quick
@@ -141,6 +152,7 @@ python communication_simulator_test.py --quick --verbose
 ```
 
 **Quick mode runs these 6 essential tests:**
+
 - `cross_tool_continuation` - Cross-tool conversation memory testing (chat, thinkdeep, codereview, analyze, debug)
 - `conversation_chain_validation` - Core conversation threading and memory validation
 - `consensus_workflow_accurate` - Consensus tool with flash model and stance testing
@@ -153,6 +165,7 @@ python communication_simulator_test.py --quick --verbose
 **Note:** Some workflow tools (analyze, codereview, planner, consensus, etc.) require specific workflow parameters and may need individual testing rather than quick mode testing.
 
 #### Run Individual Simulator Tests (For Detailed Testing)
+
 ```bash
 # List all available tests
 python communication_simulator_test.py --list-tests
@@ -171,6 +184,7 @@ python communication_simulator_test.py --individual memory_validation --verbose
 ```
 
 Available simulator tests include:
+
 - `basic_conversation` - Basic conversation flow with chat tool
 - `content_validation` - Content validation and duplicate detection
 - `per_tool_deduplication` - File deduplication for individual tools
@@ -192,6 +206,7 @@ Available simulator tests include:
 **Note**: All simulator tests should be run individually for optimal testing and better error isolation.
 
 #### Run Unit Tests Only
+
 ```bash
 # Run all unit tests (excluding integration tests that require API keys)
 python -m pytest tests/ -v -m "not integration"
@@ -209,6 +224,7 @@ python -m pytest tests/ --cov=. --cov-report=html -m "not integration"
 #### Run Integration Tests (Uses Free Local Models)
 
 **Setup Requirements:**
+
 ```bash
 # 1. Install Ollama (if not already installed)
 # Visit https://ollama.ai or use brew install ollama
@@ -224,6 +240,7 @@ export CUSTOM_API_URL="http://localhost:11434"
 ```
 
 **Run Integration Tests:**
+
 ```bash
 # Run integration tests that make real API calls to local models
 python -m pytest tests/ -v -m "integration"
@@ -240,11 +257,13 @@ python -m pytest tests/ -v
 ### Development Workflow
 
 #### Before Making Changes
+
 1. Ensure virtual environment is activated: `source .pal_venv/bin/activate`
 2. Run quality checks: `./code_quality_checks.sh`
 3. Check logs to ensure server is healthy: `tail -n 50 logs/mcp_server.log`
 
 #### After Making Changes
+
 1. Run quality checks again: `./code_quality_checks.sh`
 2. Run integration tests locally: `./run_integration_tests.sh`
 3. Run quick test mode for fast validation: `python communication_simulator_test.py --quick`
@@ -253,6 +272,7 @@ python -m pytest tests/ -v
 6. Restart Claude session to use updated code
 
 #### Before Committing/PR
+
 1. Final quality check: `./code_quality_checks.sh`
 2. Run integration tests: `./run_integration_tests.sh`
 3. Run quick test mode: `python communication_simulator_test.py --quick`
@@ -262,6 +282,7 @@ python -m pytest tests/ -v
 ### Common Troubleshooting
 
 #### Server Issues
+
 ```bash
 # Check if Python environment is set up correctly
 ./run-server.sh
@@ -275,6 +296,7 @@ which python
 ```
 
 #### Test Failures
+
 ```bash
 # First try quick test mode to see if it's a general issue
 python communication_simulator_test.py --quick --verbose
@@ -290,6 +312,7 @@ LOG_LEVEL=DEBUG python communication_simulator_test.py --individual <test_name>
 ```
 
 #### Linting Issues
+
 ```bash
 # Auto-fix most linting issues
 ruff check . --fix
