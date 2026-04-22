@@ -12,7 +12,8 @@ Before making any changes or submitting PRs, always run the comprehensive qualit
 # Activate virtual environment first
 workon pal
 
-# if
+# if pal virtualenv does not exist (workon | grep pal)
+mkvirtualenv pal
 
 # Run all quality checks (linting, formatting, tests)
 ./code_quality_checks.sh
