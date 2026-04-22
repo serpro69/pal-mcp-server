@@ -2,10 +2,16 @@
   "name": "claude",
   "command": "claude",
   "additional_args": [
-    "--permission-mode",
-    "acceptEdits",
     "--model",
     "sonnet"
+  ],
+  "safe_args": [
+    "--permission-mode",
+    "default"
+  ],
+  "edit_args": [
+    "--permission-mode",
+    "acceptEdits"
   ],
   "env": {},
   "roles": {

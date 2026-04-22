@@ -42,15 +42,15 @@
 - [x] 3.5 Verify: unit test builds a Claude command with `allow_edits=True` + two `editable_paths` and checks the expected flags + order.
 
 ## Task 4: Migrate CLI config JSON files
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 1
 - **Docs:** [implementation.md#5-migrate-cli-config-json-files](./implementation.md#5-migrate-cli-config-json-files)
 
 ### Subtasks
-- [ ] 4.1 `conf/cli_clients/claude.json`: remove `--permission-mode acceptEdits` from `additional_args`; add `safe_args: ["--permission-mode", "default"]` and `edit_args: ["--permission-mode", "acceptEdits"]`. Keep `--model sonnet` in `additional_args`.
-- [ ] 4.2 `conf/cli_clients/gemini.json`: remove `--yolo` from `additional_args`; add `edit_args: ["--yolo"]`.
-- [ ] 4.3 `conf/cli_clients/codex.json`: remove `--dangerously-bypass-approvals-and-sandbox` from `additional_args`; add `edit_args: ["--dangerously-bypass-approvals-and-sandbox"]`. Keep `--json` and `--enable web_search_request` in `additional_args`.
-- [ ] 4.4 Verify: registry loads all three configs without error and each shows populated `safe_args`/`edit_args` as expected.
+- [x] 4.1 `conf/cli_clients/claude.json`: remove `--permission-mode acceptEdits` from `additional_args`; add `safe_args: ["--permission-mode", "default"]` and `edit_args: ["--permission-mode", "acceptEdits"]`. Keep `--model sonnet` in `additional_args`.
+- [x] 4.2 `conf/cli_clients/gemini.json`: remove `--yolo` from `additional_args`; add `edit_args: ["--yolo"]`.
+- [x] 4.3 `conf/cli_clients/codex.json`: remove `--dangerously-bypass-approvals-and-sandbox` from `additional_args`; add `edit_args: ["--dangerously-bypass-approvals-and-sandbox"]`. Keep `--json` and `--enable web_search_request` in `additional_args`.
+- [x] 4.4 Verify: registry loads all three configs without error and each shows populated `safe_args`/`edit_args` as expected.
 
 ## Task 5: CLinkRequest schema — allow_edits and editable_paths
 - **Status:** pending
