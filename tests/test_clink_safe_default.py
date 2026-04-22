@@ -191,6 +191,39 @@ async def test_prompt_relabels_as_untrusted_and_adds_policy_when_safe():
     assert "EXECUTION POLICY" not in edit_prompt
 
 
+@pytest.mark.parametrize(
+    ("cli_name", "dangerous_flag"),
+    [
+        ("claude", "acceptEdits"),
+        ("gemini", "--yolo"),
+        ("codex", "--dangerously-bypass-approvals-and-sandbox"),
+    ],
+)
+def test_real_config_gates_dangerous_flag_on_allow_edits(cli_name, dangerous_flag):
+    """End-to-end over the real shipped configs: dangerous flag is absent in safe mode,
+    present in edit mode, for every CLI we ship."""
+    from clink import get_registry
+    from clink.agents import create_agent
+
+    client = get_registry().get_client(cli_name)
+    agent = create_agent(client)
+    role = client.get_role("default")
+
+    safe_cmd = agent._build_command(role=role, system_prompt=None, allow_edits=False)
+    edit_cmd = agent._build_command(role=role, system_prompt=None, allow_edits=True)
+
+    assert dangerous_flag not in safe_cmd, f"{cli_name}: safe mode must omit {dangerous_flag}"
+    assert dangerous_flag in edit_cmd, f"{cli_name}: edit mode must include {dangerous_flag}"
+
+
+def test_empty_string_editable_path_rejected():
+    tool = CLinkTool()
+    err = tool._validate_editable_paths(
+        CLinkRequest(prompt="x", allow_edits=True, editable_paths=[""])
+    )
+    assert err is not None
+
+
 @pytest.mark.asyncio
 async def test_execute_forwards_allow_edits_to_agent(monkeypatch):
     """End-to-end: tool.execute propagates allow_edits and editable_paths into agent.run."""
