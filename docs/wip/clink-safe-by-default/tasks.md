@@ -53,36 +53,36 @@
 - [x] 4.4 Verify: registry loads all three configs without error and each shows populated `safe_args`/`edit_args` as expected.
 
 ## Task 5: CLinkRequest schema — allow_edits and editable_paths
-- **Status:** pending
+- **Status:** done
 - **Depends on:** —
 - **Docs:** [implementation.md#6-update-toolsclinkpy-request-and-schema](./implementation.md#6-update-toolsclinkpy-request-and-schema)
 
 ### Subtasks
-- [ ] 5.1 In `tools/clink.py`, add `allow_edits: bool = Field(default=False, description=...)` and `editable_paths: list[str] = Field(default_factory=list, description=...)` to `CLinkRequest`.
-- [ ] 5.2 Extend `get_input_schema()` `properties` with matching `allow_edits` (boolean) and `editable_paths` (array of strings) entries.
-- [ ] 5.3 Verify: `CLinkTool().get_input_schema()["properties"]` contains both keys.
+- [x] 5.1 In `tools/clink.py`, add `allow_edits: bool = Field(default=False, description=...)` and `editable_paths: list[str] = Field(default_factory=list, description=...)` to `CLinkRequest`.
+- [x] 5.2 Extend `get_input_schema()` `properties` with matching `allow_edits` (boolean) and `editable_paths` (array of strings) entries.
+- [x] 5.3 Verify: `CLinkTool().get_input_schema()["properties"]` contains both keys.
 
 ## Task 6: Request validation and agent support check
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 3, Task 5
 - **Docs:** [implementation.md#7-validate-the-request](./implementation.md#7-validate-the-request)
 
 ### Subtasks
-- [ ] 6.1 In `execute()`, after parsing the request: if `request.editable_paths` is non-empty and `request.allow_edits` is False → `_raise_tool_error("editable_paths can only be used when allow_edits=true.")`.
-- [ ] 6.2 Add helper `_validate_editable_paths(request)` in `CLinkTool` that returns an error string for any relative path.
-- [ ] 6.3 After resolving `client_config`, look up the agent class for the selected CLI (reuse whatever `create_agent` does or expose it); if `editable_paths` is non-empty and agent `supports_path_restrictions` is False → `_raise_tool_error` naming the CLI.
-- [ ] 6.4 Verify: unit tests drive each failure path and confirm a valid Claude + absolute path + `allow_edits=True` passes.
+- [x] 6.1 In `execute()`, after parsing the request: if `request.editable_paths` is non-empty and `request.allow_edits` is False → `_raise_tool_error("editable_paths can only be used when allow_edits=true.")`.
+- [x] 6.2 Add helper `_validate_editable_paths(request)` in `CLinkTool` that returns an error string for any relative path.
+- [x] 6.3 After resolving `client_config`, look up the agent class for the selected CLI (reuse whatever `create_agent` does or expose it); if `editable_paths` is non-empty and agent `supports_path_restrictions` is False → `_raise_tool_error` naming the CLI.
+- [x] 6.4 Verify: unit tests drive each failure path and confirm a valid Claude + absolute path + `allow_edits=True` passes.
 
 ## Task 7: Wire allow_edits / editable_paths into agent.run and harden prompt
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 2, Task 5
 - **Docs:** [implementation.md#8-prompt-hardening](./implementation.md#8-prompt-hardening), [#9](./implementation.md#9-wire-the-new-fields-through-to-the-agent)
 
 ### Subtasks
-- [ ] 7.1 In `CLinkTool.execute()`, pass `allow_edits=request.allow_edits, editable_paths=request.editable_paths` into `agent.run(...)`.
-- [ ] 7.2 In `_prepare_prompt_for_role`, change the user section header from `=== USER REQUEST ===` to `=== UNTRUSTED USER REQUEST ===`.
-- [ ] 7.3 In the same function, when `request.allow_edits` is False, append an `=== EXECUTION POLICY ===` section with text instructing the CLI not to modify the filesystem.
-- [ ] 7.4 Verify: unit test asserting the new section headers and that `EXECUTION POLICY` only appears when `allow_edits=False`.
+- [x] 7.1 In `CLinkTool.execute()`, pass `allow_edits=request.allow_edits, editable_paths=request.editable_paths` into `agent.run(...)`.
+- [x] 7.2 In `_prepare_prompt_for_role`, change the user section header from `=== USER REQUEST ===` to `=== UNTRUSTED USER REQUEST ===`.
+- [x] 7.3 In the same function, when `request.allow_edits` is False, append an `=== EXECUTION POLICY ===` section with text instructing the CLI not to modify the filesystem.
+- [x] 7.4 Verify: unit test asserting the new section headers and that `EXECUTION POLICY` only appears when `allow_edits=False`.
 
 ## Task 8: Unit tests
 - **Status:** pending
