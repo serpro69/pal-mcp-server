@@ -3,9 +3,11 @@
   "command": "codex",
   "additional_args": [
     "--json",
-    "--dangerously-bypass-approvals-and-sandbox",
     "--enable",
     "web_search_request"
+  ],
+  "edit_args": [
+    "--dangerously-bypass-approvals-and-sandbox"
   ],
   "env": {},
   "roles": {
