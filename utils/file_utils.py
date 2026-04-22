@@ -161,7 +161,7 @@ def is_home_directory_root(path: Path) -> bool:
         for pattern in home_patterns:
             if pattern in path_str:
                 # Extract the user directory path
-                # e.g., /Users/fahad or /home/username
+                # e.g., /Users/<username> or /home/<username>
                 parts = path_str.split(pattern)
                 if len(parts) > 1:
                     # Get the part after the pattern

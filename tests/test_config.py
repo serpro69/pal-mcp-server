@@ -23,7 +23,7 @@ class TestConfig:
         assert len(__version__.split(".")) == 3  # Major.Minor.Patch
 
         # Check author
-        assert __author__ == "Fahad Gilani"
+        assert __author__ == "serpro69"
 
         # Check updated date exists (don't assert on specific format/value)
         assert isinstance(__updated__, str)
