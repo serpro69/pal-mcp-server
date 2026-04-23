@@ -5,6 +5,7 @@ This module contains security-related constants and configurations
 for file access control.
 """
 
+from functools import lru_cache
 from pathlib import Path
 
 # Dangerous system paths - block these AND all their subdirectories
@@ -28,8 +29,44 @@ DANGEROUS_HOME_CONTAINERS = {
     "C:\\Users",
 }
 
-# Combined set for backward compatibility
+# Sensitive subdirectories inside the user's home directory.
+# These typically contain credentials, private keys, and secrets and should
+# never be exposed to the LLM. Block the exact path AND all subdirectories,
+# resolved relative to $HOME at check time. Entries may contain '/' to
+# describe multi-component paths (e.g., '.config/gcloud').
+DANGEROUS_HOME_SUBDIRECTORIES = {
+    ".ssh",
+    ".aws",
+    ".gnupg",
+    ".kube",
+    ".azure",
+    ".docker",
+    ".config/gcloud",
+}
+
+# Combined set of absolute dangerous paths. Home subdirectories are not
+# included here — they are evaluated dynamically against $HOME in
+# is_dangerous_path() via _resolved_home_sensitive_paths().
 DANGEROUS_PATHS = DANGEROUS_SYSTEM_PATHS | DANGEROUS_HOME_CONTAINERS
+
+
+@lru_cache(maxsize=1)
+def _resolved_home_sensitive_paths() -> tuple[Path, ...]:
+    """Return the fully-resolved paths of DANGEROUS_HOME_SUBDIRECTORIES.
+
+    Resolving both sides of the comparison closes the symlink-bypass class:
+    if ``~/.ssh`` is a symlink to ``~/.dotfiles/.ssh`` (chezmoi, Stow, yadm),
+    the resolved input path must match the resolved sensitive path.
+
+    Cached for the life of the process. Tests that change $HOME must call
+    ``_resolved_home_sensitive_paths.cache_clear()`` to pick up the new value.
+    """
+    try:
+        home = Path.home().resolve()
+    except (RuntimeError, OSError):
+        return ()
+    return tuple((home / s).resolve() for s in DANGEROUS_HOME_SUBDIRECTORIES)
+
 
 # Directories to exclude from recursive file search
 # These typically contain generated code, dependencies, or build artifacts
@@ -156,6 +193,15 @@ def is_dangerous_path(path: Path) -> bool:
             for container_path in _dangerous_variants(Path(container)):
                 if resolved == container_path:
                     return True
+
+        # Check 4: Sensitive subdirectories under the user's home directory
+        # (e.g., ~/.ssh, ~/.aws, ~/.gnupg hold credentials and private keys).
+        # Both sides are resolved (see _resolved_home_sensitive_paths) so
+        # symlinked dotfile managers cannot bypass the check. Any failure
+        # falls through to the outer except, which fails closed.
+        for sensitive_path in _resolved_home_sensitive_paths():
+            if resolved.is_relative_to(sensitive_path):
+                return True
 
         return False
 
