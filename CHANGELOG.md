@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v1.1.1 (2026-04-23)
+
+### Bug Fixes
+
+- **security**: Block sensitive $HOME dotfiles from file sandbox
+  ([`4c168f4`](https://github.com/serpro69/pal-mcp-server/commit/4c168f431cf80b582093c943fbbd146e813f7285))
+
+### Chores
+
+- Sync version to config.py [skip ci]
+  ([`c9ec67b`](https://github.com/serpro69/pal-mcp-server/commit/c9ec67bb1a29992de53625c3daaf3945005f2e7e))
+
+
 ## v1.0.0 (2026-04-22)
 
 - Initial Release
