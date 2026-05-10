@@ -16,7 +16,7 @@ from utils.env import get_env
 # Semantic versioning: MAJOR.MINOR.PATCH
 __version__ = "1.1.1"
 # Last update date in ISO format
-__updated__ = "2026-04-23"
+__updated__ = "2026-05-10"
 # Primary maintainer
 __author__ = "serpro69"
 
