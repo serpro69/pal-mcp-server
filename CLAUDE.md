@@ -350,3 +350,6 @@ This guide provides everything needed to efficiently work with the PAL MCP Serve
 # capy — MANDATORY routing rules
 
 @.claude/capy/CLAUDE.md
+
+# Extra Instructions
+@.claude/CLAUDE.extra.md
