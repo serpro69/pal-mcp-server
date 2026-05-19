@@ -77,6 +77,8 @@ View the baseline OpenRouter catalogue in [`conf/openrouter_models.json`](conf/o
 
 Native catalogues (`conf/openai_models.json`, `conf/gemini_models.json`, `conf/xai_models.json`, `conf/dial_models.json`) follow the same schema. Updating those files lets you:
 
+> For a step-by-step walkthrough of adding a model to one of these native catalogues (including the alias-migration policy and which tests need updating), see [Adding Models](adding_models.md).
+
 - Expose new aliases (e.g., map `enterprise-pro` to `gpt-5.2-pro`)
 - Advertise support for JSON mode or vision if the upstream provider adds it
 - Adjust token limits when providers increase context windows
