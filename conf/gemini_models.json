@@ -72,10 +72,33 @@
       "max_image_size_mb": 32.0
     },
     {
+      "model_name": "gemini-3.5-flash",
+      "friendly_name": "Gemini Flash 3.5",
+      "aliases": [
+        "flash",
+        "flash3",
+        "flash3.5",
+        "gemini3.5"
+      ],
+      "intelligence_score": 20,
+      "description": "Frontier Flash (1M context) - Outperforms Gemini 3.1 Pro on Terminal-Bench, GDPval-AA, MCP Atlas; agentic loops, multi-step workflows, complex coding cycles",
+      "context_window": 1048576,
+      "max_output_tokens": 65536,
+      "max_thinking_tokens": 24576,
+      "supports_extended_thinking": true,
+      "supports_system_prompts": true,
+      "supports_streaming": true,
+      "supports_function_calling": true,
+      "supports_json_mode": true,
+      "supports_images": true,
+      "supports_temperature": true,
+      "allow_code_generation": true,
+      "max_image_size_mb": 20.0
+    },
+    {
       "model_name": "gemini-3-flash-preview",
       "friendly_name": "Gemini Flash 3 Preview",
       "aliases": [
-        "flash3",
         "gemini-3-flash"
       ],
       "intelligence_score": 14,
@@ -93,18 +116,19 @@
       "max_image_size_mb": 20.0
     },
     {
-      "model_name": "gemini-3.1-flash-lite-preview",
-      "friendly_name": "Gemini Flash Lite 3.1 Preview",
+      "model_name": "gemini-3.1-flash-lite",
+      "friendly_name": "Gemini Flash Lite 3.1",
       "aliases": [
         "flashlite3",
         "flash-lite-3",
-        "gemini-3.1-flash-lite"
+        "flashlite3.1"
       ],
       "intelligence_score": 11,
-      "description": "High-efficiency Flash Lite (1M context) - Fast, low-cost queries and iteration",
+      "description": "High-efficiency Flash Lite (1M context) - Low-latency, cost-effective; high-volume agentic workflows, simple extraction, translation",
       "context_window": 1048576,
       "max_output_tokens": 65536,
-      "supports_extended_thinking": false,
+      "max_thinking_tokens": 24576,
+      "supports_extended_thinking": true,
       "supports_system_prompts": true,
       "supports_streaming": true,
       "supports_function_calling": true,
@@ -198,7 +222,6 @@
       "model_name": "gemini-2.5-flash",
       "friendly_name": "Gemini (Flash 2.5)",
       "aliases": [
-        "flash",
         "flash2.5"
       ],
       "intelligence_score": 10,

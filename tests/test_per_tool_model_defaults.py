@@ -151,7 +151,13 @@ class TestModelSelection:
 
             model = ModelProviderRegistry.get_preferred_fallback_model(ToolModelCategory.FAST_RESPONSE)
             # Gemini should return one of its models for fast response
-            assert model in ["gemini-3.1-flash-lite-preview", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.5-pro"]
+            assert model in [
+                "gemini-3.5-flash",
+                "gemini-3.1-flash-lite",
+                "gemini-2.5-flash",
+                "gemini-2.0-flash",
+                "gemini-2.5-pro",
+            ]
 
     def test_balanced_category_fallback(self):
         """Test BALANCED category uses existing logic."""
@@ -180,7 +186,7 @@ class TestModelSelection:
 
             model = ModelProviderRegistry.get_preferred_fallback_model()
             # Should pick flash for balanced use
-            assert model == "gemini-3.1-flash-lite-preview"
+            assert model == "gemini-3.5-flash"
 
 
 class TestFlexibleModelSelection:
@@ -202,7 +208,7 @@ class TestFlexibleModelSelection:
                 "env": {"GEMINI_API_KEY": "test-key"},
                 "provider_type": ProviderType.GOOGLE,
                 "category": ToolModelCategory.FAST_RESPONSE,
-                "expected": "gemini-3.1-flash-lite-preview",
+                "expected": "gemini-3.5-flash",
             },
             # Case 3: OpenAI provider for fast response
             {
