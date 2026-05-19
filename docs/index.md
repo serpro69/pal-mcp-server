@@ -6,6 +6,7 @@ _Formerly known as PAL MCP. See the short [name change note](name-change.md) for
 |----------|-------------|
 | [Getting Started](getting-started.md) | Installation paths, prerequisite setup, and first-run guidance. |
 | [Adding Providers](adding_providers.md) | How to register new AI providers and advertise capabilities. |
+| [Adding Models](adding_models.md) | Workflow for adding a model to an existing native catalogue (alias migration, test updates). |
 | [Azure OpenAI](azure_openai.md) | Configure Azure deployments, capability overrides, and env mappings. |
 | [Model Ranking](model_ranking.md) | How intelligence scores translate into auto-mode ordering. |
 | [Custom Models](custom_models.md) | Configure OpenRouter/custom models and aliases. |
