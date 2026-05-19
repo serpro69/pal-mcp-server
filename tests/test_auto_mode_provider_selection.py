@@ -60,8 +60,8 @@ class TestAutoModeProviderSelection:
 
             # Should select appropriate Gemini models
             assert extended_reasoning in ["gemini-3.1-pro-preview", "gemini-3-pro-preview", "gemini-2.5-pro", "pro"]
-            assert fast_response in ["gemini-3.1-flash-lite-preview", "gemini-2.5-flash", "flash"]
-            assert balanced in ["gemini-3.1-flash-lite-preview", "gemini-2.5-flash", "flash"]
+            assert fast_response in ["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-2.5-flash", "flash"]
+            assert balanced in ["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-2.5-flash", "flash"]
 
         finally:
             # Restore original environment
@@ -142,7 +142,7 @@ class TestAutoModeProviderSelection:
             assert extended_reasoning == "gemini-3.1-pro-preview"  # Gemini 3.1 Pro Preview has higher priority now
 
             # Should prefer Gemini for fast response
-            assert fast_response == "gemini-3.1-flash-lite-preview"  # Gemini has higher priority now
+            assert fast_response == "gemini-3.5-flash"  # Gemini has higher priority now
 
         finally:
             # Restore original environment
@@ -316,7 +316,7 @@ class TestAutoModeProviderSelection:
 
             # Test that providers resolve aliases correctly
             test_cases = [
-                ("flash", ProviderType.GOOGLE, "gemini-2.5-flash"),
+                ("flash", ProviderType.GOOGLE, "gemini-3.5-flash"),
                 ("pro", ProviderType.GOOGLE, "gemini-3.1-pro-preview"),  # "pro" now resolves to gemini-3.1-pro-preview
                 ("mini", ProviderType.OPENAI, "gpt-5-mini"),  # "mini" now resolves to gpt-5-mini
                 ("o3mini", ProviderType.OPENAI, "o3-mini"),
