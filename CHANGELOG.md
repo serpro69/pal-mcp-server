@@ -2,6 +2,28 @@
 
 <!-- version list -->
 
+## v1.2.0 (2026-05-19)
+
+### Chores
+
+- Sync version to config.py [skip ci]
+  ([`72a9dad`](https://github.com/serpro69/pal-mcp-server/commit/72a9dade110e661eb11567e646e919442e5ca2f8))
+
+- Sync version to config.py [skip ci]
+  ([`062f3c6`](https://github.com/serpro69/pal-mcp-server/commit/062f3c61ecb81821ca13cf2ebaa1fff73abd0668))
+
+- Sync version to config.py [skip ci]
+  ([`1defd41`](https://github.com/serpro69/pal-mcp-server/commit/1defd41721ba7328d39f959f9fe15db908f39012))
+
+- Sync version to config.py [skip ci]
+  ([`0bc3c60`](https://github.com/serpro69/pal-mcp-server/commit/0bc3c6027d16e639e5e145d8ca59e2ef97300632))
+
+### Features
+
+- Add gemini-3.5-flash, promote 3.1-flash-lite to stable
+  ([`033bdcf`](https://github.com/serpro69/pal-mcp-server/commit/033bdcf1ceb91000011329c58a7aa3fefafe3bbd))
+
+
 ## v1.1.1 (2026-04-23)
 
 ### Bug Fixes
