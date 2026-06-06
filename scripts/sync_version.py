@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Sync version from pyproject.toml to config.py
-This script is called by GitHub Actions after semantic-release updates the version
+Called by the release workflow after bumping the version in pyproject.toml.
 """
 
 import re
