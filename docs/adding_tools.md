@@ -36,6 +36,16 @@ The base class already handles model selection (`ToolModelCategory`), conversati
 failures, retries, and serialization. Override hooks like `get_default_temperature`, `get_model_category`, or
 `format_response` only when you need behaviour different from the defaults.
 
+**File input conventions.** File parameters — `absolute_file_paths` on simple tools, `relevant_files` /
+`files_checked` on workflows — are plain `list[str]` of absolute paths, and the file pipeline keys on those path
+strings: deduplication (`filter_new_files`), conversation-memory tracking, and directory expansion (`expand_paths`)
+all assume a flat path list. When you need to attach *per-file* metadata (descriptions, intent, tags), add it as an
+**additive, path-keyed map** (e.g. `dict[str, str]`) alongside the path list — never by turning the list into
+structured objects (`list[str | {path, ...}]`), which is a breaking change that disrupts dedup, memory, and
+expansion. All embedded file content converges on `read_file_content` (`utils/file_utils.py`), so render
+presentation-only metadata in its `--- BEGIN FILE: ... ---` header rather than mutating the path lists. See the
+`per-file-descriptions` feature design (`docs/wip/` → `docs/done/` once shipped; issue #12) for a worked example.
+
 ## 3. Implementing a Simple Tool
 
 1. **Define a request model** that inherits from `tools.shared.base_models.ToolRequest` to describe the fields and
