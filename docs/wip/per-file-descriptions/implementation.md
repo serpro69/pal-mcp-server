@@ -2,188 +2,238 @@
 
 > Design: [./design.md](./design.md)
 > Tasks: [./tasks.md](./tasks.md)
-> Created: 2026-06-06
+> Created: 2026-06-06 · Revised after design review
 
-This plan assumes a skilled Python developer with **no prior context** for this codebase.
-Read [design.md](./design.md) first — it documents the verified file pipeline and the
-three resolved design decisions. All line numbers reflect `main` at writing time and may
-drift; treat them as anchors, not absolutes.
+Assumes a skilled Python developer with **no prior context** for this codebase. Read
+[design.md](./design.md) first — especially §The feed paths and §Threading matrix, which
+this plan implements. Line numbers reflect `main` at writing time and may drift; treat
+them as anchors.
 
 ## Implementation order & rationale
 
-The shared rendering core is the riskiest and most-reused piece, so it lands first
-(risk-first) and is unit-tested directly with no tool involved. The two tool families
-then wire into it independently and in parallel:
+The shared render core (incl. sanitization) is the riskiest, most-reused piece and lands
+first, unit-tested with no tool. The two request surfaces wire in parallel; the
+workflow expert-analysis paths build on the workflow surface:
 
 ```
-Task 1  shared pipeline renders descriptions  (file_utils + base_tool + the shared blurb)
-Task 2  chat (simple-tool) surface            ─┐ parallel
-Task 3  workflow-tools surface                ─┘ parallel
-Task 4  final verification
+Task 1  shared pipeline: render + sanitize + thread descriptions
+Task 2  chat (simple-tool) request surface            ─┐ parallel
+Task 3  workflow request surface + final-step embed   ─┘ + planner exclusion
+Task 4  cross-step persistence + generic expert-analysis embedding   (needs 3)
+Task 5  custom expert paths: debug + consensus                       (needs 3,4)
+Task 6  final verification
 ```
 
-Follow TDD throughout: write the failing unit test, then the change. Each task maps to
-one atomic commit. Run `./code_quality_checks.sh` (ruff/black/isort + unit tests) before
+Follow TDD; each task is one atomic commit; run `./code_quality_checks.sh` before
 finishing any task.
 
 ---
 
-## Task 1 — Shared file-content pipeline renders descriptions
+## Task 1 — Shared pipeline: render, sanitize, thread
 <a id="task-1-shared-pipeline"></a>
 
 **Files:** `utils/file_utils.py`, `tools/shared/base_tool.py`,
 `tools/shared/base_models.py`, `tests/`.
 
-This task makes the *content* pipeline description-aware end to end, independent of any
-tool. After it, calling `read_files(..., descriptions=...)` annotates headers correctly.
+1. **Sanitizer.** Add a helper (e.g. `_sanitize_file_description(text) -> str`) in
+   `utils/file_utils.py`: `strip`; collapse internal whitespace + control chars (incl.
+   `\n\r\t`) to single spaces; remove/replace `]` and the substrings `---`,
+   `--- BEGIN FILE:`, `--- END FILE:`; cap at a module constant
+   `MAX_FILE_DESCRIPTION_LEN` (e.g. 200) with an ellipsis; return `""` if empty after
+   strip.
+   → verify: unit tests — newline/tab/CR collapse to one line; `]` and `--- END FILE:`
+   are neutralized; overlong is truncated; `"   "` → `""`.
 
-### Steps
+2. **`read_file_content` renders a sanitized description.** Add keyword-only
+   `description: Optional[str] = None`. Sanitize it; if non-empty, append
+   ` [{sanitized}]` to the **successful** BEGIN-FILE header (`file_utils.py:506-510`)
+   before the closing ` ---`. Leave END and all error/not-found/too-large headers
+   unchanged. No lookup here — pure render.
+   → verify: with a description the BEGIN line contains a single-line `[...]`; with `None`
+   (or whitespace-only) the bytes equal the pre-change output; a description containing
+   `--- END FILE:` cannot introduce a second boundary token.
 
-1. **`read_file_content` — render an optional description.** Add a keyword-only
-   `description: Optional[str] = None` parameter. When it is a non-empty string, append
-   ` [{description}]` to the **successful** BEGIN-FILE header (`file_utils.py:506-510`),
-   immediately before the closing ` ---`. Leave the END-FILE line and all error / not-
-   found / too-large headers unchanged. `read_file_content` performs **no lookup** — it
-   renders exactly the string it is given.
-   → verify: unit test — with a description the BEGIN line contains `[...]`; with `None`
-   the returned bytes equal the pre-change output for the same file.
-
-2. **`read_files` — accept and apply a descriptions map.** Add keyword-only
-   `descriptions: Optional[dict[str, str]] = None`. Before the read loop
-   (`file_utils.py:586`), build a normalized lookup: for each `(key, text)` resolve the
-   key with `os.path.expanduser` then `resolve_and_validate_path` (the same calls
-   `expand_paths` uses, `file_utils.py:351`); drop keys that fail resolution; store
-   `str(resolved) -> text`. Inside the loop (`file_utils.py:588`), compute each file's
-   description via: (a) direct hit on the file's resolved path, else (b) the **deepest
-   ancestor directory** key (ancestor test must check a path-separator boundary, e.g.
-   compare against `key + os.sep`, not a bare `startswith`). Pass the result as
+3. **`read_files` accepts and matches a descriptions map.** Add keyword-only
+   `descriptions: Optional[dict[str, str]] = None`. Before the loop (`file_utils.py:586`)
+   build `resolved_key -> text` via `os.path.expanduser` + `resolve_and_validate_path`
+   (drop unresolvable). In the loop (`file_utils.py:588`) resolve each file's description:
+   direct hit, else deepest ancestor-directory key (separator-boundary test); pass as
    `description=` to `read_file_content` (`file_utils.py:594`).
-   → verify: unit tests — (i) per-file map annotates the matching file only; (ii) a
-   directory key annotates every expanded child; (iii) a child's own key overrides the
-   inherited directory key; (iv) a `~`-prefixed and a `..`-containing key both match
-   their resolved targets.
+   → verify: per-file map annotates only the match; directory key annotates every child;
+   child key overrides inherited dir key; `~`- and `..`-keys match resolved targets.
 
-3. **Token accounting — confirm, don't add logic.** The header is built before
-   `estimate_tokens(formatted)` (`file_utils.py:511`), so description text is already
-   counted.
-   → verify: unit test — `read_file_content` token count for a file with a long
-   description is strictly greater than for the same file with `description=None`.
+4. **Token accounting — confirm.** Header built before `estimate_tokens`
+   (`file_utils.py:511`).
+   → verify: token count for a file with a long description > same file with `None`.
 
-4. **`_prepare_file_content_for_prompt` — thread the map through.** Add keyword-only
-   `descriptions: Optional[dict[str, str]] = None` to the signature
-   (`base_tool.py:999-1009`) and forward it into the `read_files(...)` call
-   (`base_tool.py:1108`). No other behaviour changes; filtering/expansion/dedup stay as
-   is.
-   → verify: unit test calling `_prepare_file_content_for_prompt` with a descriptions map
-   produces annotated content; calling it without the kwarg is unchanged.
+5. **`_prepare_file_content_for_prompt` threads the map.** Add keyword-only
+   `descriptions: Optional[dict[str, str]] = None` (`base_tool.py:999-1009`); forward into
+   the `read_files(...)` call (`base_tool.py:1108`). No other behaviour change.
+   → verify: pass-through test (annotated when supplied; unchanged when omitted).
 
-5. **Shared field-description constant.** Add `COMMON_FIELD_DESCRIPTIONS["file_descriptions"]`
-   (`base_models.py:22`) — a concise blurb explaining the optional absolute-path→intent
-   map and that descriptions render in each file's header. Both family schemas (Tasks 2
-   and 3) reference this single constant.
-   → verify: import succeeds; constant is referenced by the schema entries added later.
+6. **Shared blurb.** Add `COMMON_FIELD_DESCRIPTIONS["file_descriptions"]`
+   (`base_models.py:22`): optional absolute-path→intent map; rendered in each embedded
+   file's header; applies to embedded files only.
+   → verify: import succeeds; referenced by schema entries in Tasks 2-3.
 
 ---
 
-## Task 2 — Chat (simple-tool) surface
+## Task 2 — Chat (simple-tool) request surface
 <a id="task-2-chat-surface"></a>
 
 **Files:** `tools/shared/schema_builders.py`, `tools/chat.py`, `tools/simple/base.py`,
 `tests/`. **Depends on Task 1.** Parallel with Task 3.
 
-### Steps
+1. **Simple schema entry (forward-looking).** Add `file_descriptions` to
+   `SchemaBuilder.SIMPLE_FIELD_SCHEMAS` (`schema_builders.py:47`): `object`,
+   `additionalProperties: {"type": "string"}`, description from the shared blurb. Note: no
+   current simple tool calls `build_schema`, so this is inert today (design D5) — `chat`'s
+   field is surfaced by step 3 below. Kept for consistency/future tools.
+   → verify: `SchemaBuilder.build_schema()` output contains `file_descriptions`.
 
-1. **Simple schema entry.** Add a `file_descriptions` entry to
-   `SchemaBuilder.SIMPLE_FIELD_SCHEMAS` (`schema_builders.py:47`): JSON type `object`,
-   `additionalProperties: {"type": "string"}`, description from
-   `COMMON_FIELD_DESCRIPTIONS["file_descriptions"]`. This serves current/future simple
-   tools built via `SchemaBuilder.build_schema`.
-   → verify: `SchemaBuilder.build_schema()` output contains `file_descriptions` next to
-   `absolute_file_paths`.
+2. **`ChatRequest` field + validator.** In `tools/chat.py` add
+   `file_descriptions: Optional[dict[str, str]] = Field(default_factory=dict,
+   description=COMMON_FIELD_DESCRIPTIONS["file_descriptions"])` (the explicit default is
+   required — Pydantic 2). Add a **separate** `@field_validator("file_descriptions",
+   mode="before")` that coerces non-dict → `{}` and, within a dict, `str()`-coerces values
+   and drops `None`. Do **not** touch any list validator.
+   → verify: dict kept; string → `{}`; `{"p": 1}` → `{"p": "1"}`; `{"p": None}` dropped.
 
-2. **`ChatRequest` field + validator.** Add `file_descriptions: Optional[dict[str, str]]`
-   to `ChatRequest` (`chat.py:42`). Add a `mode="before"` field validator that coerces a
-   non-dict value to `{}` (mirror `convert_string_to_list`, `base_models.py:126`).
-   → verify: constructing `ChatRequest` with a dict keeps it; with a string yields `{}`.
-
-3. **Chat hand-built schema.** Add the same `file_descriptions` property to **both**
-   `get_input_schema` (`chat.py:117-154`, beside `absolute_file_paths` at `chat.py:124`)
-   and `get_tool_fields` (`chat.py:164-183`).
+3. **Chat hand-built schema.** Add the `file_descriptions` property to **both**
+   `get_input_schema` (`chat.py:117`, beside `absolute_file_paths` at `chat.py:124`) and
+   `get_tool_fields` (`chat.py:164`).
    → verify: `ChatTool().get_input_schema()["properties"]` contains `file_descriptions`.
 
 4. **Accessor.** Add `get_request_file_descriptions(request) -> dict[str, str]` to
-   `SimpleTool` (`tools/simple/base.py`, beside `get_request_files` at `base.py:232`),
-   returning `getattr(request, "file_descriptions", None) or {}`.
-   → verify: unit test returns the dict for a populated request and `{}` for a request
-   without the attribute.
+   `SimpleTool` (beside `get_request_files`, `simple/base.py:232`):
+   `getattr(request, "file_descriptions", None) or {}`.
+   → verify: returns the map for a populated request, `{}` otherwise.
 
-5. **Thread into the prompt build.** In `build_standard_prompt`
-   (`tools/simple/base.py:780`), fetch the map and pass it to
-   `_prepare_file_content_for_prompt` (the call at `base.py:808`) as `descriptions=...`.
-   → verify: unit/integration test — a `chat` request with `file_descriptions` produces
-   an embedded BEGIN-FILE header containing the annotation; without it, output unchanged.
+5. **Thread into the prompt build.** In `build_standard_prompt` (`simple/base.py:780`)
+   pass `descriptions=self.get_request_file_descriptions(request)` into
+   `_prepare_file_content_for_prompt` (`base.py:808`).
+   → verify: a `chat` request with `file_descriptions` yields an annotated BEGIN-FILE
+   header; without it, output unchanged.
 
 ---
 
-## Task 3 — Workflow-tools surface
+## Task 3 — Workflow request surface + final-step embed
 <a id="task-3-workflow-surface"></a>
 
 **Files:** `tools/shared/base_models.py`, `tools/workflow/schema_builders.py`,
-`tools/workflow/workflow_mixin.py`, `tests/`. **Depends on Task 1.** Parallel with Task 2.
-
-### Steps
+`tools/workflow/workflow_mixin.py`, `tools/planner.py`, `tests/`.
+**Depends on Task 1.** Parallel with Task 2.
 
 1. **`WorkflowRequest` field + validator.** Add
-   `file_descriptions: Optional[dict[str, str]]` to `WorkflowRequest`
-   (`base_models.py:96`). Extend the graceful-coercion validator so a non-dict
-   `file_descriptions` becomes `{}` (the existing `convert_string_to_list` at
-   `base_models.py:126` only covers the list fields; add dict handling — either a second
-   `mode="before"` validator for this field or a combined one).
-   → verify: constructing `WorkflowRequest` (minimal required fields) with a dict keeps
-   it; with a non-dict yields `{}`.
+   `file_descriptions: Optional[dict[str, str]] = Field(default_factory=dict, ...)`
+   (`base_models.py:96`). Add a **separate** `@field_validator("file_descriptions",
+   mode="before")` (same coercion as Task 2.2). **Do not** append the field to
+   `convert_string_to_list` (`base_models.py:126`) — it returns `[]`.
+   → verify: dict kept; non-dict → `{}`; value coercion as in Task 2.2.
 
-2. **Workflow schema entry.** Add a `file_descriptions` entry to
+2. **Workflow schema entry.** Add `file_descriptions` to
    `WorkflowSchemaBuilder.WORKFLOW_FIELD_SCHEMAS` (`schema_builders.py:23`), same shape as
-   in Task 2, description from `COMMON_FIELD_DESCRIPTIONS["file_descriptions"]`. It is
-   auto-merged into every workflow tool's schema by `build_schema` (`schema_builders.py:111`).
-   → verify: a workflow tool's `get_input_schema()` contains `file_descriptions`.
+   Task 2.1; auto-merged by `build_schema:111`.
+   → verify: a normal workflow tool's `get_input_schema()` contains `file_descriptions`.
 
-3. **Accessor.** Add `get_request_file_descriptions(request) -> dict[str, str]` to the
-   workflow mixin (`tools/workflow/workflow_mixin.py`, beside `get_request_relevant_files`
-   at `workflow_mixin.py:969`).
-   → verify: unit test returns the map for a populated request, `{}` otherwise.
+3. **planner exclusion.** Add `"file_descriptions"` to `planner.py`'s
+   `excluded_workflow_fields` list (`planner.py:205`), alongside `relevant_files` /
+   `files_checked`.
+   → verify: `PlannerTool().get_input_schema()["properties"]` does **not** contain
+   `file_descriptions`.
 
-4. **Thread into embedding.** In `_embed_workflow_files` (`workflow_mixin.py:511`), fetch
-   the map and pass `descriptions=...` to `_prepare_file_content_for_prompt` (the call at
-   `workflow_mixin.py:544`). Keys are matched against `relevant_files`/`files_checked`
-   paths by the shared normalization from Task 1 — no per-list logic needed.
-   → verify: test — a workflow tool's **final step** (`next_step_required=False`, so
-   `_should_embed_files_in_workflow_step` returns True, `workflow_mixin.py:481`) with
-   `file_descriptions` embeds annotated headers; intermediate steps and absent map are
-   unchanged.
+4. **Accessor.** Add `get_request_file_descriptions(request) -> dict[str, str]` to the
+   workflow mixin (beside `get_request_relevant_files`, `workflow_mixin.py:969`).
+   → verify: returns the map / `{}`.
+
+5. **Thread into final-step embed.** In `_embed_workflow_files` (`workflow_mixin.py:511`)
+   pass `descriptions=self.get_request_file_descriptions(request)` into
+   `_prepare_file_content_for_prompt` (`workflow_mixin.py:544`).
+   → verify: a workflow tool's final step (`next_step_required=False`) with
+   `file_descriptions` produces annotated headers in the embedded content; intermediate
+   steps and absent map unchanged.
 
 ---
 
-## Task 4 — Final verification
-<a id="task-4-verification"></a>
+## Task 4 — Cross-step persistence + generic expert-analysis embedding
+<a id="task-4-expert-analysis"></a>
 
-**Depends on Tasks 1-3.** Runs the project quality gates and the design-conformance
-reviews. The optional simulator test (see design.md §Testing strategy) is a deferred
-follow-up, not a gate here.
+**Files:** `tools/shared/base_models.py`, `tools/workflow/workflow_mixin.py`, `tests/`.
+**Depends on Tasks 1, 3.**
+
+This is the path that produces the prompt sent to the **assistant/expert model** for most
+workflow tools — the original draft missed it.
+
+1. **Consolidate descriptions.** Add
+   `file_descriptions: dict[str, str] = Field(default_factory=dict)` to
+   `ConsolidatedFindings` (`base_models.py:136`). In `_update_consolidated_findings`
+   (`workflow_mixin.py:1369`) add
+   `self.consolidated_findings.file_descriptions.update(step_data.get("file_descriptions", {}))`.
+   **Carry `file_descriptions` in `step_data` via a single call-site injection**, NOT via
+   `prepare_step_data`: in `execute_workflow` (`workflow_mixin.py:705`), immediately after
+   `step_data = self.prepare_step_data(request)` and before `self.work_history.append(...)`,
+   add `step_data["file_descriptions"] = self.get_request_file_descriptions(request)`.
+   Rationale: all 11 workflow tools override `prepare_step_data` from scratch (no `super()`),
+   and `consolidated_findings` is rebuilt from `work_history` `step_data` on continuation
+   (`_reprocess_consolidated_findings`, `workflow_mixin.py:1391`) — so the value must be in
+   `step_data` (persisted in history) and injecting at the one call site covers every tool.
+   → verify: after a 2-step continuation run where step 1 supplies a description, the value
+   is present in `consolidated_findings.file_descriptions` on step 2 (i.e. it survived the
+   `work_history` rebuild), and a later step's value overrides an earlier one.
+
+2. **Thread into force-embed.** Add keyword-only
+   `descriptions: Optional[dict[str, str]] = None` to
+   `_force_embed_files_for_expert_analysis` (`workflow_mixin.py:375`) and pass it into the
+   `read_files(...)` call (`workflow_mixin.py:409`). In `_prepare_files_for_expert_analysis`
+   (`workflow_mixin.py:312`) pass `descriptions=self.consolidated_findings.file_descriptions`.
+   → verify: a multi-step workflow whose step-1 `relevant_files` carry descriptions
+   produces annotated headers in the expert-analysis file content.
+
+3. **Note on history-sourced files.** Files added from conversation history
+   (`workflow_mixin.py:345`) will not have descriptions (not persisted in conversation
+   memory — see design §Not Doing). No code change; covered by a comment at the call site.
+   → verify: documented; no annotation expected for history-only files (assert in test).
+
+---
+
+## Task 5 — Custom expert paths: debug + consensus
+<a id="task-5-custom-paths"></a>
+
+**Files:** `tools/debug.py`, `tools/consensus.py`, `tests/`.
+**Depends on Tasks 1, 3, 4.**
+
+1. **debug.** In `_prepare_expert_analysis_context` (`debug.py:316`) pass
+   `descriptions=consolidated_findings.file_descriptions` into the
+   `_prepare_file_content_for_prompt` call (`debug.py:317`).
+   → verify: a debug workflow with described `relevant_files` annotates the
+   `=== ESSENTIAL FILES FOR DEBUGGING ===` block.
+
+2. **consensus.** In `_consult_model` (`consensus.py:574`) pass
+   `descriptions=self.get_request_file_descriptions(request)` into the
+   `_prepare_file_content_for_prompt` call (`consensus.py:594`). Consensus uses
+   `request.relevant_files` (request-level, not consolidated), so use the request map.
+   → verify: a consensus request with described `relevant_files` annotates the context
+   files sent to each model.
+
+---
+
+## Task 6 — Final verification
+<a id="task-6-verification"></a>
+
+**Depends on Tasks 1-5.** Quality gates + design-conformance reviews. Optional simulator
+test (design §Testing strategy) remains a deferred follow-up, not a gate.
 
 ---
 
 ## Assumptions (carried from design)
 
-- **A1:** in-scope tools embed via `read_file_content` (verified: chat + workflow; clink
-  excluded).
-- **A2:** resolving keys identically to paths makes them match post-expansion; otherwise
-  annotations drop silently (guarded by a normalization test).
-- **A3:** a file's own key overrides an inherited directory key.
-- **A4:** appending ` [desc]` to the header breaks no existing BEGIN-FILE consumer.
+A1 (corrected): five feed paths, all converging on `read_file_content`; A2: key resolution
+matches post-expansion paths; A3: own key > inherited dir key, later step > earlier step;
+A4: sanitized single-line header breaks no consumer. Full text in
+[design.md §Assumptions](./design.md#assumptions).
 
 ## Not Doing (carried from design)
 
-Structured file objects; image descriptions; clink support; workflow `file_context`
-response-block / reference-only-step rendering; annotating error/not-found/too-large
-headers. Rationale per [design.md §Not Doing](./design.md#not-doing).
+Structured file objects; image descriptions; clink support; cross-continuation /
+conversation-memory description persistence; describe-as-unit; error-header annotation.
+Rationale: [design.md §Not Doing](./design.md#not-doing).
