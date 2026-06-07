@@ -50,6 +50,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements-dev.txt
 
+      - name: Check lock file freshness
+        run: |
+          pip-compile --strip-extras --quiet pyproject.toml -o requirements.txt
+          pip-compile --strip-extras --quiet requirements-dev.in -o requirements-dev.txt
+          git diff --exit-code requirements.txt requirements-dev.txt
+
       - name: Run black formatter check
         run: black --check . --exclude="test_simulation_files/"
 

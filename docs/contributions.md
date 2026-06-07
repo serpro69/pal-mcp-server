@@ -17,7 +17,7 @@ Thank you for your interest in contributing to PAL MCP Server! This guide will h
 
 ## Development Process
 
-### 1. Code Quality Standards
+### Code Quality Standards
 
 We maintain high code quality standards. **All contributions must pass our automated checks**.
 
@@ -70,7 +70,7 @@ python communication_simulator_test.py
 - Import sorting must be correct
 - Tests failing in GitHub Actions will result in PR rejection
 
-### 2. Testing Requirements
+### Testing Requirements
 
 #### When to Add Tests
 
@@ -91,7 +91,24 @@ python communication_simulator_test.py
 - Unit tests: `test_<feature>_<scenario>.py`
 - Simulator tests: `test_<tool>_<behavior>.py`
 
-### 3. Pull Request Process
+### Managing Dependencies
+
+Dependencies are pinned with `pip-compile` ([pip-tools](https://pip-tools.readthedocs.io/)). Never edit `requirements.txt` or `requirements-dev.txt` directly — they are generated.
+
+**To add or update a runtime dependency:**
+1. Edit `pyproject.toml` under `[project] dependencies`
+2. Run: `pip-compile --strip-extras pyproject.toml -o requirements.txt`
+3. Run: `pip-compile --strip-extras requirements-dev.in -o requirements-dev.txt` (dev deps are constrained against runtime pins)
+4. Commit all three files together
+
+**To add or update a dev dependency:**
+1. Edit `requirements-dev.in`
+2. Run: `pip-compile --strip-extras requirements-dev.in -o requirements-dev.txt`
+3. Commit both files together
+
+CI verifies lock file freshness — the build will fail if lock files are out of sync with their source files.
+
+### Pull Request Process
 
 #### PR Title Format
 
@@ -128,7 +145,7 @@ Use our [PR template](../.github/pull_request_template.md) and ensure:
 - [ ] Relevant simulator tests passing (if tool changes)
 - [ ] Ready for review
 
-### 4. Code Style Guidelines
+### Code Style Guidelines
 
 #### Python Code Style
 - Follow PEP 8 with Black formatting
@@ -164,7 +181,7 @@ Imports must be organized by isort into these groups:
 2. Third-party imports
 3. Local application imports
 
-### 5. Specific Contribution Types
+### Specific Contribution Types
 
 #### Adding a New Provider
 See our detailed guide: [Adding a New Provider](./adding_providers.md)
@@ -178,7 +195,7 @@ See our detailed guide: [Adding a New Tool](./adding_tools.md)
 3. Update documentation if behavior changes
 4. Add simulator tests for new functionality
 
-### 6. Documentation Standards
+### Documentation Standards
 
 - Update README.md for user-facing changes
 - Add docstrings to all new code
@@ -186,7 +203,7 @@ See our detailed guide: [Adding a New Tool](./adding_tools.md)
 - Include examples for new features
 - Keep documentation concise and clear
 
-### 7. Commit Message Guidelines
+### Commit Message Guidelines
 
 Write clear, descriptive commit messages:
 - First line: Brief summary (50 chars or less)
