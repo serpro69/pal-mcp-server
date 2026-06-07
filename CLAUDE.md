@@ -339,6 +339,31 @@ isort --check-only .
 - `systemprompts/` - System prompt definitions
 - `logs/` - Server log files
 
+### Dependency Management
+
+Dependencies are pinned using [pip-tools](https://pip-tools.readthedocs.io/). Abstract constraints live in source files; `pip-compile` resolves them into pinned lock files.
+
+| Source (edit this)       | Lock file (generated)    |
+|--------------------------|--------------------------|
+| `pyproject.toml`         | `requirements.txt`       |
+| `requirements-dev.in`    | `requirements-dev.txt`   |
+
+Dev deps are constrained against runtime pins (`-c requirements.txt` in `requirements-dev.in`) to prevent version divergence.
+
+```bash
+# Add or update a runtime dependency: edit pyproject.toml [project] dependencies, then:
+pip-compile --strip-extras pyproject.toml -o requirements.txt
+
+# Add or update a dev dependency: edit requirements-dev.in, then:
+pip-compile --strip-extras requirements-dev.in -o requirements-dev.txt
+
+# Upgrade all pinned versions to latest:
+pip-compile --upgrade --strip-extras pyproject.toml -o requirements.txt
+pip-compile --upgrade --strip-extras requirements-dev.in -o requirements-dev.txt
+```
+
+**CI enforces freshness**: the lint job recompiles and diffs — if lock files are stale, the build fails.
+
 ### Environment Requirements
 
 - Python 3.9+ with virtual environment
