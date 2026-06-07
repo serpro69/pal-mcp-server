@@ -26,11 +26,19 @@ jobs:
     concurrency: release
 
     steps:
+      - name: Generate GitHub App Token
+        id: app-token
+        if: ${{ vars.CLAUDE_TOOLBOX_APP_ID != '' || vars.JEAN_CLAWDER_APP_ID != '' }}
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.CLAUDE_TOOLBOX_APP_ID || vars.JEAN_CLAWDER_APP_ID }}
+          private-key: ${{ secrets.CLAUDE_TOOLBOX_APP_KEY || secrets.JEAN_CLAWDER_APP_KEY }}
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ steps.app-token.outputs.token || github.token }}
           persist-credentials: true
 
       - name: Setup Python
@@ -85,21 +93,25 @@ jobs:
       - name: Commit, tag, and push
         if: ${{ !inputs.dry_run }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          BOT_USER="${BOT_SLUG}[bot]"
+          git config --local user.name "${BOT_USER}"
+          git config --local user.email "${BOT_USER}@users.noreply.github.com"
           git add pyproject.toml config.py
           git commit -m "Release v${{ steps.version.outputs.next }}"
           git tag "v${{ steps.version.outputs.next }}"
           git push origin main --tags
+        env:
+          BOT_SLUG: ${{ steps.app-token.outputs.app-slug }}
 
       - name: Create GitHub release
         if: ${{ !inputs.dry_run }}
         run: |
           gh release create "v${{ steps.version.outputs.next }}" dist/* \
             --title "v${{ steps.version.outputs.next }}" \
-            --generate-notes
+            --generate-notes \
+            --verify-tag
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
 
       - name: Dry run summary
         if: ${{ inputs.dry_run }}
