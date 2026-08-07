@@ -4,7 +4,10 @@ version = "1.2.0"
 description = "AI-powered MCP server with multiple model providers"
 requires-python = ">=3.9"
 dependencies = [
-    "mcp>=1.0.0",
+    # Capped below 2.0: the SDK's 2.0 release removed the lowlevel Server
+    # decorator API (@server.list_tools() etc.) that server.py is built on.
+    # Lifting the cap requires migrating to the 2.x handler API first.
+    "mcp>=1.0.0,<2.0.0",
     "google-genai>=1.19.0",
     "openai>=2.0.0",
     "pydantic>=2.0.0",
