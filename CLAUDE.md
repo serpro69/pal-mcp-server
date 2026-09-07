@@ -376,5 +376,6 @@ This guide provides everything needed to efficiently work with the PAL MCP Serve
 
 @.claude/capy/CLAUDE.md
 
-# Extra Instructions
+
 @.claude/CLAUDE.extra.md
+@.claude/toolbox/CLAUDE.md
