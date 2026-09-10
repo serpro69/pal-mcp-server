@@ -91,7 +91,7 @@
 
 ### Subtasks
 - [ ] 6.1 Run `/kk:test` — full unit suite (`pytest -m "not integration"`) + `./code_quality_checks.sh`; verify the byte-for-byte-unchanged guarantee for the no-description path and the sanitization tests pass.
-- [ ] 6.2 Run `/kk:document` — surface the new field in `docs/adding_tools.md` / tool docs if needed; move this feature dir from `docs/wip` to `docs/done` when complete.
+- [ ] 6.2 Run `/kk:document` — surface the new field in `docs/adding_tools.md` / tool docs if needed; move this feature dir from `docs/feat/wip` to `docs/feat/done` when complete.
 - [ ] 6.3 Run `/kk:review-code` with `python` as the language input.
 - [ ] 6.4 Run `/kk:review-spec` to confirm implementation matches design + implementation docs.
 

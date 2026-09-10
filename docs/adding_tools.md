@@ -44,7 +44,7 @@ all assume a flat path list. When you need to attach *per-file* metadata (descri
 structured objects (`list[str | {path, ...}]`), which is a breaking change that disrupts dedup, memory, and
 expansion. All embedded file content converges on `read_file_content` (`utils/file_utils.py`), so render
 presentation-only metadata in its `--- BEGIN FILE: ... ---` header rather than mutating the path lists. See the
-`per-file-descriptions` feature design (`docs/wip/` → `docs/done/` once shipped; issue #12) for a worked example.
+`per-file-descriptions` feature design (`docs/feat/wip/` → `docs/feat/done/` once shipped; issue #12) for a worked example.
 
 ## 3. Implementing a Simple Tool
 
