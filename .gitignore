@@ -194,3 +194,4 @@ test_simulation_files/
 !.mcp.json
 
 !.claude/settings.local.json
+!.capy/AGENTS.md
