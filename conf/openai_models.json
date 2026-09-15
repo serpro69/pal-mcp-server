@@ -363,6 +363,82 @@
       "default_reasoning_effort": "high",
       "allow_code_generation": true,
       "temperature_constraint": "fixed"
+    },
+    {
+      "model_name": "gpt-5.6-sol",
+      "friendly_name": "OpenAI (GPT-5.6 Sol)",
+      "aliases": [
+        "sol",
+        "gpt-5.6-sol",
+        "gpt5.6-sol",
+        "gpt-5.6",
+        "gpt5.6"
+      ],
+      "intelligence_score": 19,
+      "description": "GPT-5.6 Sol (1M context, 128K output) - Most capable GPT-5.6 model for complex coding, computer use, and research.",
+      "context_window": 1050000,
+      "max_output_tokens": 128000,
+      "supports_extended_thinking": true,
+      "supports_system_prompts": true,
+      "supports_streaming": true,
+      "supports_function_calling": true,
+      "supports_json_mode": true,
+      "supports_images": true,
+      "supports_temperature": true,
+      "max_image_size_mb": 20.0,
+      "use_openai_response_api": true,
+      "default_reasoning_effort": "high",
+      "allow_code_generation": true,
+      "temperature_constraint": "fixed"
+    },
+    {
+      "model_name": "gpt-5.6-terra",
+      "friendly_name": "OpenAI (GPT-5.6 Terra)",
+      "aliases": [
+        "terra",
+        "gpt-5.6-terra",
+        "gpt5.6-terra"
+      ],
+      "intelligence_score": 17,
+      "description": "GPT-5.6 Terra (1M context, 128K output) - Pragmatic all-rounder for everyday work needing strong reasoning and tool use.",
+      "context_window": 1050000,
+      "max_output_tokens": 128000,
+      "supports_extended_thinking": true,
+      "supports_system_prompts": true,
+      "supports_streaming": true,
+      "supports_function_calling": true,
+      "supports_json_mode": true,
+      "supports_images": true,
+      "supports_temperature": true,
+      "max_image_size_mb": 20.0,
+      "use_openai_response_api": true,
+      "default_reasoning_effort": "medium",
+      "allow_code_generation": true,
+      "temperature_constraint": "fixed"
+    },
+    {
+      "model_name": "gpt-5.6-luna",
+      "friendly_name": "OpenAI (GPT-5.6 Luna)",
+      "aliases": [
+        "luna",
+        "gpt-5.6-luna",
+        "gpt5.6-luna"
+      ],
+      "intelligence_score": 14,
+      "description": "GPT-5.6 Luna (1M context, 128K output) - Fast, cost-efficient model for clear, repeatable tasks: extraction, classification, structured summaries.",
+      "context_window": 1050000,
+      "max_output_tokens": 128000,
+      "supports_extended_thinking": true,
+      "supports_system_prompts": true,
+      "supports_streaming": true,
+      "supports_function_calling": true,
+      "supports_json_mode": true,
+      "supports_images": true,
+      "supports_temperature": true,
+      "max_image_size_mb": 20.0,
+      "use_openai_response_api": true,
+      "default_reasoning_effort": "low",
+      "temperature_constraint": "fixed"
     }
   ]
 }
