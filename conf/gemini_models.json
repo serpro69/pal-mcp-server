@@ -26,6 +26,74 @@
   },
   "models": [
     {
+      "model_name": "gemini-3.8-flash",
+      "friendly_name": "Gemini Flash 3.8",
+      "aliases": [
+        "flash",
+        "flash3",
+        "flash3.8",
+        "gemini3.8"
+      ],
+      "intelligence_score": 20,
+      "description": "Most intelligent Flash (1M context) - GA; long-horizon software engineering, autonomous agents, complex enterprise workflows",
+      "context_window": 1048576,
+      "max_output_tokens": 65536,
+      "max_thinking_tokens": 32768,
+      "supports_extended_thinking": true,
+      "supports_system_prompts": true,
+      "supports_streaming": true,
+      "supports_function_calling": true,
+      "supports_json_mode": true,
+      "supports_images": true,
+      "supports_temperature": true,
+      "allow_code_generation": true,
+      "max_image_size_mb": 20.0
+    },
+    {
+      "model_name": "gemini-3.7-flash",
+      "friendly_name": "Gemini Flash 3.7",
+      "aliases": [
+        "flash3.7",
+        "gemini3.7"
+      ],
+      "intelligence_score": 19,
+      "description": "Frontier Flash (1M context) - GA; agentic loops, multi-step workflows, complex coding cycles",
+      "context_window": 1048576,
+      "max_output_tokens": 65536,
+      "max_thinking_tokens": 32768,
+      "supports_extended_thinking": true,
+      "supports_system_prompts": true,
+      "supports_streaming": true,
+      "supports_function_calling": true,
+      "supports_json_mode": true,
+      "supports_images": true,
+      "supports_temperature": true,
+      "allow_code_generation": true,
+      "max_image_size_mb": 20.0
+    },
+    {
+      "model_name": "gemini-3.6-flash",
+      "friendly_name": "Gemini Flash 3.6",
+      "aliases": [
+        "flash3.6",
+        "gemini3.6"
+      ],
+      "intelligence_score": 18,
+      "description": "Frontier Flash (1M context) - GA; efficient agentic workflows and complex coding",
+      "context_window": 1048576,
+      "max_output_tokens": 65536,
+      "max_thinking_tokens": 32768,
+      "supports_extended_thinking": true,
+      "supports_system_prompts": true,
+      "supports_streaming": true,
+      "supports_function_calling": true,
+      "supports_json_mode": true,
+      "supports_images": true,
+      "supports_temperature": true,
+      "allow_code_generation": true,
+      "max_image_size_mb": 20.0
+    },
+    {
       "model_name": "gemini-3.1-pro-preview",
       "friendly_name": "Gemini Pro 3.1 Preview",
       "aliases": [
@@ -75,12 +143,10 @@
       "model_name": "gemini-3.5-flash",
       "friendly_name": "Gemini Flash 3.5",
       "aliases": [
-        "flash",
-        "flash3",
         "flash3.5",
         "gemini3.5"
       ],
-      "intelligence_score": 20,
+      "intelligence_score": 17,
       "description": "Frontier Flash (1M context) - Outperforms Gemini 3.1 Pro on Terminal-Bench, GDPval-AA, MCP Atlas; agentic loops, multi-step workflows, complex coding cycles",
       "context_window": 1048576,
       "max_output_tokens": 65536,
