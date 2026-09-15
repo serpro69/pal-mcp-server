@@ -14,10 +14,6 @@ import sys
 from pathlib import Path
 from typing import Any, Optional
 
-DEFAULT_VERSION_CHECK_URL = (
-    "https://raw.githubusercontent.com/serpro69/pal-mcp-server/main/config.py"
-)
-
 try:
     from urllib.error import HTTPError, URLError
     from urllib.request import urlopen
@@ -32,6 +28,8 @@ from config import __author__, __updated__, __version__
 from tools.models import ToolModelCategory, ToolOutput
 from tools.shared.base_models import ToolRequest
 from tools.shared.base_tool import BaseTool
+
+DEFAULT_VERSION_CHECK_URL = "https://raw.githubusercontent.com/serpro69/pal-mcp-server/main/config.py"
 
 logger = logging.getLogger(__name__)
 
@@ -272,8 +270,7 @@ class VersionTool(BaseTool):
             output_lines.append("")
             output_lines.append("ℹ️ **Remote update check disabled**")
             output_lines.append(
-                "Set `PAL_VERSION_CHECK=1` to enable (optionally override the source with "
-                "`PAL_VERSION_CHECK_URL`)."
+                "Set `PAL_VERSION_CHECK=1` to enable (optionally override the source with " "`PAL_VERSION_CHECK_URL`)."
             )
         else:
             try:

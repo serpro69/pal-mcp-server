@@ -214,16 +214,12 @@ class BaseCLIAgent:
         base.extend(self.client.config_args)
         base.extend(self.client.edit_args if allow_edits else self.client.safe_args)
         base.extend(self._extra_command_args(system_prompt=system_prompt, role=role))
-        base.extend(
-            self._build_path_restriction_args(editable_paths, allow_edits=allow_edits)
-        )
+        base.extend(self._build_path_restriction_args(editable_paths, allow_edits=allow_edits))
         base.extend(role.role_args)
 
         return base
 
-    def _extra_command_args(
-        self, *, system_prompt: str | None, role: ResolvedCLIRole
-    ) -> list[str]:
+    def _extra_command_args(self, *, system_prompt: str | None, role: ResolvedCLIRole) -> list[str]:
         """Hook for subclasses to inject agent-specific args (e.g. system prompt flags).
 
         ``role`` is passed so subclasses can dedup against ``role.role_args``
