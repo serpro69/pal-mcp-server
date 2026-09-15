@@ -128,17 +128,13 @@ def test_request_validation_editable_paths_require_allow_edits():
 
 def test_request_validation_rejects_relative_editable_paths():
     tool = CLinkTool()
-    err = tool._validate_editable_paths(
-        CLinkRequest(prompt="x", allow_edits=True, editable_paths=["relative/path"])
-    )
+    err = tool._validate_editable_paths(CLinkRequest(prompt="x", allow_edits=True, editable_paths=["relative/path"]))
     assert err and "must be absolute" in err
 
 
 def test_request_validation_accepts_absolute_editable_paths():
     tool = CLinkTool()
-    err = tool._validate_editable_paths(
-        CLinkRequest(prompt="x", allow_edits=True, editable_paths=["/tmp/a", "/tmp/b"])
-    )
+    err = tool._validate_editable_paths(CLinkRequest(prompt="x", allow_edits=True, editable_paths=["/tmp/a", "/tmp/b"]))
     assert err is None
 
 
@@ -265,9 +261,7 @@ def test_real_config_gates_dangerous_flag_on_allow_edits(cli_name, dangerous_fla
 
 def test_empty_string_editable_path_rejected():
     tool = CLinkTool()
-    err = tool._validate_editable_paths(
-        CLinkRequest(prompt="x", allow_edits=True, editable_paths=[""])
-    )
+    err = tool._validate_editable_paths(CLinkRequest(prompt="x", allow_edits=True, editable_paths=[""]))
     assert err is not None and "must not be empty" in err
 
 

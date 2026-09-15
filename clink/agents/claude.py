@@ -15,9 +15,7 @@ class ClaudeAgent(BaseCLIAgent):
 
     supports_path_restrictions = True
 
-    def _extra_command_args(
-        self, *, system_prompt: str | None, role: ResolvedCLIRole
-    ) -> list[str]:
+    def _extra_command_args(self, *, system_prompt: str | None, role: ResolvedCLIRole) -> list[str]:
         if not system_prompt:
             return []
         if any(
