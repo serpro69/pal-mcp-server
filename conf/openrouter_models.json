@@ -25,11 +25,144 @@
   },
   "models": [
     {
-      "model_name": "anthropic/claude-opus-4.5",
+      "model_name": "anthropic/claude-fable-5.1",
+      "aliases": [
+        "fable",
+        "fable5.1",
+        "claude-fable"
+      ],
+      "context_window": 1000000,
+      "max_output_tokens": 128000,
+      "supports_extended_thinking": false,
+      "supports_json_mode": false,
+      "supports_function_calling": false,
+      "supports_images": true,
+      "max_image_size_mb": 5.0,
+      "description": "Claude Fable 5.1 - Anthropic's most capable model for the most demanding reasoning and long-horizon agentic work",
+      "intelligence_score": 20
+    },
+    {
+      "model_name": "anthropic/claude-opus-4.8",
       "aliases": [
         "opus",
-        "opus4.5",
-        "claude-opus"
+        "claude-opus",
+        "opus4.8",
+        "opus-4.8"
+      ],
+      "context_window": 1000000,
+      "max_output_tokens": 128000,
+      "supports_extended_thinking": false,
+      "supports_json_mode": false,
+      "supports_function_calling": false,
+      "supports_images": true,
+      "max_image_size_mb": 5.0,
+      "description": "Claude Opus 4.8 - Anthropic's most capable generally available Opus model for complex software engineering and agentic workflows",
+      "intelligence_score": 19
+    },
+    {
+      "model_name": "anthropic/claude-opus-5",
+      "aliases": [
+        "opus5",
+        "opus-5",
+        "claude-opus-5"
+      ],
+      "context_window": 1000000,
+      "max_output_tokens": 128000,
+      "supports_extended_thinking": false,
+      "supports_json_mode": false,
+      "supports_function_calling": false,
+      "supports_images": true,
+      "max_image_size_mb": 5.0,
+      "description": "Claude Opus 5 - Frontier reasoning and coding model for long-horizon agentic work",
+      "intelligence_score": 18
+    },
+    {
+      "model_name": "anthropic/claude-opus-4.7",
+      "aliases": [
+        "opus4.7",
+        "opus-4.7"
+      ],
+      "context_window": 1000000,
+      "max_output_tokens": 128000,
+      "supports_extended_thinking": false,
+      "supports_json_mode": false,
+      "supports_function_calling": false,
+      "supports_images": true,
+      "max_image_size_mb": 5.0,
+      "description": "Claude Opus 4.7 - High-capability Opus model for coding and long-running professional tasks",
+      "intelligence_score": 17
+    },
+    {
+      "model_name": "anthropic/claude-opus-4.6",
+      "aliases": [
+        "opus4.6",
+        "opus-4.6"
+      ],
+      "context_window": 1000000,
+      "max_output_tokens": 128000,
+      "supports_extended_thinking": false,
+      "supports_json_mode": false,
+      "supports_function_calling": false,
+      "supports_images": true,
+      "max_image_size_mb": 5.0,
+      "description": "Claude Opus 4.6 - Strong model for coding, large codebases, complex refactors, and multi-step debugging",
+      "intelligence_score": 16
+    },
+    {
+      "model_name": "anthropic/claude-sonnet-5",
+      "aliases": [
+        "sonnet",
+        "sonnet5",
+        "sonnet-5",
+        "claude-sonnet-5"
+      ],
+      "context_window": 1000000,
+      "max_output_tokens": 128000,
+      "supports_extended_thinking": false,
+      "supports_json_mode": false,
+      "supports_function_calling": false,
+      "supports_images": true,
+      "max_image_size_mb": 5.0,
+      "description": "Claude Sonnet 5 - Most capable Sonnet-class model with frontier performance across coding, agents, and professional work",
+      "intelligence_score": 15
+    },
+    {
+      "model_name": "anthropic/claude-sonnet-4.6",
+      "aliases": [
+        "sonnet4.6",
+        "sonnet-4.6"
+      ],
+      "context_window": 1000000,
+      "max_output_tokens": 128000,
+      "supports_extended_thinking": false,
+      "supports_json_mode": false,
+      "supports_function_calling": false,
+      "supports_images": true,
+      "max_image_size_mb": 5.0,
+      "description": "Claude Sonnet 4.6 - High-performance Sonnet model with strong reasoning and efficiency",
+      "intelligence_score": 13
+    },
+    {
+      "model_name": "anthropic/claude-haiku-4.5",
+      "aliases": [
+        "haiku",
+        "haiku4.5",
+        "haiku-4.5"
+      ],
+      "context_window": 200000,
+      "max_output_tokens": 64000,
+      "supports_extended_thinking": false,
+      "supports_json_mode": false,
+      "supports_function_calling": false,
+      "supports_images": true,
+      "max_image_size_mb": 5.0,
+      "description": "Claude Haiku 4.5 - Fast, efficient near-frontier model for real-time and high-volume tasks",
+      "intelligence_score": 11
+    },
+    {
+      "model_name": "anthropic/claude-opus-4.5",
+      "aliases": [
+        "opus4.5"
       ],
       "context_window": 200000,
       "max_output_tokens": 64000,
@@ -39,12 +172,11 @@
       "supports_images": true,
       "max_image_size_mb": 5.0,
       "description": "Claude Opus 4.5 - Anthropic's frontier reasoning model for complex software engineering and agentic workflows",
-      "intelligence_score": 18
+      "intelligence_score": 15
     },
     {
       "model_name": "anthropic/claude-sonnet-4.5",
       "aliases": [
-        "sonnet",
         "sonnet4.5"
       ],
       "context_window": 200000,
@@ -90,7 +222,8 @@
     {
       "model_name": "anthropic/claude-3.5-haiku",
       "aliases": [
-        "haiku"
+        "haiku3.5",
+        "haiku-3.5"
       ],
       "context_window": 200000,
       "max_output_tokens": 64000,
