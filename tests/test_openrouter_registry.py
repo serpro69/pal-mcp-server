@@ -139,7 +139,7 @@ class TestOpenRouterModelRegistry:
         assert config.model_name == "anthropic/claude-opus-4.8"
         assert config.friendly_name == "OpenRouter (anthropic/claude-opus-4.8)"
         assert config.context_window == 1000000
-        assert not config.supports_extended_thinking
+        assert config.supports_extended_thinking
 
     def test_duplicate_alias_detection(self):
         """Test that duplicate aliases are detected."""
