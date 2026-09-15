@@ -352,17 +352,19 @@ Dev deps are constrained against runtime pins (`-c requirements.txt` in `require
 
 ```bash
 # Add or update a runtime dependency: edit pyproject.toml [project] dependencies, then:
-pip-compile --strip-extras pyproject.toml -o requirements.txt
+pip-compile --strip-extras --no-header pyproject.toml -o requirements.txt
 
 # Add or update a dev dependency: edit requirements-dev.in, then:
-pip-compile --strip-extras requirements-dev.in -o requirements-dev.txt
+pip-compile --strip-extras --no-header requirements-dev.in -o requirements-dev.txt
 
 # Upgrade all pinned versions to latest:
-pip-compile --upgrade --strip-extras pyproject.toml -o requirements.txt
-pip-compile --upgrade --strip-extras requirements-dev.in -o requirements-dev.txt
+pip-compile --upgrade --strip-extras --no-header pyproject.toml -o requirements.txt
+pip-compile --upgrade --strip-extras --no-header requirements-dev.in -o requirements-dev.txt
 ```
 
 **CI enforces freshness**: the lint job recompiles and diffs — if lock files are stale, the build fails.
+`--no-header` omits pip-compile's provenance header, whose recorded command line varies by
+environment (some setups inject `--no-index`) and would otherwise cause spurious diffs in CI.
 
 ### Environment Requirements
 
