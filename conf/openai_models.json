@@ -217,7 +217,6 @@
       "friendly_name": "OpenAI (GPT-5 Codex)",
       "aliases": [
         "gpt5-codex",
-        "codex",
         "gpt-5-code",
         "gpt5-code"
       ],
@@ -310,6 +309,58 @@
       "supports_images": true,
       "supports_temperature": true,
       "max_image_size_mb": 20.0,
+      "allow_code_generation": true,
+      "temperature_constraint": "fixed"
+    },
+    {
+      "model_name": "gpt-6-astra",
+      "friendly_name": "OpenAI (GPT-6 Astra)",
+      "aliases": [
+        "astra",
+        "gpt-6-astra",
+        "gpt6",
+        "gpt-6",
+        "codex"
+      ],
+      "intelligence_score": 20,
+      "description": "GPT-6 Astra (1M context, 128K output) - Frontier reasoning model; reasoning at every effort level, strong at agentic coding and software engineering.",
+      "context_window": 1050000,
+      "max_output_tokens": 128000,
+      "supports_extended_thinking": true,
+      "supports_system_prompts": true,
+      "supports_streaming": true,
+      "supports_function_calling": true,
+      "supports_json_mode": true,
+      "supports_images": true,
+      "supports_temperature": true,
+      "max_image_size_mb": 20.0,
+      "use_openai_response_api": true,
+      "default_reasoning_effort": "high",
+      "allow_code_generation": true,
+      "temperature_constraint": "fixed"
+    },
+    {
+      "model_name": "gpt-5.3-codex",
+      "friendly_name": "OpenAI (GPT-5.3 Codex)",
+      "aliases": [
+        "gpt5.3-codex",
+        "gpt-5.3-codex",
+        "codex-5.3"
+      ],
+      "intelligence_score": 19,
+      "description": "GPT-5.3 Codex (400K context, 128K output) - Agentic coding model; fast repo search, terminal use, and debugging via the Responses API.",
+      "context_window": 400000,
+      "max_output_tokens": 128000,
+      "supports_extended_thinking": true,
+      "supports_system_prompts": true,
+      "supports_streaming": false,
+      "supports_function_calling": true,
+      "supports_json_mode": true,
+      "supports_images": true,
+      "supports_temperature": true,
+      "max_image_size_mb": 20.0,
+      "use_openai_response_api": true,
+      "default_reasoning_effort": "high",
       "allow_code_generation": true,
       "temperature_constraint": "fixed"
     }
