@@ -52,8 +52,8 @@ jobs:
 
       - name: Check lock file freshness
         run: |
-          pip-compile --strip-extras --quiet pyproject.toml -o requirements.txt
-          pip-compile --strip-extras --quiet requirements-dev.in -o requirements-dev.txt
+          pip-compile --strip-extras --no-header --quiet pyproject.toml -o requirements.txt
+          pip-compile --strip-extras --no-header --quiet requirements-dev.in -o requirements-dev.txt
           git diff --exit-code requirements.txt requirements-dev.txt
 
       - name: Run black formatter check
