@@ -27,7 +27,7 @@ release:
 	echo "Invalid version bump: $(VERSION). Expected one of: major, minor, patch"
 		exit 1
 	fi
-	if [[ $(DRY_RUN) ]]; then
+	if $(DRY_RUN); then
 		gh workflow run release.yml -f bump=$(VERSION) -f dry_run=true
 	else
 		gh workflow run release.yml -f bump=$(VERSION)
