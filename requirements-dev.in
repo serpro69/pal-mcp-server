@@ -1,5 +1,7 @@
 -c requirements.txt
-pip-tools>=7.0.0
+# 7.6.1 is the first release compatible with pip>=26 (pip removed the
+# internal `stdlib_pkgs` symbol that older pip-tools imported at startup).
+pip-tools>=7.6.1
 pytest>=7.4.0
 pytest-asyncio>=0.21.0
 pytest-mock>=3.11.0
