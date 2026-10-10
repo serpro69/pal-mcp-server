@@ -373,10 +373,3 @@ environment (some setups inject `--no-index`) and would otherwise cause spurious
 - Proper API keys configured in `.env` file
 
 This guide provides everything needed to efficiently work with the PAL MCP Server codebase using Claude. Always run quality checks before and after making changes to ensure code integrity.
-
-# capy — MANDATORY routing rules
-
-@.claude/capy/CLAUDE.md
-
-@.claude/CLAUDE.extra.md
-@.claude/toolbox/CLAUDE.md
