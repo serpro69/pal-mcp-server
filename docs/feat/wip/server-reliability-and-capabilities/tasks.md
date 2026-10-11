@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Implementation: [implementation.md](implementation.md)
 > Review resolutions: [review.md](review.md#revalidation-and-resolution)
-> Status: in-progress (Tasks 1–6 done; Tasks 7–42 pending)
+> Status: in-progress (Tasks 1–7 done; Tasks 8–42 pending)
 > Created: 2026-10-10
 > Not Doing: toolchain/release-process migration; MCP 2.x; wholesale catalogs; replacement of safety controls; file-annotation implementation; persistent continuation recovery; remote multi-user transport; automatic service activation
 
@@ -143,17 +143,22 @@ unavailable; live vendor auth/native Windows remain unverified.
 
 ## Task 7: Report Gemini CLI unsupported-client failures
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 6
 - **Size:** S
 - **Can run in parallel with:** —
 - **Docs:** [Implementation slice](implementation.md#task-7); [design contract](design.md#d2-file-and-cli-boundaries)
 
-- [ ] 7.1 Recognize unsupported-client diagnostics in failure stderr, non-JSON output and empty/error JSON paths; integrate agent error recovery.
-- [ ] 7.2 Keep successful answers mentioning the marker intact, and return vendor-documented remediation without unverified account/date claims.
-- [ ] 7.3 Verify the acceptance cases in [Task 7](implementation.md#task-7) and record the result here.
+- [x] 7.1 Recognize unsupported-client diagnostics in failure stderr, non-JSON output and empty/error JSON paths; integrate agent error recovery.
+- [x] 7.2 Keep successful answers mentioning the marker intact, and return vendor-documented remediation without unverified account/date claims.
+- [x] 7.3 Verify the acceptance cases in [Task 7](implementation.md#task-7) and record the result here.
 
 **Scope / gate:** Diagnose an unsuccessful CLI invocation from its error channel or error envelope. Successful answer text alone must never trigger unsupported-client handling.
+
+**Evidence:** [Task 7 validation](validation.md#task-7-gemini-unsupported-client-diagnostics),
+2026-10-11. Focused tests: 25 passed; full quality: 1,021 passed. Isolated review
+approved after preserving unrelated errors when partial answers quote the marker.
+External PAL review and live Gemini authentication remain unavailable.
 
 ## Task 8: Make conversation storage failures explicit
 

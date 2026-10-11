@@ -1,7 +1,31 @@
-# Validation evidence: Tasks 1–6
+# Validation evidence: Tasks 1–7
 
 Recorded 2026-10-11. This covers the completed maintenance tasks below, not the
 remaining roadmap or optional live-provider behavior.
+
+## Task 7: Gemini unsupported-client diagnostics
+
+Recorded 2026-10-11. Updated the Gemini parser and agent recovery to recognize
+`UNSUPPORTED_CLIENT` in failed process output, empty/non-JSON stdout, and JSON
+error envelopes. Successful textual responses, including marker quotations and
+stale stderr diagnostics, remain intact. Non-object JSON now gives a parser error.
+The remediation points to the official [installation guide](https://geminicli.com/docs/get-started/installation/)
+and [troubleshooting guide](https://geminicli.com/docs/resources/troubleshooting/),
+checked on this date; it makes no account-eligibility or migration-date claims.
+
+- Baseline quality: **1,000 passed**, 4 skipped, 16 deselected.
+- `python -m pytest tests/test_clink_gemini_parser.py tests/test_clink_gemini_agent.py -q`:
+  **25 passed** using the locked Task 1 Python 3.10 environment.
+- `BLACK_NUM_WORKERS=1 ./code_quality_checks.sh`: **1,021 passed**, 4 skipped,
+  16 deselected, 19 subtests passed. Existing two AsyncMock warnings persist.
+  Real-child tests stall in the process sandbox; the complete run passed outside it.
+- Integration and quick simulator commands were attempted: they stop before tests
+  at the absent `.pal_venv` and interpreter-path check respectively, as in Task 4.
+  No live Gemini authentication or cassette recording was performed.
+- Isolated code review: **APPROVE** after fixing a nonzero-exit case where a
+  partial answer quoting the marker masked an unrelated error envelope. The
+  regression test preserves the real edit failure. No systemic findings to index;
+  external PAL reviewer unavailable.
 
 ## Task 1: MCP and Python compatibility
 

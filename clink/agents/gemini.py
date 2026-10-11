@@ -7,6 +7,7 @@ from typing import Any
 
 from clink.models import ResolvedCLIClient
 from clink.parsers.base import ParsedCLIResponse
+from clink.parsers.gemini import unsupported_client_response
 
 from .base import AgentOutput, BaseCLIAgent
 
@@ -27,6 +28,28 @@ class GeminiAgent(BaseCLIAgent):
         duration_seconds: float,
         output_file_content: str | None,
     ) -> AgentOutput | None:
+        # Even a failed process can emit a partial answer. Only its error envelope
+        # is diagnostic; quoting the marker in that answer must not change the cause.
+        try:
+            stdout_payload = json.loads(stdout)
+        except json.JSONDecodeError:
+            stdout_diagnostic = stdout
+        else:
+            stdout_diagnostic = json.dumps(stdout_payload.get("error")) if isinstance(stdout_payload, dict) else ""
+
+        if failure := unsupported_client_response(stderr, stdout_diagnostic):
+            failure.metadata["cli_error_recovered"] = True
+            return AgentOutput(
+                parsed=failure,
+                sanitized_command=sanitized_command,
+                returncode=returncode,
+                stdout=stdout,
+                stderr=stderr,
+                duration_seconds=duration_seconds,
+                parser_name=self._parser.name,
+                output_file_content=output_file_content,
+            )
+
         combined = "\n".join(part for part in (stderr, stdout) if part)
         if not combined:
             return None
@@ -39,6 +62,9 @@ class GeminiAgent(BaseCLIAgent):
         try:
             payload: dict[str, Any] = json.loads(json_candidate)
         except json.JSONDecodeError:
+            return None
+
+        if not isinstance(payload, dict):
             return None
 
         error_block = payload.get("error")
