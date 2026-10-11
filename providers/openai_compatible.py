@@ -411,9 +411,7 @@ class OpenAICompatibleProvider(ModelProvider):
         else:
             logging.debug(f"Omitting 'store' parameter for OpenRouter provider (model: {model_name})")
 
-        # Add max tokens if specified (using max_completion_tokens for responses endpoint)
-        if max_output_tokens:
-            completion_params["max_completion_tokens"] = max_output_tokens
+        completion_params["max_output_tokens"] = max_output_tokens
 
         # For responses endpoint, we only add parameters that are explicitly supported
         # Remove unsupported chat completion parameters that may cause API errors
@@ -439,7 +437,7 @@ class OpenAICompatibleProvider(ModelProvider):
 
             usage = None
             if hasattr(response, "usage"):
-                usage = self._extract_usage(response)
+                usage = self._extract_usage(response, responses_api=True)
             elif hasattr(response, "input_tokens") and hasattr(response, "output_tokens"):
                 input_tokens = getattr(response, "input_tokens", 0) or 0
                 output_tokens = getattr(response, "output_tokens", 0) or 0
@@ -504,12 +502,18 @@ class OpenAICompatibleProvider(ModelProvider):
         if not self.validate_model_name(model_name):
             raise ValueError(f"Model '{model_name}' not in allowed models list. Allowed models: {self.allowed_models}")
 
-        capabilities: Optional[ModelCapabilities]
-        try:
-            capabilities = self.get_capabilities(model_name)
-        except Exception as exc:
-            logging.debug(f"Falling back to generic capabilities for {model_name}: {exc}")
-            capabilities = None
+        from utils.model_context import get_request_budget
+
+        capabilities = self.get_capabilities(model_name)
+        max_output_tokens = get_request_budget(
+            self,
+            model_name,
+            prompt=prompt,
+            system_prompt=system_prompt,
+            images=images,
+            max_output_tokens=max_output_tokens,
+        ).response_tokens
+        output_parameter = self._output_token_parameter(capabilities)
 
         # Get effective temperature for this model from capabilities when available
         if capabilities:
@@ -575,10 +579,8 @@ class OpenAICompatibleProvider(ModelProvider):
         if supports_sampling:
             completion_params["temperature"] = effective_temperature
 
-        # Add max tokens if specified and model supports it
-        # O3/O4 models that don't support temperature also don't support max_tokens
-        if max_output_tokens and supports_sampling:
-            completion_params["max_tokens"] = max_output_tokens
+        if not capabilities.use_openai_response_api:
+            completion_params[output_parameter] = max_output_tokens
 
         # Add any additional OpenAI-specific parameters
         # Use capabilities to filter parameters for reasoning models
@@ -681,23 +683,33 @@ class OpenAICompatibleProvider(ModelProvider):
             # Log warning but don't fail
             logging.warning(f"Parameter validation limited for {model_name}: {e}")
 
-    def _extract_usage(self, response) -> dict[str, int]:
-        """Extract token usage from OpenAI response.
+    def _output_token_parameter(self, capabilities: ModelCapabilities) -> str:
+        """Resolve independently of temperature; reject incompatible declarations."""
+        responses = capabilities.use_openai_response_api
+        allowed = {"max_output_tokens"} if responses else {"max_tokens", "max_completion_tokens"}
+        parameter = capabilities.output_token_parameter
+        if parameter is None:
+            parameter = "max_output_tokens" if responses else "max_tokens"
+        if not isinstance(parameter, str) or parameter not in allowed:
+            raise ValueError(
+                f"Unsupported output token parameter {parameter!r} for {capabilities.model_name}; "
+                f"configure one of {sorted(allowed)}"
+            )
+        return parameter
 
-        Args:
-            response: OpenAI API response object
-
-        Returns:
-            Dictionary with usage statistics
-        """
+    def _extract_usage(self, response, *, responses_api: bool = False) -> dict[str, int]:
+        """Normalize the selected endpoint schema; unknown/malformed is not zero."""
         usage = {}
-
-        if hasattr(response, "usage") and response.usage:
-            # Safely extract token counts with None handling
-            usage["input_tokens"] = getattr(response.usage, "prompt_tokens", 0) or 0
-            usage["output_tokens"] = getattr(response.usage, "completion_tokens", 0) or 0
-            usage["total_tokens"] = getattr(response.usage, "total_tokens", 0) or 0
-
+        metadata = getattr(response, "usage", None)
+        fields = (
+            ("input_tokens", "input_tokens" if responses_api else "prompt_tokens"),
+            ("output_tokens", "output_tokens" if responses_api else "completion_tokens"),
+            ("total_tokens", "total_tokens"),
+        )
+        for target, source in fields:
+            value = getattr(metadata, source, None)
+            if type(value) is int and value >= 0:
+                usage[target] = value
         return usage
 
     def count_tokens(self, text: str, model_name: str) -> int:

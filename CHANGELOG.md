@@ -4,6 +4,13 @@
 
 ## Unreleased
 
+- Every provider request now reserves and sends the same bounded output limit.
+  Full assembled input (including system instructions and estimated image overhead)
+  must fit the remaining context. Invalid or unverified capacities fail before I/O;
+  configure explicit metadata for unknown models/deployments. Correct Responses
+  output/usage fields and DIAL reasoning-deployment limits independently of sampling.
+  Missing or malformed usage stays unknown rather than becoming zero.
+
 - Provider generation and cleanup are async-only: direct callers must await
   `generate_content()` and `aclose()`. Chat, recovery, expert and consensus calls
   await native SDK requests with yielding retries; the temporary worker adapter

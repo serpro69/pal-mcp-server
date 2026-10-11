@@ -27,6 +27,7 @@ from utils.conversation_context import (
     invocation_history,
 )
 from utils.conversation_memory import ConversationMemoryError, memory_persistence_warning
+from utils.model_context import get_request_budget
 
 
 class SimpleTool(BaseTool):
@@ -411,6 +412,9 @@ class SimpleTool(BaseTool):
             model_response = await provider.generate_content(
                 prompt=prompt,
                 model_name=self._current_model_name,
+                max_output_tokens=get_request_budget(
+                    provider, self._current_model_name, prompt=prompt, system_prompt=system_prompt, images=images
+                ).response_tokens,
                 system_prompt=system_prompt,
                 temperature=temperature,
                 thinking_mode=thinking_mode if supports_thinking else None,
@@ -468,6 +472,13 @@ class SimpleTool(BaseTool):
                             retry_response = await provider.generate_content(
                                 prompt=retry_prompt,
                                 model_name=self._current_model_name,
+                                max_output_tokens=get_request_budget(
+                                    provider,
+                                    self._current_model_name,
+                                    prompt=retry_prompt,
+                                    system_prompt=system_prompt,
+                                    images=images,
+                                ).response_tokens,
                                 system_prompt=system_prompt,
                                 temperature=temperature,
                                 thinking_mode=thinking_mode if supports_thinking else None,

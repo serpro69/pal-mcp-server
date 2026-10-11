@@ -25,7 +25,16 @@ def make_provider(kind):
     if kind == "azure":
         return (
             AzureOpenAIProvider(
-                "synthetic", azure_endpoint="https://example.openai.azure.com", deployments={"gpt-4o": "prod-gpt4o"}
+                "synthetic",
+                azure_endpoint="https://example.openai.azure.com",
+                deployments={
+                    "gpt-4o": {
+                        "deployment": "prod-gpt4o",
+                        "context_window": 128000,
+                        "max_output_tokens": 16384,
+                        "output_token_parameter": "max_completion_tokens",
+                    }
+                },
             ),
             "gpt-4o",
         )

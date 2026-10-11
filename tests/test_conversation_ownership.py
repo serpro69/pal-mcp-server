@@ -396,7 +396,7 @@ async def test_current_input_survives_history_budget_exhaustion(setup, monkeypat
     monkeypatch.setattr(
         ModelContext,
         "calculate_token_allocation",
-        lambda self: TokenAllocation(
+        lambda self, reserved_for_response=None: TokenAllocation(
             total_tokens=10000, content_tokens=9000, response_tokens=1000, file_tokens=6000, history_tokens=10
         ),
     )

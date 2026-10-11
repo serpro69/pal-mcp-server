@@ -43,7 +43,7 @@ def inject_pool(monkeypatch, transport):
         ("sonnet-4.1", "anthropic.claude-sonnet-4.1-20250805-v1:0", True),
     ],
 )
-async def test_wire_migration_baseline(monkeypatch, model, canonical, sampling):
+async def test_wire_output_limits_and_routing(monkeypatch, model, canonical, sampling):
     requests = []
 
     def handle(request):
@@ -85,7 +85,8 @@ async def test_wire_migration_baseline(monkeypatch, model, canonical, sampling):
         }
         if sampling:
             expected.update(temperature=0.4, max_tokens=32)
-        # Baseline defect: Task 20 MUST update this for no-temperature deployments.
+        else:
+            expected["max_completion_tokens"] = 32
         assert json.loads(request.content) == expected
         assert request.extensions["timeout"] == provider.timeout_config.as_dict()
         assert result.content == "réponse ✅"

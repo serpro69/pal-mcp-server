@@ -55,10 +55,10 @@ class TestOpenAICompatibleTokenUsage(unittest.TestCase):
 
         usage = self.provider._extract_usage(response)
 
-        # Should default to 0 when None
-        self.assertEqual(usage["input_tokens"], 0)
+        # Missing endpoint fields stay unknown
+        self.assertNotIn("input_tokens", usage)
         self.assertEqual(usage["output_tokens"], 50)
-        self.assertEqual(usage["total_tokens"], 0)
+        self.assertNotIn("total_tokens", usage)
 
     def test_extract_usage_with_none_completion_tokens(self):
         """Test token extraction when completion_tokens is None (regression test for bug)."""
@@ -71,9 +71,9 @@ class TestOpenAICompatibleTokenUsage(unittest.TestCase):
         usage = self.provider._extract_usage(response)
 
         self.assertEqual(usage["input_tokens"], 100)
-        # Should default to 0 when None
-        self.assertEqual(usage["output_tokens"], 0)
-        self.assertEqual(usage["total_tokens"], 0)
+        # Missing endpoint fields stay unknown
+        self.assertNotIn("output_tokens", usage)
+        self.assertNotIn("total_tokens", usage)
 
     def test_extract_usage_with_all_none_tokens(self):
         """Test token extraction when all token counts are None."""
@@ -86,9 +86,9 @@ class TestOpenAICompatibleTokenUsage(unittest.TestCase):
         usage = self.provider._extract_usage(response)
 
         # Should default to 0 for all when None
-        self.assertEqual(usage["input_tokens"], 0)
-        self.assertEqual(usage["output_tokens"], 0)
-        self.assertEqual(usage["total_tokens"], 0)
+        self.assertNotIn("input_tokens", usage)
+        self.assertNotIn("output_tokens", usage)
+        self.assertNotIn("total_tokens", usage)
 
     def test_extract_usage_without_usage(self):
         """Test token extraction when response has no usage."""

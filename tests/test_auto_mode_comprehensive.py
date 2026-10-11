@@ -11,6 +11,7 @@ from providers.openai import OpenAIModelProvider
 from providers.registry import ModelProviderRegistry
 from providers.shared import ProviderType
 from providers.xai import XAIModelProvider
+from tests.mock_helpers import create_mock_provider
 from tools.analyze import AnalyzeTool
 from tools.chat import ChatTool
 from tools.debug import DebugIssueTool
@@ -524,7 +525,7 @@ class TestAutoModeComprehensive:
             ModelProviderRegistry.register_provider(ProviderType.GOOGLE, GeminiModelProvider)
 
             # Mock the actual provider to simulate successful execution
-            mock_provider = MagicMock()
+            mock_provider = create_mock_provider()
             mock_provider.generate_content = AsyncMock()
             mock_provider.get_provider_type.return_value = ProviderType.GOOGLE
             mock_response = MagicMock()

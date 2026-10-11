@@ -37,6 +37,7 @@ from utils.conversation_memory import (
     get_thread,
     memory_persistence_warning,
 )
+from utils.model_context import get_request_budget
 
 from .workflow.base import WorkflowTool
 
@@ -645,10 +646,14 @@ of the evidence, even when it strongly points in one direction.""",
                 logger.warning(warning)
 
             # Call the model with validated temperature
+            output_limit = get_request_budget(
+                provider, model_name, prompt=prompt, system_prompt=system_prompt, images=request.images
+            ).response_tokens
             self._record_provider_attempt(model_name, provider)
             response = await provider.generate_content(
                 prompt=prompt,
                 model_name=model_name,
+                max_output_tokens=output_limit,
                 system_prompt=system_prompt,
                 temperature=validated_temperature,
                 thinking_mode="medium",

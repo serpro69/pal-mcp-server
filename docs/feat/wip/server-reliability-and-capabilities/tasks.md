@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Implementation: [implementation.md](implementation.md)
 > Review resolutions: [review.md](review.md#revalidation-and-resolution)
-> Status: in-progress (Tasks 1–19 done; Tasks 20–42 pending)
+> Status: in-progress (Tasks 1–20 done; Tasks 21–42 pending)
 > Created: 2026-10-10
 > Not Doing: toolchain/release-process migration; MCP 2.x; wholesale catalogs; replacement of safety controls; file-annotation implementation; persistent continuation recovery; remote multi-user transport; automatic service activation
 
@@ -419,19 +419,29 @@ External PAL unavailable; existing live/setup release gates remain open.
 
 ## Task 20: Enforce output limits and normalize endpoint usage
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 19
 - **Size:** M
 - **Can run in parallel with:** —
 - **Docs:** [Implementation slice](implementation.md#task-20); [design contract](design.md#d4-async-provider-lifecycle)
 
-- [ ] 20.1 Centralize the request budget in utils/model_context.py: effective output is min(verified ceiling, existing response reservation, any supplied positive caller limit); reserve and transmit the same value. Enforce context-minus-output capacity for the full assembled input, including system/image/header overhead, on primary, recovery, expert and each consensus participant. Recompute for changed model/payload and exclude withheld consensus history. Fail invalid/unknown budgets before provider I/O.
-- [ ] 20.2 Use Responses max_output_tokens and the appropriate Chat Completions field; explicitly correct providers/dial.py's separate builder to send the verified deployment limit independently of temperature support. Unknown/unsupported limit fields fail before I/O instead of omitting the limit. Parse input/output totals using each endpoint's schema, preserving absent usage as unknown.
-- [ ] 20.3 Verify reservation/wire equality, near-full input, ceilings above/below the reservation, lower caller limits, model-changing retries and heterogeneous consensus models. Establish the total-request invariant before Task 24; use synthetic boundary fixtures rather than assuming uniform endpoint overflow behavior.
-- [ ] 20.4 Verify actual serializers with fake transports for OpenAI Chat Completions/Responses, Azure, supported OpenRouter endpoint families, custom/xAI inherited paths, Gemini and DIAL sampling/non-sampling deployments including O3/O4-mini. Assert O reaches the verified field, unsupported fields fail before I/O, and routing/authentication remain intact; caller-only fake-provider tests are insufficient.
-- [ ] 20.5 Verify the acceptance cases in [Task 20](implementation.md#task-20) and record the result here.
+- [x] 20.1 Centralize the request budget in utils/model_context.py: effective output is min(verified ceiling, existing response reservation, any supplied positive caller limit); reserve and transmit the same value. Enforce context-minus-output capacity for the full assembled input, including system/image/header overhead, on primary, recovery, expert and each consensus participant. Recompute for changed model/payload and exclude withheld consensus history. Fail invalid/unknown budgets before provider I/O.
+- [x] 20.2 Use Responses max_output_tokens and the appropriate Chat Completions field; explicitly correct providers/dial.py's separate builder to send the verified deployment limit independently of temperature support. Unknown/unsupported limit fields fail before I/O instead of omitting the limit. Parse input/output totals using each endpoint's schema, preserving absent usage as unknown.
+- [x] 20.3 Verify reservation/wire equality, near-full input, ceilings above/below the reservation, lower caller limits, model-changing retries and heterogeneous consensus models. Establish the total-request invariant before Task 24; use synthetic boundary fixtures rather than assuming uniform endpoint overflow behavior.
+- [x] 20.4 Verify actual serializers with fake transports for OpenAI Chat Completions/Responses, Azure, supported OpenRouter endpoint families, custom/xAI inherited paths, Gemini and DIAL sampling/non-sampling deployments including O3/O4-mini. Assert O reaches the verified field, unsupported fields fail before I/O, and routing/authentication remain intact; caller-only fake-provider tests are insufficient.
+- [x] 20.5 Verify the acceptance cases in [Task 20](implementation.md#task-20) and record the result here.
 
 **Scope / gate:** Total input/output budget safety ships here, before Task 24. No new public output-limit field. Keep OpenRouter store omission and custom unsupported-temperature behavior; unknown usage differs from zero, while invalid/unknown capacities fail explicitly.
+
+**Execution slices:** Establish shared budget calculation/admission and mechanical
+caller propagation first. Then implement provider serialization/usage (including
+DIAL's independent builder), followed by actual SDK wire and boundary verification.
+These sequential slices form this task's single commit.
+
+**Evidence:** [Task 20 validation](validation.md#task-20-request-budgets-endpoint-limits-and-usage),
+2026-10-11. Full quality **1,310 passed**; budget/caller/serializer matrix
+**125 passed each** on Python 3.11/3.12. Isolated review approved with no findings;
+external PAL unavailable. Existing live/setup gates remain open.
 
 ## Task 21: Send valid Gemini thinking controls
 

@@ -95,6 +95,7 @@ class TestCustomOpenAITemperatureParameterFix:
                     friendly_name="Custom GPT-5",
                     context_window=400000,
                     max_output_tokens=128000,
+                    output_token_parameter="max_completion_tokens",
                     supports_extended_thinking=True,
                     supports_system_prompts=True,
                     supports_streaming=True,
@@ -113,6 +114,7 @@ class TestCustomOpenAITemperatureParameterFix:
 
                 # Override model validation to bypass restrictions
                 provider.validate_model_name = lambda name: True
+                provider.get_capabilities = lambda name: test_capabilities
 
                 # Call generate_content with custom model
                 await provider.generate_content(

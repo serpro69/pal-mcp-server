@@ -19,6 +19,7 @@ class TestGeminiTokenUsage(unittest.TestCase):
         response.usage_metadata = Mock()
         response.usage_metadata.prompt_token_count = 100
         response.usage_metadata.candidates_token_count = 50
+        response.usage_metadata.total_token_count = 150
 
         usage = self.provider._extract_usage(response)
 
@@ -83,6 +84,7 @@ class TestGeminiTokenUsage(unittest.TestCase):
         response.usage_metadata = Mock()
         response.usage_metadata.prompt_token_count = 0
         response.usage_metadata.candidates_token_count = 0
+        response.usage_metadata.total_token_count = 0
 
         usage = self.provider._extract_usage(response)
 

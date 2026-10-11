@@ -3,6 +3,72 @@
 Recorded 2026-10-11. This covers the completed maintenance tasks below, not the
 remaining roadmap or optional live-provider behavior.
 
+## Task 20: request budgets, endpoint limits and usage
+
+Recorded 2026-10-11. ModelContext calculates one output reservation as the minimum
+of the existing 40%/20% context policy, verified output ceiling and any lower
+positive caller limit. Remaining input is context minus that reservation. Each
+primary, recovery, expert and blinded consensus call forwards that value; concrete
+providers repeat admission for direct callers. The complete payload is estimated
+using UTF-8 bytes/3 rounded up, a 10% margin, 64 protocol tokens and 8,192 per image.
+This is an explicit conservative estimator policy, not vendor tokenizer precision.
+Oversized assembled input fails before I/O instead of silently dropping content.
+
+Unknown/nonpositive capacities, generic OpenRouter fallback metadata and invalid
+output-field declarations fail before client allocation. Azure fixtures now
+explicitly describe unknown deployments' capacities. No model aliases were removed;
+OpenAI O4-mini's previously missing ceiling was filled from official evidence.
+A custom registry's default Chat Completions field is an operator assertion of
+compatibility; PAL cannot discover arbitrary remote endpoint capabilities.
+
+Actual serializers now use Responses `max_output_tokens`, native OpenAI/Azure
+Chat Completions `max_completion_tokens`, and verified compatible `max_tokens`
+elsewhere. DIAL O3/O4-mini declare `max_completion_tokens` independently of their
+omitted temperature. OpenRouter Responses still omits `store`; custom temperature
+omission and routing/authentication remain intact. Responses input/output fields
+are parsed separately from Chat Completions. Invalid/absent usage remains unknown;
+Gemini uses the reported total, which can include thinking tokens.
+
+### API evidence
+
+Retained locked **openai 2.41.0**, **google-genai 2.8.0**, **httpx 0.28.1**.
+Inspected installed versioned request/response types and exercised their actual
+serializers via fake transports; Context7 had no matching OpenAI/GenAI version,
+so local locked source and official API documentation supplied exact contracts.
+
+- [OpenRouter Responses](https://openrouter.ai/docs/api/api-reference/responses/create-responses)
+  declares `max_output_tokens` and input/output usage; its
+  [Chat Completions schema](https://openrouter.ai/docs/api/api-reference/chat/send-chat-completion-request)
+  supports the compatible token field.
+- [DIAL request schema](https://github.com/epam/ai-dial-sdk/blob/development/_autodocs/api-reference/chat-completion-request.md)
+  declares both Chat Completions output fields. OpenAI's locked schema explicitly
+  excludes `max_tokens` for o-series models; DIAL's O3/O4 deployments use
+  `max_completion_tokens`.
+- [OpenAI O4-mini](https://developers.openai.com/api/docs/models/o4-mini)
+  verifies 200,000 context and 100,000 output tokens.
+- [Gemini generateContent](https://ai.google.dev/api/generate-content)
+  confirms its generation-config output field. No SDK dependency pins changed.
+
+### Verification
+
+- Full quality, locked Python 3.10.12: **1,310 passed**, 4 skipped,
+  16 deselected, 19 subtests passed; Ruff/Black/isort passed without warnings.
+- Budget/caller/provider-wire suites on Python 3.11.13 and 3.12.11:
+  **125 passed each**, with RuntimeWarnings as errors.
+- Synthetic 400,000/272,000 capacity fixture reserves/sends 80,000 and allows
+  320,000 estimated input, including system/image/protocol overhead. Tests cover
+  ceilings above/below policy, smaller caller limits, invalid metadata, boundary
+  overflow, grown recovery prompts, model-changing retries and mixed consensus
+  capacities without withheld history charges.
+- Real SDK/fake transport matrix covers native Chat/Responses, Azure deployment
+  routing, OpenRouter Chat/Responses, custom/xAI, Gemini, and DIAL sampling/O3/O4.
+  Unsupported fields fail before client allocation for every concrete family.
+- Integration/quick simulator entry points retain existing environment setup
+  blockers. No live-provider acceptance or tokenizer exactness is claimed.
+
+Independent isolated review: **APPROVE**, no findings. No systemic P0/P1
+findings to index. External PAL reviewer unavailable.
+
 ## Task 19: async-only contract and deterministic server shutdown
 
 Recorded 2026-10-11. All provider generation methods and tool callers now use
