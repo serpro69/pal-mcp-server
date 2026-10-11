@@ -80,8 +80,8 @@ class TestIntelligentFallback:
         ModelProviderRegistry.register_provider(ProviderType.OPENAI, OpenAIModelProvider)
         ModelProviderRegistry.register_provider(ProviderType.GOOGLE, GeminiModelProvider)
 
-        fallback_model = ModelProviderRegistry.get_preferred_fallback_model()
-        assert fallback_model == "gemini-2.5-flash"  # Default fallback
+        with pytest.raises(ValueError, match="No eligible models"):
+            ModelProviderRegistry.get_preferred_fallback_model()
 
     def test_available_providers_with_keys(self):
         """Test the get_available_providers_with_keys method"""

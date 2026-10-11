@@ -9,8 +9,8 @@ mix-in will take care of:
   reload support for tests).
 * Lazily exposing the registry contents through the standard provider hooks
   (:meth:`get_all_model_capabilities` and :meth:`get_model_registry`).
-* Providing defensive logging when a registry cannot be constructed so the
-  provider can degrade gracefully instead of raising during import.
+* Propagating file-naming configuration errors instead of treating broken
+  catalogs as absent provider credentials.
 
 Using this helper keeps individual provider implementations focused on their
 SDK-specific behaviour while ensuring capability loading is consistent across
@@ -53,13 +53,7 @@ class RegistryBackedProviderMixin:
         if cls._registry is not None and not force_reload:
             return
 
-        try:
-            registry = cls.REGISTRY_CLASS()
-        except Exception as exc:  # pragma: no cover - registry failures shouldn't break the provider
-            cls._registry_logger().warning("Unable to load %s registry: %s", cls.__name__, exc)
-            cls._registry = None
-            cls.MODEL_CAPABILITIES = {}
-            return
+        registry = cls.REGISTRY_CLASS()
 
         cls._registry = registry
         cls.MODEL_CAPABILITIES = dict(registry.model_map)

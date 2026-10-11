@@ -42,6 +42,7 @@ class CustomProvider(OpenAICompatibleProvider):
     )
 
     FRIENDLY_NAME = "Custom API"
+    REGISTRY_CLASS = CustomEndpointModelRegistry
 
     # Model registry for managing configurations and aliases
     _registry: CustomEndpointModelRegistry | None = None

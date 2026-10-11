@@ -3,6 +3,49 @@
 Recorded 2026-10-11. This covers the completed maintenance tasks below, not the
 remaining roadmap or optional live-provider behavior.
 
+## Task 23: Missing credentials and broken registry configuration
+
+Recorded 2026-10-11. No provider credentials now permits startup, tool listing,
+version/listmodels and provider-free planner/CLI operation. Model invocation and
+auto selection fail explicitly instead of inventing a callable fallback model.
+`RegistryConfigurationError` distinguishes missing, JSON, schema and I/O faults,
+names the relevant file and preserves the underlying cause. Startup revalidates
+catalogs, including selected files without credentials, rather than trusting an
+import-time cache. Required shipped catalogs cannot be missing/empty; default
+optional Custom/Azure catalogs may be absent or intentionally empty. Explicitly
+selected missing files always fail. Failed reloads retain the previous valid maps.
+
+Changed server startup/error paths, registry loaders/errors and propagation,
+provider registry declarations, unavailable-model messages, regressions and docs.
+No dependency changes. Context7 lacked the locked SDK version; verified error
+mapping and the connected-session helper against official
+[MCP Python SDK v1.30.0 server source](https://github.com/modelcontextprotocol/python-sdk/blob/v1.30.0/src/mcp/server/lowlevel/server.py)
+and [memory session source](https://github.com/modelcontextprotocol/python-sdk/blob/v1.30.0/src/mcp/shared/memory.py),
+plus the installed 1.30.0 source. The existing decorator maps raised tool exceptions
+to `CallToolResult(isError=True)`; no custom protocol shim was introduced.
+
+Verification:
+
+- Full quality in the locked Python 3.10 environment: **1,490 passed**, 4 skipped,
+  16 deselected, 19 subtests passed; lint/format/import checks passed.
+- Focused registry, configuration, packaging and MCP suites: **104 passed each**
+  on Python 3.11/3.12 before the final ten schema/decoder edge cases.
+- A real in-memory MCP SDK session covers discovery, successful local operations,
+  and `isError=true` for explicit and auto model requests without keys. CLI execution
+  is stubbed; no account or network service is contacted by this test.
+- Malformed JSON/schema/aliases, missing explicit/default files, unreadable files,
+  optional empty catalogs, no-key startup validation and failed reload preservation
+  have dedicated offline regressions.
+- Isolated review identified numeric overflow/decoder-limit paths bypassing the
+  typed error boundary; both now retain file context and failed-reload state.
+- External PAL review remains unavailable after Task 22's rejected API key.
+  Integration/simulator launcher prerequisites are unchanged from Task 22; their
+  live/setup gates remain open.
+
+The stricter no-model behavior exposed legacy tests using `GOOGLE_API_KEY` instead
+of the declared `GEMINI_API_KEY`; those fixtures now exercise the intended provider
+instead of passing through a hardcoded fallback.
+
 ## Task 22: Provider configuration and complete model identity
 
 Recorded 2026-10-11. Provider classes now declare setup credentials, placeholders,

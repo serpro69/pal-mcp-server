@@ -387,8 +387,7 @@ class ModelProviderRegistry:
             return first_available_model
 
         # Ultimate fallback if no providers have models
-        logging.warning("No models available from any provider, using default fallback")
-        return "gemini-2.5-flash"
+        raise ValueError("No eligible models available. Configure provider credentials and check model allowlists.")
 
     @classmethod
     def get_available_providers_with_keys(cls) -> list[ProviderType]:

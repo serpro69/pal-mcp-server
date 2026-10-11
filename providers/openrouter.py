@@ -42,6 +42,7 @@ class OpenRouterProvider(OpenAICompatibleProvider):
     )
 
     FRIENDLY_NAME = "OpenRouter"
+    REGISTRY_CLASS = OpenRouterModelRegistry
 
     # Custom headers required by OpenRouter
     DEFAULT_HEADERS = {

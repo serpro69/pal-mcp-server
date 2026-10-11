@@ -9,6 +9,8 @@ from .base import CAPABILITY_FIELD_NAMES, CapabilityModelRegistry
 class CustomEndpointModelRegistry(CapabilityModelRegistry):
     """Capability registry backed by ``conf/custom_models.json``."""
 
+    OPTIONAL = True
+
     def __init__(self, config_path: str | None = None) -> None:
         super().__init__(
             env_var_name="CUSTOM_MODELS_CONFIG_PATH",
