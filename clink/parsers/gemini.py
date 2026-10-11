@@ -8,6 +8,21 @@ from typing import Any
 from .base import BaseParser, ParsedCLIResponse, ParserError
 
 
+def unsupported_client_response(*diagnostics: str) -> ParsedCLIResponse | None:
+    """Recognize the vendor marker in failure diagnostics, never successful answers."""
+    if not any("UNSUPPORTED_CLIENT" in diagnostic for diagnostic in diagnostics):
+        return None
+    return ParsedCLIResponse(
+        content=(
+            "Gemini CLI reported UNSUPPORTED_CLIENT. Check your CLI version and update using "
+            "the instructions for your installation: https://geminicli.com/docs/get-started/installation/ . "
+            "If the error persists, follow https://geminicli.com/docs/resources/troubleshooting/ "
+            "and report the diagnostic to the Gemini CLI project."
+        ),
+        metadata={"cli_error_code": "UNSUPPORTED_CLIENT", "unsupported_client": True},
+    )
+
+
 class GeminiJSONParser(BaseParser):
     """Parse stdout produced by `gemini -o json`."""
 
@@ -15,12 +30,26 @@ class GeminiJSONParser(BaseParser):
 
     def parse(self, stdout: str, stderr: str) -> ParsedCLIResponse:
         if not stdout.strip():
+            if failure := unsupported_client_response(stderr):
+                return failure
             raise ParserError("Gemini CLI returned empty stdout while JSON output was expected")
 
         try:
             payload: dict[str, Any] = json.loads(stdout)
         except json.JSONDecodeError as exc:  # pragma: no cover - defensive logging
+            if failure := unsupported_client_response(stderr, stdout):
+                return failure
             raise ParserError(f"Failed to decode Gemini CLI JSON output: {exc}") from exc
+
+        if not isinstance(payload, dict):
+            if failure := unsupported_client_response(stderr):
+                return failure
+            raise ParserError("Gemini CLI JSON output must be an object")
+
+        if payload.get("error"):
+            if failure := unsupported_client_response(json.dumps(payload["error"]), stderr):
+                failure.metadata["raw"] = payload
+                return failure
 
         response = payload.get("response")
         response_text = response.strip() if isinstance(response, str) else ""
@@ -46,6 +75,10 @@ class GeminiJSONParser(BaseParser):
             if stderr and stderr.strip():
                 metadata["stderr"] = stderr.strip()
             return ParsedCLIResponse(content=response_text, metadata=metadata)
+
+        if failure := unsupported_client_response(stderr):
+            failure.metadata.update(metadata)
+            return failure
 
         fallback_message, extra_metadata = self._build_fallback_message(payload, stderr)
         if fallback_message:

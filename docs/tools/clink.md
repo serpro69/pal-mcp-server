@@ -131,6 +131,7 @@ then codereview to verify the implementation"
 ## Best Practices
 
 - **Pre-authenticate CLIs**: Install and configure Gemini CLI first (`npm install -g @google/gemini-cli`)
+- **Gemini `UNSUPPORTED_CLIENT`**: Failed invocations return a diagnostic with links to the vendor's [installation/update instructions](https://geminicli.com/docs/get-started/installation/) and [troubleshooting guide](https://geminicli.com/docs/resources/troubleshooting/). Check your installed version and follow those instructions; the marker alone does not establish an account-policy cause. Successful answers quoting the marker remain unchanged.
 - **Choose appropriate roles**: Use `planner` for strategy, `codereviewer` for code, `default` for general questions
 - **Leverage CLI strengths**: Gemini's 1M context for large codebases, web search for current docs
 - **Combine with PAL tools**: Chain `clink` with `planner`, `codereview`, `debug` for powerful workflows

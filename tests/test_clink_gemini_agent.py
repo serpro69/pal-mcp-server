@@ -79,3 +79,55 @@ async def test_gemini_agent_propagates_unrecoverable_error(monkeypatch, gemini_a
 
     with pytest.raises(CLIAgentError):
         await _run_agent_with_process(monkeypatch, agent, role, process)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "stdout,stderr,returncode",
+    [
+        (b"", b"Error: UNSUPPORTED_CLIENT", 41),
+        (b"Error: UNSUPPORTED_CLIENT", b"", 41),
+        (b'{"error":{"code":"UNSUPPORTED_CLIENT"}}', b"", 41),
+        (b'{"response":""}', b"UNSUPPORTED_CLIENT", 0),
+        (b"", b"UNSUPPORTED_CLIENT", 0),
+        (b"UNSUPPORTED_CLIENT", b"", 0),
+        (b'{"error":{"code":"UNSUPPORTED_CLIENT"}}', b"", 0),
+    ],
+)
+async def test_gemini_agent_reports_unsupported_client(monkeypatch, gemini_agent, stdout, stderr, returncode):
+    agent, role = gemini_agent
+    process = DummyProcess(stdout=stdout, stderr=stderr, returncode=returncode)
+    result = await _run_agent_with_process(monkeypatch, agent, role, process)
+    assert result.returncode == returncode
+    assert result.parsed.metadata["cli_error_code"] == "UNSUPPORTED_CLIENT"
+    assert "https://geminicli.com/" in result.parsed.content
+    assert result.stdout == stdout.decode()
+    assert result.stderr == stderr.decode()
+
+
+@pytest.mark.asyncio
+async def test_gemini_agent_preserves_successful_marker_quote(monkeypatch, gemini_agent):
+    agent, role = gemini_agent
+    process = DummyProcess(
+        stdout=b'{"response":"Explanation of UNSUPPORTED_CLIENT"}',
+        stderr=b"Previous attempt: UNSUPPORTED_CLIENT",
+    )
+    result = await _run_agent_with_process(monkeypatch, agent, role, process)
+    assert result.parsed.content == "Explanation of UNSUPPORTED_CLIENT"
+    assert "unsupported_client" not in result.parsed.metadata
+
+
+@pytest.mark.asyncio
+async def test_partial_answer_marker_does_not_mask_unrelated_failure(monkeypatch, gemini_agent):
+    agent, role = gemini_agent
+    process = DummyProcess(
+        stdout=(
+            b'{"response":"Explain UNSUPPORTED_CLIENT",'
+            b'"error":{"code":"edit_expected_occurrence_mismatch","message":"Failed to edit"}}'
+        ),
+        returncode=54,
+    )
+    result = await _run_agent_with_process(monkeypatch, agent, role, process)
+    assert result.parsed.metadata["cli_error_code"] == "edit_expected_occurrence_mismatch"
+    assert "Failed to edit" in result.parsed.content
+    assert "unsupported_client" not in result.parsed.metadata
