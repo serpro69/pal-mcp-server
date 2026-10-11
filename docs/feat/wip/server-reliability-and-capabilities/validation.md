@@ -3,6 +3,49 @@
 Recorded 2026-10-11. This covers the completed maintenance tasks below, not the
 remaining roadmap or optional live-provider behavior.
 
+## Task 26: Hidden catalog entries and ordered auto preferences
+
+Recorded 2026-10-11. `enabled_by_default` is a strictly validated boolean with
+backward-compatible true default. Default discovery, tool model suggestions and
+category fallback omit hidden entries and aliases. Full catalog identity and
+explicit calls retain all entries under the same allow/deny checks. Canonical
+allowlist/preference names opt hidden entries into discovery; aliases alone do
+not. Original allowlist entries are snapshotted separately from alias-resolution
+caches so validation cannot manufacture a canonical opt-in.
+
+`PREFERRED_MODELS` resolves full catalog identities in order, deduplicates by
+provider/canonical identity and skips unknown/unavailable/denied/still-hidden
+choices. The first eligible preference precedes category ranking. Complete tags
+and `:for` names survive unchanged; explicit/per-tool choices are not replaced.
+No catalog entries or dependencies were added. The existing registry field
+validator accepts the new dataclass boolean without a separate parser branch.
+
+Changed capability metadata, restriction/discovery logic, registry selection,
+mechanical provider/test-isolation wiring, offline contracts, configuration docs
+and release notes. The field is appended to preserve positional construction.
+
+Verification:
+
+- `BLACK_NUM_WORKERS=1 ./code_quality_checks.sh`, locked Python 3.10 environment
+  outside the process sandbox: **1,592 passed**, 4 skipped, 16 deselected,
+  19 subtests passed; lint, formatting and import sorting passed.
+- All auto-mode suites plus discovery/preferences, policy, aliases, listmodels
+  and dispatcher contracts: **217 passed each** on Python 3.11/3.12.
+- Fake-transport dispatcher captures verify hidden canonical/alias calls,
+  complete hidden `:for` identities, automatic preferences, explicit selection
+  preservation and deny precedence for custom, DIAL and OpenRouter serializers.
+  Other tests cover invalid boolean types, canonical-only opt-ins, provider
+  priority, unknown option suffixes, unavailable preferred providers and no
+  automatic selection from an all-hidden catalog.
+- Task 25's external PAL `API_KEY_INVALID` and integration/simulator setup
+  prerequisites remain unchanged; no optional live coverage is claimed.
+
+Independent review found a provider-routing collision when a preferred alias
+was replaced by a canonical name shared with a higher-priority provider. Selection
+now retains that alias when needed; two dispatcher captures verify the selected
+transport and wire identity, including a deny on the competing provider.
+Re-review approved with no remaining findings; the resolved P1 pattern was indexed.
+
 ## Task 25: Global model deny policy
 
 Recorded 2026-10-11. `DISABLED_MODELS` removes at most one recognized provider

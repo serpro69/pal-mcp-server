@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Implementation: [implementation.md](implementation.md)
 > Review resolutions: [review.md](review.md#revalidation-and-resolution)
-> Status: in-progress (Tasks 1–25 done; Tasks 26–42 pending)
+> Status: in-progress (Tasks 1–26 done; Tasks 27–42 pending)
 > Created: 2026-10-10
 > Not Doing: toolchain/release-process migration; MCP 2.x; wholesale catalogs; replacement of safety controls; file-annotation implementation; persistent continuation recovery; remote multi-user transport; automatic service activation
 
@@ -550,17 +550,23 @@ gates remain unavailable; configuration examples replace blocked template access
 
 ## Task 26: Add hidden catalog entries and ordered auto preferences
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 25
 - **Size:** M
 - **Can run in parallel with:** —
 - **Docs:** [Implementation slice](implementation.md#task-26); [design contract](design.md#d5-providers-and-model-policy)
 
-- [ ] 26.1 Add enabled_by_default with a backward-compatible true default; hide disabled entries/aliases from discovery while permitting exact canonical calls that pass policy.
-- [ ] 26.2 Implement ordered PREFERRED_MODELS for auto/fallback only using Task 22's complete canonical/alias identities, without invocation-only option parsing. Preserve colon-bearing IDs during canonical opt-in, deduplication and skipping unavailable/denied choices; preserve explicit/per-tool model selection.
-- [ ] 26.3 Verify the acceptance cases in [Task 26](implementation.md#task-26) and record the result here.
+- [x] 26.1 Add enabled_by_default with a backward-compatible true default; hide disabled entries/aliases from discovery while permitting exact canonical calls that pass policy.
+- [x] 26.2 Implement ordered PREFERRED_MODELS for auto/fallback only using Task 22's complete canonical/alias identities, without invocation-only option parsing. Preserve colon-bearing IDs during canonical opt-in, deduplication and skipping unavailable/denied choices; preserve explicit/per-tool model selection.
+- [x] 26.3 Verify the acceptance cases in [Task 26](implementation.md#task-26) and record the result here.
 
 **Scope / gate:** No catalog expansion lands until discovery enablement and restriction precedence work. Hidden is a discovery setting, not a security policy.
+
+**Evidence:** [Task 26 validation](validation.md#task-26-hidden-catalog-entries-and-ordered-auto-preferences),
+2026-10-11. Full quality **1,592 passed**; focused selection/identity suites
+**217 passed each** on Python 3.11/3.12. Isolated review approved after preserving
+provider routing for preference aliases with competing canonical names. Existing
+external-review/live/setup gates remain open; no catalog expansion.
 
 ## Task 27: Add reviewable model drift audit and candidate generation
 

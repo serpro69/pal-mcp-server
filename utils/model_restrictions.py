@@ -31,6 +31,7 @@ from utils.env import get_env
 
 if TYPE_CHECKING:
     from providers.base import ModelProvider
+    from providers.shared import ModelCapabilities
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +62,12 @@ class ModelRestrictionService:
         self.disabled_models: list[tuple[Optional[ProviderType], str]] = []
         self._alias_resolution_cache: dict[ProviderType, dict[str, str]] = defaultdict(dict)
         self._load_from_env()
+        # Keep operator opt-ins separate from canonical names cached by the
+        # legacy alias-aware allowlist matcher.
+        self._configured_allowlists = {kind: frozenset(names) for kind, names in self.restrictions.items()}
+        self.preferred_models = tuple(
+            entry.strip().lower() for entry in (get_env("PREFERRED_MODELS") or "").split(",") if entry.strip()
+        )
 
     def _load_from_env(self) -> None:
         """Load restrictions from environment variables."""
@@ -186,6 +193,21 @@ class ModelRestrictionService:
             if target == (resolved or entry).lower():
                 return True
         return False
+
+    def is_discoverable(self, provider: "ModelProvider", capabilities: "ModelCapabilities") -> bool:
+        """Apply discovery defaults and explicit canonical opt-ins, independently of denies."""
+        if capabilities.enabled_by_default:
+            return True
+        canonical = capabilities.model_name.lower()
+        if canonical in self._configured_allowlists.get(provider.get_provider_type(), ()):
+            return True
+        if canonical not in self.preferred_models:
+            return False
+
+        from providers.registry import ModelProviderRegistry
+
+        identity = ModelProviderRegistry.resolve_model_identity(canonical, catalog_only=True)
+        return identity is not None and identity[0] is provider and identity[1].lower() == canonical
 
     def _is_allowlisted(
         self,

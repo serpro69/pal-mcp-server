@@ -127,7 +127,9 @@ class ModelProvider(ABC):
         if restriction_service:
             allowed_configs = {}
             for model_name, config in model_configs.items():
-                if restriction_service.is_allowed(self.get_provider_type(), model_name, provider=self):
+                if restriction_service.is_allowed(
+                    self.get_provider_type(), model_name, provider=self
+                ) and restriction_service.is_discoverable(self, config):
                     allowed_configs[model_name] = config
             model_configs = allowed_configs
 

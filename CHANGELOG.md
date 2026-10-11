@@ -4,6 +4,12 @@
 
 ## Unreleased
 
+- Model catalogs support `enabled_by_default` (default true) for discovery.
+  Hidden entries remain explicitly callable under policy; canonical allowlist or
+  preference entries opt them into discovery. Ordered `PREFERRED_MODELS` takes
+  precedence over category ranking in auto/fallback selection, preserving explicit
+  choices, complete tagged identities and global denies.
+
 - Add `DISABLED_MODELS` as a global deny override for explicit calls, aliases,
   discovery and automatic fallback. Optional provider scopes preserve complete
   colon-bearing model IDs, and provider allowlists cannot override a deny.

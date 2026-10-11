@@ -116,6 +116,13 @@ def test_metadata_drives_configuration(factory, monkeypatch, isolated_provider_e
         "disabled-via-alias",
         "disabled-stance",
         "other-scope",
+        "hidden-explicit",
+        "hidden-alias",
+        "hidden-stance",
+        "preferred-auto",
+        "preference-explicit",
+        "preferred-denied",
+        "hidden-denied",
     ],
 )
 async def test_dispatch_identity_reaches_real_serializer(
@@ -137,6 +144,11 @@ async def test_dispatch_identity_reaches_real_serializer(
         }
         for name, aliases in [(canonical, ["tagged"]), ("local:for", []), ("local", [])]
     ]
+    if form.startswith("hidden") or form == "preferred-auto":
+        entries[0]["enabled_by_default"] = False
+        if form == "hidden-stance":
+            entries[1]["enabled_by_default"] = False
+            entries[1]["aliases"] = ["stance-alias"]
     path.write_text(json.dumps({"models": entries}))
     declaration = provider_configurations()[kind]
     monkeypatch.setenv(declaration.key_env, "synthetic-secret")
@@ -156,6 +168,8 @@ async def test_dispatch_identity_reaches_real_serializer(
         factory = DIALModelProvider
     if form == "denied":
         monkeypatch.setenv(declaration.restriction_env, "local")
+    elif form == "hidden-stance":
+        monkeypatch.setenv(declaration.restriction_env, "tagged,stance-alias")
     else:
         monkeypatch.setenv(declaration.restriction_env, "tagged,local:for")
     disabled = {
@@ -168,6 +182,10 @@ async def test_dispatch_identity_reaches_real_serializer(
     }
     if form in disabled:
         monkeypatch.setenv("DISABLED_MODELS", disabled[form])
+    if form in {"preferred-auto", "preference-explicit", "preferred-denied"}:
+        monkeypatch.setenv("PREFERRED_MODELS", canonical)
+    if form in {"preferred-denied", "hidden-denied"}:
+        monkeypatch.setenv("DISABLED_MODELS", canonical)
     ModelProviderRegistry.register_provider(kind, factory)
     provider = ModelProviderRegistry.get_provider(kind)
     requests = []
@@ -196,20 +214,90 @@ async def test_dispatch_identity_reaches_real_serializer(
         "disabled-via-alias": "tagged",
         "disabled-stance": "local:for",
         "other-scope": canonical,
+        "hidden-explicit": canonical,
+        "hidden-alias": "tagged",
+        "hidden-stance": "local:for",
+        "preferred-auto": "auto",
+        "preference-explicit": "local:for",
+        "preferred-denied": "auto",
+        "hidden-denied": canonical,
     }[form]
     monkeypatch.setenv("PAL_WORKSPACE_ROOT", str(tmp_path))
     args = {"model": requested, "prompt": "hello", "working_directory_absolute_path": str(tmp_path)}
     try:
-        if form in {"unknown", "denied"} or form.startswith("disabled"):
+        if form in {"unknown", "denied", "hidden-denied"} or form.startswith("disabled"):
             with pytest.raises(ToolExecutionError):
                 await server.handle_call_tool("chat", args)
             assert not requests
         else:
             await server.handle_call_tool("chat", args)
             assert len(requests) == 1
-            expected = "local:for" if form == "stance-name" else canonical
+            expected = (
+                "local:for"
+                if form in {"stance-name", "hidden-stance", "preference-explicit", "preferred-denied"}
+                else canonical
+            )
             assert json.loads(requests[0].content)["model"] == expected
             assert ModelProviderRegistry.resolve_model_identity(expected) == (provider, expected)
-            assert expected in ModelProviderRegistry.get_available_models()
+            if form.startswith("hidden"):
+                assert expected not in ModelProviderRegistry.get_available_models()
+            else:
+                assert expected in ModelProviderRegistry.get_available_models()
     finally:
         await provider.aclose()
+
+
+@pytest.mark.parametrize("deny_higher_priority", [False, True])
+async def test_preferred_alias_retains_provider_when_canonical_names_collide(
+    monkeypatch, tmp_path, isolated_provider_environment, deny_higher_priority
+):
+    requests = []
+    providers = []
+    monkeypatch.setenv("CUSTOM_API_URL", "http://localhost:11434/v1")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "synthetic")
+    monkeypatch.setenv("PREFERRED_MODELS", "router-only")
+    if deny_higher_priority:
+        monkeypatch.setenv("DISABLED_MODELS", "custom:shared")
+    for kind, factory, registry_type, alias in [
+        (ProviderType.CUSTOM, CustomProvider, CustomEndpointModelRegistry, "local-only"),
+        (ProviderType.OPENROUTER, OpenRouterProvider, OpenRouterModelRegistry, "router-only"),
+    ]:
+        path = tmp_path / f"{kind.value}.json"
+        path.write_text(
+            json.dumps(
+                {
+                    "models": [
+                        {
+                            "model_name": "shared",
+                            "aliases": [alias],
+                            "context_window": 100000,
+                            "max_output_tokens": 8000,
+                        }
+                    ]
+                }
+            )
+        )
+        monkeypatch.setattr(factory, "_registry", registry_type(str(path)))
+        ModelProviderRegistry.register_provider(kind, factory)
+        provider = ModelProviderRegistry.get_provider(kind)
+
+        def handler(request, owner=kind):
+            requests.append((owner, json.loads(request.content)["model"]))
+            return chat_response()
+
+        provider._test_transport = httpx.MockTransport(handler)
+        providers.append(provider)
+    try:
+        assert ModelProviderRegistry.get_preferred_fallback_model() == "router-only"
+        await server.handle_call_tool(
+            "chat",
+            {
+                "model": "auto",
+                "prompt": "hello",
+                "working_directory_absolute_path": str(tmp_path),
+            },
+        )
+        assert requests == [(ProviderType.OPENROUTER, "shared")]
+    finally:
+        for provider in providers:
+            await provider.aclose()

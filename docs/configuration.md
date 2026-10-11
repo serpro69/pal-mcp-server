@@ -220,6 +220,35 @@ DEFAULT_THINKING_MODE_THINKDEEP=high
 
 ### Model Usage Restrictions
 
+Model catalog entries can set `"enabled_by_default": false` to hide their names
+and aliases from discovery, tool model suggestions and category fallback. Omitted
+or `true` preserves existing behavior; other values are configuration errors.
+This is a discovery setting: explicit canonical calls and aliases still resolve
+against the full catalog and must pass the same allow/deny policy.
+
+`PREFERRED_MODELS` is an ordered, comma-separated list for auto selection and
+fallback. Entries are trimmed, matched case-insensitively against configured
+catalogs and deduplicated by provider/canonical identity. The first eligible
+preference takes priority over category ranking. Unknown, unavailable, denied or
+still-hidden entries are skipped; if none qualify, category selection runs.
+Explicit request/per-tool choices and fixed defaults keep their existing behavior.
+
+```env
+PREFERRED_MODELS=llama3.2:latest,gemini-2.5-flash
+```
+
+To expose a hidden entry, list its **canonical name** in its provider allowlist or
+in `PREFERRED_MODELS`. An alias alone does not opt a hidden entry into discovery,
+even after using that alias in a call. Preferences may use aliases for already
+visible entries. Preference identities follow normal provider routing priority;
+there is no provider-scope prefix or invocation-only option parsing in this setting.
+Tagged IDs, including complete names ending in `:for`, stay intact. Opt-ins never
+override allowlists or `DISABLED_MODELS`. Unfiltered internal catalog access remains
+available with `list_models(respect_restrictions=False)` for identity validation.
+When a preferred alias selects a provider whose canonical model name also exists
+at a higher-priority provider, selection retains the alias for routing. The selected
+provider still serializes its canonical model name on the wire.
+
 `DISABLED_MODELS` adds a deny override after provider allowlists. It applies to
 explicit calls, aliases, model listings and auto fallback. Empty or unset means
 no global denies. Restart the MCP server after changing policy or catalogs.

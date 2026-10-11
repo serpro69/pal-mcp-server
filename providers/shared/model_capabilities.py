@@ -67,6 +67,8 @@ class ModelCapabilities:
     temperature_constraint: TemperatureConstraint = field(
         default_factory=lambda: RangeTemperatureConstraint(0.0, 2.0, 0.3)
     )
+    # Discovery only; explicit model calls still enforce allow/deny policy.
+    enabled_by_default: bool = True
 
     def get_effective_temperature(self, requested_temperature: float) -> Optional[float]:
         """Return the temperature that should be sent to the provider.
