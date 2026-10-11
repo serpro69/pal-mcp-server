@@ -27,6 +27,7 @@ class ConversationInvocation:
         self.model_name: str | None = None
         self.model_provider: str | None = None
         self.provider_failed = False
+        self.history_files: list[str] = []
 
 
 _active: ContextVar[ConversationInvocation | None] = ContextVar("conversation_invocation", default=None)
@@ -94,6 +95,27 @@ def invocation_attachments(tool) -> tuple[list[str], list[str]]:
     return memory.get_conversation_file_list(thread), memory.get_conversation_image_list(thread)
 
 
+def remaining_input_budget(tool, model_context) -> int:
+    """Measure the history/input actually eligible for this consumer, without file contents."""
+    context = current_invocation(tool)
+    allocation = model_context.calculate_token_allocation()
+    thread = invocation_thread(tool)
+    if context is None or thread is None:
+        return allocation.content_tokens
+    turns = [turn.model_copy(update={"files": None}) for turn in thread.turns]
+    if turns:
+        turns[-1] = turns[-1].model_copy(update={"content": ""})
+    history, _ = memory.build_conversation_history(thread.model_copy(update={"turns": turns}), model_context)
+    used = model_context.estimate_tokens(history) + model_context.estimate_tokens(context.raw_input)
+    system = tool.get_language_instruction() + tool._augment_system_prompt_with_capabilities(
+        tool.get_system_prompt(), model_context.capabilities
+    )
+    used += model_context.estimate_tokens(system)
+    _, images = invocation_attachments(tool)
+    used += 8192 * len(images)
+    return max(0, allocation.content_tokens - used)
+
+
 def invocation_history(tool, model_context=None, *, text_only=False, expert=False, represented_context="") -> str:
     """Budget older history while keeping the admitted current input exactly once."""
     context = current_invocation(tool)
@@ -123,7 +145,35 @@ def invocation_history(tool, model_context=None, *, text_only=False, expert=Fals
     thread = thread.model_copy(update={"turns": turns})
     if text_only:
         model_context = CLIHistoryBudget()
-    history, _ = memory.build_conversation_history(thread, model_context)
+    from utils.file_utils import FileReadReport
+
+    report = FileReadReport()
+    budget = None
+    if not text_only and not expert:
+        budget = model_context.file_budget(remaining_input_budget(tool, model_context))
+    history, _ = memory.build_conversation_history(thread, model_context, file_report=report, file_budget=budget)
+    if not text_only and not expert and report.omitted:
+        from utils.file_utils import check_total_file_size, expand_file_inputs
+
+        requested = tool.get_request_files(tool.get_request_model()(**context.arguments))
+        if set(expand_file_inputs(requested)) & set(report.omitted):
+            failure = check_total_file_size(
+                requested, model_context.model_name, model_context=model_context, budget=budget, report=report
+            )
+            if failure:
+                raise ToolExecutionError(ToolOutput(**failure).model_dump_json())
+    context.history_files = report.included
+    tool._files_in_history = list(report.included)
+    if not text_only and not expert:
+        tool._actually_processed_files = []
+        tool._file_context_report = {
+            "type": "history_only",
+            "files_embedded": 0,
+            "files_in_history": len(report.included),
+            "files_omitted": len(report.omitted),
+            "files_unavailable": len(report.unavailable),
+            "budget": report.limit,
+        }
     if expert and context.raw_input in represented_context:
         return history
     return f"{history}\n\n=== NEW USER INPUT ===\n{context.raw_input}"
@@ -231,6 +281,9 @@ def conversation_request(*, workflow=False):
                 }
                 raise ToolExecutionError(json.dumps(payload)) from exc
             context = ConversationInvocation(tool, args, thread_id, is_new, raw)
+            tool._file_context_report = {}
+            tool._files_in_history = []
+            tool._actually_processed_files = []
             token = _active.set(context)
             try:
                 return await execute(tool, args)

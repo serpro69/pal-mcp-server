@@ -458,6 +458,11 @@ class TestLargePromptHandling:
         mock_provider = create_mock_provider(model_name="flash")
 
         class DummyModelContext:
+            from utils.model_context import ModelContext
+
+            file_budget = ModelContext.file_budget
+            estimate_tokens = ModelContext.estimate_tokens
+
             def __init__(self, provider):
                 self.model_name = "flash"
                 self._provider = provider

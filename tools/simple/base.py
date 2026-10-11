@@ -604,7 +604,9 @@ class SimpleTool(BaseTool):
 
         if not continuation_data:
             # Build metadata with model and provider info for success response
-            metadata = {}
+            metadata = (
+                {"file_context": dict(self._file_context_report)} if getattr(self, "_file_context_report", None) else {}
+            )
             if model_info:
                 model_name = model_info.get("model_name")
                 if model_name:
@@ -657,6 +659,8 @@ class SimpleTool(BaseTool):
         # Build metadata with model and provider info
         can_continue = continuation_data["remaining_turns"] >= 2
         metadata = {"tool_name": self.get_name(), "conversation_ready": can_continue}
+        if getattr(self, "_file_context_report", None):
+            metadata["file_context"] = dict(self._file_context_report)
         if model_info:
             model_name = model_info.get("model_name")
             if model_name:

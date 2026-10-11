@@ -215,7 +215,8 @@ def helper_function():
         embedded_files = tool.get_conversation_embedded_files(thread_id)
 
         # Verify that we get the individual files, not the directory
-        assert set(embedded_files) == set(expected_files)
+        # Persisted path references do not establish coverage in a new request.
+        assert embedded_files == []
         assert directory not in embedded_files
 
     @patch("utils.conversation_memory.get_storage")

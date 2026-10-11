@@ -4,6 +4,12 @@
 
 ## Unreleased
 
+- File admission and rendering share the model's effective output/input budget
+  and count rendered headers and line numbers. Exhausted budgets no longer gain
+  a minimum allowance. Errors identify the binding limit, largest files and overage.
+  File coverage counts exclude missing, denied and omitted contents; consensus
+  budgets only the proposal and explicit attachments each participant receives.
+
 - PAL now starts without model-provider credentials so discovery and provider-free
   tools remain usable. Model calls return explicit configuration errors. Broken
   selected or shipped model registries raise file-naming errors instead of silently

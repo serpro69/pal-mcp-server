@@ -253,9 +253,9 @@ async def test_mcp_policy_errors_have_null_provenance(captures, monkeypatch, tmp
     if failure == "file_size":
         monkeypatch.setattr(
             "utils.file_utils.check_total_file_size",
-            lambda *args: {"status": "error", "content": "files exceed budget", "metadata": {"limit": 1}},
+            lambda *args, **kwargs: {"status": "error", "content": "files exceed budget", "metadata": {"limit": 1}},
         )
-        args = arguments(absolute_file_paths=[str(tmp_path / "oversized.py")])
+        args = arguments(relevant_files=[str(tmp_path / "oversized.py")])
     with pytest.raises(ToolExecutionError) as error:
         await invoke(ThinkDeepTool(), args, through_server=True)
     result = json.loads(error.value.payload)

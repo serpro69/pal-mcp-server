@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Implementation: [implementation.md](implementation.md)
 > Review resolutions: [review.md](review.md#revalidation-and-resolution)
-> Status: in-progress (Tasks 1–23 done; Tasks 24–42 pending)
+> Status: in-progress (Tasks 1–24 done; Tasks 25–42 pending)
 > Created: 2026-10-10
 > Not Doing: toolchain/release-process migration; MCP 2.x; wholesale catalogs; replacement of safety controls; file-annotation implementation; persistent continuation recovery; remote multi-user transport; automatic service activation
 
@@ -510,17 +510,23 @@ gates remain unavailable; real MCP SDK session verifies provider-free behavior.
 
 ## Task 24: Unify file budgets and report actual context coverage
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 5, Task 9, Task 20
 - **Size:** M
 - **Can run in parallel with:** —
 - **Docs:** [Implementation slice](implementation.md#task-24); [design contract](design.md#d6-budgets-progress-and-tool-surface)
 
-- [ ] 24.1 Reuse Task 20's effective output reservation/input capacity to compute one file budget and pass remaining-history limits through gate and embedding. For consensus, charge/deduplicate only content actually sent to that participant. Report binding budget, largest files and overage while preserving directory/alias/dedup semantics.
-- [ ] 24.2 Track files actually embedded now and actually included from history separately; account for rendered headers and the pending per-file descriptions feature.
-- [ ] 24.3 Verify the acceptance cases in [Task 24](implementation.md#task-24) and record the result here.
+- [x] 24.1 Reuse Task 20's effective output reservation/input capacity to compute one file budget and pass remaining-history limits through gate and embedding. For consensus, charge/deduplicate only content actually sent to that participant. Report binding budget, largest files and overage while preserving directory/alias/dedup semantics.
+- [x] 24.2 Track files actually embedded now and actually included from history separately; account for rendered headers and the pending per-file descriptions feature.
+- [x] 24.3 Verify the acceptance cases in [Task 24](implementation.md#task-24) and record the result here.
 
 **Scope / gate:** The file-annotation compatibility contract in design.md is a coordination dependency; implementing annotations is outside this roadmap.
+
+**Evidence:** [Task 24 validation](validation.md#task-24-shared-file-budgets-and-actual-context-coverage),
+2026-10-11. Full quality **1,506 passed**; focused file/history/request-budget
+contracts **126 passed each** on Python 3.11/3.12. Isolated review approved after
+continuation-budget and consensus-coverage corrections. All five embedding routes
+retain the common renderer. Existing external-review/live/setup gates remain open.
 
 ## Task 25: Add a global model deny policy
 
