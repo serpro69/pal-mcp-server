@@ -4,6 +4,13 @@
 
 ## Unreleased
 
+- Gemini thinking now uses verified per-model controls: 2.5 budgets and 3.x levels.
+  Unsupported PAL levels clamp down, or up to the lowest supported level when
+  necessary; `max` maps to the highest accepted level. Invalid/empty capabilities
+  and unknown modes fail before provider I/O. Package installs now require the
+  verified GenAI SDK >=2.8.0 (the lock already used 2.8.0). Unverified legacy thinking controls
+  (including the retained 2.0 Flash entry) require explicit verified configuration.
+
 - Every provider request now reserves and sends the same bounded output limit.
   Full assembled input (including system instructions and estimated image overhead)
   must fit the remaining context. Invalid or unverified capacities fail before I/O;

@@ -35,7 +35,7 @@ class GeminiModelProvider(RegistryBackedProviderMixin, ModelProvider):
     MODEL_CAPABILITIES: ClassVar[dict[str, ModelCapabilities]] = {}
 
     # Thinking mode configurations - percentages of model's max_thinking_tokens
-    # These percentages work across all models that support thinking
+    # Used only by models with verified thinking_budget control
     THINKING_BUDGETS = {
         "minimal": 0.005,  # 0.5% of max - minimal thinking for fast responses
         "low": 0.08,  # 8% of max - light reasoning tasks
@@ -187,9 +187,9 @@ class GeminiModelProvider(RegistryBackedProviderMixin, ModelProvider):
         ).response_tokens
         if capabilities.output_token_parameter not in (None, "max_output_tokens"):
             raise ValueError(f"Unsupported Gemini output token parameter: {capabilities.output_token_parameter!r}")
-        capability_map = self.get_all_model_capabilities()
 
         resolved_model_name = self._resolve_model_name(model_name)
+        thinking_config, effective_thinking_mode = self._thinking_config(capabilities, thinking_mode)
 
         # Prepare content parts (text and potentially images)
         parts = []
@@ -219,15 +219,6 @@ class GeminiModelProvider(RegistryBackedProviderMixin, ModelProvider):
         # Create contents structure
         contents = [{"parts": parts}]
 
-        # Gemini 3 Pro Preview currently rejects medium thinking budgets; bump to high.
-        effective_thinking_mode = thinking_mode
-        if resolved_model_name == "gemini-3-pro-preview" and thinking_mode == "medium":
-            logger.debug(
-                "Overriding thinking mode 'medium' with 'high' for %s due to launch limitation",
-                resolved_model_name,
-            )
-            effective_thinking_mode = "high"
-
         # Prepare generation config
         generation_config = types.GenerateContentConfig(
             temperature=temperature,
@@ -236,14 +227,8 @@ class GeminiModelProvider(RegistryBackedProviderMixin, ModelProvider):
 
         generation_config.max_output_tokens = max_output_tokens
 
-        # Add thinking configuration for models that support it
-        if capabilities.supports_extended_thinking and effective_thinking_mode in self.THINKING_BUDGETS:
-            # Get model's max thinking tokens and calculate actual budget
-            model_config = capability_map.get(resolved_model_name)
-            if model_config and model_config.max_thinking_tokens > 0:
-                max_thinking_tokens = model_config.max_thinking_tokens
-                actual_thinking_budget = int(max_thinking_tokens * self.THINKING_BUDGETS[effective_thinking_mode])
-                generation_config.thinking_config = types.ThinkingConfig(thinking_budget=actual_thinking_budget)
+        if thinking_config is not None:
+            generation_config.thinking_config = thinking_config
 
         # Retry logic with progressive delays
         max_retries = 4  # Total of 4 attempts
@@ -353,6 +338,46 @@ class GeminiModelProvider(RegistryBackedProviderMixin, ModelProvider):
                 f"{'s' if attempts > 1 else ''}: {exc}"
             )
             raise RuntimeError(error_msg) from exc
+
+    def _thinking_config(
+        self, capabilities: ModelCapabilities, thinking_mode: str
+    ) -> tuple[Optional[types.ThinkingConfig], Optional[str]]:
+        """Use only model-verified controls, clamping levels down before up."""
+        if not capabilities.supports_extended_thinking:
+            return None, None
+        if not isinstance(thinking_mode, str) or thinking_mode not in self.THINKING_BUDGETS:
+            raise ValueError(f"Invalid thinking_mode {thinking_mode!r}; expected {list(self.THINKING_BUDGETS)}")
+
+        parameter = capabilities.thinking_parameter
+        levels = capabilities.supported_thinking_levels
+        if parameter == "thinking_level":
+            ordered = ["minimal", "low", "medium", "high"]
+            if (
+                not isinstance(levels, list)
+                or not levels
+                or any(not isinstance(level, str) or level not in ordered for level in levels)
+                or len(set(levels)) != len(levels)
+            ):
+                raise ValueError(f"Invalid supported_thinking_levels for {capabilities.model_name}")
+            desired = ordered.index("high" if thinking_mode == "max" else thinking_mode)
+            supported = sorted(ordered.index(level) for level in levels)
+            lower = [rank for rank in supported if rank <= desired]
+            selected = ordered[max(lower) if lower else min(supported)]
+            return types.ThinkingConfig(thinking_level=types.ThinkingLevel(selected.upper())), selected
+
+        if parameter == "thinking_budget":
+            ceiling = capabilities.max_thinking_tokens
+            if type(ceiling) is not int or ceiling <= 0 or levels is not None:
+                raise ValueError(f"Invalid thinking budget capabilities for {capabilities.model_name}")
+            budget = int(ceiling * self.THINKING_BUDGETS[thinking_mode])
+            if budget <= 0:
+                raise ValueError(f"Nonpositive thinking budget for {capabilities.model_name}")
+            return types.ThinkingConfig(thinking_budget=budget), thinking_mode
+
+        raise ValueError(
+            f"Unverified thinking_parameter for {capabilities.model_name}; "
+            "configure a verified thinking_budget or thinking_level capability"
+        )
 
     def get_provider_type(self) -> ProviderType:
         """Get the provider type."""

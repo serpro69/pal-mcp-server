@@ -48,6 +48,8 @@ class ModelCapabilities:
 
     # Capability flags
     supports_extended_thinking: bool = False
+    thinking_parameter: Optional[str] = None
+    supported_thinking_levels: Optional[list[str]] = None
     supports_system_prompts: bool = True
     supports_streaming: bool = True
     supports_function_calling: bool = False

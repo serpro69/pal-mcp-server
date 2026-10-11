@@ -3,6 +3,79 @@
 Recorded 2026-10-11. This covers the completed maintenance tasks below, not the
 remaining roadmap or optional live-provider behavior.
 
+## Task 21: Gemini thinking controls
+
+Recorded 2026-10-11. Native Gemini selects `thinking_budget` or `thinking_level`
+from explicit capability metadata. Verified Gemini 2.5 budgets retain their prior
+percentage mapping. Each verified Gemini 3 entry declares its actual supported
+levels; PAL chooses the nearest accepted level below the requested mode, or the
+lowest above it when necessary. `max` selects the highest supported level.
+This replaces the old Gemini 3 Pro Preview medium-to-high exception: medium now
+maps down to low. Returned thinking-mode metadata names the selected setting.
+
+Invalid modes, empty/invalid/duplicate level declarations, invalid budget ceilings
+and unverified controls fail before image processing/client allocation. Models
+without thinking support omit the control. Gemini 2.0 Flash retains its catalog
+entry/aliases but has no verified current control declaration and fails explicitly;
+its retirement is a Task 28 catalog follow-up, not an invented supported budget.
+
+### Capability evidence
+
+Retained **google-genai 2.8.0**. Inspected installed `ThinkingConfig` and
+`ThinkingLevel` types and tested the actual locked SDK serialization. Context7's
+latest examples were cross-checked against that installed version; no dependency
+upgrade was required. The package dependency floor was raised from 1.19.0 to
+2.8.0 so installations outside the lock cannot retain an unverified older SDK.
+Both runtime/development locks were regenerated on Python 3.11 (matching CI)
+and 3.12 and are unchanged. Official
+[GenAI 1.19.0 types](https://raw.githubusercontent.com/googleapis/python-genai/v1.19.0/google/genai/types.py)
+confirm that its ThinkingConfig has no thinking_level and no ThinkingLevel enum.
+The isolated review identified this package-install compatibility gap; requiring
+the verified SDK version closes it without changing pinned versions.
+
+- [GenerateContent thinking documentation](https://ai.google.dev/gemini-api/docs/generate-content/thinking)
+  distinguishes 2.5 budgets from 3.x levels and verifies accepted levels for
+  3.8/3.6 Flash, 3.1 Pro, 3.1 Flash-Lite and 3 Flash Preview.
+- [Gemini 3.7 GenerateContent guide](https://ai.google.dev/gemini-api/docs/generate-content/whats-new-gemini-3.7)
+  verifies low/medium/high; minimal is not accepted.
+- [Gemini 3.5 guide](https://ai.google.dev/gemini-api/docs/whats-new-gemini-3.5)
+  verifies all four levels, while the retained
+  [thinking model table](https://ai.google.dev/gemini-api/docs/thinking)
+  confirms 3 Pro Preview's low/high-only set.
+- [Gemini 2.0 Flash metadata](https://ai.google.dev/gemini-api/docs/models/gemini-2.0-flash)
+  describes its historical thinking capability as experimental and reports
+  shutdown. Current documentation does not verify a budget/level control for it.
+  The explicit unknown-control diagnostic is intentional; live legacy support
+  is not claimed.
+
+### Verification
+
+- Full quality, locked Python 3.10.12: **1,394 passed**, 4 skipped,
+  16 deselected, 19 subtests passed; Ruff/Black/isort passed without warnings.
+- Thinking/provider/caller suites on Python 3.11.13 and 3.12.11:
+  **152 passed each**, with RuntimeWarnings as errors.
+- **84 new tests** cover all five PAL modes for each configured 3.x model plus
+  an alias, both 2.5 budget models, low/high-only support, order-independent
+  downward/upward clamping, malformed/empty levels, invalid modes/budgets,
+  unknown controls and non-thinking omission. Fake transports capture actual
+  GenAI request bodies/authentication; tests assert exactly one thinking control.
+- Required integration/quick simulator commands retain their existing missing
+  project-virtualenv/interpreter setup blockers; no live calls were performed.
+
+Independent isolated review: **APPROVE** after fixing the P2 published SDK floor
+finding described above. No systemic P0/P1 findings to index. External PAL reviewer
+unavailable.
+
+### Reflection on Tasks 19–21
+
+Removing the adapter required mechanical async fixture updates; the shutdown
+review exposed child cancellation masking an earlier serving error. Budget
+admission exposed incomplete old test metadata and one missing O4-mini ceiling,
+now verified. Gemini thinking documentation is endpoint-specific: the Interactions
+API's 2.5 levels do not establish GenerateContent support. All three tasks retain
+explicit errors instead of guessing unknown capacities or thinking controls.
+The feature remains in progress; Tasks 22–42 and existing live release gates remain.
+
 ## Task 20: request budgets, endpoint limits and usage
 
 Recorded 2026-10-11. ModelContext calculates one output reservation as the minimum
