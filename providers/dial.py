@@ -1,7 +1,7 @@
 """DIAL (Data & AI Layer) model provider implementation."""
 
+import asyncio
 import logging
-import threading
 from typing import ClassVar, Optional
 
 from utils.env import get_env
@@ -66,40 +66,29 @@ class DIALModelProvider(RegistryBackedProviderMixin, OpenAICompatibleProvider):
         # The actual authentication happens via the Api-Key header in the httpx client
         super().__init__("placeholder-not-used", **kwargs)
 
-        # Cache for deployment-specific clients to avoid recreating them on each request
+        # SDK deployment wrappers borrow one pool; only this provider closes it.
         self._deployment_clients = {}
-        # Lock to ensure thread-safe client creation
-        self._client_lock = threading.Lock()
+        self._http_client = None
+        self._closed = False
+        self._close_task: Optional[asyncio.Task] = None
 
-        # Create a SINGLE shared httpx client for the provider instance
+        logger.info(f"Initialized DIAL provider with host: {dial_host} and api-version: {self.api_version}")
+
+    def _create_dial_http_client(self):
+        """Allocate the owned pool lazily, retaining DIAL's proxy/TLS policy."""
         import httpx
 
-        # Create custom event hooks to remove Authorization header
-        def remove_auth_header(request):
-            """Remove Authorization header that OpenAI client adds."""
-            # httpx headers are case-insensitive, so we need to check all variations
-            headers_to_remove = []
-            for header_name in request.headers:
-                if header_name.lower() == "authorization":
-                    headers_to_remove.append(header_name)
+        async def remove_auth_header(request):
+            request.headers.pop("authorization", None)
 
-            for header_name in headers_to_remove:
-                del request.headers[header_name]
-
-        self._http_client = httpx.Client(
+        return httpx.AsyncClient(
             timeout=self.timeout_config,
             verify=True,
             follow_redirects=True,
-            headers=self.DEFAULT_HEADERS.copy(),  # Include DIAL headers including Api-Key
-            limits=httpx.Limits(
-                max_keepalive_connections=5,
-                max_connections=10,
-                keepalive_expiry=30.0,
-            ),
+            headers=self.DEFAULT_HEADERS.copy(),
+            limits=httpx.Limits(max_keepalive_connections=5, max_connections=10, keepalive_expiry=30.0),
             event_hooks={"request": [remove_auth_header]},
         )
-
-        logger.info(f"Initialized DIAL provider with host: {dial_host} and api-version: {self.api_version}")
 
     def get_provider_type(self) -> ProviderType:
         """Get the provider type."""
@@ -117,39 +106,28 @@ class DIALModelProvider(RegistryBackedProviderMixin, OpenAICompatibleProvider):
         Returns:
             OpenAI client configured for the specific deployment
         """
-        # Check if client already exists without locking for performance
-        if deployment in self._deployment_clients:
-            return self._deployment_clients[deployment]
+        if self._closed:
+            raise RuntimeError("DIAL provider is closed")
+        # There are no awaits during construction/publication on the owning loop.
+        if deployment not in self._deployment_clients:
+            from openai import AsyncOpenAI
 
-        # Use lock to ensure thread-safe client creation
-        with self._client_lock:
-            # Double-check pattern: check again inside the lock
-            if deployment not in self._deployment_clients:
-                from openai import OpenAI
+            base_url = self.base_url.rstrip("/")
+            if base_url.endswith("/openai"):
+                base_url = base_url[:-7]
+            deployment_url = f"{base_url}/openai/deployments/{deployment}"
 
-                # Build deployment-specific URL
-                base_url = self.base_url
-                if base_url.endswith("/"):
-                    base_url = base_url[:-1]
-
-                # Remove /openai suffix if present to reconstruct properly
-                if base_url.endswith("/openai"):
-                    base_url = base_url[:-7]
-
-                deployment_url = f"{base_url}/openai/deployments/{deployment}"
-
-                # Create and cache the client, REUSING the shared http_client
-                # Use placeholder API key - Authorization header will be removed by http_client event hook
-                self._deployment_clients[deployment] = OpenAI(
-                    api_key="placeholder-not-used",
-                    base_url=deployment_url,
-                    http_client=self._http_client,  # Pass the shared client with Api-Key header
-                    default_query={"api-version": self.api_version},  # Add api-version as query param
-                )
-
+            if self._http_client is None:
+                self._http_client = self._create_dial_http_client()
+            self._deployment_clients[deployment] = AsyncOpenAI(
+                api_key="placeholder-not-used",
+                base_url=deployment_url,
+                http_client=self._http_client,
+                default_query={"api-version": self.api_version},
+            )
         return self._deployment_clients[deployment]
 
-    def generate_content(
+    async def generate_content(
         self,
         prompt: str,
         model_name: str,
@@ -196,7 +174,7 @@ class DIALModelProvider(RegistryBackedProviderMixin, OpenAICompatibleProvider):
 
         if images and capabilities.supports_images:
             for img_path in images:
-                processed_image = self._process_image(img_path)
+                processed_image = await asyncio.to_thread(self._process_image, img_path)
                 if processed_image:
                     user_message_content.append(processed_image)
         elif images:
@@ -241,9 +219,9 @@ class DIALModelProvider(RegistryBackedProviderMixin, OpenAICompatibleProvider):
 
         attempt_counter = {"value": 0}
 
-        def _attempt() -> ModelResponse:
+        async def _attempt() -> ModelResponse:
             attempt_counter["value"] += 1
-            response = deployment_client.chat.completions.create(**completion_params)
+            response = await deployment_client.chat.completions.create(**completion_params)
 
             content = response.choices[0].message.content
             usage = self._extract_usage(response)
@@ -263,7 +241,7 @@ class DIALModelProvider(RegistryBackedProviderMixin, OpenAICompatibleProvider):
             )
 
         try:
-            return self._run_with_retries(
+            return await self._run_with_retries_async(
                 operation=_attempt,
                 max_attempts=self.MAX_RETRIES,
                 delays=self.RETRY_DELAYS,
@@ -276,28 +254,35 @@ class DIALModelProvider(RegistryBackedProviderMixin, OpenAICompatibleProvider):
 
             raise ValueError(f"DIAL API error for model {resolved_model} after {attempts} attempts: {exc}") from exc
 
-    def close(self) -> None:
-        """Clean up HTTP clients when provider is closed."""
-        logger.info("Closing DIAL provider HTTP clients...")
-
-        # Clear the deployment clients cache
-        # Note: We don't need to close individual OpenAI clients since they
-        # use the shared httpx.Client which we close separately
+    async def _close_pool(self) -> None:
+        # Bound cleanup while shielding it from caller cancellation. HTTPX marks
+        # a client closed before awaiting transport cleanup, so restarting a
+        # cancelled aclose could skip the unfinished transport entirely.
+        await asyncio.wait_for(self._http_client.aclose(), timeout=10.0)
         self._deployment_clients.clear()
+        self._http_client = None
 
-        # Close the shared HTTP client
-        if hasattr(self, "_http_client"):
-            try:
-                self._http_client.close()
-                logger.debug("Closed shared HTTP client")
-            except Exception as e:
-                logger.warning(f"Error closing shared HTTP client: {e}")
+    async def aclose(self) -> None:
+        """Join shared-pool cleanup exactly once, then propagate cancellation/errors."""
+        self._closed = True
+        if self._close_task is None:
+            if self._http_client is None:
+                return
+            self._close_task = asyncio.create_task(self._close_pool())
 
-        # Also close the client created by the superclass (OpenAICompatibleProvider)
-        # as it holds its own httpx.Client instance that is not used by DIAL's generate_content
-        if self._client is not None:
+        cancelled = None
+        while not self._close_task.done():
             try:
-                self._client.close()
-                logger.debug("Closed superclass's OpenAI client")
-            except Exception as e:
-                logger.warning(f"Error closing superclass's OpenAI client: {e}")
+                await asyncio.shield(self._close_task)
+            except asyncio.CancelledError as exc:
+                cancelled = exc
+                if self._close_task.cancelled():
+                    break
+            except Exception:
+                break  # Retrieve and propagate the failure below.
+
+        if cancelled is not None:
+            if not self._close_task.cancelled() and self._close_task.exception() is not None:
+                logger.warning("DIAL cleanup failed during caller cancellation: %s", self._close_task.exception())
+            raise cancelled
+        self._close_task.result()

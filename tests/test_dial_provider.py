@@ -1,7 +1,7 @@
 """Tests for DIAL provider implementation."""
 
 import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -151,8 +151,8 @@ class TestDIALProvider:
         with pytest.raises(ValueError):
             provider.get_capabilities("unknown-model")
 
-    @patch("openai.OpenAI")  # Mock the OpenAI class directly from openai module
-    def test_generate_content_with_alias(self, mock_openai_class):
+    @patch("openai.AsyncOpenAI")  # Mock the OpenAI class directly from openai module
+    async def test_generate_content_with_alias(self, mock_openai_class):
         """Test that generate_content properly resolves aliases and uses deployment routing."""
         # Create mock client
         mock_client = MagicMock()
@@ -164,13 +164,13 @@ class TestDIALProvider:
         mock_response.created = 1234567890
         mock_response.choices[0].finish_reason = "stop"
 
-        mock_client.chat.completions.create.return_value = mock_response
+        mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
         mock_openai_class.return_value = mock_client
 
         provider = DIALModelProvider("test-key")
 
         # Generate content with shorthand
-        response = provider.generate_content(prompt="Test prompt", model_name="o3", temperature=0.7)  # Shorthand
+        response = await provider.generate_content(prompt="Test prompt", model_name="o3", temperature=0.7)  # Shorthand
 
         # Verify OpenAI was instantiated with deployment-specific URL
         mock_openai_class.assert_called_once()
@@ -235,38 +235,25 @@ class TestDIALProvider:
         assert provider.validate_model_name("o4-mini-2025-04-16") is False
         assert provider.validate_model_name("sonnet-4.1") is False  # sonnet-4.1 is not in allowed list
 
-    @patch("httpx.Client")
-    @patch("openai.OpenAI")
-    def test_close_method(self, mock_openai_class, mock_httpx_client_class):
-        """Test that the close method properly closes HTTP clients."""
-        # Mock the httpx.Client instance that DIALModelProvider will create
-        mock_shared_http_client = MagicMock()
-        mock_httpx_client_class.return_value = mock_shared_http_client
-
-        # Mock the OpenAI client instances
-        mock_openai_client_1 = MagicMock()
-        mock_openai_client_2 = MagicMock()
-        # Configure side_effect to return different mocks for subsequent calls
-        mock_openai_class.side_effect = [mock_openai_client_1, mock_openai_client_2]
-
+    @patch("httpx.AsyncClient")
+    @patch("openai.AsyncOpenAI")
+    async def test_close_method(self, mock_openai_class, mock_httpx_client_class):
+        """Deployment wrappers borrow the provider's pool and never close it."""
+        pool = MagicMock()
+        pool.aclose = AsyncMock()
+        mock_httpx_client_class.return_value = pool
+        wrappers = [MagicMock(), MagicMock()]
+        mock_openai_class.side_effect = wrappers
         provider = DIALModelProvider("test-key")
-
-        # Mock the superclass's _client attribute directly
-        mock_superclass_client = MagicMock()
-        provider._client = mock_superclass_client
-
-        # Simulate getting clients for two different deployments to populate _deployment_clients
+        mock_httpx_client_class.assert_not_called()
         provider._get_deployment_client("model_a")
         provider._get_deployment_client("model_b")
-
-        # Now call close
-        provider.close()
-
-        # Assert that the shared httpx client's close method was called
-        mock_shared_http_client.close.assert_called_once()
-
-        # Assert that the superclass client's close method was called
-        mock_superclass_client.close.assert_called_once()
-
-        # Assert that the deployment clients cache is cleared
+        mock_httpx_client_class.assert_called_once()
+        assert provider._client is None
+        await provider.aclose()
+        await provider.aclose()
+        pool.aclose.assert_awaited_once()
+        for wrapper in wrappers:
+            wrapper.close.assert_not_called()
         assert not provider._deployment_clients
+        assert provider._http_client is None

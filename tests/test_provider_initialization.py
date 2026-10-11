@@ -1,4 +1,4 @@
-"""Cold-start and environment safety for legacy and native async providers."""
+"""Cold-start and environment safety for native async providers."""
 
 import asyncio
 import json
@@ -52,105 +52,23 @@ def patch_sdk(monkeypatch, kind, constructor):
     else:
         monkeypatch.setattr("providers.openai_compatible.AsyncOpenAI", constructor)
         if kind == "dial":
-            monkeypatch.setattr("openai.OpenAI", constructor)
+            monkeypatch.setattr("openai.AsyncOpenAI", constructor)
 
 
-@pytest.mark.parametrize("kind", ["dial"])
-def test_concurrent_cold_generation_publishes_once_and_network_waits_overlap(monkeypatch, kind):
-    provider, model = make_provider(kind)
-    constructing = threading.Event()
-    release_constructor = threading.Event()
-    second_waiting = threading.Event()
-    generation = threading.Barrier(2, timeout=5)
-    clients = []
+def test_gemini_failed_initialization_remains_retryable(monkeypatch):
+    provider = GeminiModelProvider("synthetic")
 
-    # Release construction only once the other real generation call contends.
-    # A signal before generate_content() would race with its validation work.
-    lock_name = "_client_lock" if kind == "dial" else "_client_init_lock"
-    guard = getattr(provider, lock_name)
+    def failing(**kwargs):
+        raise ValueError("synthetic initialization failure")
 
-    class ObservedLock:
-        def __enter__(self):
-            if guard.locked():
-                second_waiting.set()
-            guard.acquire()
-
-        def __exit__(self, *exc_info):
-            guard.release()
-
-    monkeypatch.setattr(provider, lock_name, ObservedLock())
-
-    def generate(**kwargs):
-        generation.wait()
-        if kind == "gemini":
-            return SimpleNamespace(
-                text="answer", candidates=[SimpleNamespace(finish_reason="STOP")], usage_metadata=None
-            )
-        return _mock_chat_response("answer")
-
-    def constructor(**kwargs):
-        clients.append(kwargs)
-        constructing.set()
-        assert release_constructor.wait(5)
-        return fake_sdk(generate, kwargs)
-
-    patch_sdk(monkeypatch, kind, constructor)
-
-    try:
-        with ThreadPoolExecutor(max_workers=2) as pool:
-            first = pool.submit(provider.generate_content, "first", model)
-            try:
-                assert constructing.wait(5)
-                second = pool.submit(provider.generate_content, "second", model)
-                assert second_waiting.wait(5)
-            finally:
-                release_constructor.set()
-            assert first.result(timeout=8).content == "answer"
-            assert second.result(timeout=8).content == "answer"
-        assert len(clients) == 1
-        if kind == "dial":
-            assert len(provider._deployment_clients) == 1
-            assert clients[-1]["http_client"] is provider._http_client
-    finally:
-        release_constructor.set()
-        for kwargs in clients:
-            if "http_client" in kwargs:
-                kwargs["http_client"].close()
-
-
-@pytest.mark.parametrize("kind", ["gemini", "dial"])
-def test_failed_initialization_releases_guard_and_can_retry(monkeypatch, kind):
-    provider, model = make_provider(kind)
-    clients = []
-    failing = True
-
-    def constructor(**kwargs):
-        clients.append(kwargs)
-        if failing:
-            raise ValueError("synthetic initialization failure")
-        return fake_sdk(lambda **_: _mock_chat_response(), kwargs)
-
-    patch_sdk(monkeypatch, kind, constructor)
-    try:
-        with pytest.raises(ValueError, match="synthetic initialization failure"):
-            _ = provider._get_deployment_client(model) if kind == "dial" else provider.client
-        assert provider._client is None
-        if kind == "dial":
-            assert not provider._http_client.is_closed  # Failed wrapper must not close the borrowed pool.
-            assert not provider._deployment_clients
-        else:
-            assert all(kwargs["http_client"].is_closed for kwargs in clients if "http_client" in kwargs)
-        failing = False
-        if kind == "dial":
-            assert provider._get_deployment_client(model) is provider._get_deployment_client(model)
-        else:
-            assert provider.client is provider.client
-    finally:
-        for kwargs in clients:
-            if "http_client" in kwargs:
-                kwargs["http_client"].close()
-        if kind == "dial":
-            provider._http_client.close()
+    patch_sdk(monkeypatch, "gemini", failing)
+    with pytest.raises(ValueError, match="synthetic initialization failure"):
+        _ = provider.client
+    assert provider._client is None
+    sdk = fake_sdk(lambda **_: None, {})
+    patch_sdk(monkeypatch, "gemini", lambda **kwargs: sdk)
+    assert provider.client is sdk
+    assert provider.client is sdk
 
 
 @pytest.mark.parametrize("kind,fallback", [("openai", False), ("openai", True), ("azure", False)])

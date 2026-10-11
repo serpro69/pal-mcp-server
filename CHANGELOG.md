@@ -4,6 +4,11 @@
 
 ## Unreleased
 
+- DIAL now awaits native async deployment requests and header hooks, shares one
+  lazy connection pool, and joins pool cleanup once even when shutdown is cancelled.
+  Direct callers must await generation and `aclose()`; server shutdown integration
+  remains the next migration step.
+
 - Gemini generation now awaits the native GenAI async SDK and yielding retries;
   local image preparation stays off the event loop. Awaited provider cleanup closes
   both SDK transports without initializing unused clients.
