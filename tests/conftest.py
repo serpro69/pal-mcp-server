@@ -31,6 +31,9 @@ env_config.reload_env({"PAL_MCP_FORCE_ENV_OVERRIDE": "false"})
 # Set default model to a specific value for tests to avoid auto mode
 # This prevents all tests from failing due to missing model parameter
 os.environ["DEFAULT_MODEL"] = "gemini-2.5-flash"
+# Legacy chat fixtures use tempfile directories, including /tmp itself. Configure
+# the operator write root before server schema prototypes are constructed.
+os.environ["PAL_WORKSPACE_ROOT"] = str(Path(tempfile.gettempdir()).resolve())
 
 # Force reload of config module to pick up the env var
 import config  # noqa: E402

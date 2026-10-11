@@ -9,8 +9,11 @@ images, and conversation continuation for seamless multi-turn interactions.
 import logging
 import os
 import re
+from collections.abc import Iterator
+from contextlib import ExitStack, contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
+from uuid import uuid4
 
 from pydantic import Field
 
@@ -34,7 +37,7 @@ CHAT_FIELD_DESCRIPTIONS = {
     "absolute_file_paths": ("Full, absolute file paths to relevant code in order to share with external model"),
     "images": "Image paths (absolute) or base64 strings for optional visual context.",
     "working_directory_absolute_path": (
-        "Absolute path to an existing directory where generated code artifacts can be saved."
+        "Absolute path to an existing directory inside PAL_WORKSPACE_ROOT where generated code artifacts can be saved."
     ),
 }
 
@@ -67,7 +70,8 @@ class ChatTool(SimpleTool):
 
     def __init__(self) -> None:
         super().__init__()
-        self._last_recordable_response: Optional[str] = None
+        # Capture operator configuration once, independently of caller-supplied paths.
+        self._workspace_root = Path(os.path.expanduser(os.environ.get("PAL_WORKSPACE_ROOT", os.getcwd())))
 
     def get_name(self) -> str:
         return "chat"
@@ -198,6 +202,12 @@ class ChatTool(SimpleTool):
         # Use SimpleTool's Chat-style prompt preparation
         return self.prepare_chat_style_prompt(request)
 
+    def validate_model_request(self, request: ChatRequest) -> None:
+        if self._model_supports_code_generation():
+            # Also runs for continuations with an already prepared prompt.
+            with self._artifact_directory(request.working_directory_absolute_path):
+                pass
+
     def _validate_file_paths(self, request) -> Optional[str]:
         """Extend validation to cover the working directory path."""
 
@@ -237,74 +247,45 @@ class ChatTool(SimpleTool):
         """
         Format the chat response to match the original Chat tool exactly.
         """
-        self._last_recordable_response = None
         body = response
-        recordable_override: Optional[str] = None
 
         if self._model_supports_code_generation():
             block, remainder, _ = self._extract_generated_code_block(response)
             if block:
                 sanitized_text = remainder.strip()
-                target_directory = request.working_directory_absolute_path
-                try:
-                    artifact_path = self._persist_generated_code_block(block, target_directory)
-                except Exception as exc:  # pragma: no cover - rare filesystem failures
-                    logger.error("Failed to persist generated code block: %s", exc, exc_info=True)
-                    warning = (
-                        f"WARNING: Unable to write pal_generated.code inside '{target_directory}'. "
-                        "Check the path permissions and re-run. The generated code block is included below for manual handling."
+                artifact_path = self._persist_generated_code_block(block, request.working_directory_absolute_path)
+                if not sanitized_text:
+                    base_message = (
+                        f"Generated code saved to {artifact_path}.\n"
+                        "\n"
+                        "CRITICAL: Contains mixed instructions + partial snippets - NOT complete code to copy as-is!\n"
+                        "\n"
+                        "You MUST:\n"
+                        "  1. Read as a proposal from partial context - you may need to read the file in sections\n"
+                        "  2. Implement ideas using YOUR complete codebase context and understanding\n"
+                        "  3. Never paste wholesale - snippets may be partial with missing lines, pasting will corrupt your code!\n"
+                        "  4. Adapt to fit your actual structure and style\n"
+                        "  5. Build/lint/test after implementation to verify correctness\n"
+                        "\n"
+                        "Treat as guidance to implement thoughtfully, not ready-to-paste code."
                     )
+                    sanitized_text = base_message
 
-                    history_copy_base = sanitized_text
-                    history_copy = self._join_sections(history_copy_base, warning) if history_copy_base else warning
-                    recordable_override = history_copy
-
-                    sanitized_warning = history_copy.strip()
-                    body = f"{sanitized_warning}\n\n{block.strip()}".strip()
-                else:
-                    if not sanitized_text:
-                        base_message = (
-                            "Generated code saved to pal_generated.code.\n"
-                            "\n"
-                            "CRITICAL: Contains mixed instructions + partial snippets - NOT complete code to copy as-is!\n"
-                            "\n"
-                            "You MUST:\n"
-                            "  1. Read as a proposal from partial context - you may need to read the file in sections\n"
-                            "  2. Implement ideas using YOUR complete codebase context and understanding\n"
-                            "  3. Never paste wholesale - snippets may be partial with missing lines, pasting will corrupt your code!\n"
-                            "  4. Adapt to fit your actual structure and style\n"
-                            "  5. Build/lint/test after implementation to verify correctness\n"
-                            "\n"
-                            "Treat as guidance to implement thoughtfully, not ready-to-paste code."
-                        )
-                        sanitized_text = base_message
-
-                    instruction = self._build_agent_instruction(artifact_path)
-                    body = self._join_sections(sanitized_text, instruction)
+                instruction = self._build_agent_instruction(artifact_path)
+                body = self._join_sections(sanitized_text, instruction)
 
         final_output = (
             f"{body}\n\n---\n\nAGENT'S TURN: Evaluate this perspective alongside your analysis to "
             "form a comprehensive solution and continue with the user's request and task at hand."
         )
 
-        if recordable_override is not None:
-            self._last_recordable_response = (
-                f"{recordable_override}\n\n---\n\nAGENT'S TURN: Evaluate this perspective alongside your analysis to "
-                "form a comprehensive solution and continue with the user's request and task at hand."
-            )
-        else:
-            self._last_recordable_response = final_output
-
         return final_output
 
-    def _record_assistant_turn(
-        self, continuation_id: str, response_text: str, request, model_info: Optional[dict]
-    ) -> None:
-        recordable = self._last_recordable_response if self._last_recordable_response is not None else response_text
-        try:
-            super()._record_assistant_turn(continuation_id, recordable, request, model_info)
-        finally:
-            self._last_recordable_response = None
+    def get_recordable_response(self, raw_text: str, formatted_response: str, request) -> str:
+        if self._model_supports_code_generation() and self._extract_generated_code_block(raw_text)[0]:
+            return raw_text
+        # Preserve ordinary chat history until the single-owner migration (Task 9).
+        return formatted_response
 
     def _model_supports_code_generation(self) -> bool:
         context = getattr(self, "_model_context", None)
@@ -333,21 +314,52 @@ class ChatTool(SimpleTool):
 
         return block, remainder, len(matches)
 
-    def _persist_generated_code_block(self, block: str, working_directory: str) -> Path:
-        expanded = os.path.expanduser(working_directory)
-        target_dir = Path(expanded).resolve()
-        if not target_dir.is_dir():
-            raise FileNotFoundError(f"Absolute working directory path '{working_directory}' does not exist")
+    @contextmanager
+    def _artifact_directory(self, working_directory: str) -> Iterator[tuple[Path, int]]:
+        """Open each write boundary without following links; own all descriptors."""
+        if not all(hasattr(os, flag) for flag in ("O_NOFOLLOW", "O_DIRECTORY")) or not {os.open, os.mkdir}.issubset(
+            os.supports_dir_fd
+        ):
+            raise OSError("Secure chat artifact creation is unsupported on this platform (requires no-follow/dir_fd).")
 
-        target_file = target_dir / "pal_generated.code"
-        if target_file.exists():
+        root = self._workspace_root
+        working = Path(os.path.expanduser(working_directory))
+        if not root.is_absolute() or ".." in root.parts or root.is_symlink():
+            raise ValueError(
+                "PAL_WORKSPACE_ROOT must be an absolute, existing directory, without traversal or a symlink."
+            )
+        if not working_directory or not working.is_absolute() or ".." in working.parts:
+            raise ValueError("Artifact working directory must be absolute and contain no '..' traversal.")
+        root = root.resolve(strict=True)
+        working = working.resolve(strict=True)
+        if not working.is_relative_to(root):
+            raise ValueError("Artifact working directory must resolve inside PAL_WORKSPACE_ROOT.")
+
+        flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+        with ExitStack() as stack:
+            directory_fd = os.open(root, flags)
+            stack.callback(os.close, directory_fd)
+            for component in working.relative_to(root).parts:
+                directory_fd = os.open(component, flags, dir_fd=directory_fd)
+                stack.callback(os.close, directory_fd)
             try:
-                target_file.unlink()
-            except OSError as exc:
-                logger.warning("Unable to remove existing pal_generated.code: %s", exc)
+                os.mkdir(".pal_artifacts", mode=0o700, dir_fd=directory_fd)
+            except FileExistsError:
+                pass  # The no-follow open below validates existing entries too.
+            artifact_fd = os.open(".pal_artifacts", flags, dir_fd=directory_fd)
+            stack.callback(os.close, artifact_fd)
+            yield working / ".pal_artifacts", artifact_fd
 
-        content = block if block.endswith("\n") else f"{block}\n"
-        target_file.write_text(content, encoding="utf-8")
+    def _persist_generated_code_block(self, block: str, working_directory: str) -> Path:
+        with self._artifact_directory(working_directory) as (directory, directory_fd):
+            name = f"pal_generated_{uuid4().hex}.code"
+            fd = os.open(name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600, dir_fd=directory_fd)
+            try:
+                with os.fdopen(fd, "w", encoding="utf-8", closefd=False) as artifact:
+                    artifact.write(block if block.endswith("\n") else f"{block}\n")
+            finally:
+                os.close(fd)
+            target_file = directory / name
         logger.info("Generated code artifact written to %s", target_file)
         return target_file
 

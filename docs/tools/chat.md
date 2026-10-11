@@ -39,7 +39,7 @@ word verdict in the end.
 - **Collaborative thinking partner** for your analysis and planning
 - **Get second opinions** on your designs and approaches
 - **Brainstorm solutions** and explore alternatives together
-- **Structured code generation**: When using GPT-5.2 or Gemini 3.0 / 2.5 Pro, get complete, production-ready implementations saved to `pal_generated.code` for your CLI to review and apply
+- **Structured code generation**: When using GPT-5.2 or Gemini 3.0 / 2.5 Pro, get complete, production-ready implementations saved to `.pal_artifacts/pal_generated_<unique-id>.code` for your CLI to review and apply
 - **Validate your checklists** and implementation plans
 - **General development questions** and explanations
 - **Technology comparisons** and best practices
@@ -68,7 +68,7 @@ When using advanced reasoning models like **GPT-5.2 Pro** or **Gemini 3.0 Pro**,
 
 1. You ask your AI agent to implement a complex new feature using `chat` with a higher-reasoning model such as **GPT-5.2 Pro** or **Gemini 3.0 Pro**
 2. The model generates structured implementation and shares the complete implementation with PAL
-3. PAL saves the code to `pal_generated.code` and asks AI agent to implement the plan
+3. PAL saves the code to `.pal_artifacts/pal_generated_<unique-id>.code` and asks AI agent to implement the plan
 4. AI agent continues from the previous context, reads the file, applies the implementation
 
 ### When Code Generation Activates
@@ -96,6 +96,31 @@ classic maze / walls that it navigates within using keyboard arrow keys.
 ```
 
 See the [Configuration Guide](../configuration.md#code-generation-capability) for details on the `allow_code_generation` flag.
+
+## Artifact workspace and failures
+
+Set `PAL_WORKSPACE_ROOT` to an absolute, existing directory in the server's
+launch environment, for example `/home/me/projects`. PAL captures this setting
+when the chat tool is created; its default is the server's startup working
+directory. Launchers often start in the PAL installation directory, so configure
+this explicitly when your code lives elsewhere.
+
+For code-generation models, `working_directory_absolute_path` must exist and
+resolve inside that root. PAL validates it before generation, including continued
+calls. Each response uses an exclusive, unique file under `.pal_artifacts` in
+that directory; older artifacts are never overwritten. Read-only context files
+continue to use the separate file-read policy and need not be inside this root.
+
+Traversal and symlinked roots, artifact directories or destinations are rejected.
+POSIX directory descriptors and no-follow opens enforce the write boundaries.
+Platforms without those primitives, including Windows, return an explicit error
+for code-generation calls. The trusted workspace owner can still change files;
+this is not an operating-system sandbox.
+
+Policy and write failures produce tool errors without returning generated code as
+fallback instructions. Successful responses identify the actual artifact path;
+conversation history retains the raw model response. Remove artifacts after
+reviewing and applying them. Existing `pal_generated.code` files stay untouched.
 
 ## Usage Examples
 

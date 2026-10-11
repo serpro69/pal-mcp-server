@@ -116,7 +116,7 @@ The `allow_code_generation` capability enables models to generate complete, prod
 1. Only enable for models significantly more capable than your primary CLI to ensure high-quality generated code
 2. The capability triggers structured code output (`<GENERATED-CODE>` blocks) for substantial implementation requests
 3. Minor code changes still use inline code blocks regardless of this setting
-4. Generated code is saved to `pal_generated.code` in the user's working directory
+4. Generated code is saved to `.pal_artifacts/pal_generated_<unique-id>.code` in the user's working directory
 5. Your CLI receives instructions to review and apply the generated code systematically
 
 **Example Configuration:**
@@ -144,7 +144,7 @@ The `allow_code_generation` capability enables models to generate complete, prod
 **Typical Workflow:**
 1. You ask your AI agent to implement a complex new feature using `chat` with a higher-reasoning model such as **gpt-5.2-pro**
 2. GPT-5.2-Pro generates structured implementation and shares the complete implementation with PAL
-3. PAL saves the code to `pal_generated.code` and asks AI agent to implement the plan
+3. PAL saves the code to `.pal_artifacts/pal_generated_<unique-id>.code` and asks AI agent to implement the plan
 4. AI agent continues from the previous context, reads the file, applies the implementation
 
 ### Thinking Mode Configuration
@@ -311,3 +311,14 @@ LOG_LEVEL=INFO
 - **[Advanced Usage Guide](advanced-usage.md)** - Advanced model usage patterns, thinking modes, and power user workflows
 - **[Context Revival Guide](context-revival.md)** - Conversation persistence and context revival across sessions
 - **[AI-to-AI Collaboration Guide](ai-collaboration.md)** - Multi-model coordination and conversation threading
+
+### Chat artifact write root
+
+`PAL_WORKSPACE_ROOT` is an absolute existing directory supplied by the operator in
+the server launch environment. It defaults to startup cwd, which may be the PAL
+installation rather than your project. A code-generation request's working
+directory must resolve within that root. Artifacts have exclusive unique names in
+`.pal_artifacts`; path/write failures are explicit errors. See the
+[chat workspace contract](tools/chat.md#artifact-workspace-and-failures) for
+symlink checks, platform requirements and cleanup. Context-file reads retain their
+independent deny policy.
