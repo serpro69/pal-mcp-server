@@ -322,3 +322,17 @@ directory must resolve within that root. Artifacts have exclusive unique names i
 [chat workspace contract](tools/chat.md#artifact-workspace-and-failures) for
 symlink checks, platform requirements and cleanup. Context-file reads retain their
 independent deny policy.
+
+### Context-file read policy
+
+Context-file readers reject system directories, including `/proc`, `/sys`, `/dev`
+and `/run`, as well as existing sensitive home subdirectories. Symlinks to denied
+locations remain denied. Ordinary project files under home or temporary directories
+remain readable; chat's artifact write root does not restrict context-file reads.
+
+Readers enforce their byte limit on the actual binary read before UTF-8 decoding,
+using one extra byte to detect overflow even when filesystem metadata is stale or
+reports zero bytes. Oversized prompt files produce an explicit `FILE TOO LARGE`
+marker; the optional safe-reader API returns `None`. Ordinary successful formatting
+and each reader's invalid-UTF-8 behavior are unchanged. Token estimation validates
+the path before reading size metadata and returns zero for denied paths.

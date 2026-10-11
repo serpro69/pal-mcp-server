@@ -5,8 +5,10 @@ This module contains security-related constants and configurations
 for file access control.
 """
 
+import os
 from functools import lru_cache
 from pathlib import Path
+from typing import Optional
 
 # Dangerous system paths - block these AND all their subdirectories
 # These are system directories where user code should never reside
@@ -17,6 +19,10 @@ DANGEROUS_SYSTEM_PATHS = {
     "/bin",
     "/var",
     "/root",
+    "/proc",
+    "/sys",
+    "/dev",
+    "/run",
     "C:\\Windows",
     "C:\\Program Files",
 }
@@ -132,7 +138,7 @@ EXCLUDED_DIRS = {
 }
 
 
-def is_dangerous_path(path: Path) -> bool:
+def is_dangerous_path(path: Path, *, resolved_path: Optional[Path] = None) -> bool:
     """
     Check if a path is in or under a dangerous directory.
 
@@ -147,6 +153,7 @@ def is_dangerous_path(path: Path) -> bool:
 
     Args:
         path: Path to check
+        resolved_path: Already resolved target the caller will use, if available.
 
     Returns:
         True if the path is dangerous and should not be accessed
@@ -156,7 +163,10 @@ def is_dangerous_path(path: Path) -> bool:
         user access to home subdirectories.
     """
     try:
-        resolved = path.resolve()
+        # Check the requested spelling too: /proc/self/fd and /dev/fd can
+        # resolve to otherwise permitted files outside the pseudofilesystem.
+        requested = Path(os.path.abspath(path))
+        resolved = path.resolve() if resolved_path is None else resolved_path
 
         def _dangerous_variants(p: Path) -> set[Path]:
             variants = {p}
@@ -183,7 +193,7 @@ def is_dangerous_path(path: Path) -> bool:
                 # is_relative_to() correctly handles both exact matches and subdirectories.
                 # Resolving the dangerous base path also handles platform symlinks
                 # (e.g., macOS /etc -> /private/etc, /var -> /private/var).
-                if resolved == dangerous_path or resolved.is_relative_to(dangerous_path):
+                if resolved.is_relative_to(dangerous_path) or requested.is_relative_to(dangerous_path):
                     return True
 
         # Check 3: Home containers - block ONLY exact match

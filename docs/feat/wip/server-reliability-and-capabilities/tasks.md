@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Implementation: [implementation.md](implementation.md)
 > Review resolutions: [review.md](review.md#revalidation-and-resolution)
-> Status: in-progress (Tasks 1–4 done; Tasks 5–42 pending)
+> Status: in-progress (Tasks 1–5 done; Tasks 6–42 pending)
 > Created: 2026-10-10
 > Not Doing: toolchain/release-process migration; MCP 2.x; wholesale catalogs; replacement of safety controls; file-annotation implementation; persistent continuation recovery; remote multi-user transport; automatic service activation
 
@@ -102,17 +102,23 @@ live setup gates remain open as recorded in validation.md.
 
 ## Task 5: Bound file reads and preserve the local deny policy
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** —
 - **Size:** M
 - **Can run in parallel with:** Task 3, Task 4, Task 6, Task 30
 - **Docs:** [Implementation slice](implementation.md#task-5); [design contract](design.md#d2-file-and-cli-boundaries)
 
-- [ ] 5.1 Extend the existing path policy to reject pseudofilesystem/system directories, including /proc, /sys, /dev and /run, while retaining sensitive-home protections; validate paths before token-estimation stat calls.
-- [ ] 5.2 Read at most max_size+1 bytes before decoding and distinguish true overflow; preserve formatting for ordinary successful reads.
-- [ ] 5.3 Verify the acceptance cases in [Task 5](implementation.md#task-5) and record the result here.
+- [x] 5.1 Extend the existing path policy to reject pseudofilesystem/system directories, including /proc, /sys, /dev and /run, while retaining sensitive-home protections; validate paths before token-estimation stat calls.
+- [x] 5.2 Read at most max_size+1 bytes before decoding and distinguish true overflow; preserve formatting for ordinary successful reads.
+- [x] 5.3 Verify the acceptance cases in [Task 5](implementation.md#task-5) and record the result here.
 
 **Scope / gate:** Preserve DANGEROUS_HOME_SUBDIRECTORIES and existing legitimate-path behavior. Mock dangerous filesystem entries; never read real credential files in tests.
+
+**Evidence:** [Task 5 validation](validation.md#task-5-bounded-file-reads-and-path-policy),
+2026-10-11. Full quality: 980 passed. Actual-byte bounds, pseudofilesystem denial,
+pre-stat validation, synthetic changing-symlink resolution, sensitive-home and
+macOS compatibility checks passed. Isolated review approved after correcting the
+validation/use resolution race; external PAL reviewer unavailable.
 
 ## Task 6: Isolate clink environment and working directory
 
