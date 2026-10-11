@@ -2,6 +2,13 @@
 
 <!-- version list -->
 
+## Unreleased
+
+- Require Python 3.10 or newer, matching the supported launchers and CI matrix.
+  Python 3.9 is no longer advertised or selected by the Windows launcher.
+- Require MCP 1.30.0 or newer within the 1.x series for the latest maintenance
+  security fixes; keep the existing MCP 1.x interfaces.
+
 ## v1.2.0 (2026-05-19)
 
 ### Chores

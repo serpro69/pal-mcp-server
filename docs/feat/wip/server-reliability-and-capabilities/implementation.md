@@ -1,6 +1,6 @@
 # Implementation: server reliability and capabilities
 
-> Status: proposed; no implementation started
+> Status: implementation in progress; see tasks.md for completed scope
 > Created: 2026-10-10
 > Design: [design.md](design.md)
 > Tracking: [tasks.md](tasks.md)
