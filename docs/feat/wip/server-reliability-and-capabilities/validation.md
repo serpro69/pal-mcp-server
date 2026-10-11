@@ -1,4 +1,4 @@
-# Validation evidence: Tasks 1–4
+# Validation evidence: Tasks 1–5
 
 Recorded 2026-10-11. This covers the completed maintenance tasks below, not the
 remaining roadmap or optional live-provider behavior.
@@ -270,3 +270,36 @@ No dependency pins or recorded request bodies changed.
 Independent `kk:review-code:isolated`: **APPROVE**, no remaining findings. Review
 identified and verified the correction to initial artifact-reply storage; external
 PAL tools were unavailable. No systemic review findings needed indexing.
+
+## Task 5: bounded file reads and path policy
+
+Recorded 2026-10-11. Added `/proc`, `/sys`, `/dev` and `/run` exclusions while
+preserving sensitive-home entries and exact-root semantics. Requested and resolved
+system paths are both checked, including descriptor-style pseudofilesystem paths
+that resolve elsewhere. Token estimation validates paths before size metadata.
+Both text-reader entry points read at most `max_size + 1` bytes, classify overflow
+from that read and then decode using their existing replacement/ignore behavior.
+Successful headers, line numbering and newline normalization are preserved.
+
+Changed `utils/file_utils.py`, `utils/security_config.py`, new
+`tests/test_path_policy_pseudofs.py`, configuration documentation and release notes.
+No dependency changes were required.
+
+- Focused readers/path/formatting suite: **87 passed** before the additional macOS
+  alias regression; that regression is included in the full result below.
+- `BLACK_NUM_WORKERS=1 ./code_quality_checks.sh` in the fresh-lock Python 3.10.12
+  environment: **980 passed**, 4 skipped, 16 deselected, 19 subtests passed.
+  Ruff/Black/isort passed; only the 2 previously recorded AsyncMock warnings remain.
+- New cases cover pseudofilesystem roots/descendants, denied symlink targets,
+  descriptor aliases, no stat/open on denial, zero and oversized reported sizes,
+  bounded reads/closure, exact byte limits, multibyte UTF-8, empty and negative
+  limits, existing success formatting, ordinary home code and simulated macOS
+  system/temporary path aliases. No real credential or pseudofilesystem content
+  was read. Existing sensitive-home and file-protection tests passed in the suite.
+- Integration/simulator setup limitations remain those verified in Task 4; no
+  provider behavior changed and no live credentials were used for this slice.
+
+Independent `kk:review-code:isolated`: **APPROVE** after fixing a newly introduced
+validation/use race. Path validation now checks and returns the same canonical
+target; a synthetic changing-resolution regression verifies this. The systemic
+lesson was indexed by the review workflow. External PAL reviewer unavailable.

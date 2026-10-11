@@ -311,8 +311,8 @@ def resolve_and_validate_path(path_str: str) -> Path:
     resolved_path = user_path.resolve()
 
     # Step 4: Check against dangerous paths
-    if is_dangerous_path(resolved_path):
-        logger.warning(f"Access denied - dangerous path: {resolved_path}")
+    if is_dangerous_path(user_path, resolved_path=resolved_path):
+        logger.warning(f"Access denied - dangerous path: {user_path}")
         raise PermissionError(f"Access to system directory denied: {path_str}")
 
     # Step 5: Check if it's the home directory root
@@ -463,16 +463,18 @@ def read_file_content(
             content = f"\n--- NOT A FILE: {file_path} ---\nError: Path is not a file\n--- END FILE ---\n"
             return content, estimate_tokens(content)
 
-        # Check file size to prevent memory exhaustion
+        if max_size < 0:
+            raise ValueError("max_size must be nonnegative")
+
+        # Metadata is for presentation; only the bounded read establishes overflow.
         stat_result = path.stat()
-        file_size = stat_result.st_size
-        logger.debug(f"[FILES] File size for {file_path}: {file_size:,} bytes")
-        if file_size > max_size:
-            logger.debug(f"[FILES] File too large: {file_path} ({file_size:,} > {max_size:,} bytes)")
+        with open(path, "rb") as f:
+            data = f.read(max_size + 1)
+        if len(data) > max_size:
             modified_at = datetime.fromtimestamp(stat_result.st_mtime, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S %Z")
             content = (
                 f"\n--- FILE TOO LARGE: {file_path} (Last modified: {modified_at}) ---\n"
-                f"File size: {file_size:,} bytes (max: {max_size:,})\n"
+                f"Reported file size: {stat_result.st_size:,} bytes; read at least {len(data):,} bytes (max: {max_size:,})\n"
                 "--- END FILE ---\n"
             )
             return content, estimate_tokens(content)
@@ -484,8 +486,7 @@ def read_file_content(
         # Read the file with UTF-8 encoding, replacing invalid characters
         # This ensures we can handle files with mixed encodings
         logger.debug(f"[FILES] Reading file content for {file_path}")
-        with open(path, encoding="utf-8", errors="replace") as f:
-            file_content = f.read()
+        file_content = data.decode("utf-8", errors="replace")
 
         logger.debug(f"[FILES] Successfully read {len(file_content)} characters from {file_path}")
 
@@ -636,10 +637,11 @@ def estimate_file_tokens(file_path: str) -> int:
         Estimated token count for the file
     """
     try:
-        if not os.path.exists(file_path) or not os.path.isfile(file_path):
+        path = resolve_and_validate_path(file_path)
+        if not path.is_file():
             return 0
 
-        file_size = os.path.getsize(file_path)
+        file_size = path.stat().st_size
 
         # Get the appropriate ratio for this file type
         from .file_types import get_token_estimation_ratio
@@ -790,16 +792,17 @@ def read_file_safely(file_path: str, max_size: int = 10 * 1024 * 1024) -> Option
         File content as string, or None if file too large or unreadable
     """
     try:
-        if not os.path.exists(file_path) or not os.path.isfile(file_path):
+        path = resolve_and_validate_path(file_path)
+        if max_size < 0 or not path.is_file():
             return None
 
-        file_size = os.path.getsize(file_path)
-        if file_size > max_size:
+        with open(path, "rb") as f:
+            data = f.read(max_size + 1)
+        if len(data) > max_size:
             return None
 
-        with open(file_path, encoding="utf-8", errors="ignore") as f:
-            return f.read()
-    except OSError:
+        return _normalize_line_endings(data.decode("utf-8", errors="ignore"))
+    except (OSError, ValueError):
         return None
 
 

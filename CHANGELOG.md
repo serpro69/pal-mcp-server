@@ -4,6 +4,9 @@
 
 ## Unreleased
 
+- Bound context-file reads by actual bytes before decoding, and deny pseudofilesystem
+  paths during reading and token estimation while retaining sensitive-home protections.
+
 - Confine generated chat artifacts to `PAL_WORKSPACE_ROOT` (default: startup cwd),
   using unique `.pal_artifacts` files instead of overwriting `pal_generated.code`.
   Reject unsafe paths and unsupported secure-write platforms before generation;
