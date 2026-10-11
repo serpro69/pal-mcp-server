@@ -3,6 +3,81 @@
 Recorded 2026-10-11. This covers the completed maintenance tasks below, not the
 remaining roadmap or optional live-provider behavior.
 
+## Task 14: chat yielding and shared-provider safety
+
+Recorded 2026-10-11. Implemented in two sequential slices: client/transport safety
+was tested before simple-tool generation was offloaded. OpenAI-compatible, Azure
+and Gemini now publish one lazy client per provider under an initialization lock.
+The lock ends before generation; failures leave initialization retryable. Azure
+inherits the guard via `_create_client`; DIAL keeps its independent deployment
+lock and shared pool. Failed OpenAI/Azure SDK construction closes its owned HTTP
+client. The OpenAI fallback retains explicit HTTP transport and timeout settings.
+
+OpenAI/Azure preserve direct routing and environment CA trust with explicit HTTPX
+transports, without process proxy suppression. Tests observe synthetic proxy/CA
+values during normal and fallback construction from another provider and a real
+Python child. Injected test transports continue to support request replay.
+
+`utils/provider_execution.py` temporarily awaits coroutine methods or runs legacy
+synchronous generation in `asyncio.to_thread`. Simple-tool primary and recovery
+calls use it. Request context and result provenance survive overlapping waits;
+cancellation propagates and frees conversation coordination. A cancelled legacy
+worker may continue network work/retries; native cancellation/shutdown remain
+Tasks 16–19. Expert/consensus routing remains Task 15.
+
+### Dependency and cache audit
+
+No pins changed: HTTPX **0.28.1**, OpenAI **2.41.0**, google-genai **2.8.0**.
+Verified HTTPX against versioned Context7 results and the installed/upstream
+[0.28.1 client](https://github.com/encode/httpx/blob/0.28.1/httpx/_client.py) and
+[TLS configuration](https://github.com/encode/httpx/blob/0.28.1/httpx/_config.py).
+The actual source confirms that an explicit transport disables automatic proxy
+mounts while transport `trust_env=True` retains CA environment settings. This
+corrects a contradictory prose snippet in the search result; source and behavior
+tests establish the contract. Verified context propagation/offload in
+[Python 3.10 asyncio](https://docs.python.org/3.10/library/asyncio-task.html#asyncio.to_thread)
+and initialization guards in [threading](https://docs.python.org/3.10/library/threading.html).
+
+Provider/registry construction remains on the event-loop side before offload;
+registries are populated there, not reloaded during generation. The generation
+cache audit found configured allowlist set expansion, now removed. Alias caches
+store deterministic immutable strings through individual dictionary writes;
+duplicate computation is harmless on supported CPython 3.10–3.12. Ranked
+capabilities are built locally and published as a complete list; returned lists
+are copied. Gemini's token-counter dictionary has no consumers. Azure deployment
+maps are constructed before publication. No request state moves onto providers.
+Concurrent operator registry reload and provider shutdown are not introduced here.
+
+### Verification
+
+- Provider safety gate, before adapter wiring: **53 passed** across actual-provider
+  cold starts/fake SDK generation, retryable initialization, environment isolation,
+  injected transport, OpenAI/Azure and DIAL regression suites.
+- Chat/ownership/UTF-8 suite: **94 passed**, including synchronous and coroutine
+  providers, request ContextVars, overlapping waits, recovery, errors, cancellation,
+  actual saved turns and another provider-free request making progress.
+- `BLACK_NUM_WORKERS=1 ./code_quality_checks.sh`, locked Python 3.10.12:
+  **1,182 passed**, 4 skipped, 16 deselected, 19 subtests passed; lint/format passed.
+  Two pre-existing expert/consensus AsyncMock warnings remain assigned to Task 15.
+- Provider initialization/chat/retry/ownership/UTF-8 suites on Python 3.11.13 and
+  3.12.11: **112 passed each**. Review strengthened the cold-start test to wait
+  for actual lock contention before releasing construction, preserving the real
+  lock and provider methods. Full quality remained **1,182 passed**; the final
+  16-test initialization suite passed on both additional interpreters.
+  Thread/subprocess checks ran outside the process
+  sandbox; the sandboxed focused run stalled during event-loop teardown.
+- Required integration/quick simulator commands were attempted; the existing
+  environment/interpreter setup blockers and live release gates remain open.
+
+Independent isolated review: **APPROVE**, no remaining findings after improving
+contention-test synchronization. No systemic P0/P1 findings required indexing.
+External PAL reviewer unavailable.
+
+Reflection: DIAL calls the base client while holding its own deployment lock, so
+reusing that lock for base initialization would deadlock. Direct proxy routing
+and CA environment trust also require separate controls: setting `trust_env=False`
+on the whole HTTP client would silently drop the existing CA trust policy.
+
 ## Task 13: truthful consensus degradation
 
 Recorded 2026-10-11. Both completion paths share one summary of the latest outcome

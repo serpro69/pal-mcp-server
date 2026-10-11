@@ -4,6 +4,11 @@
 
 ## Unreleased
 
+- Chat generation and empty-response recovery now yield through a temporary
+  sync/async adapter. Guard shared provider client initialization and preserve
+  OpenAI/Azure direct routing and CA trust without changing process proxy variables.
+  Cancelling a legacy worker await does not cancel its network request.
+
 - Consensus now distinguishes complete, partial and failed coverage, reports
   participant errors and successful provider coverage, and counts only successful
   participants in response totals. Completion no longer implies high confidence.

@@ -3,12 +3,13 @@
 import copy
 import ipaddress
 import logging
+import threading
 from typing import Optional
 from urllib.parse import urlparse
 
 from openai import OpenAI
 
-from utils.env import get_env, suppress_env_vars
+from utils.env import get_env
 from utils.image_utils import validate_image
 
 from .base import ModelProvider
@@ -42,6 +43,8 @@ class OpenAICompatibleProvider(ModelProvider):
         self._allowed_alias_cache: dict[str, str] = {}
         super().__init__(api_key, **kwargs)
         self._client = None
+        # Separate from DIAL's deployment lock, which calls the client property.
+        self._client_init_lock = threading.Lock()
         self.base_url = base_url
         self.organization = kwargs.get("organization")
         self.allowed_models = self._parse_allowed_models()
@@ -91,11 +94,9 @@ class OpenAICompatibleProvider(ModelProvider):
                         self._allowed_alias_cache[allowed_entry] = normalized_resolved
 
                     if normalized_resolved == canonical:
-                        # Canonical match discovered via alias resolution – mark as allowed and
-                        # memoise the canonical entry for future lookups.
+                        # Keep the configured set immutable during concurrent generation.
                         allowed = True
                         self._allowed_alias_cache[canonical] = canonical
-                        self.allowed_models.add(canonical)
                         break
 
                 if not allowed:
@@ -255,78 +256,50 @@ class OpenAICompatibleProvider(ModelProvider):
 
     @property
     def client(self):
-        """Lazy initialization of OpenAI client with security checks and timeout configuration."""
+        """Publish one client per provider; initialization failures remain retryable."""
         if self._client is None:
-            import httpx
-
-            proxy_env_vars = ["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy"]
-
-            with suppress_env_vars(*proxy_env_vars):
-                try:
-                    # Create a custom httpx client that explicitly avoids proxy parameters
-                    timeout_config = (
-                        self.timeout_config
-                        if hasattr(self, "timeout_config") and self.timeout_config
-                        else httpx.Timeout(30.0)
-                    )
-
-                    # Create httpx client with minimal config to avoid proxy conflicts
-                    # Note: proxies parameter was removed in httpx 0.28.0
-                    # Check for test transport injection
-                    if hasattr(self, "_test_transport"):
-                        # Use custom transport for testing (HTTP recording/replay)
-                        http_client = httpx.Client(
-                            transport=self._test_transport,
-                            timeout=timeout_config,
-                            follow_redirects=True,
-                        )
-                    else:
-                        # Normal production client
-                        http_client = httpx.Client(
-                            timeout=timeout_config,
-                            follow_redirects=True,
-                        )
-
-                    # Keep client initialization minimal to avoid proxy parameter conflicts
-                    client_kwargs = {
-                        "api_key": self.api_key,
-                        "http_client": http_client,
-                    }
-
-                    if self.base_url:
-                        client_kwargs["base_url"] = self.base_url
-
-                    if self.organization:
-                        client_kwargs["organization"] = self.organization
-
-                    # Add default headers if any
-                    if self.DEFAULT_HEADERS:
-                        client_kwargs["default_headers"] = self.DEFAULT_HEADERS.copy()
-
-                    logging.debug(
-                        "OpenAI client initialized with custom httpx client and timeout: %s",
-                        timeout_config,
-                    )
-
-                    # Create OpenAI client with custom httpx client
-                    self._client = OpenAI(**client_kwargs)
-
-                except Exception as e:
-                    # If all else fails, try absolute minimal client without custom httpx
-                    logging.warning(
-                        "Failed to create client with custom httpx, falling back to minimal config: %s",
-                        e,
-                    )
-                    try:
-                        minimal_kwargs = {"api_key": self.api_key}
-                        if self.base_url:
-                            minimal_kwargs["base_url"] = self.base_url
-                        self._client = OpenAI(**minimal_kwargs)
-                    except Exception as fallback_error:
-                        logging.error("Even minimal OpenAI client creation failed: %s", fallback_error)
-                        raise
-
+            with self._client_init_lock:
+                if self._client is None:
+                    self._client = self._create_client()
         return self._client
+
+    def _create_http_client(self):
+        """Preserve direct routing and environment CA trust without changing process state."""
+        import httpx
+
+        # An explicit transport disables automatic proxy mounts; trust_env on
+        # the transport retains SSL_CERT_FILE / SSL_CERT_DIR support.
+        transport = getattr(self, "_test_transport", None)
+        if transport is None:
+            transport = httpx.HTTPTransport(trust_env=True)
+        try:
+            return httpx.Client(transport=transport, timeout=self.timeout_config, follow_redirects=True)
+        except Exception:
+            transport.close()
+            raise
+
+    def _create_client(self):
+        """Retain explicit transport policy even when falling back to minimal SDK options."""
+        client_kwargs = {"api_key": self.api_key}
+        if self.base_url:
+            client_kwargs["base_url"] = self.base_url
+        minimal_kwargs = client_kwargs.copy()
+        if self.organization:
+            client_kwargs["organization"] = self.organization
+        if self.DEFAULT_HEADERS:
+            client_kwargs["default_headers"] = self.DEFAULT_HEADERS.copy()
+
+        for attempt, kwargs in enumerate((client_kwargs, minimal_kwargs)):
+            http_client = None
+            try:
+                http_client = self._create_http_client()
+                return OpenAI(http_client=http_client, **kwargs)
+            except Exception:
+                if http_client is not None:
+                    http_client.close()
+                if attempt:
+                    raise
+                logging.warning("Failed to initialize OpenAI client; retrying with minimal SDK options")
 
     def _sanitize_for_logging(self, params: dict) -> dict:
         """Sanitize sensitive data from parameters before logging.

@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Implementation: [implementation.md](implementation.md)
 > Review resolutions: [review.md](review.md#revalidation-and-resolution)
-> Status: in-progress (Tasks 1–13 done; Tasks 14–42 pending)
+> Status: in-progress (Tasks 1–14 done; Tasks 15–42 pending)
 > Created: 2026-10-10
 > Not Doing: toolchain/release-process migration; MCP 2.x; wholesale catalogs; replacement of safety controls; file-annotation implementation; persistent continuation recovery; remote multi-user transport; automatic service activation
 
@@ -287,18 +287,29 @@ findings; external PAL unavailable. Existing live/setup release gates remain ope
 
 ## Task 14: Make chat generation yield through a migration adapter
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 10, Task 11
 - **Size:** M
 - **Can run in parallel with:** —
 - **Docs:** [Implementation slice](implementation.md#task-14); [design contract](design.md#d4-async-provider-lifecycle)
 
-- [ ] 14.1 Guard shared lazy client initialization and audit generation-time mutable caches in OpenAI-compatible, Azure and Gemini providers; preserve DIAL's existing locking/ownership. Replace process-global proxy suppression, including fallback construction, with explicit transport configuration preserving effective proxy/TLS behavior.
-- [ ] 14.2 Before offload, verify concurrent cold starts through actual provider methods and fake SDK transports: one client per owner, retryable initialization failure and unchanged synthetic environment values observed by concurrent providers/CLI children. Initialization locks must not cover generation waits.
-- [ ] 14.3 Introduce the temporary invocation adapter that awaits coroutine providers and offloads legacy synchronous generation to asyncio.to_thread; route simple-tool primary/recovery calls through it and align affected mocks with the active contract.
-- [ ] 14.4 Verify the acceptance cases in [Task 14](implementation.md#task-14) and record the result here.
+- [x] 14.1 Guard shared lazy client initialization and audit generation-time mutable caches in OpenAI-compatible, Azure and Gemini providers; preserve DIAL's existing locking/ownership. Replace process-global proxy suppression, including fallback construction, with explicit transport configuration preserving effective proxy/TLS behavior.
+- [x] 14.2 Before offload, verify concurrent cold starts through actual provider methods and fake SDK transports: one client per owner, retryable initialization failure and unchanged synthetic environment values observed by concurrent providers/CLI children. Initialization locks must not cover generation waits.
+- [x] 14.3 Introduce the temporary invocation adapter that awaits coroutine providers and offloads legacy synchronous generation to asyncio.to_thread; route simple-tool primary/recovery calls through it and align affected mocks with the active contract.
+- [x] 14.4 Verify the acceptance cases in [Task 14](implementation.md#task-14) and record the result here.
 
 **Scope / gate:** Client/environment safety checks precede worker-thread dispatch; per-tool/per-conversation isolation cannot protect shared provider state. Preserve explicit transport policy through native migration. The adapter is removed in Task 19; cancelling its await does not guarantee cancellation of the worker's network request.
+
+**Execution slices:** First guard client publication and verify explicit transport
+policy in the three provider implementations, with initialization tests. Then add
+the temporary adapter and simple-tool wiring, with chat concurrency tests. Keep
+these sequential acceptance gates within this task's single commit.
+
+**Evidence:** [Task 14 validation](validation.md#task-14-chat-yielding-and-shared-provider-safety),
+2026-10-11. Full quality: **1,182 passed**; provider/chat/retry suites: **112 passed
+each** on Python 3.11 and 3.12. Independent review approved after strengthening
+cold-start contention evidence; final initialization matrix **16 passed each**.
+External PAL unavailable; existing live/setup release gates remain open.
 
 ## Task 15: Make expert and consensus generation yield
 

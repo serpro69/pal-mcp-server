@@ -2,6 +2,7 @@
 
 import base64
 import logging
+import threading
 from typing import TYPE_CHECKING, ClassVar, Optional
 
 if TYPE_CHECKING:
@@ -47,6 +48,7 @@ class GeminiModelProvider(RegistryBackedProviderMixin, ModelProvider):
         self._ensure_registry()
         super().__init__(api_key, **kwargs)
         self._client = None
+        self._client_init_lock = threading.Lock()
         self._token_counters = {}  # Cache for token counting
         self._base_url = kwargs.get("base_url", None)  # Optional custom endpoint
         self._timeout_override = self._resolve_http_timeout()
@@ -64,22 +66,24 @@ class GeminiModelProvider(RegistryBackedProviderMixin, ModelProvider):
     def client(self):
         """Lazy initialization of Gemini client."""
         if self._client is None:
-            http_options_kwargs: dict[str, object] = {}
-            if self._base_url:
-                http_options_kwargs["base_url"] = self._base_url
-            if self._timeout_override is not None:
-                http_options_kwargs["timeout"] = self._timeout_override
+            with self._client_init_lock:
+                if self._client is None:
+                    http_options_kwargs: dict[str, object] = {}
+                    if self._base_url:
+                        http_options_kwargs["base_url"] = self._base_url
+                    if self._timeout_override is not None:
+                        http_options_kwargs["timeout"] = self._timeout_override
 
-            if http_options_kwargs:
-                http_options = types.HttpOptions(**http_options_kwargs)
-                logger.debug(
-                    "Initializing Gemini client with options: base_url=%s timeout=%s",
-                    http_options_kwargs.get("base_url"),
-                    http_options_kwargs.get("timeout"),
-                )
-                self._client = genai.Client(api_key=self.api_key, http_options=http_options)
-            else:
-                self._client = genai.Client(api_key=self.api_key)
+                    if http_options_kwargs:
+                        http_options = types.HttpOptions(**http_options_kwargs)
+                        logger.debug(
+                            "Initializing Gemini client with options: base_url=%s timeout=%s",
+                            http_options_kwargs.get("base_url"),
+                            http_options_kwargs.get("timeout"),
+                        )
+                        self._client = genai.Client(api_key=self.api_key, http_options=http_options)
+                    else:
+                        self._client = genai.Client(api_key=self.api_key)
         return self._client
 
     def _resolve_http_timeout(self) -> Optional[float]:
