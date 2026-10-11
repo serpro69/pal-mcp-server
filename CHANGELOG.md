@@ -8,6 +8,8 @@
   Python 3.9 is no longer advertised or selected by the Windows launcher.
 - Require MCP 1.30.0 or newer within the 1.x series for the latest maintenance
   security fixes; keep the existing MCP 1.x interfaces.
+- Restore the canonical Apache 2.0 license text, preserve existing attribution in
+  NOTICE, and include both files with SPDX metadata in source and wheel packages.
 
 ## v1.2.0 (2026-05-19)
 

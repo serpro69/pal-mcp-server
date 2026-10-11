@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Implementation: [implementation.md](implementation.md)
 > Review resolutions: [review.md](review.md#revalidation-and-resolution)
-> Status: in-progress (Tasks 1–3)
+> Status: in-progress (Tasks 1–3 done; Tasks 4–42 pending)
 > Created: 2026-10-10
 > Not Doing: toolchain/release-process migration; MCP 2.x; wholesale catalogs; replacement of safety controls; file-annotation implementation; persistent continuation recovery; remote multi-user transport; automatic service activation
 
@@ -59,17 +59,25 @@ This task's completion is the verified build/scan/register, not vulnerability cl
 
 ## Task 3: Repair canonical license and package notices
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** —
 - **Size:** S
 - **Can run in parallel with:** Task 4, Task 5, Task 6, Task 30
 - **Docs:** [Implementation slice](implementation.md#task-3); [design contract](design.md#d1-runtime-and-packaging)
 
-- [ ] 3.1 Compare LICENSE with the canonical Apache 2.0 text and restore it without altering terms; ensure NOTICE retains accurate existing project notices.
-- [ ] 3.2 Declare license metadata using the installed build backend's verified supported fields and include the text/notice in source and wheel distributions.
-- [ ] 3.3 Verify the acceptance cases in [Task 3](implementation.md#task-3) and record the result here.
+- [x] 3.1 Compare LICENSE with the canonical Apache 2.0 text and restore it without altering terms; ensure NOTICE retains accurate existing project notices.
+- [x] 3.2 Declare license metadata using the installed build backend's verified supported fields and include the text/notice in source and wheel distributions.
+- [x] 3.3 Verify the acceptance cases in [Task 3](implementation.md#task-3) and record the result here.
 
 **Scope / gate:** Preserve the project's existing legal notices and ownership metadata. This task corrects license text and distribution contents; it does not change ownership.
+
+**Evidence:** [Canonical comparison and distribution inspection](validation.md#task-3-license-and-distributions),
+2026-10-11. LICENSE matches the official Apache text byte-for-byte; NOTICE retains
+the original 2025 Beehive attribution. Changed license/notice, package metadata,
+README and release notes. Built sdist and wheel with setuptools 84.0.0; verified
+both files' exact bytes, SPDX expression and License-File metadata in both archives.
+Locks unchanged; full quality: 913 passed. Isolated review approved with no findings
+(external PAL reviewer unavailable). No publishing or ownership changes.
 
 ## Task 4: Contain generated chat artifacts
 

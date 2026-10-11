@@ -185,3 +185,52 @@ Independent isolated code review: **APPROVE**, no actionable findings and no
 systemic findings to index. The reviewer verified the register covers every
 reported package and matches the raw severity totals; this approval does not
 close the security release gate. External PAL reviewer unavailable.
+
+## Task 3: license and distributions
+
+Compared LICENSE directly with the
+[Apache Software Foundation's canonical text](https://www.apache.org/licenses/LICENSE-2.0.txt)
+on 2026-10-11. Restored the complete text, including the original definitions,
+copyright grant, liability section and appendix. The result matches **byte for
+byte**, including whitespace: **11,358 bytes**, SHA256
+`cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30`.
+
+Moved the existing `Copyright 2025 Beehive Innovations` and its original URL into
+NOTICE. The fork URL is already documented in README; no new ownership claim or
+copyright year was introduced. `config.py` author/version identity is unchanged.
+
+Verified PEP 639 support against
+[setuptools 84.0.0's versioned documentation](https://github.com/pypa/setuptools/blob/v84.0.0/docs/userguide/pyproject_config.rst).
+Set `project.license = "Apache-2.0"` and explicit `project.license-files` for
+LICENSE and NOTICE. Raised the build backend minimum to **77.0.0**, the documented
+first release supporting these fields. No manifest override was necessary.
+
+Ran `/tmp/pal-task1-py312/bin/python -m build --outdir /tmp/pal-task3-dist`.
+The isolated build used setuptools **84.0.0** and built the wheel from the sdist.
+Inspected both archives with Python's tarfile/zipfile and email metadata parser:
+
+- sdist: `pal_mcp_server-1.3.0/LICENSE` and `NOTICE` exactly match repository bytes.
+- wheel: `pal_mcp_server-1.3.0.dist-info/licenses/LICENSE` and `NOTICE` exactly match.
+- Both PKG-INFO and METADATA declare metadata version **2.4**,
+  `License-Expression: Apache-2.0`, both `License-File` entries, and
+  `Requires-Python: >=3.10`.
+- Wheel SHA256: `1a29f9d1798081e144b49da03f926fe3e28d1ac5a0bc03cd3330c3da97e10d70`.
+- sdist SHA256: `401371bd36b1bebe63f8027636fe84d3861efe664697539390f826e59c32c5bb`.
+
+Recompiled both pip-tools locks and verified no diff. The full quality script in
+the fresh Python 3.11 environment passed: **913 passed**, 4 skipped,
+16 deselected, 19 subtests passed; the same 2 pre-existing AsyncMock warnings.
+Builds stayed local; no distributions were published. The live-validation and
+container security gates documented above remain open.
+
+Independent isolated code review: **APPROVE**, no actionable findings and no
+systemic findings to index. External PAL reviewer unavailable.
+
+## Implementation notes for the next slice
+
+The existing developer environment differed from the committed locks, which made
+the fresh matrix essential. The container retained a second packaging-tool
+installation outside its venv; patching only the venv missed it. Remaining scan
+findings require the explicit dependency/release follow-ups above. License repair
+was substantive text restoration, not just formatting. No architecture, provider
+behavior or release-workflow changes were needed for Tasks 1–3.
