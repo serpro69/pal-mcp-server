@@ -480,6 +480,8 @@ DISABLED_TOOLS=
 ## License
 
 Apache 2.0 License - see [LICENSE](LICENSE) file for details.
+Existing project attribution is preserved in [NOTICE](NOTICE). Source and wheel
+distributions include both files and declare the `Apache-2.0` SPDX identifier.
 
 ## Acknowledgments
 
