@@ -17,6 +17,7 @@ from typing import Any, Optional
 
 from tools.shared.base_models import WorkflowRequest
 from tools.shared.base_tool import BaseTool
+from utils.conversation_context import conversation_request
 
 from .schema_builders import WorkflowSchemaBuilder
 from .workflow_mixin import BaseWorkflowMixin
@@ -443,6 +444,7 @@ class WorkflowTool(BaseTool, BaseWorkflowMixin):
         pass
 
     # Default execute method - delegates to workflow
+    @conversation_request(workflow=True)
     async def execute(self, arguments: dict[str, Any]) -> list:
         """Execute the workflow tool - delegates to BaseWorkflowMixin."""
         return await self.execute_workflow(arguments)

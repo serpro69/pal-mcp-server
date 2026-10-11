@@ -188,8 +188,9 @@ async def test_generated_answer_survives_final_write_failure(storage, chat_provi
 
 
 def test_response_path_does_not_hide_programming_errors(storage, tmp_path):
+    thread_id = memory.create_thread("chat", {})
     storage.write_error = TypeError("serialization bug")
-    request = ChatRequest(prompt="input", working_directory_absolute_path=str(tmp_path))
+    request = ChatRequest(prompt="input", working_directory_absolute_path=str(tmp_path), continuation_id=thread_id)
     with pytest.raises(TypeError, match="serialization bug"):
         ChatTool()._parse_response("answer", request)
 

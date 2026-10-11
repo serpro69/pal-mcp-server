@@ -691,60 +691,11 @@ async def handle_list_tools() -> list[Tool]:
 
 @server.call_tool()
 async def handle_call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
-    """
-    Handle incoming tool execution requests from MCP clients.
+    """Resolve MCP model/file policy and dispatch through the shared invocation owner.
 
-    This is the main request dispatcher that routes tool calls to their appropriate handlers.
-    It supports both AI-powered tools (from TOOLS registry) and utility tools (implemented as
-    static functions).
-
-    CONVERSATION LIFECYCLE MANAGEMENT:
-    This function serves as the central orchestrator for multi-turn AI-to-AI conversations:
-
-    1. THREAD RESUMPTION: When continuation_id is present, it reconstructs complete conversation
-       context from in-memory storage including conversation history and file references
-
-    2. CROSS-TOOL CONTINUATION: Enables seamless handoffs between different tools (analyze →
-       codereview → debug) while preserving full conversation context and file references
-
-    3. CONTEXT INJECTION: Reconstructed conversation history is embedded into tool prompts
-       using the dual prioritization strategy:
-       - Files: Newest-first prioritization (recent file versions take precedence)
-       - Turns: Newest-first collection for token efficiency, chronological presentation for LLM
-
-    4. FOLLOW-UP GENERATION: After tool execution, generates continuation offers for ongoing
-       AI-to-AI collaboration with natural language instructions
-
-    STATELESS TO STATEFUL BRIDGE:
-    The MCP protocol is inherently stateless, but this function bridges the gap by:
-    - Loading persistent conversation state from in-memory storage
-    - Reconstructing full multi-turn context for tool execution
-    - Enabling tools to access previous exchanges and file references
-    - Supporting conversation chains across different tool types
-
-    Args:
-        name: The name of the tool to execute (e.g., "analyze", "chat", "codereview")
-        arguments: Dictionary of arguments to pass to the tool, potentially including:
-                  - continuation_id: UUID for conversation thread resumption
-                  - files: File paths for analysis (subject to deduplication)
-                  - prompt: User request or follow-up question
-                  - model: Specific AI model to use (optional)
-
-    Returns:
-        List of TextContent objects containing:
-        - Tool's primary response with analysis/results
-        - Continuation offers for follow-up conversations (when applicable)
-        - Structured JSON responses with status and content
-
-    Raises:
-        ValueError: If continuation_id is invalid or conversation thread not found
-        Exception: For tool-specific errors or execution failures
-
-    Example Conversation Flow:
-        1. The CLI calls analyze tool with files → creates new thread
-        2. Thread ID returned in continuation offer
-        3. The CLI continues with codereview tool + continuation_id → full context preserved
-        4. Multiple tools can collaborate using same thread ID
+    Tool execute wrappers validate and persist raw input once, build the receiving
+    tool's context, and save its reply. Direct execute calls use the same lifecycle.
+    Caller JSON cannot supply internal conversation or model-resolution state.
     """
     logger.info(f"MCP tool call: {name}")
     logger.debug(f"MCP tool arguments: {list(arguments.keys())}")
@@ -756,26 +707,23 @@ async def handle_call_tool(name: str, arguments: dict[str, Any]) -> list[TextCon
     except Exception:
         pass
 
-    # Handle thread context reconstruction if continuation_id is present
-    if "continuation_id" in arguments and arguments["continuation_id"]:
-        continuation_id = arguments["continuation_id"]
-        logger.debug(f"Resuming conversation thread: {continuation_id}")
-        logger.debug(
-            f"[CONVERSATION_DEBUG] Tool '{name}' resuming thread {continuation_id} with {len(arguments)} arguments"
-        )
-        logger.debug(f"[CONVERSATION_DEBUG] Original arguments keys: {list(arguments.keys())}")
+    # Admission and history belong to the same execute wrapper used by direct calls.
+    # Resolve a continued model before MCP model validation, without changing explicit choices.
+    arguments = {key: value for key, value in arguments.items() if not key.startswith("_")}
+    if (
+        arguments.get("continuation_id")
+        and not arguments.get("model")
+        and name in TOOLS
+        and TOOLS[name].requires_model()
+    ):
+        from utils.conversation_memory import get_thread
 
-        # Log to activity file for monitoring
-        try:
-            mcp_activity_logger = logging.getLogger("mcp_activity")
-            mcp_activity_logger.info(f"CONVERSATION_RESUME: {name} resuming thread {continuation_id}")
-        except Exception:
-            pass
-
-        arguments = await reconstruct_thread_context(arguments)
-        logger.debug(f"[CONVERSATION_DEBUG] After thread reconstruction, arguments keys: {list(arguments.keys())}")
-        if "_remaining_tokens" in arguments:
-            logger.debug(f"[CONVERSATION_DEBUG] Remaining token budget: {arguments['_remaining_tokens']:,}")
+        thread = get_thread(arguments["continuation_id"])
+        if thread:
+            for turn in reversed(thread.turns):
+                if turn.role == "assistant" and turn.model_name:
+                    arguments["model"] = turn.model_name
+                    break
 
     # Route to AI-powered tools that require Gemini API calls
     if name in TOOLS:
@@ -928,7 +876,7 @@ def get_follow_up_instructions(current_turn_count: int, max_turns: int = None) -
 
         max_turns = MAX_CONVERSATION_TURNS
 
-    if current_turn_count >= max_turns - 1:
+    if max_turns - current_turn_count - 1 < 2:
         # We're at or approaching the turn limit - no more follow-ups
         return """
 IMPORTANT: This is approaching the final exchange in this conversation thread.
@@ -936,7 +884,7 @@ Do NOT include any follow-up questions in your response. Provide your complete
 final analysis and recommendations."""
     else:
         # Normal follow-up instructions
-        remaining_turns = max_turns - current_turn_count - 1
+        remaining_turns = max(0, max_turns - current_turn_count - 1) // 2
         return f"""
 
 CONVERSATION CONTINUATION: You can continue this discussion with the agent! ({remaining_turns} exchanges remaining)
@@ -1044,7 +992,8 @@ async def reconstruct_thread_context(arguments: dict[str, Any]) -> dict[str, Any
         4. Debug tool can reference specific findings from analyze tool
         5. Natural cross-tool collaboration without context loss
     """
-    from utils.conversation_memory import add_turn, build_conversation_history, get_thread
+    from utils.conversation_memory import build_conversation_history, get_thread
+    from utils.token_utils import estimate_tokens
 
     continuation_id = arguments["continuation_id"]
 
@@ -1071,21 +1020,6 @@ async def reconstruct_thread_context(arguments: dict[str, Any]) -> dict[str, Any
             f"continuation_id parameter. "
             f"This will create a new conversation thread that can continue with follow-up exchanges."
         )
-
-    # Add user's new input to the conversation
-    user_prompt = arguments.get("prompt", "")
-    if user_prompt:
-        # Capture files referenced in this turn
-        user_files = arguments.get("absolute_file_paths") or []
-        logger.debug(f"[CONVERSATION_DEBUG] Adding user turn to thread {continuation_id}")
-        from utils.token_utils import estimate_tokens
-
-        user_prompt_tokens = estimate_tokens(user_prompt)
-        logger.debug(
-            f"[CONVERSATION_DEBUG] User prompt length: {len(user_prompt)} chars (~{user_prompt_tokens:,} tokens)"
-        )
-        logger.debug(f"[CONVERSATION_DEBUG] User files: {user_files}")
-        add_turn(continuation_id, "user", user_prompt, files=user_files, required=True)
 
     # Create model context early to use for history building
     from utils.model_context import ModelContext

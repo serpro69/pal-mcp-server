@@ -29,11 +29,10 @@ from mcp.types import TextContent
 from config import TEMPERATURE_ANALYTICAL
 from systemprompts import CONSENSUS_PROMPT
 from tools.shared.base_models import ConsolidatedFindings, WorkflowRequest
+from utils.conversation_context import continuation_offer, current_invocation
 from utils.conversation_memory import (
-    MAX_CONVERSATION_TURNS,
     ConversationMemoryError,
     ConversationNotFoundError,
-    create_thread,
     get_thread,
     memory_persistence_warning,
 )
@@ -449,20 +448,15 @@ of the evidence, even when it strongly points in one direction.""",
         # Validate request
         request = self.get_workflow_request_model()(**arguments)
 
-        # Resolve existing continuation_id or create a new one on first step
-        continuation_id = request.continuation_id
+        invocation = current_invocation(self)
+        continuation_id = invocation.thread_id if invocation else request.continuation_id
         if continuation_id and get_thread(continuation_id) is None:
             raise ConversationNotFoundError("Conversation thread was not found or has expired")
+        request.continuation_id = continuation_id
 
         if request.step_number == 1:
-            if not continuation_id:
-                clean_args = {k: v for k, v in arguments.items() if k not in ["_model_context", "_resolved_model_name"]}
-                continuation_id = create_thread(self.get_name(), clean_args)
-                request.continuation_id = continuation_id
-                arguments["continuation_id"] = continuation_id
-                self.work_history = []
-                self.consolidated_findings = ConsolidatedFindings()
-
+            self.work_history = []
+            self.consolidated_findings = ConsolidatedFindings()
             # Store the original proposal from step 1 - this is what all models should see
             self.store_initial_issue(request.step)
             self.initial_request = request.step
@@ -559,32 +553,13 @@ of the evidence, even when it strongly points in one direction.""",
 
     def _build_continuation_offer(self, continuation_id: str) -> dict[str, Any] | None:
         """Create a continuation offer without exposing prior model responses."""
-        from tools.models import ContinuationOffer
-
-        thread = get_thread(continuation_id)
-        if thread is None:
-            raise ConversationNotFoundError("Conversation thread was not found or has expired")
-        if thread and thread.turns:
-            remaining_turns = max(0, MAX_CONVERSATION_TURNS - len(thread.turns))
-        else:
-            remaining_turns = MAX_CONVERSATION_TURNS - 1
-
-        # Provide a neutral note specific to consensus workflow
-        note = (
-            f"Consensus workflow can continue for {remaining_turns} more exchanges."
-            if remaining_turns > 0
-            else "Consensus workflow continuation limit reached."
-        )
-
-        continuation_offer = ContinuationOffer(
-            continuation_id=continuation_id,
-            note=note,
-            remaining_turns=remaining_turns,
-        )
-        return continuation_offer.model_dump()
+        return continuation_offer(continuation_id)
 
     async def _consult_model(self, model_config: dict, request) -> dict:
         """Consult a single model and return its response."""
+        invocation = current_invocation(self)
+        if invocation:
+            invocation.provider_failed = True
         try:
             # Import and create ModelContext once at the beginning
             from utils.model_context import ModelContext
@@ -635,6 +610,11 @@ of the evidence, even when it strongly points in one direction.""",
                 thinking_mode="medium",
                 images=request.images if request.images else None,
             )
+            if invocation:
+                invocation.provider_failed = not bool(response.content)
+                invocation.reply_content = response.content or None
+                invocation.model_name = model_name
+                invocation.model_provider = provider.get_provider_type().value
 
             return {
                 "model": model_name,

@@ -1,5 +1,34 @@
 # Context Revival: AI Memory Beyond Context Limits
 
+## Turn ownership and capacity
+
+Each conversation call records one raw user input before generation and one raw
+reply after success. Chat artifacts and CLI output shortening affect presentation,
+not the stored reply. Workflow steps are user turns; steps handled locally store
+their actual tool result with null model/provider fields. A failed provider call
+leaves its saved input without an invented assistant turn.
+
+`MAX_CONVERSATION_TURNS` counts individual stored messages. A call needs two free
+slots before its input is saved or provider/CLI work begins. `remaining_turns` is
+the number of free message slots; the number of complete exchanges is half that
+value, rounded down. A cap of one admits no conversation calls. Below two free
+slots, results direct callers to start a new conversation rather than offering
+another exchange. Provider-error metadata reports the saved thread ID and the
+remaining slots/exchanges.
+
+MCP and direct `execute` calls use the same internal invocation context. Caller
+JSON and history-looking text cannot assert that admission or input saving already
+happened. Continuations re-read the saved input and current attachments when
+constructing context. Consensus participants receive the original proposal, their
+own stance and the current call's explicit attachments; audit history retains all
+turns separately. CLI continuations preserve earlier file/image references and
+use a provider-independent limit of 20,000 estimated history tokens. The current
+input is kept outside history truncation, so older files or turns cannot displace it.
+
+These guarantees currently cover sequential calls. Same-thread concurrency
+coordination and fresh workflow instances are tracked separately in Tasks 10–11
+of the reliability plan; direct calls do not acquire a conversation lock.
+
 ## Memory failures
 
 Conversation memory lasts only for the current server process and expires after

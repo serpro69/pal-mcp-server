@@ -469,8 +469,9 @@ class TestChatArtifacts:
         assert "<GENERATED-CODE>" not in payload["content"]
         assert "AGENT'S TURN" not in payload["content"]
 
+    @pytest.mark.asyncio
     @pytest.mark.parametrize("continued", [False, True])
-    def test_history_keeps_raw_model_response(self, tmp_path, continued):
+    async def test_history_keeps_raw_model_response(self, tmp_path, monkeypatch, continued):
         from utils.conversation_memory import create_thread, get_thread
 
         tool = ChatTool()
@@ -481,8 +482,12 @@ class TestChatArtifacts:
             working_directory_absolute_path=str(tmp_path),
             continuation_id=create_thread("chat", {}) if continued else None,
         )
-        result = tool._parse_response(raw, request)
-        assert ".pal_artifacts" in result.content
-        thread = get_thread(result.continuation_offer.continuation_id)
+        from tests.request_capture import capture_providers
+
+        capture_providers(monkeypatch, google_answer=raw)
+        request.model = "gemini-2.5-pro"
+        result = json.loads((await tool.execute(request.model_dump()))[0].text)
+        assert ".pal_artifacts" in result["content"]
+        thread = get_thread(result["continuation_offer"]["continuation_id"])
         replies = [turn.content for turn in thread.turns if turn.role == "assistant"]
         assert replies == [raw]

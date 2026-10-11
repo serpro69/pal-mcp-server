@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Implementation: [implementation.md](implementation.md)
 > Review resolutions: [review.md](review.md#revalidation-and-resolution)
-> Status: in-progress (Tasks 1–8 done; Tasks 9–42 pending)
+> Status: in-progress (Tasks 1–9 done; Tasks 10–42 pending)
 > Created: 2026-10-10
 > Not Doing: toolchain/release-process migration; MCP 2.x; wholesale catalogs; replacement of safety controls; file-annotation implementation; persistent continuation recovery; remote multi-user transport; automatic service activation
 
@@ -181,19 +181,32 @@ Typed faults and visible result warnings are implemented; pair admission follows
 
 ## Task 9: Record turns once and rebuild complete continuation context
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 8
 - **Size:** M
 - **Can run in parallel with:** —
 - **Docs:** [Implementation slice](implementation.md#task-9); [design contract](design.md#d3-conversation-ownership-and-truthful-results)
 
-- [ ] 9.1 Give server-built history a trusted internal marker/context and establish one input-persistence owner; separate that context from caller-supplied arguments and retain a correct direct-tool path. Extract context/resolution helpers without changing explicit model semantics.
-- [ ] 9.2 At that owner, enforce two-slot admission exactly once before input save or provider/CLI work, using Task 8's typed outcomes. Record admission in trusted context so nested execution/retries do not repeat it. Create thread/input before generation and record workflow step and raw reply exactly once, including clink's first input and real local-only replies with null provider provenance. Re-read after adding the current turn before rendering its files. Keep remaining_turns as free message slots and exchange wording as floor(free_slots / 2), without inviting calls below two slots.
-- [ ] 9.3 Keep the original consensus proposal separate from reconstructed history. Capture participant requests and assert the proposal/explicit attachments are present while prior verdicts and intervening summaries are absent; persist complete audit turns independently.
-- [ ] 9.4 Test MCP and direct-tool admission: cap-1 rejection before input/work, cap-2 success with one input/reply, odd caps including one, local-only replies, saved-input/provider failure, retries within an admitted invocation and rejection of caller-supplied admission markers.
-- [ ] 9.5 Verify the acceptance cases in [Task 9](implementation.md#task-9) and record the result here.
+- [x] 9.1 Give server-built history a trusted internal marker/context and establish one input-persistence owner; separate that context from caller-supplied arguments and retain a correct direct-tool path. Extract context/resolution helpers without changing explicit model semantics.
+- [x] 9.2 At that owner, enforce two-slot admission exactly once before input save or provider/CLI work, using Task 8's typed outcomes. Record admission in trusted context so nested execution/retries do not repeat it. Create thread/input before generation and record workflow step and raw reply exactly once, including clink's first input and real local-only replies with null provider provenance. Re-read after adding the current turn before rendering its files. Keep remaining_turns as free message slots and exchange wording as floor(free_slots / 2), without inviting calls below two slots.
+- [x] 9.3 Keep the original consensus proposal separate from reconstructed history. Capture participant requests and assert the proposal/explicit attachments are present while prior verdicts and intervening summaries are absent; persist complete audit turns independently.
+- [x] 9.4 Test MCP and direct-tool admission: cap-1 rejection before input/work, cap-2 success with one input/reply, odd caps including one, local-only replies, saved-input/provider failure, retries within an admitted invocation and rejection of caller-supplied admission markers.
+- [x] 9.5 Verify the acceptance cases in [Task 9](implementation.md#task-9) and record the result here.
 
 **Scope / gate:** Pair admission ships with single-owner input recording here; Task 11 supplies concurrent atomicity. Re-record affected live cassettes only in an explicitly configured validation run; never edit recorded request bodies to manufacture a pass.
+
+**Execution slices:** Keep ownership/admission in the context helper, server and
+simple-tool path; adapt workflow/consensus consumers separately, then validate
+the shared CLI wrapper and prompt contracts. Chat's old formatting override and
+the workflow execute decorator are mechanical wiring. User approved deterministic
+request-capture tests in place of affected offline live-cassette replays; retain
+the original recordings and an explicit live re-recording release gate.
+
+**Evidence:** [Task 9 validation](validation.md#task-9-single-owner-turn-recording-and-complete-continuation-context),
+2026-10-11. Full quality: 1,087 passed; 91 focused tests passed on Python 3.11 and
+3.12. Isolated review approved after context-budget and attachment corrections.
+Live recordings remain unchanged; their explicit re-recording release gate stays open.
+Concurrent admission and full workflow-instance restoration remain Tasks 10–11.
 
 ## Task 10: Isolate workflow instances and persist their configuration
 

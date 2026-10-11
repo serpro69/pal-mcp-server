@@ -21,6 +21,12 @@ from tools.models import ToolModelCategory, ToolOutput
 from tools.shared.base_models import COMMON_FIELD_DESCRIPTIONS
 from tools.shared.exceptions import ToolExecutionError
 from tools.simple.base import SchemaBuilder, SimpleTool
+from utils.conversation_context import (
+    conversation_request,
+    current_invocation,
+    invocation_attachments,
+    invocation_history,
+)
 from utils.conversation_memory import ConversationNotFoundError, get_thread
 
 logger = logging.getLogger(__name__)
@@ -202,6 +208,7 @@ class CLinkTool(SimpleTool):
         """Unused by clink because we override the schema end-to-end."""
         return {}
 
+    @conversation_request()
     async def execute(self, arguments: dict[str, Any]) -> list[TextContent]:
         self._current_arguments = arguments
         request = self.get_request_model()(**arguments)
@@ -237,6 +244,9 @@ class CLinkTool(SimpleTool):
                 "only 'claude' supports scoped edit allow-listing."
             )
 
+        invocation = current_invocation(self)
+        if invocation and not invocation.is_new:
+            request.absolute_file_paths, request.images = invocation_attachments(self)
         absolute_file_paths = self.get_request_files(request)
         images = self.get_request_images(request)
         continuation_id = self.get_request_continuation_id(request)
@@ -293,7 +303,7 @@ class CLinkTool(SimpleTool):
             "model_name": result.parsed.metadata.get("model_used"),
         }
 
-        tool_output = self._parse_response(content, request, model_info)
+        tool_output = self._parse_response(content, request, model_info, recordable_content=result.parsed.content)
         tool_output.metadata = self._merge_metadata(tool_output.metadata, metadata)
 
         return [TextContent(type="text", text=tool_output.model_dump_json())]
@@ -323,7 +333,11 @@ class CLinkTool(SimpleTool):
         """Load the role prompt and assemble the final user message."""
         token = _active_system_prompt.set(system_prompt)
         try:
-            user_content = self.handle_prompt_file_with_fallback(request).strip()
+            invocation = current_invocation(self)
+            if invocation and not invocation.is_new:
+                user_content = invocation_history(self, text_only=True)
+            else:
+                user_content = self.handle_prompt_file_with_fallback(request).strip()
             guidance = self._agent_capabilities_guidance(cli_name)
             file_section = self._format_file_references(self.get_request_files(request))
 
