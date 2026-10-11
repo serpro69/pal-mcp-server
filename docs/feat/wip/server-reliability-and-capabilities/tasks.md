@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Implementation: [implementation.md](implementation.md)
 > Review resolutions: [review.md](review.md#revalidation-and-resolution)
-> Status: in-progress (Tasks 1–15 done; Tasks 16–42 pending)
+> Status: in-progress (Tasks 1–16 done; Tasks 17–42 pending)
 > Created: 2026-10-10
 > Not Doing: toolchain/release-process migration; MCP 2.x; wholesale catalogs; replacement of safety controls; file-annotation implementation; persistent continuation recovery; remote multi-user transport; automatic service activation
 
@@ -333,17 +333,29 @@ external PAL unavailable. Existing live/setup release gates remain open.
 
 ## Task 16: Migrate OpenAI-compatible and Azure wire calls
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 15
 - **Size:** M
 - **Can run in parallel with:** —
 - **Docs:** [Implementation slice](implementation.md#task-16); [design contract](design.md#d4-async-provider-lifecycle)
 
-- [ ] 16.1 Introduce the shared native build/call/parse/retry path and native async OpenAI/Azure clients while preserving request payloads and custom HTTP settings.
-- [ ] 16.2 Make Azure overrides await the shared path; characterize inherited OpenRouter/custom/xAI behavior. Keep DIAL's separate legacy generation path functioning until Task 18.
-- [ ] 16.3 Verify the acceptance cases in [Task 16](implementation.md#task-16) and record the result here.
+- [x] 16.1 Introduce the shared native build/call/parse/retry path and native async OpenAI/Azure clients while preserving request payloads and custom HTTP settings.
+- [x] 16.2 Make Azure overrides await the shared path; characterize inherited OpenRouter/custom/xAI behavior. Keep DIAL's separate legacy generation path functioning until Task 18.
+- [x] 16.3 Verify the acceptance cases in [Task 16](implementation.md#task-16) and record the result here.
 
 **Scope / gate:** Follow kk:dependency-handling using locked SDKs. This family migration does not change catalogs or provider metadata; DIAL remains functional until its own migration.
+
+**Execution slices:** Characterize actual SDK wire requests first; then migrate
+client ownership and awaited request/retry execution, followed by mechanical
+conversion of affected tests. DIAL's temporary compatibility adjustment derives
+deployment URLs directly from configuration so it does not allocate the migrated
+superclass client. All slices remain in this task's single commit.
+
+**Evidence:** [Task 16 validation](validation.md#task-16-native-openai-compatible-and-azure-generation),
+2026-10-11. Full quality: **1,216 passed** without warnings; provider/wire/legacy-DIAL
+suites **109 passed each** on Python 3.11 and 3.12. Isolated review approved after
+keeping image preparation off the event loop; external PAL unavailable. Existing
+live/setup release gates remain open.
 
 ## Task 17: Migrate Gemini generation to the async SDK
 

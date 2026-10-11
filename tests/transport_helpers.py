@@ -1,5 +1,9 @@
 """Helper functions for HTTP transport injection in tests."""
 
+import asyncio
+
+import httpx
+
 from tests.http_transport_recorder import TransportFactory
 
 
@@ -35,13 +39,13 @@ def inject_transport(monkeypatch, cassette_path: str):
     # Inject transport using the established pattern
     from providers.openai_compatible import OpenAICompatibleProvider
 
-    original_client_property = OpenAICompatibleProvider.client
+    class AsyncRecorderTransport(httpx.AsyncBaseTransport):
+        async def handle_async_request(self, request):
+            # Existing cassette recording is synchronous and fully buffers replies.
+            return await asyncio.to_thread(transport.handle_request, request)
 
-    def patched_client_getter(self):
-        if self._client is None:
-            self._test_transport = transport
-        return original_client_property.fget(self)
+        async def aclose(self):
+            await asyncio.to_thread(transport.close)
 
-    monkeypatch.setattr(OpenAICompatibleProvider, "client", property(patched_client_getter))
-
+    monkeypatch.setattr(OpenAICompatibleProvider, "_test_transport", AsyncRecorderTransport(), raising=False)
     return transport

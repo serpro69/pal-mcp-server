@@ -1,13 +1,13 @@
 """Base class for OpenAI-compatible API providers."""
 
+import asyncio
 import copy
 import ipaddress
 import logging
-import threading
 from typing import Optional
 from urllib.parse import urlparse
 
-from openai import OpenAI
+from openai import AsyncOpenAI
 
 from utils.env import get_env
 from utils.image_utils import validate_image
@@ -43,8 +43,8 @@ class OpenAICompatibleProvider(ModelProvider):
         self._allowed_alias_cache: dict[str, str] = {}
         super().__init__(api_key, **kwargs)
         self._client = None
-        # Separate from DIAL's deployment lock, which calls the client property.
-        self._client_init_lock = threading.Lock()
+        # Serialize lazy publication and cleanup on the provider event loop.
+        self._client_init_lock = asyncio.Lock()
         self.base_url = base_url
         self.organization = kwargs.get("organization")
         self.allowed_models = self._parse_allowed_models()
@@ -254,16 +254,15 @@ class OpenAICompatibleProvider(ModelProvider):
                 raise
             raise ValueError(f"Invalid base URL '{self.base_url}': {str(e)}")
 
-    @property
-    def client(self):
+    async def _get_client(self):
         """Publish one client per provider; initialization failures remain retryable."""
         if self._client is None:
-            with self._client_init_lock:
+            async with self._client_init_lock:
                 if self._client is None:
-                    self._client = self._create_client()
+                    self._client = await self._create_client()
         return self._client
 
-    def _create_http_client(self):
+    async def _create_http_client(self):
         """Preserve direct routing and environment CA trust without changing process state."""
         import httpx
 
@@ -271,14 +270,14 @@ class OpenAICompatibleProvider(ModelProvider):
         # the transport retains SSL_CERT_FILE / SSL_CERT_DIR support.
         transport = getattr(self, "_test_transport", None)
         if transport is None:
-            transport = httpx.HTTPTransport(trust_env=True)
+            transport = httpx.AsyncHTTPTransport(trust_env=True)
         try:
-            return httpx.Client(transport=transport, timeout=self.timeout_config, follow_redirects=True)
+            return httpx.AsyncClient(transport=transport, timeout=self.timeout_config, follow_redirects=True)
         except Exception:
-            transport.close()
+            await transport.aclose()
             raise
 
-    def _create_client(self):
+    async def _create_client(self):
         """Retain explicit transport policy even when falling back to minimal SDK options."""
         client_kwargs = {"api_key": self.api_key}
         if self.base_url:
@@ -292,14 +291,21 @@ class OpenAICompatibleProvider(ModelProvider):
         for attempt, kwargs in enumerate((client_kwargs, minimal_kwargs)):
             http_client = None
             try:
-                http_client = self._create_http_client()
-                return OpenAI(http_client=http_client, **kwargs)
+                http_client = await self._create_http_client()
+                return AsyncOpenAI(http_client=http_client, **kwargs)
             except Exception:
                 if http_client is not None:
-                    http_client.close()
+                    await http_client.aclose()
                 if attempt:
                     raise
                 logging.warning("Failed to initialize OpenAI client; retrying with minimal SDK options")
+
+    async def aclose(self) -> None:
+        """Close an allocated SDK client once; never initialize one at shutdown."""
+        async with self._client_init_lock:
+            if self._client is not None:
+                await self._client.close()
+                self._client = None
 
     def _sanitize_for_logging(self, params: dict) -> dict:
         """Sanitize sensitive data from parameters before logging.
@@ -358,7 +364,7 @@ class OpenAICompatibleProvider(ModelProvider):
 
         return content
 
-    def _generate_with_responses_endpoint(
+    async def _generate_with_responses_endpoint(
         self,
         model_name: str,
         messages: list,
@@ -417,7 +423,7 @@ class OpenAICompatibleProvider(ModelProvider):
         retry_delays = [1, 3, 5, 8]
         attempt_counter = {"value": 0}
 
-        def _attempt() -> ModelResponse:
+        async def _attempt() -> ModelResponse:
             attempt_counter["value"] += 1
             import json
 
@@ -426,7 +432,8 @@ class OpenAICompatibleProvider(ModelProvider):
                 f"o3-pro API request (sanitized): {json.dumps(sanitized_params, indent=2, ensure_ascii=False)}"
             )
 
-            response = self.client.responses.create(**completion_params)
+            client = await self._get_client()
+            response = await client.responses.create(**completion_params)
 
             content = self._safe_extract_output_text(response)
 
@@ -457,7 +464,7 @@ class OpenAICompatibleProvider(ModelProvider):
             )
 
         try:
-            return self._run_with_retries(
+            return await self._run_with_retries_async(
                 operation=_attempt,
                 max_attempts=max_retries,
                 delays=retry_delays,
@@ -469,7 +476,7 @@ class OpenAICompatibleProvider(ModelProvider):
             logging.error(error_msg)
             raise RuntimeError(error_msg) from exc
 
-    def generate_content(
+    async def generate_content(
         self,
         prompt: str,
         model_name: str,
@@ -535,7 +542,7 @@ class OpenAICompatibleProvider(ModelProvider):
         if images and capabilities and capabilities.supports_images:
             for image_path in images:
                 try:
-                    image_content = self._process_image(image_path)
+                    image_content = await asyncio.to_thread(self._process_image, image_path)
                     if image_content:
                         user_content.append(image_content)
                 except Exception as e:
@@ -595,7 +602,7 @@ class OpenAICompatibleProvider(ModelProvider):
         if use_responses_api:
             # These models require the /v1/responses endpoint for stateful context
             # If it fails, we should not fall back to chat/completions
-            return self._generate_with_responses_endpoint(
+            return await self._generate_with_responses_endpoint(
                 model_name=resolved_model,
                 messages=messages,
                 temperature=temperature,
@@ -609,9 +616,10 @@ class OpenAICompatibleProvider(ModelProvider):
         retry_delays = [1, 3, 5, 8]  # Progressive delays: 1s, 3s, 5s, 8s
         attempt_counter = {"value": 0}
 
-        def _attempt() -> ModelResponse:
+        async def _attempt() -> ModelResponse:
             attempt_counter["value"] += 1
-            response = self.client.chat.completions.create(**completion_params)
+            client = await self._get_client()
+            response = await client.chat.completions.create(**completion_params)
 
             content = response.choices[0].message.content
             usage = self._extract_usage(response)
@@ -631,7 +639,7 @@ class OpenAICompatibleProvider(ModelProvider):
             )
 
         try:
-            return self._run_with_retries(
+            return await self._run_with_retries_async(
                 operation=_attempt,
                 max_attempts=max_retries,
                 delays=retry_delays,

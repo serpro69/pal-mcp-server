@@ -4,16 +4,16 @@ Simple test to verify GitHub issue #245 is fixed.
 Issue: Custom OpenAI models (gpt-5, o3) use temperature despite the config having supports_temperature: false
 """
 
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 from providers.openai import OpenAIModelProvider
 
 
-def test_issue_245_custom_openai_temperature_ignored():
+async def test_issue_245_custom_openai_temperature_ignored():
     """Test that reproduces and validates the fix for issue #245."""
 
     with patch("utils.model_restrictions.get_restriction_service") as mock_restriction:
-        with patch("providers.openai_compatible.OpenAI") as mock_openai:
+        with patch("providers.openai_compatible.AsyncOpenAI") as mock_openai:
             with patch("providers.registries.openrouter.OpenRouterModelRegistry") as mock_registry_class:
 
                 # Mock restriction service
@@ -35,7 +35,7 @@ def test_issue_245_custom_openai_temperature_ignored():
                 mock_response.usage.prompt_tokens = 10
                 mock_response.usage.completion_tokens = 5
                 mock_response.usage.total_tokens = 15
-                mock_client.chat.completions.create.return_value = mock_response
+                mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
 
                 # Mock registry with user's custom config (the issue scenario)
                 mock_registry = Mock()
@@ -68,7 +68,7 @@ def test_issue_245_custom_openai_temperature_ignored():
                 provider.validate_model_name = lambda name: True
 
                 # This is what was causing the 400 error before the fix
-                provider.generate_content(
+                await provider.generate_content(
                     prompt="Test", model_name="gpt-5-2025-08-07", temperature=0.2  # This should be ignored!
                 )
 
