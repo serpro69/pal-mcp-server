@@ -150,7 +150,7 @@ Shipped presets:
 | ------ | -------------------------------------------------------------------------------- | -------------------------------------------------- |
 | gemini | `gemini --telemetry false -o json`                                               | `gemini --telemetry false -o json --yolo`          |
 | claude | `claude --print --output-format json --model sonnet --permission-mode default`   | `claude --print --output-format json --model sonnet --permission-mode acceptEdits` |
-| codex  | `codex exec --json --enable web_search_request`                                  | `codex exec --json --enable web_search_request --dangerously-bypass-approvals-and-sandbox` |
+| codex  | `codex exec --skip-git-repo-check --json --enable web_search_request`                                  | `codex exec --skip-git-repo-check --json --enable web_search_request --dangerously-bypass-approvals-and-sandbox` |
 
 The modes are not constructed by runtime string replacement; each CLI's config declares two disjoint arg buckets (`safe_args` and `edit_args`), and the tool picks exactly one at command-build time based on `allow_edits`. The dangerous flag is therefore absent from the command line in safe mode by construction — there is no runtime sanitization pass to bypass.
 
@@ -163,6 +163,49 @@ Each preset points to role-specific prompts in `systemprompts/clink/`. Duplicate
 > **Why `--yolo` for Gemini?** The Gemini CLI currently requires automatic approvals to execute its own tools (for example `run_shell_command`). Without the flag it errors with `Tool "run_shell_command" not found in registry`. See [issue #5382](https://github.com/google-gemini/gemini-cli/issues/5382) for more details.
 
 **Adding new CLIs**: Drop a JSON config into `conf/cli_clients/`, create role prompts in `systemprompts/clink/`, and register a parser/agent if the CLI outputs a new format.
+
+### Child environment and working directory
+
+Clink starts each child with shared runtime variables (executable lookup, home and
+configuration locations, temporary directories, locale, proxies, TLS certificates
+and Windows process prerequisites), plus that CLI's declared authentication
+variables. Unrelated provider keys and other inherited variables are omitted.
+The exact shared and vendor lists live in `clink/constants.py`.
+
+Operator configuration can add inherited names using `env_passthrough`, then
+supply final values in `env`. For example, add these fields to a CLI configuration:
+
+```json
+{
+  "working_dir": "/absolute/path/to/project",
+  "env_passthrough": ["MY_COMPANY_AUTH_TOKEN"],
+  "env": {"HTTPS_PROXY": "http://localhost:8080"}
+}
+```
+
+Explicit values take precedence, including Windows case-insensitive names.
+Executable lookup uses the child's configured `PATH`. Keep credentials in the
+launch environment when possible; `env_passthrough` contains names, not values.
+These are operator settings, not caller-supplied tool parameters.
+
+A configured `working_dir` must exist and is preserved. Without it, each call gets
+a private temporary directory that is removed after success, failure, timeout or
+cancellation. Immediate-child termination/reaping precedes scratch cleanup; draining output
+pipes is bounded so a descendant holding them open cannot stall cancellation. Concurrent calls
+use different directories. Relative CLI paths now refer to this scratch directory;
+continue supplying absolute file references, or configure `working_dir` when the
+CLI needs project-local settings and repository context. Relative configured paths
+retain the registry's existing configuration/project resolution rules.
+
+Codex receives `--skip-git-repo-check` only for PAL-created scratch directories;
+configured working directories retain the CLI's repository policy. This flag does
+not alter the safe/edit argument buckets. `allow_edits`, `editable_paths` and
+request-local system-prompt cleanup retain their existing behavior.
+
+This is environment filtering and working-directory isolation, not an OS sandbox.
+Home/auth locations remain available, so CLIs can still read on-disk credentials
+and their own configuration. A scratch directory does not prevent access elsewhere;
+keep each CLI's native permission controls configured appropriately.
 
 ## When to Use Clink vs Other Tools
 

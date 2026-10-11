@@ -42,7 +42,7 @@ async def _run_agent_with_process(monkeypatch, agent, role, process):
     async def fake_create_subprocess_exec(*_args, **_kwargs):
         return process
 
-    def fake_which(executable_name):
+    def fake_which(executable_name, **_kwargs):
         return f"/usr/bin/{executable_name}"
 
     monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_create_subprocess_exec)
@@ -73,3 +73,10 @@ async def test_codex_agent_propagates_invalid_json(monkeypatch, codex_agent):
 
     with pytest.raises(CLIAgentError):
         await _run_agent_with_process(monkeypatch, agent, role, process)
+
+
+def test_codex_repository_policy_depends_on_scratch_directory(codex_agent, tmp_path):
+    agent, role = codex_agent
+    assert "--skip-git-repo-check" in agent._build_command(role=role, system_prompt=None)
+    agent.client.working_dir = tmp_path
+    assert "--skip-git-repo-check" not in agent._build_command(role=role, system_prompt=None)

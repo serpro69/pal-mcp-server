@@ -10,10 +10,11 @@ import shutil
 import tempfile
 import time
 from collections.abc import Sequence
+from contextlib import ExitStack, nullcontext
 from dataclasses import dataclass
 from pathlib import Path
 
-from clink.constants import DEFAULT_STREAM_LIMIT
+from clink.constants import DEFAULT_CLEANUP_TIMEOUT_SECONDS, DEFAULT_STREAM_LIMIT, SHARED_ENV_PASSTHROUGH
 from clink.models import ResolvedCLIClient, ResolvedCLIRole
 from clink.parsers import BaseParser, ParsedCLIResponse, ParserError, get_parser
 
@@ -67,6 +68,38 @@ class BaseCLIAgent:
         allow_edits: bool = False,
         editable_paths: Sequence[str] = (),
     ) -> AgentOutput:
+        working_dir = self.client.working_dir
+        if working_dir is not None and not working_dir.is_dir():
+            raise CLIAgentError(f"Configured working_dir is not an existing directory: {working_dir}")
+        workspace = (
+            nullcontext(str(working_dir))
+            if working_dir is not None
+            else tempfile.TemporaryDirectory(prefix="pal-clink-")
+        )
+        with workspace as cwd:
+            return await self._run_in_directory(
+                cwd=cwd,
+                role=role,
+                prompt=prompt,
+                system_prompt=system_prompt,
+                files=files,
+                images=images,
+                allow_edits=allow_edits,
+                editable_paths=editable_paths,
+            )
+
+    async def _run_in_directory(
+        self,
+        *,
+        cwd: str,
+        role: ResolvedCLIRole,
+        prompt: str,
+        system_prompt: str | None,
+        files: Sequence[str],
+        images: Sequence[str],
+        allow_edits: bool,
+        editable_paths: Sequence[str],
+    ) -> AgentOutput:
         # Files and images are already embedded into the prompt by the tool; they are
         # accepted here only to keep parity with SimpleTool callers.
         _ = (files, images)
@@ -81,7 +114,7 @@ class BaseCLIAgent:
 
         # Resolve executable path for cross-platform compatibility (especially Windows)
         executable_name = command[0]
-        resolved_executable = shutil.which(executable_name)
+        resolved_executable = shutil.which(executable_name, path=env.get("PATH", os.defpath))
         if resolved_executable is None:
             raise CLIAgentError(
                 f"Executable '{executable_name}' not found in PATH for CLI '{self.client.name}'. "
@@ -91,7 +124,6 @@ class BaseCLIAgent:
 
         sanitized_command = list(command)
 
-        cwd = str(self.client.working_dir) if self.client.working_dir else None
         limit = DEFAULT_STREAM_LIMIT
 
         stdout_text = ""
@@ -102,104 +134,112 @@ class BaseCLIAgent:
         output_file_path: Path | None = None
         command_with_output_flag = list(command)
 
-        if self.client.output_to_file:
-            fd, tmp_path = tempfile.mkstemp(prefix="clink-", suffix=".json")
-            os.close(fd)
-            output_file_path = Path(tmp_path)
-            flag_template = self.client.output_to_file.flag_template
-            try:
-                rendered_flag = flag_template.format(path=str(output_file_path))
-            except KeyError as exc:  # pragma: no cover - defensive
-                raise CLIAgentError(f"Invalid output flag template '{flag_template}': missing placeholder {exc}")
-            command_with_output_flag.extend(shlex.split(rendered_flag))
-            sanitized_command = list(command_with_output_flag)
-
-        self._logger.debug("Executing CLI command: %s", " ".join(sanitized_command))
-        if cwd:
-            self._logger.debug("Working directory: %s", cwd)
-
-        try:
-            process = await asyncio.create_subprocess_exec(
-                *command_with_output_flag,
-                stdin=asyncio.subprocess.PIPE,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                cwd=cwd,
-                limit=limit,
-                env=env,
-            )
-        except FileNotFoundError as exc:
-            raise CLIAgentError(f"Executable not found for CLI '{self.client.name}': {exc}") from exc
-
-        try:
-            stdout_bytes, stderr_bytes = await asyncio.wait_for(
-                process.communicate(prompt.encode("utf-8")),
-                timeout=self.client.timeout_seconds,
-            )
-        except asyncio.TimeoutError as exc:
-            process.kill()
-            await process.communicate()
-            raise CLIAgentError(
-                f"CLI '{self.client.name}' timed out after {self.client.timeout_seconds} seconds",
-                returncode=None,
-            ) from exc
-
-        duration = time.monotonic() - start_time
-        return_code = process.returncode
-        stdout_text = stdout_bytes.decode("utf-8", errors="replace")
-        stderr_text = stderr_bytes.decode("utf-8", errors="replace")
-
-        if output_file_path and output_file_path.exists():
-            output_file_content = output_file_path.read_text(encoding="utf-8", errors="replace")
-            if self.client.output_to_file and self.client.output_to_file.cleanup:
+        with ExitStack() as resources:
+            if self.client.output_to_file:
+                fd, tmp_path = tempfile.mkstemp(prefix="clink-", suffix=".json")
+                os.close(fd)
+                output_file_path = Path(tmp_path)
+                if self.client.output_to_file.cleanup:
+                    resources.callback(self._cleanup_output_file, output_file_path)
+                flag_template = self.client.output_to_file.flag_template
                 try:
-                    output_file_path.unlink()
-                except OSError:  # pragma: no cover - best effort cleanup
-                    pass
+                    rendered_flag = flag_template.format(path=str(output_file_path))
+                except KeyError as exc:  # pragma: no cover - defensive
+                    raise CLIAgentError(f"Invalid output flag template '{flag_template}': missing placeholder {exc}")
+                command_with_output_flag.extend(shlex.split(rendered_flag))
+                sanitized_command = list(command_with_output_flag)
 
-            if output_file_content and not stdout_text.strip():
-                stdout_text = output_file_content
+            self._logger.debug("Executing CLI command: %s", " ".join(sanitized_command))
+            if cwd:
+                self._logger.debug("Working directory: %s", cwd)
 
-        if return_code != 0:
-            recovered = self._recover_from_error(
+            try:
+                process = await asyncio.create_subprocess_exec(
+                    *command_with_output_flag,
+                    stdin=asyncio.subprocess.PIPE,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    cwd=cwd,
+                    limit=limit,
+                    env=env,
+                )
+            except FileNotFoundError as exc:
+                raise CLIAgentError(f"Executable not found for CLI '{self.client.name}': {exc}") from exc
+
+            try:
+                stdout_bytes, stderr_bytes = await asyncio.wait_for(
+                    process.communicate(prompt.encode("utf-8")),
+                    timeout=self.client.timeout_seconds,
+                )
+            except asyncio.TimeoutError as exc:
+                await self._kill_and_reap(process)
+                raise CLIAgentError(
+                    f"CLI '{self.client.name}' timed out after {self.client.timeout_seconds} seconds",
+                    returncode=None,
+                ) from exc
+            except BaseException:
+                # Cancellation and failed communication must reap the child before
+                # the outer scratch-directory context removes its working directory.
+                await self._kill_and_reap(process)
+                raise
+
+            duration = time.monotonic() - start_time
+            return_code = process.returncode
+            stdout_text = stdout_bytes.decode("utf-8", errors="replace")
+            stderr_text = stderr_bytes.decode("utf-8", errors="replace")
+
+            if output_file_path and output_file_path.exists():
+                output_file_content = output_file_path.read_text(encoding="utf-8", errors="replace")
+                if output_file_content and not stdout_text.strip():
+                    stdout_text = output_file_content
+
+            if return_code != 0:
+                recovered = self._recover_from_error(
+                    returncode=return_code,
+                    stdout=stdout_text,
+                    stderr=stderr_text,
+                    sanitized_command=sanitized_command,
+                    duration_seconds=duration,
+                    output_file_content=output_file_content,
+                )
+                if recovered is not None:
+                    return recovered
+
+            if return_code != 0:
+                raise CLIAgentError(
+                    f"CLI '{self.client.name}' exited with status {return_code}",
+                    returncode=return_code,
+                    stdout=stdout_text,
+                    stderr=stderr_text,
+                )
+
+            try:
+                parsed = self._parser.parse(stdout_text, stderr_text)
+            except ParserError as exc:
+                raise CLIAgentError(
+                    f"Failed to parse output from CLI '{self.client.name}': {exc}",
+                    returncode=return_code,
+                    stdout=stdout_text,
+                    stderr=stderr_text,
+                ) from exc
+
+            return AgentOutput(
+                parsed=parsed,
+                sanitized_command=sanitized_command,
                 returncode=return_code,
                 stdout=stdout_text,
                 stderr=stderr_text,
-                sanitized_command=sanitized_command,
                 duration_seconds=duration,
+                parser_name=self._parser.name,
                 output_file_content=output_file_content,
             )
-            if recovered is not None:
-                return recovered
 
-        if return_code != 0:
-            raise CLIAgentError(
-                f"CLI '{self.client.name}' exited with status {return_code}",
-                returncode=return_code,
-                stdout=stdout_text,
-                stderr=stderr_text,
-            )
-
+    @staticmethod
+    def _cleanup_output_file(path: Path) -> None:
         try:
-            parsed = self._parser.parse(stdout_text, stderr_text)
-        except ParserError as exc:
-            raise CLIAgentError(
-                f"Failed to parse output from CLI '{self.client.name}': {exc}",
-                returncode=return_code,
-                stdout=stdout_text,
-                stderr=stderr_text,
-            ) from exc
-
-        return AgentOutput(
-            parsed=parsed,
-            sanitized_command=sanitized_command,
-            returncode=return_code,
-            stdout=stdout_text,
-            stderr=stderr_text,
-            duration_seconds=duration,
-            parser_name=self._parser.name,
-            output_file_content=output_file_content,
-        )
+            path.unlink(missing_ok=True)
+        except OSError:
+            logger.warning("Unable to clean up CLI output file %s", path, exc_info=True)
 
     def _build_command(
         self,
@@ -239,9 +279,47 @@ class BaseCLIAgent:
         return []
 
     def _build_environment(self) -> dict[str, str]:
-        env = os.environ.copy()
-        env.update(self.client.env)
+        allowed = SHARED_ENV_PASSTHROUGH | set(self.client.env_passthrough)
+        if os.name == "nt":
+            allowed = {name.upper() for name in allowed}
+            env = {name.upper(): value for name, value in os.environ.items() if name.upper() in allowed}
+            env.update({name.upper(): value for name, value in self.client.env.items()})
+        else:
+            env = {name: value for name, value in os.environ.items() if name in allowed}
+            env.update(self.client.env)
         return env
+
+    @staticmethod
+    async def _kill_and_reap(process: asyncio.subprocess.Process) -> None:
+        if process.returncode is None:
+            try:
+                process.kill()
+            except ProcessLookupError:
+                pass
+
+        async def drain_and_reap() -> None:
+            try:
+                await asyncio.wait_for(process.communicate(), timeout=DEFAULT_CLEANUP_TIMEOUT_SECONDS)
+            except (asyncio.TimeoutError, OSError):
+                logger.warning("CLI output drain did not finish during cleanup; closing its pipes", exc_info=True)
+            finally:
+                # asyncio.Process has no public close() for its output pipes.
+                # Its owned SubprocessTransport provides close() on supported
+                # Python versions; closing prevents inherited descendant pipe
+                # handles from keeping wait()/scratch cleanup alive indefinitely.
+                process._transport.close()
+                await process.wait()
+
+        cleanup = asyncio.create_task(drain_and_reap())
+        cancelled = False
+        while not cleanup.done():
+            try:
+                await asyncio.shield(cleanup)
+            except asyncio.CancelledError:
+                cancelled = True
+        cleanup.result()
+        if cancelled:
+            raise asyncio.CancelledError
 
     # ------------------------------------------------------------------
     # Error recovery hooks

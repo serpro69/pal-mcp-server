@@ -1,4 +1,4 @@
-# Validation evidence: Tasks 1–5
+# Validation evidence: Tasks 1–6
 
 Recorded 2026-10-11. This covers the completed maintenance tasks below, not the
 remaining roadmap or optional live-provider behavior.
@@ -303,3 +303,98 @@ Independent `kk:review-code:isolated`: **APPROVE** after fixing a newly introduc
 validation/use race. Path validation now checks and returns the same canonical
 target; a synthetic changing-resolution regression verifies this. The systemic
 lesson was indexed by the review workflow. External PAL reviewer unavailable.
+
+## Task 6: clink environment and working directory
+
+Recorded 2026-10-11. Child environments now combine an explicit shared runtime
+allowlist, target-CLI authentication names and operator `env_passthrough` additions,
+then apply explicit `env` values. Windows matching/overrides are case-insensitive;
+executable lookup uses the child's `PATH`. HOME and auth/config locations remain
+available; this does not isolate credentials stored on disk.
+
+Configured working directories are validated and preserved. Otherwise the runner
+owns a private per-call temporary directory, cleans it after results/errors and
+kills/reaps interrupted children before cleanup. Output-capture files configured
+for cleanup are removed on spawn/parse/communication failures too. Edit arguments,
+editable paths and system prompts are forwarded unchanged. Codex skips its Git
+repository check only in PAL-created scratch directories; configured cwd retains
+its repository policy. Scratch cwd is not a filesystem sandbox.
+
+Changes are in the base runner and small Codex hook, shared/vendor constants,
+mechanical configuration models/registry, clink tests, tool docs and release notes.
+No Python dependency pins changed.
+
+### Contract evidence and real CLI check
+
+Verified Python 3.10 standard-library subprocess/temp-directory APIs through
+versioned documentation. Checked vendor environment contracts via
+[Gemini authentication](https://github.com/google-gemini/gemini-cli/blob/main/docs/get-started/authentication.mdx),
+[Claude environment variables](https://code.claude.com/docs/en/env-vars),
+[Claude Bedrock](https://code.claude.com/docs/en/amazon-bedrock) and
+[Claude Vertex configuration](https://code.claude.com/docs/en/self-hosted-environments-configuration).
+Gemini CLI is not installed here; no version-specific live Gemini behavior is claimed.
+Claude Code **2.1.296** local help/version was checked, without calling its service.
+
+Codex CLI **0.162.1** local help and the official
+[non-interactive contract](https://learn.chatgpt.com/docs/non-interactive-mode#git-repository-required)
+confirm the Git requirement and `--skip-git-repo-check`. A real CLI smoke through
+`CodexAgent.run` used the shipped command/role with test-only overrides:
+`--ignore-user-config --ephemeral --sandbox read-only`, a custom Responses provider
+at a loopback-only HTTP server, disabled web search/update checks, synthetic keys
+and temporary CLI state. The stub emitted a completed assistant SSE response.
+No live vendor service, actual credential or repository mutation was involved.
+
+`/tmp/pal-task1-py310/bin/python /tmp/pal-task6-codex-smoke.py` returned:
+
+```json
+{"result":"PAL_OFFLINE_OK","returncode":0,"requests":[["/v1/responses","pal-smoke"]],"scratch_removed":true,"external_credentials":false}
+```
+
+This proves actual CLI startup, non-Git cwd compatibility, filtered environment,
+request/JSONL parsing and cleanup through the runner. It does not prove vendor
+account authentication or model quality. The general live integration/simulator
+setup limitations from Task 4 remain open.
+
+### Automated validation
+
+The existing clink suite first passed **53 tests**. Added synthetic environment,
+override, Windows, real child cwd/environment, failure/timeout/repeated-cancellation,
+reaping-before-cleanup, configured-dir preservation, spawn/output cleanup,
+ContextVar reset, executable PATH, concurrent-private-directory and Codex policy
+regressions. Real subprocess and Black worker checks require execution outside
+this session's process sandbox; no checks were disabled.
+
+Final `BLACK_NUM_WORKERS=1 ./code_quality_checks.sh` in the fresh-lock Python
+3.10.12 environment: **1,000 passed**, 4 skipped, 16 deselected, 19 subtests passed.
+Ruff/Black/isort passed. The 2 previously documented AsyncMock warnings remain.
+
+The isolated reviewer identified an indefinite cancellation wait when a descendant
+holds an inherited output pipe. The fix bounds draining to five seconds, closes
+the owned subprocess transport and joins immediate-child reaping before removing
+scratch cwd. A real parent/descendant regression proves cancellation finishes while
+the descendant still holds the pipe; the test explicitly terminates that descendant.
+This does not introduce process-tree containment. Asyncio Process has no public
+pipe-close API, so this narrowly uses its owned `_transport.close()`; verified the
+implementation on Python 3.10–3.12. Future Python compatibility must retain this check.
+
+The lifecycle/environment plus Codex suites passed **22 tests each** on Python
+3.11.13 and 3.12.11. Native Windows was not run; case handling is simulated and
+permission assertions are POSIX-only. Full Python 3.10 quality was rerun after the
+final regression assertion change with the 1,000-pass result above.
+
+Independent `kk:review-code:isolated`: **APPROVE**, no remaining findings after the
+cancellation and test-portability fixes. External PAL reviewer unavailable; no
+P0/P1 systemic findings needed indexing. The cancellation-testing pattern was
+indexed separately by `kk:test`.
+
+### Reflection on Tasks 4–6
+
+Artifact preflight needed a small SimpleTool hook because prebuilt continuation
+prompts bypass prompt preparation. Raw artifact storage also needed a stateless
+recording hook for the first reply, while ordinary history remains unchanged until
+Task 9. File-policy review caught a double-resolution race, now covered with a
+changing-target fixture. CLI cleanup needed bounded output draining independently
+of child exit; a real descendant test exposed why repeated cancellation must not
+wait forever for pipe EOF. The environment-template documentation moved to the
+configuration guide due to the local security hook. These are the only material
+scope adjustments; the feature remains in progress with Tasks 7–42 pending.
