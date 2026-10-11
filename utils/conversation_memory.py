@@ -336,6 +336,21 @@ def _save_thread(context: ThreadContext) -> None:
         raise ConversationStorageError("Conversation storage rejected the write")
 
 
+def save_failed_workflow_state(thread_id: str, tool_name: str, state: dict[str, Any]) -> None:
+    """Retain resumable state on the real input when no assistant reply exists.
+
+    Like add_turn, this requires invocation-level coordination for concurrent calls.
+    It never appends a placeholder reply or changes the input content/provenance.
+    """
+    context = get_thread(thread_id)
+    if context is None:
+        raise ConversationNotFoundError("Conversation thread was not found or has expired")
+    if not context.turns or context.turns[-1].role != "user" or context.turns[-1].tool_name != tool_name:
+        raise ValueError("Failed workflow state requires the current tool's saved input")
+    context.turns[-1].model_metadata = state
+    _save_thread(context)
+
+
 def add_turn(
     thread_id: str,
     role: str,

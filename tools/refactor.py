@@ -149,6 +149,8 @@ class RefactorTool(WorkflowTool):
     opportunities, and organization improvements.
     """
 
+    workflow_state_defaults = {"refactor_config": {}}
+
     def __init__(self):
         super().__init__()
         self.initial_request = None

@@ -145,6 +145,8 @@ class TracerTool(WorkflowTool):
     both precision tracing (execution flow) and dependencies tracing (structural relationships).
     """
 
+    workflow_state_defaults = {"trace_config": {}}
+
     def __init__(self):
         super().__init__()
         self.initial_request = None

@@ -119,8 +119,8 @@ async def test_failure_keeps_input_and_next_invocation_uses_remaining_pair(
     tool = ChatTool()
 
     def fail(provider, **kwargs):
-        context = current_invocation(tool)
-        thread = memory.get_thread(context.thread_id)
+        thread_id = next(iter(storage.data)).removeprefix("thread:")
+        thread = memory.get_thread(thread_id)
         assert [turn.content for turn in thread.turns] == ["current input sentinel"]
         raise RuntimeError("provider failed")
 

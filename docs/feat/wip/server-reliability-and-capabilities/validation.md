@@ -1,7 +1,48 @@
-# Validation evidence: Tasks 1–9
+# Validation evidence: Tasks 1–10
 
 Recorded 2026-10-11. This covers the completed maintenance tasks below, not the
 remaining roadmap or optional live-provider behavior.
+
+## Task 10: workflow instance and configuration isolation
+
+Recorded 2026-10-11. MCP dispatch constructs a fresh instance from each schema
+prototype. Workflows reset request state before restoring their own latest history,
+initial input and declared `tool_state`. Declarations cover review, analysis, git,
+refactor, tracer, security and ThinkDeep configuration, planner branches and
+consensus proposal/roster/responses. Legacy metadata without `tool_state` uses
+defaults; step 1 starts a new workflow. Reused direct objects support sequential
+invocation; concurrent direct callers require distinct objects.
+
+Failed participant state is attached to the existing user input, preserving the
+roster without creating an assistant turn. This extends the memory boundary with
+one state-update operation. Same-ID serialization follows in Task 11; public
+provenance and consensus degradation accounting remain Tasks 12–13.
+
+Verification:
+
+- Baseline full quality: **1,087 passed**, 4 skipped, 16 deselected.
+- `BLACK_NUM_WORKERS=1 ./code_quality_checks.sh` in the locked Python 3.10.12
+  environment: **1,117 passed**, 4 skipped, 16 deselected, 19 subtests passed.
+  Ruff, Black and isort passed. The two pre-existing AsyncMock warnings remain.
+  Black required execution outside the process sandbox for changed files.
+- Added 30 state tests: every registered constructor/schema, all declared configs,
+  planner branches, old and cross-tool metadata, direct reuse, an await barrier
+  across two MCP requests, ThinkDeep generation settings and failed consensus
+  continuation. The Task 9 prompt captures now run through fresh dispatch and
+  retain all original-proposal/attachment and forbidden-history assertions.
+- Focused workflow/ownership/planner/consensus/precommit suites on Python 3.11.13
+  and 3.12.11: **110 passed each**, 2 integration cases deselected, 1 baseline warning.
+- Integration script and quick simulator were attempted; setup remains unavailable
+  because the integration script requires the absent project environment and the
+  simulator rejects its fallback interpreter path. Live release gates stay open.
+
+Isolated code review: **APPROVE**, no findings or systemic findings to index.
+External PAL reviewer unavailable.
+
+Reflection: simply storing successful replies would lose the roster after a failed
+first consensus participant. Saving state on that real input preserves truthful
+turn history. ThinkDeep also needed to retain step-one settings across intermediate
+steps instead of overwriting them with defaults. No dependency pins changed.
 
 ## Task 9: single-owner turn recording and complete continuation context
 

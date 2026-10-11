@@ -105,6 +105,22 @@ common parameters (temperature, model, continuation_id, etc.).
 
 Workflow tools extend `WorkflowTool`, which mixes in `BaseWorkflowMixin` for step tracking and expert analysis.
 
+`server.TOOLS` contains schema prototypes. MCP dispatch constructs a fresh tool for
+every call, so constructors must work without arguments. Declare JSON-compatible
+per-workflow configuration in `workflow_state_defaults` (for example,
+`{"review_config": {}}`). The mixin resets invocation state and restores the latest
+state belonging to that tool and conversation; missing fields in older metadata use
+the declared defaults. Starting at step 1 resets the workflow. Keep request-only
+clients and model contexts out of these declarations.
+
+History, initial input and declared configuration are saved with the reply. If a
+workflow returns a provider error without a reply, its state is attached to the
+existing user turn without inventing an assistant message. Consensus restores its
+proposal, roster and responses, while participant prompts remain blinded from
+earlier verdicts and caller summaries. Direct sequential `execute` calls may reuse
+an object; concurrent direct callers must use separate instances. Same-conversation
+MCP serialization is added separately in Task 11.
+
 1. **Create a request model** that inherits from `tools.shared.base_models.WorkflowRequest` (or a subclass) and add
    any tool-specific fields or validators. Examples: `CodeReviewRequest`, `ConsensusRequest`.
 2. **Override the workflow hooks** to steer the investigation. At minimum you must implement

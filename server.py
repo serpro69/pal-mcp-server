@@ -257,7 +257,7 @@ def filter_disabled_tools(all_tools: dict[str, Any]) -> dict[str, Any]:
 
 # Initialize the tool registry with all available AI-powered tools
 # Each tool provides specialized functionality for different development tasks
-# Tools are instantiated once and reused across requests (stateless design)
+# These instances are schema prototypes; execution gets a fresh instance per call.
 TOOLS = {
     "chat": ChatTool(),  # Interactive development chat and brainstorming
     "clink": CLinkTool(),  # Bridge requests to configured AI CLIs
@@ -728,7 +728,7 @@ async def handle_call_tool(name: str, arguments: dict[str, Any]) -> list[TextCon
     # Route to AI-powered tools that require Gemini API calls
     if name in TOOLS:
         logger.info(f"Executing tool '{name}' with {len(arguments)} parameter(s)")
-        tool = TOOLS[name]
+        tool = type(TOOLS[name])()
 
         # EARLY MODEL RESOLUTION AT MCP BOUNDARY
         # Resolve model before passing to tool - this ensures consistent model handling

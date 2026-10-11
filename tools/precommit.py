@@ -126,6 +126,8 @@ class PrecommitTool(WorkflowTool):
     multi-repository analysis, security review, performance validation, and integration testing.
     """
 
+    workflow_state_defaults = {"git_config": {}}
+
     def __init__(self):
         super().__init__()
         self.initial_request = None
