@@ -4,6 +4,11 @@
 
 ## Unreleased
 
+- Record conversation inputs once before generation and retain raw replies across
+  chat, workflows and clink. Require two free message slots per invocation;
+  `remaining_turns` continues to count messages, while follow-up wording counts
+  complete exchanges. Keep consensus participants blinded from audit history.
+
 - Filter clink child environments to shared runtime and target-vendor variables,
   with operator `env_passthrough` and `env` overrides. Default to private per-call
   working directories and reap cancelled/timed-out children before cleanup;

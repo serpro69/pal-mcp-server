@@ -168,31 +168,14 @@ def helper_function():
             "working_directory_absolute_path": directory,
         }
 
-        # Mock to capture file filtering behavior
-        original_filter_new_files = tool.filter_new_files
-        filtered_files = None
-
-        def capture_filtering_mock(requested_files, continuation_id):
-            nonlocal filtered_files
-            filtered_files = original_filter_new_files(requested_files, continuation_id)
-            return filtered_files
-
-        with patch.object(tool, "filter_new_files", side_effect=capture_filtering_mock):
-            # Execute continuation - this should not re-embed the same files
-            result = await tool.execute(continuation_args)
-
-        # Verify the tool executed successfully
-        assert result is not None
-        result_data = result[0].text
-        tool_output = ToolOutput.model_validate_json(result_data)
+        result = await tool.execute(continuation_args)
+        tool_output = ToolOutput.model_validate_json(result[0].text)
         assert tool_output.status in ["success", "continuation_available"]
-
-        # Verify that file filtering worked correctly
-        # The directory might still be included if it contains files not yet embedded,
-        # but the key point is that we don't re-embed already processed individual files
-        assert filtered_files is not None
-        # This test shows the fix is working - conversation continuation properly filters out
-        # already-embedded files. The exact length depends on whether any new files are found.
+        prompt = mock_provider.generate_content.call_args.kwargs["prompt"]
+        # The rebuilt history contains each expanded file once.
+        for index in range(5):
+            assert prompt.count(f"class TestClass{index}") == 1
+        assert prompt.count("def helper_function()") == 1
 
     @patch("utils.conversation_memory.get_storage")
     def test_get_conversation_embedded_files_with_expanded_files(self, mock_storage, tool, temp_directory_with_files):

@@ -1,7 +1,72 @@
-# Validation evidence: Tasks 1–8
+# Validation evidence: Tasks 1–9
 
 Recorded 2026-10-11. This covers the completed maintenance tasks below, not the
 remaining roadmap or optional live-provider behavior.
+
+## Task 9: single-owner turn recording and complete continuation context
+
+Recorded 2026-10-11. `utils/conversation_context.py` owns sequential pair admission
+and the input write for both MCP and direct `execute` calls. It creates the thread
+before generation, rejects calls with fewer than two free stored-message slots,
+and resets trusted `ContextVar` state on exit. Request JSON cannot claim admission
+or inject reconstructed history. Existing in-process model-context objects remain
+usable; explicit MCP model selection is unchanged.
+
+Simple tools, workflows and clink save raw replies once. Local workflow steps save
+their actual result with null stored model/provider provenance. Provider failure
+retains only the saved input, and structured error metadata reports that thread's
+remaining slots/exchanges. Current input stays outside history truncation while
+its attachments remain available to the renderer. Workflow expert context retains
+raw step instructions missing from some tool summaries, without repeating inputs
+already present in the assembled analysis. Consensus participants see only the
+original proposal, their stance and the current call's explicit attachments;
+storage retains verdicts and intervening inputs independently.
+
+CLI history uses a provider-independent 20,000 estimated-token budget and preserves
+accumulated file/image references through its path-reference interface. Simple and
+generic workflow continuations retain historical images. `remaining_turns` means
+free message slots; exchange wording uses half that value rounded down. Results
+below two free slots contain no invitation to continue. Concurrent atomicity,
+fresh workflow instances/full configuration restoration and public workflow
+provenance changes remain Tasks 10–12.
+
+Verification:
+
+- `BLACK_NUM_WORKERS=1 ./code_quality_checks.sh`, locked Python 3.10.12 environment
+  outside the process sandbox: **1,087 passed**, 4 skipped, 16 deselected,
+  19 subtests passed. The same two pre-existing AsyncMock warnings remain.
+- New ownership suite: **34 tests** covering MCP/direct four-turn growth, cap-1
+  rejection, cap-2 success, odd caps including one, provider failure and retry,
+  forged caller flags, current directory/prompt-file attachments, local/CLI turns,
+  raw output before truncation, cross-tool expert context, explicit model failure,
+  history-budget exhaustion, CLI-only continuation, image retention and restarting
+  consensus with a new proposal on an existing thread.
+- Python **3.11.13** and **3.12.11**: **91 tests passed each** with
+  `python -m pytest tests/test_conversation_ownership.py tests/test_conversation_storage_errors.py
+  tests/test_clink_gemini_parser.py tests/test_clink_gemini_agent.py -q`.
+- Isolated code review: **APPROVE** after resolving current-input truncation,
+  unintended CLI provider dependence, missing attachment/image references and
+  duplicated expert input. A final follow-up also removed an incorrect restoration
+  of the oldest proposal when restarting consensus on the same thread. Regression
+  tests cover each finding. The reusable
+  history-budget and provider-free-route findings were indexed by the review
+  workflow. External PAL reviewer unavailable.
+
+The user explicitly selected deterministic request captures for changed prompt
+contracts. Updated the code-generation, OpenAI and cross-provider offline tests to
+capture calls at the actual tool-to-provider boundary, using synthetic responses.
+They verify prompt completeness, routing and persistence; they do not verify live
+model quality or vendor HTTP behavior. Existing Gemini/OpenAI cassette files are
+unchanged. Re-record those affected live cassettes only in an explicitly configured
+release-validation run. General integration/simulator setup limits are the same
+ones attempted in Task 7 (missing `.pal_venv` and simulator interpreter detection).
+
+Reflection: the shared history renderer could omit the newest turn under a tight
+budget, and CLI history could accidentally pull in provider configuration. The
+final implementation keeps current input separate from truncation and gives the
+CLI route its own bounded budget. Several old tests simulated internal persistence
+helpers or supplied incomplete mocks; they now exercise real invocation boundaries
+or provide complete fixture contracts. No dependency pins changed.
 
 ## Task 8: explicit conversation storage errors
 

@@ -368,14 +368,11 @@ class TestPlannerTool:
             "continuation_id": "test-uuid-history",
         }
 
-        # Mock conversation memory functions
-        with patch("utils.conversation_memory.create_thread", return_value="test-uuid-history"):
-            with patch("utils.conversation_memory.add_turn"):
-                import json
+        import json
 
-                first = json.loads((await tool.execute(step1_args))[0].text)
-                step2_args["continuation_id"] = first["continuation_id"]
-                await tool.execute(step2_args)
+        first = json.loads((await tool.execute(step1_args))[0].text)
+        step2_args["continuation_id"] = first["continuation_id"]
+        await tool.execute(step2_args)
 
         # Should have tracked both steps
         assert len(tool.work_history) == 2

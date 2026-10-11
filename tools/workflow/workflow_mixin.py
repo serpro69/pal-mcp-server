@@ -30,11 +30,16 @@ from typing import Any, Optional
 from mcp.types import TextContent
 
 from config import MCP_PROMPT_SIZE_LIMIT
+from utils.conversation_context import (
+    continuation_offer,
+    current_invocation,
+    invocation_attachments,
+    invocation_history,
+)
 from utils.conversation_memory import (
     ConversationMemoryError,
     ConversationNotFoundError,
     add_turn,
-    create_thread,
     memory_persistence_warning,
 )
 
@@ -677,10 +682,11 @@ class BaseWorkflowMixin(ABC):
                 self._model_context = None
 
             # Handle continuation
-            continuation_id = request.continuation_id
+            invocation = current_invocation(self)
+            continuation_id = invocation.thread_id if invocation else request.continuation_id
 
-            # Restore workflow state on continuation
-            if continuation_id:
+            # Restore workflow state only for an existing thread.
+            if continuation_id and not (invocation and invocation.is_new):
                 from utils.conversation_memory import get_thread
 
                 thread = get_thread(continuation_id)
@@ -705,12 +711,9 @@ class BaseWorkflowMixin(ABC):
             if request.step_number > request.total_steps:
                 request.total_steps = request.step_number
 
-            # Create thread for first step
-            if not continuation_id and request.step_number == 1:
-                clean_args = {k: v for k, v in arguments.items() if k not in ["_model_context", "_resolved_model_name"]}
-                continuation_id = create_thread(self.get_name(), clean_args)
+            # The invocation owner created the thread and saved the first input.
+            if invocation and invocation.is_new:
                 self.initial_request = request.step
-                # Allow tools to store initial description for expert analysis
                 self.store_initial_issue(request.step)
 
             # Process work step - allow tools to customize field mapping
@@ -1128,8 +1131,14 @@ class BaseWorkflowMixin(ABC):
         """
         Store the conversation turn. Tools can override for custom memory storage.
         """
-        # CRITICAL: Extract clean content for conversation history (exclude internal workflow metadata)
-        clean_content = self._extract_clean_workflow_content_for_history(response_data)
+        invocation = current_invocation(self)
+        if invocation and (invocation.reply_saved or invocation.provider_failed):
+            return
+        clean_content = (
+            invocation.reply_content
+            if invocation and invocation.reply_content is not None
+            else json.dumps(response_data, ensure_ascii=False)
+        )
 
         # Serialize workflow state for persistence across stateless tool calls
         workflow_state = {"work_history": self.work_history, "initial_request": getattr(self, "initial_request", None)}
@@ -1143,8 +1152,16 @@ class BaseWorkflowMixin(ABC):
                 files=self.get_request_relevant_files(request),
                 images=self.get_request_images(request),
                 required=True,
-                model_metadata=workflow_state,  # Persist the state
+                model_metadata=workflow_state,
+                model_name=invocation.model_name if invocation else None,
+                model_provider=invocation.model_provider if invocation else None,
             )
+            if invocation:
+                invocation.reply_saved = True
+            offer = continuation_offer(continuation_id)
+            response_data["continuation_offer"] = offer
+            if offer["remaining_turns"] < 2:
+                response_data["next_steps"] = offer["note"]
         except ConversationMemoryError as exc:
             response_data.setdefault("metadata", {}).update(memory_persistence_warning(exc))
 
@@ -1476,6 +1493,9 @@ class BaseWorkflowMixin(ABC):
 
             # Prepare expert analysis context
             expert_context = self.prepare_expert_analysis_context(self.consolidated_findings)
+            history = invocation_history(self, self._model_context, expert=True, represented_context=expert_context)
+            if history:
+                expert_context = f"{history}\n\n{expert_context}"
 
             # Check if tool wants to include files in prompt
             if self.should_include_files_in_expert_prompt():
@@ -1506,14 +1526,26 @@ class BaseWorkflowMixin(ABC):
                 logger.warning(warning)
 
             # Generate AI response - use request parameters if available
+            invocation = current_invocation(self)
+            if invocation:
+                invocation.provider_failed = True
+            images = list(self.consolidated_findings.images)
+            if invocation:
+                _, history_images = invocation_attachments(self)
+                images = list(dict.fromkeys(images + history_images))
             model_response = provider.generate_content(
                 prompt=prompt,
                 model_name=model_name,
                 system_prompt=system_prompt,
                 temperature=validated_temperature,
                 thinking_mode=self.get_request_thinking_mode(request),
-                images=list(set(self.consolidated_findings.images)) if self.consolidated_findings.images else None,
+                images=images or None,
             )
+            if invocation:
+                invocation.provider_failed = not bool(model_response.content)
+                invocation.reply_content = model_response.content or None
+                invocation.model_name = model_name
+                invocation.model_provider = provider.get_provider_type().value
 
             if model_response.content:
                 content = model_response.content.strip()

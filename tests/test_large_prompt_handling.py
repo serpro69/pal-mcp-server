@@ -607,115 +607,27 @@ class TestLargePromptHandling:
             shutil.rmtree(temp_dir, ignore_errors=True)
 
     @pytest.mark.asyncio
-    async def test_continuation_with_huge_conversation_history(self):
-        """
-        Test that continuation calls with huge conversation history work correctly.
-        This simulates the exact scenario where conversation history builds up and exceeds
-        MCP_PROMPT_SIZE_LIMIT but should still work since history is internal processing.
-        """
-        tool = ChatTool()
+    async def test_continuation_with_huge_conversation_history(self, monkeypatch, tmp_path):
+        """Large internally loaded history is allowed when the actual input is small."""
+        from tests.request_capture import capture_providers
+        from utils.conversation_memory import add_turn, create_thread
 
-        # Small user input for continuation
-        small_continuation_prompt = "Continue the discussion"
-
-        # Mock huge conversation history (simulates many turns of conversation)
-        # Calculate repetitions needed to exceed MCP_PROMPT_SIZE_LIMIT
-        base_text = "=== CONVERSATION HISTORY ===\n"
-        repeat_text = "Previous message content\n"
-        # Add buffer to ensure we exceed the limit
-        target_size = MCP_PROMPT_SIZE_LIMIT + 1000
-        available_space = target_size - len(base_text)
-        repetitions_needed = (available_space // len(repeat_text)) + 1
-
-        huge_conversation_history = base_text + (repeat_text * repetitions_needed)
-
-        # Ensure the history exceeds MCP limits
-        assert len(huge_conversation_history) > MCP_PROMPT_SIZE_LIMIT
-
-        temp_dir = tempfile.mkdtemp()
-
-        with (
-            patch.object(tool, "get_model_provider") as mock_get_provider,
-            patch("utils.model_context.ModelContext") as mock_model_context_class,
-        ):
-            from tests.mock_helpers import create_mock_provider
-
-            mock_provider = create_mock_provider(model_name="flash")
-            mock_provider.generate_content.return_value.content = "Continuing our conversation..."
-            mock_get_provider.return_value = mock_provider
-
-            # Mock ModelContext to avoid the comparison issue
-            from utils.model_context import TokenAllocation
-
-            mock_model_context = MagicMock()
-            mock_model_context.model_name = "flash"
-            mock_model_context.provider = mock_provider
-            mock_model_context.calculate_token_allocation.return_value = TokenAllocation(
-                total_tokens=1_048_576,
-                content_tokens=838_861,
-                response_tokens=209_715,
-                file_tokens=335_544,
-                history_tokens=335_544,
-            )
-            mock_model_context_class.return_value = mock_model_context
-
-            # Simulate continuation by having the request contain embedded conversation history
-            # This mimics what server.py does when it embeds conversation history
-            request_with_history = {
-                "prompt": f"{huge_conversation_history}\n\n=== CURRENT REQUEST ===\n{small_continuation_prompt}",
-                "model": "flash",
-                "continuation_id": "test_thread_123",
-                "working_directory_absolute_path": temp_dir,
+        calls = capture_providers(monkeypatch, google_answer="Continuing our conversation...")
+        thread_id = create_thread("chat", {})
+        huge_history = "Previous message content " * 3000
+        add_turn(thread_id, "assistant", huge_history)
+        result = await ChatTool().execute(
+            {
+                "prompt": "Continue the discussion",
+                "model": "gemini-2.5-flash",
+                "continuation_id": thread_id,
+                "working_directory_absolute_path": str(tmp_path),
             }
-
-            # Mock the conversation history embedding to simulate server.py behavior
-            original_execute = tool.__class__.execute
-
-            async def mock_execute_with_history(self, arguments):
-                # Check if this has continuation_id (simulating server.py logic)
-                if arguments.get("continuation_id"):
-                    # Simulate the case where conversation history is already embedded in prompt
-                    # by server.py before calling the tool
-                    field_value = arguments.get("prompt", "")
-                    if "=== CONVERSATION HISTORY ===" in field_value:
-                        # Set the flag that history is embedded
-                        self._has_embedded_history = True
-
-                        # The prompt field contains both history AND user input
-                        # But we should only check the user input part for MCP boundary
-                        # (This is what our fix ensures happens in prepare_prompt)
-
-                # Call original execute
-                return await original_execute(self, arguments)
-
-            tool.__class__.execute = mock_execute_with_history
-
-            try:
-                # This should succeed because:
-                # 1. The actual user input is small (passes MCP boundary check)
-                # 2. The huge conversation history is internal processing (not subject to MCP limits)
-                result = await tool.execute(request_with_history)
-                output = json.loads(result[0].text)
-
-                # Should succeed even though total prompt with history is huge
-                assert output["status"] != "resend_prompt"
-                assert "Continuing our conversation" in output["content"]
-
-                # Verify the model was called with the complete prompt (including huge history)
-                mock_provider.generate_content.assert_called_once()
-                call_kwargs = mock_provider.generate_content.call_args[1]
-                final_prompt = call_kwargs.get("prompt")
-
-                # The final prompt should contain both history and user input
-                assert huge_conversation_history in final_prompt
-                assert small_continuation_prompt in final_prompt
-                # And it should be huge (proving we don't limit internal processing)
-                assert len(final_prompt) > MCP_PROMPT_SIZE_LIMIT
-
-            finally:
-                # Restore original execute method
-                tool.__class__.execute = original_execute
-                shutil.rmtree(temp_dir, ignore_errors=True)
+        )
+        assert "Continuing our conversation" in json.loads(result[0].text)["content"]
+        assert calls[0]["prompt"].count(huge_history) == 1
+        assert calls[0]["prompt"].count("Continue the discussion") == 1
+        assert len(calls[0]["prompt"]) > MCP_PROMPT_SIZE_LIMIT
 
 
 if __name__ == "__main__":

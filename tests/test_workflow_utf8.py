@@ -72,6 +72,11 @@ class TestWorkflowToolsUTF8(unittest.IsolatedAsyncioTestCase):
         mock_token_allocation.total_tokens = 2000
         mock_context_instance.calculate_token_allocation.return_value = mock_token_allocation
 
+        mock_token_allocation.history_tokens = 1000
+        mock_token_allocation.content_tokens = 2000
+        mock_context_instance.estimate_tokens.side_effect = lambda text: len(text) // 4
+        mock_context_instance.model_name = "flash"
+
         # Mock provider with more complete setup (same as codereview test)
         mock_provider = Mock()
         mock_provider.get_provider_type.return_value = Mock(value="test")

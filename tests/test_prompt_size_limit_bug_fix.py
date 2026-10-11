@@ -37,22 +37,10 @@ class TestPromptSizeLimitBugFix:
         # Test the hook method directly
         validation_content = tool.get_prompt_content_for_size_validation(enhanced_prompt)
 
-        # Should return the original short prompt, not the enhanced prompt
-        assert validation_content == short_user_prompt
-        assert len(validation_content) == len(short_user_prompt)
-        assert len(validation_content) < 1000  # Much smaller than enhanced prompt
-
-        # Verify the enhanced prompt would have triggered the bug
-        assert len(enhanced_prompt) > 50000  # This would trigger size limit
-
-        # Test that size check passes with the original prompt
+        # Caller-controlled arguments cannot assert that history is trusted.
+        assert validation_content == enhanced_prompt
         size_check = tool.check_prompt_size(validation_content)
-        assert size_check is None  # No size limit error
-
-        # Test that size check would fail with enhanced prompt
-        size_check_enhanced = tool.check_prompt_size(enhanced_prompt)
-        assert size_check_enhanced is not None  # Would trigger size limit
-        assert size_check_enhanced["status"] == "resend_prompt"
+        assert size_check["status"] == "resend_prompt"
 
     def test_prompt_size_validation_without_original_prompt(self):
         """Test fallback behavior when no original prompt is stored (new conversations)"""

@@ -281,12 +281,6 @@ class ChatTool(SimpleTool):
 
         return final_output
 
-    def get_recordable_response(self, raw_text: str, formatted_response: str, request) -> str:
-        if self._model_supports_code_generation() and self._extract_generated_code_block(raw_text)[0]:
-            return raw_text
-        # Preserve ordinary chat history until the single-owner migration (Task 9).
-        return formatted_response
-
     def _model_supports_code_generation(self) -> bool:
         context = getattr(self, "_model_context", None)
         if not context:

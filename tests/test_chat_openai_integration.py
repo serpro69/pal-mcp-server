@@ -1,177 +1,71 @@
-"""Integration test for ChatTool auto-mode using OpenAI o3/gpt models with cassette recording."""
+"""Offline OpenAI routing and continuation request contracts.
 
-from __future__ import annotations
+Existing live cassettes are retained unchanged; refreshing them is a release check.
+"""
 
 import json
-import os
-import uuid
-from pathlib import Path
 
 import pytest
 
+import server
 from providers.registry import ModelProviderRegistry
-from providers.shared import ProviderType
-from tests.transport_helpers import inject_transport
+from tests.request_capture import capture_providers
 from tools.chat import ChatTool
-
-# Directory for recorded HTTP interactions
-CASSETTE_DIR = Path(__file__).parent / "openai_cassettes"
-CASSETTE_DIR.mkdir(exist_ok=True)
-CASSETTE_PATH = CASSETTE_DIR / "chat_gpt5_moon_distance.json"
-CASSETTE_CONTINUATION_PATH = CASSETTE_DIR / "chat_gpt5_continuation.json"
+from utils.conversation_memory import get_thread
 
 
 @pytest.mark.asyncio
-@pytest.mark.no_mock_provider
 async def test_chat_auto_mode_with_openai(monkeypatch, tmp_path):
-    """Ensure ChatTool in auto mode selects gpt-5 via OpenAI and returns a valid response."""
-    # Prepare environment so only OpenAI is available in auto mode
-    env_updates = {
-        "DEFAULT_MODEL": "auto",
-        "OPENAI_API_KEY": os.getenv("OPENAI_API_KEY", ""),
-    }
-    # Remove Gemini/XAI keys to force OpenAI selection
-    keys_to_clear = ["GEMINI_API_KEY", "XAI_API_KEY", "OPENROUTER_API_KEY"]
-
-    with monkeypatch.context() as m:
-        m.setenv("DEFAULT_MODEL", env_updates["DEFAULT_MODEL"])
-        m.setenv("OPENAI_ALLOWED_MODELS", "gpt-5")
-        if env_updates["OPENAI_API_KEY"]:
-            m.setenv("OPENAI_API_KEY", env_updates["OPENAI_API_KEY"])
-        for key in keys_to_clear:
-            m.delenv(key, raising=False)
-
-        # Choose recording or replay mode based on cassette presence
-        if not CASSETTE_PATH.exists():
-            real_key = os.getenv("OPENAI_API_KEY", "").strip()
-            if not real_key or real_key.startswith("dummy"):
-                pytest.skip(
-                    "Cassette missing and OPENAI_API_KEY not configured. Provide a real key and re-run to record."
-                )
-        else:
-            # Replay mode uses dummy key to keep secrets out of the cassette
-            m.setenv("OPENAI_API_KEY", "dummy-key-for-replay")
-
-        # Reset registry and register only OpenAI provider
-        ModelProviderRegistry.reset_for_testing()
-        from providers.openai import OpenAIModelProvider
-
-        ModelProviderRegistry.register_provider(ProviderType.OPENAI, OpenAIModelProvider)
-
-        # Inject HTTP transport (records or replays depending on cassette state)
-        inject_transport(monkeypatch, CASSETTE_PATH)
-
-        # Execute ChatTool request targeting gpt-5 directly (server normally resolves auto→model)
-        chat_tool = ChatTool()
-        working_directory = str(tmp_path)
-        arguments = {
-            "prompt": "Use chat with gpt5 and ask how far the moon is from earth.",
-            "model": "gpt-5",
-            "temperature": 1.0,
-            "working_directory_absolute_path": working_directory,
-        }
-
-        result = await chat_tool.execute(arguments)
-
-    # Validate response
-    assert result and result[0].type == "text"
-    response_data = json.loads(result[0].text)
-
-    assert response_data["status"] in {"success", "continuation_available"}
-    metadata = response_data.get("metadata", {})
-    assert metadata.get("provider_used") == "openai"
-    assert metadata.get("model_used") in {"gpt-5", "gpt5"}
-    assert "moon" in response_data["content"].lower()
-
-    # Ensure cassette recorded for future replays
-    assert CASSETTE_PATH.exists()
+    calls = capture_providers(monkeypatch, openai_answer="About 384,400 km.")
+    monkeypatch.setenv("PAL_WORKSPACE_ROOT", str(tmp_path))
+    monkeypatch.setattr(ModelProviderRegistry, "get_preferred_fallback_model", lambda *args: "gpt-5")
+    result = json.loads(
+        (
+            await server.handle_call_tool(
+                "chat",
+                {"prompt": "How far is the Moon?", "model": "auto", "working_directory_absolute_path": str(tmp_path)},
+            )
+        )[0].text
+    )
+    assert calls[0]["model_name"] == "gpt-5"
+    assert calls[0]["prompt"].count("How far is the Moon?") == 1
+    assert calls[0]["system_prompt"]
+    assert result["metadata"]["provider_used"] == "openai"
+    assert "384,400" in result["content"]
 
 
 @pytest.mark.asyncio
-@pytest.mark.no_mock_provider
 async def test_chat_openai_continuation(monkeypatch, tmp_path):
-    """Verify continuation_id workflow against gpt-5 using recorded OpenAI responses."""
-
-    env_updates = {
-        "DEFAULT_MODEL": "auto",
-        "OPENAI_API_KEY": os.getenv("OPENAI_API_KEY", ""),
-    }
-    keys_to_clear = ["GEMINI_API_KEY", "XAI_API_KEY", "OPENROUTER_API_KEY"]
-
-    recording_mode = not CASSETTE_CONTINUATION_PATH.exists()
-    if recording_mode:
-        real_key = env_updates["OPENAI_API_KEY"].strip()
-        if not real_key or real_key.startswith("dummy"):
-            pytest.skip("Continuation cassette missing and OPENAI_API_KEY not configured. Set a real key to record.")
-
-    fixed_thread_id = uuid.UUID("95d60035-1aa3-4398-9936-fca71989d906")
-
-    with monkeypatch.context() as m:
-        m.setenv("DEFAULT_MODEL", env_updates["DEFAULT_MODEL"])
-        m.setenv("OPENAI_ALLOWED_MODELS", "gpt-5")
-        if recording_mode:
-            m.setenv("OPENAI_API_KEY", env_updates["OPENAI_API_KEY"])
-        else:
-            m.setenv("OPENAI_API_KEY", "dummy-key-for-replay")
-        for key in keys_to_clear:
-            m.delenv(key, raising=False)
-
-        ModelProviderRegistry.reset_for_testing()
-        from providers.openai import OpenAIModelProvider
-
-        ModelProviderRegistry.register_provider(ProviderType.OPENAI, OpenAIModelProvider)
-
-        inject_transport(monkeypatch, CASSETTE_CONTINUATION_PATH)
-
-        from utils import conversation_memory
-
-        m.setattr(conversation_memory.uuid, "uuid4", lambda: fixed_thread_id)
-
-        chat_tool = ChatTool()
-        working_directory = str(tmp_path)
-
-        # First message: obtain continuation_id
-        first_args = {
-            "prompt": "In one word, which sells better: iOS app or macOS app?",
-            "model": "gpt-5",
-            "temperature": 1.0,
-            "working_directory_absolute_path": working_directory,
-        }
-        first_result = await chat_tool.execute(first_args)
-
-        assert first_result and first_result[0].type == "text"
-        first_data = json.loads(first_result[0].text)
-        assert first_data["status"] == "continuation_available"
-        first_metadata = first_data.get("metadata", {})
-        assert first_metadata.get("provider_used") == "openai"
-        assert first_metadata.get("model_used") in {"gpt-5", "gpt5"}
-        continuation = first_data.get("continuation_offer")
-        assert continuation is not None
-        continuation_id = continuation.get("continuation_id")
-        assert continuation_id
-
-        # Second message using continuation_id (reuse same tool instance for clarity)
-        second_args = {
-            "prompt": "In one word then, SwiftUI or ReactNative?",
-            "model": "gpt-5",
-            "continuation_id": continuation_id,
-            "temperature": 1.0,
-            "working_directory_absolute_path": working_directory,
-        }
-
-        second_result = await chat_tool.execute(second_args)
-
-        assert second_result and second_result[0].type == "text"
-        second_data = json.loads(second_result[0].text)
-        assert second_data["status"] in {"success", "continuation_available"}
-        second_metadata = second_data.get("metadata", {})
-        assert second_metadata.get("provider_used") == "openai"
-        assert second_metadata.get("model_used") in {"gpt-5", "gpt5"}
-        assert second_metadata.get("conversation_ready") is True
-        assert second_data.get("continuation_offer") is not None
-
-    # Ensure the cassette file exists for future replays
-    assert CASSETTE_CONTINUATION_PATH.exists()
-
-    # Clean up registry state for subsequent tests
-    ModelProviderRegistry.reset_for_testing()
+    calls = capture_providers(monkeypatch, openai_answer="OpenAI raw reply")
+    monkeypatch.setenv("PAL_WORKSPACE_ROOT", str(tmp_path))
+    tool = ChatTool()
+    first = json.loads(
+        (
+            await tool.execute(
+                {
+                    "prompt": "Explain lunar distance.",
+                    "model": "gpt-5",
+                    "working_directory_absolute_path": str(tmp_path),
+                }
+            )
+        )[0].text
+    )
+    thread_id = first["continuation_offer"]["continuation_id"]
+    second = json.loads(
+        (
+            await tool.execute(
+                {
+                    "prompt": "Explain the variation.",
+                    "continuation_id": thread_id,
+                    "working_directory_absolute_path": str(tmp_path),
+                }
+            )
+        )[0].text
+    )
+    assert [call["model_name"] for call in calls] == ["gpt-5", "gpt-5"]
+    for content in ["Explain lunar distance.", "OpenAI raw reply", "Explain the variation."]:
+        assert calls[1]["prompt"].count(content) == 1
+    thread = get_thread(thread_id)
+    assert [turn.role for turn in thread.turns] == ["user", "assistant", "user", "assistant"]
+    assert second["continuation_offer"]["remaining_turns"] == 46
+    assert "23 more exchanges" in second["continuation_offer"]["note"]

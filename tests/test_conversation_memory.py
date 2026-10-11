@@ -409,13 +409,13 @@ class TestConversationFlow:
         # Test early conversation (should allow follow-ups)
         early_instructions = get_follow_up_instructions(0, max_turns)
         assert "CONVERSATION CONTINUATION" in early_instructions
-        assert f"({max_turns - 1} exchanges remaining)" in early_instructions
+        assert f"({(max_turns - 1) // 2} exchanges remaining)" in early_instructions
         assert "Feel free to ask clarifying questions" in early_instructions
 
         # Test mid conversation
         mid_instructions = get_follow_up_instructions(2, max_turns)
         assert "CONVERSATION CONTINUATION" in mid_instructions
-        assert f"({max_turns - 3} exchanges remaining)" in mid_instructions
+        assert f"({(max_turns - 3) // 2} exchanges remaining)" in mid_instructions
         assert "Feel free to ask clarifying questions" in mid_instructions
 
         # Test approaching limit (should stop follow-ups)
@@ -430,7 +430,7 @@ class TestConversationFlow:
         # Test with custom max_turns to ensure dynamic behavior
         custom_max = 3
         custom_early = get_follow_up_instructions(0, custom_max)
-        assert f"({custom_max - 1} exchanges remaining)" in custom_early
+        assert f"({(custom_max - 1) // 2} exchanges remaining)" in custom_early
 
         custom_limit = get_follow_up_instructions(custom_max - 1, custom_max)
         assert "Do NOT include any follow-up questions" in custom_limit
@@ -438,7 +438,7 @@ class TestConversationFlow:
     def test_follow_up_instructions_defaults_to_config(self):
         """Test that follow-up instructions use MAX_CONVERSATION_TURNS when max_turns not provided"""
         instructions = get_follow_up_instructions(0)  # No max_turns parameter
-        expected_remaining = MAX_CONVERSATION_TURNS - 1
+        expected_remaining = (MAX_CONVERSATION_TURNS - 1) // 2
         assert f"({expected_remaining} exchanges remaining)" in instructions
 
     @patch("utils.conversation_memory.get_storage")
