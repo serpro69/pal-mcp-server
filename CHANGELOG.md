@@ -4,28 +4,14 @@
 
 ## Unreleased
 
-- DIAL now awaits native async deployment requests and header hooks, shares one
-  lazy connection pool, and joins pool cleanup once even when shutdown is cancelled.
-  Direct callers must await generation and `aclose()`; server shutdown integration
-  remains the next migration step.
-
-- Gemini generation now awaits the native GenAI async SDK and yielding retries;
-  local image preparation stays off the event loop. Awaited provider cleanup closes
-  both SDK transports without initializing unused clients.
-
-- OpenAI, Azure, OpenRouter, custom and xAI generation now uses native async SDK
-  requests and yielding retry delays. Direct provider callers must await generation;
-  allocated clients expose awaited `aclose()`. Server shutdown wiring follows in
-  the final lifecycle migration. Existing payloads, routing and transport policy remain.
-
-- Expert analysis and consensus consultations now yield through the same temporary
-  provider adapter as chat, preserving participant errors and request provenance.
-  Cancellation propagates without being retried as a provider failure.
-
-- Chat generation and empty-response recovery now yield through a temporary
-  sync/async adapter. Guard shared provider client initialization and preserve
-  OpenAI/Azure direct routing and CA trust without changing process proxy variables.
-  Cancelling a legacy worker await does not cancel its network request.
+- Provider generation and cleanup are async-only: direct callers must await
+  `generate_content()` and `aclose()`. Chat, recovery, expert and consensus calls
+  await native SDK requests with yielding retries; the temporary worker adapter
+  has been removed. Server shutdown joins cleanup before its event loop exits,
+  attempts every allocated provider, and preserves failures and cancellation.
+  Unused providers allocate no clients during cleanup. DIAL shares one deployment
+  pool; Gemini closes both SDK transports. Existing routing and proxy/TLS policy
+  remain intact without process-wide environment changes.
 
 - Consensus now distinguishes complete, partial and failed coverage, reports
   participant errors and successful provider coverage, and counts only successful

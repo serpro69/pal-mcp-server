@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Implementation: [implementation.md](implementation.md)
 > Review resolutions: [review.md](review.md#revalidation-and-resolution)
-> Status: in-progress (Tasks 1–18 done; Tasks 19–42 pending)
+> Status: in-progress (Tasks 1–19 done; Tasks 20–42 pending)
 > Created: 2026-10-10
 > Not Doing: toolchain/release-process migration; MCP 2.x; wholesale catalogs; replacement of safety controls; file-annotation implementation; persistent continuation recovery; remote multi-user transport; automatic service activation
 
@@ -399,17 +399,23 @@ retains the explicitly characterized O3/O4-mini output-limit defect.
 
 ## Task 19: Finish the async contract and deterministic shutdown
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 16, Task 17, Task 18
 - **Size:** M
 - **Can run in parallel with:** —
 - **Docs:** [Implementation slice](implementation.md#task-19); [design contract](design.md#d4-async-provider-lifecycle)
 
-- [ ] 19.1 Make generate_content an async-only provider contract after every backend is migrated; replace adapter calls with direct awaits and remove only that newly orphaned adapter/legacy retry path.
-- [ ] 19.2 Await provider cleanup from server lifecycle before the event loop exits. Preserve errors and cancellation without a fire-and-forget success path.
-- [ ] 19.3 Verify the acceptance cases in [Task 19](implementation.md#task-19) and record the result here.
+- [x] 19.1 Make generate_content an async-only provider contract after every backend is migrated; replace adapter calls with direct awaits and remove only that newly orphaned adapter/legacy retry path.
+- [x] 19.2 Await provider cleanup from server lifecycle before the event loop exits. Preserve errors and cancellation without a fire-and-forget success path.
+- [x] 19.3 Verify the acceptance cases in [Task 19](implementation.md#task-19) and record the result here.
 
 **Scope / gate:** No permanently mixed sync/async contract. Attribute expected test changes to actual endpoint behavior.
+
+**Evidence:** [Task 19 validation](validation.md#task-19-async-only-contract-and-deterministic-server-shutdown),
+2026-10-11. Full quality **1,231 passed**; focused provider/lifecycle suites
+**59 passed each** on Python 3.11/3.12 before the final two cancellation cases.
+Isolated review caught and resolved cleanup cancellation masking a serving error.
+External PAL unavailable; existing live/setup release gates remain open.
 
 ## Task 20: Enforce output limits and normalize endpoint usage
 

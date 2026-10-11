@@ -19,7 +19,6 @@ as defined by the MCP protocol.
 """
 
 import asyncio
-import atexit
 import logging
 import os
 import sys
@@ -47,6 +46,7 @@ from config import (  # noqa: E402
     DEFAULT_MODEL,
     __version__,
 )
+from providers.registry import ModelProviderRegistry
 from tools import (  # noqa: E402
     AnalyzeTool,
     ChallengeTool,
@@ -565,26 +565,6 @@ def configure_providers():
 
     if len(priority_info) > 1:
         logger.info(f"Provider priority: {' → '.join(priority_info)}")
-
-    # Register cleanup function for providers
-    def cleanup_providers():
-        """Clean up all registered providers on shutdown."""
-        try:
-            registry = ModelProviderRegistry()
-            if hasattr(registry, "_initialized_providers"):
-                # Iterate over provider instances (values), not (type, instance) tuples
-                for provider in list(registry._initialized_providers.values()):
-                    try:
-                        if provider and hasattr(provider, "close"):
-                            provider.close()
-                    except Exception:
-                        # Logger might be closed during shutdown
-                        pass
-        except Exception:
-            # Silently ignore any errors during cleanup
-            pass
-
-    atexit.register(cleanup_providers)
 
     # Check and log model restrictions
     restriction_service = get_restriction_service()
@@ -1393,7 +1373,7 @@ async def handle_get_prompt(name: str, arguments: dict[str, Any] = None) -> GetP
     )
 
 
-async def main():
+async def _serve():
     """
     Main entry point for the MCP server.
 
@@ -1458,6 +1438,50 @@ async def main():
                 ),
             ),
         )
+
+
+async def _close_providers() -> None:
+    """Attempt every allocated provider once and retain the first cleanup failure."""
+    first_error = None
+    seen = set()
+    for provider in list(ModelProviderRegistry()._initialized_providers.values()):
+        if id(provider) in seen:
+            continue
+        seen.add(id(provider))
+        try:
+            await asyncio.wait_for(provider.aclose(), timeout=30.0)
+        except (Exception, asyncio.CancelledError) as exc:
+            logger.error("Provider cleanup failed: %s", type(provider).__name__, exc_info=True)
+            if first_error is None:
+                first_error = exc
+    if first_error is not None:
+        raise first_error
+
+
+async def main():
+    """Run stdio and join provider cleanup before the owning event loop exits."""
+    try:
+        await _serve()
+    finally:
+        primary_error = sys.exc_info()[1]
+        cleanup = asyncio.create_task(_close_providers())
+        cancelled = None
+        while not cleanup.done():
+            try:
+                await asyncio.shield(cleanup)
+            except asyncio.CancelledError as exc:
+                if not cleanup.cancelled():
+                    cancelled = exc
+            except Exception:
+                break  # Observe the cleanup failure below, after all providers ran.
+        try:
+            cleanup.result()
+        except (Exception, asyncio.CancelledError):
+            if primary_error is None and cancelled is None:
+                raise
+            logger.error("Provider cleanup failed during server termination", exc_info=True)
+        if cancelled is not None:
+            raise cancelled
 
 
 def run():

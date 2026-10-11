@@ -3,6 +3,38 @@
 Recorded 2026-10-11. This covers the completed maintenance tasks below, not the
 remaining roadmap or optional live-provider behavior.
 
+## Task 19: async-only contract and deterministic server shutdown
+
+Recorded 2026-10-11. All provider generation methods and tool callers now use
+an async-only contract. Removed the temporary worker adapter, its sync-only test
+variants, the unused synchronous retry helper and no-op close method. Direct
+provider consumers must await `generate_content()` and `aclose()`.
+
+The server joins cleanup in `main()` before loop exit, including startup failure,
+stdio failure/disconnect and repeated cancellation. Each allocated provider is
+attempted once per shutdown (deduplicated by identity), with a 30-second close
+deadline; all providers are attempted even if one fails. The original server
+failure is preserved while cleanup failures are logged; a standalone cleanup
+failure propagates. No atexit or unjoined cleanup success path remains.
+
+Python 3.10 asyncio shield/wait_for semantics verified through versioned docs
+and installed SDK cleanup methods. No dependencies changed.
+
+- Full quality (locked Python 3.10.12): **1,231 passed**, 4 skipped,
+  16 deselected, 19 subtests passed; Ruff/Black/isort passed without warnings.
+- Focused native provider/concurrency/shutdown suites: **59 passed each** on
+  Python 3.11.13 and 3.12.11 with RuntimeWarnings treated as errors.
+- Fake stdio lifecycle uses allocated real provider objects and delayed SDK
+  clients, verifying completion before loop exit, failure propagation, duplicate
+  owner handling, repeat close and cancellation during cleanup.
+- Required integration and quick simulator entry points stop at existing missing
+  `.pal_venv` / simulator Python-path checks; no live-service coverage claimed.
+
+Independent isolated review found a P2: provider cleanup cancellation could mask
+an earlier server error. Fixed by distinguishing cancellation of cleanup from
+cancellation of its caller, with two additional regression cases. No systemic
+P0/P1 findings to index. External PAL reviewer unavailable.
+
 ## Task 18: native DIAL generation and shared transport ownership
 
 Recorded 2026-10-11. DIAL now uses native `AsyncOpenAI` deployment wrappers with

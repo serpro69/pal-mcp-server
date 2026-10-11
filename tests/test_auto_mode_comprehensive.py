@@ -2,7 +2,7 @@
 
 import importlib
 import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -525,6 +525,7 @@ class TestAutoModeComprehensive:
 
             # Mock the actual provider to simulate successful execution
             mock_provider = MagicMock()
+            mock_provider.generate_content = AsyncMock()
             mock_provider.get_provider_type.return_value = ProviderType.GOOGLE
             mock_response = MagicMock()
             mock_response.metadata = {}

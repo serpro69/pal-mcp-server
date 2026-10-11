@@ -1,7 +1,7 @@
 """Invocation-level contracts shared by MCP dispatch and direct tool calls."""
 
 import json
-from unittest.mock import Mock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
@@ -142,7 +142,7 @@ async def test_failure_keeps_input_and_next_invocation_uses_remaining_pair(
 @pytest.mark.parametrize("through_server", [False, True])
 async def test_provider_retry_does_not_repeat_admission(setup, monkeypatch, tmp_path, through_server):
     monkeypatch.setattr(memory, "MAX_CONVERSATION_TURNS", 2)
-    generate = Mock(
+    generate = AsyncMock(
         side_effect=[
             ModelResponse(
                 content="", model_name="gemini-2.5-flash", provider="google", metadata={"finish_reason": "STOP"}

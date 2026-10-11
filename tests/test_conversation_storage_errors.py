@@ -2,7 +2,7 @@
 
 import json
 import uuid
-from unittest.mock import Mock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 from pydantic import ValidationError
@@ -46,7 +46,7 @@ def storage(monkeypatch):
 def chat_provider(monkeypatch, tmp_path):
     monkeypatch.setenv("PAL_WORKSPACE_ROOT", str(tmp_path))
     provider = GeminiModelProvider(api_key="synthetic")
-    generate = Mock(
+    generate = AsyncMock(
         return_value=ModelResponse(content="generated answer", model_name="gemini-2.5-flash", provider="google")
     )
     monkeypatch.setattr(provider, "generate_content", generate)

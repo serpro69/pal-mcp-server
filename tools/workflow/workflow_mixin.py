@@ -44,7 +44,6 @@ from utils.conversation_memory import (
     memory_persistence_warning,
     save_failed_workflow_state,
 )
-from utils.provider_execution import invoke_provider
 
 from ..shared.base_models import ConsolidatedFindings
 from ..shared.exceptions import ToolExecutionError
@@ -1542,8 +1541,7 @@ class BaseWorkflowMixin(ABC):
                 images = list(dict.fromkeys(images + history_images))
             thinking_mode = self.get_request_thinking_mode(request)
             self._record_provider_attempt(model_name, provider)
-            model_response = await invoke_provider(
-                provider,
+            model_response = await provider.generate_content(
                 prompt=prompt,
                 model_name=model_name,
                 system_prompt=system_prompt,

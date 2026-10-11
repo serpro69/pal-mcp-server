@@ -1,6 +1,5 @@
 """Wire contracts captured through the locked SDKs across the async migration."""
 
-import inspect
 import json
 
 import httpx
@@ -11,7 +10,6 @@ from providers.custom import CustomProvider
 from providers.openai import OpenAIModelProvider
 from providers.openrouter import OpenRouterProvider
 from providers.xai import XAIModelProvider
-from utils.provider_execution import invoke_provider
 
 
 def make_provider(kind):
@@ -42,12 +40,7 @@ def make_provider(kind):
 
 
 async def close_provider(provider):
-    if hasattr(provider, "aclose"):
-        await provider.aclose()
-    elif provider._client is not None:
-        result = provider._client.close()
-        if inspect.isawaitable(result):
-            await result
+    await provider.aclose()
 
 
 def chat_response():
@@ -74,8 +67,7 @@ async def test_chat_wire_contract(kind):
 
     provider._test_transport = httpx.MockTransport(handler)
     try:
-        result = await invoke_provider(
-            provider,
+        result = await provider.generate_content(
             prompt="héllo",
             model_name=model,
             system_prompt="system",
@@ -138,7 +130,7 @@ async def test_responses_wire_contract(kind):
 
     provider._test_transport = httpx.MockTransport(handler)
     try:
-        result = await invoke_provider(provider, prompt="héllo", model_name=model, system_prompt="system")
+        result = await provider.generate_content(prompt="héllo", model_name=model, system_prompt="system")
         (request,) = requests
         payload = json.loads(request.content)
         expected = {
