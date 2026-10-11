@@ -185,8 +185,8 @@ class TestXAIProvider:
         # Alias should be allowed (resolves to grok-4.1-fast)
         assert provider.validate_model_name("grok-4.1-fast-reasoning") is True
 
-        # Canonical name is not allowed unless explicitly listed
-        assert provider.validate_model_name("grok-4.1-fast") is False
+        # Another alias of the same canonical identity is also allowed.
+        assert provider.validate_model_name("grok-4.1-fast") is True
 
         # grok-4 should NOT be allowed
         assert provider.validate_model_name("grok-4") is False

@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Implementation: [implementation.md](implementation.md)
 > Review resolutions: [review.md](review.md#revalidation-and-resolution)
-> Status: in-progress (Tasks 1–24 done; Tasks 25–42 pending)
+> Status: in-progress (Tasks 1–25 done; Tasks 26–42 pending)
 > Created: 2026-10-10
 > Not Doing: toolchain/release-process migration; MCP 2.x; wholesale catalogs; replacement of safety controls; file-annotation implementation; persistent continuation recovery; remote multi-user transport; automatic service activation
 
@@ -530,17 +530,23 @@ retain the common renderer. Existing external-review/live/setup gates remain ope
 
 ## Task 25: Add a global model deny policy
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 22
 - **Size:** M
 - **Can run in parallel with:** —
 - **Docs:** [Implementation slice](implementation.md#task-25); [design contract](design.md#d5-providers-and-model-policy)
 
-- [ ] 25.1 Parse DISABLED_MODELS by removing at most a recognized provider prefix, then resolve the complete remaining model ID through Task 22's canonical/alias lookup without invocation-only legacy-option parsing. Preserve all remaining colons.
-- [ ] 25.2 Enforce canonical/alias-equivalent denies across explicit calls, discovery, summary and fallback after provider allowlists; warn on unknown configured entries without exposing secrets.
-- [ ] 25.3 Verify the acceptance cases in [Task 25](implementation.md#task-25), including dispatcher captures with scoped/unscoped denies for registered custom tags and DIAL :0 IDs: no transport call when denied, no alias bypass and unchanged canonical suffixes when allowed. Record the result here.
+- [x] 25.1 Parse DISABLED_MODELS by removing at most a recognized provider prefix, then resolve the complete remaining model ID through Task 22's canonical/alias lookup without invocation-only legacy-option parsing. Preserve all remaining colons.
+- [x] 25.2 Enforce canonical/alias-equivalent denies across explicit calls, discovery, summary and fallback after provider allowlists; warn on unknown configured entries without exposing secrets.
+- [x] 25.3 Verify the acceptance cases in [Task 25](implementation.md#task-25), including dispatcher captures with scoped/unscoped denies for registered custom tags and DIAL :0 IDs: no transport call when denied, no alias bypass and unchanged canonical suffixes when allowed. Record the result here.
 
 **Scope / gate:** A canonical alias cannot bypass a deny. Parse provider scope only when the prefix is a recognized provider name.
+
+**Evidence:** [Task 25 validation](validation.md#task-25-global-model-deny-policy),
+2026-10-11. Full quality **1,542 passed**; focused policy/dispatcher contracts
+**163 passed each** on Python 3.11/3.12. Isolated review approved after direct-provider
+identity and unknown-entry debug-log corrections. External PAL and live/setup
+gates remain unavailable; configuration examples replace blocked template access.
 
 ## Task 26: Add hidden catalog entries and ordered auto preferences
 

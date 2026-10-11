@@ -387,7 +387,9 @@ class ModelProviderRegistry:
             return first_available_model
 
         # Ultimate fallback if no providers have models
-        raise ValueError("No eligible models available. Configure provider credentials and check model allowlists.")
+        raise ValueError(
+            "No eligible models available. Configure provider credentials and check model allowlists and DISABLED_MODELS."
+        )
 
     @classmethod
     def get_available_providers_with_keys(cls) -> list[ProviderType]:

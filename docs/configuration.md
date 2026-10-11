@@ -220,6 +220,26 @@ DEFAULT_THINKING_MODE_THINKDEEP=high
 
 ### Model Usage Restrictions
 
+`DISABLED_MODELS` adds a deny override after provider allowlists. It applies to
+explicit calls, aliases, model listings and auto fallback. Empty or unset means
+no global denies. Restart the MCP server after changing policy or catalogs.
+
+```env
+# Deny this canonical model (and all its aliases) wherever it resolves
+DISABLED_MODELS=gemini-2.5-pro
+# Or scope each deny to a provider; tags and other remaining colons stay intact
+DISABLED_MODELS=custom:llama3.2:latest,dial:deployment:0,openrouter:opus
+```
+
+Recognized scopes are `google`, `openai`, `azure`, `xai`, `dial`, `custom` and
+`openrouter`. Only the first recognized prefix is removed. Unscoped names are
+resolved independently in every configured provider's full catalog; scoped names
+affect only that provider. Canonical names and aliases deny the same identity.
+These settings never interpret invocation-only `:for`/`:against`/`:neutral`
+options. Unknown entries produce a startup warning by entry position, without
+echoing potentially sensitive input. A deny cannot be overridden by an allowlist,
+and a denied higher-priority identity does not reroute to another provider.
+
 Control which models can be used from each provider for cost control, compliance, or standardization:
 
 ```env

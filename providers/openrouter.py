@@ -157,11 +157,11 @@ class OpenRouterProvider(OpenAICompatibleProvider):
                 continue
 
             if restriction_service:
-                allowed = restriction_service.is_allowed(self.get_provider_type(), model_name)
+                allowed = restriction_service.is_allowed(self.get_provider_type(), model_name, provider=self)
 
                 if not allowed and config.aliases:
                     for alias in config.aliases:
-                        if restriction_service.is_allowed(self.get_provider_type(), alias):
+                        if restriction_service.is_allowed(self.get_provider_type(), alias, provider=self):
                             allowed = True
                             break
 
@@ -206,7 +206,7 @@ class OpenRouterProvider(OpenAICompatibleProvider):
             self._alias_cache.setdefault(resolved.lower(), resolved)
             return resolved
 
-        logging.debug(f"Model '{model_name}' not found in registry, using as-is")
+        logging.debug("Model name not found in OpenRouter registry, using as-is")
         self._alias_cache[cache_key] = model_name
         return model_name
 
