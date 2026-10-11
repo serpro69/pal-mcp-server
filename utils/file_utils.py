@@ -40,9 +40,10 @@ multi-turn file handling:
 import json
 import logging
 import os
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
 from .file_types import BINARY_EXTENSIONS, CODE_EXTENSIONS, IMAGE_EXTENSIONS, TEXT_EXTENSIONS
 from .security_config import EXCLUDED_DIRS, is_dangerous_path
@@ -419,7 +420,11 @@ def expand_paths(paths: list[str], extensions: Optional[set[str]] = None) -> lis
 
 
 def read_file_content(
-    file_path: str, max_size: int = 1_000_000, *, include_line_numbers: Optional[bool] = None
+    file_path: str,
+    max_size: int = 1_000_000,
+    *,
+    include_line_numbers: Optional[bool] = None,
+    included_files: Optional[list[str]] = None,
 ) -> tuple[str, int]:
     """
     Read a single file and format it for inclusion in AI prompts.
@@ -510,6 +515,8 @@ def read_file_content(
             f"--- END FILE: {file_path} ---\n"
         )
         tokens = estimate_tokens(formatted)
+        if included_files is not None:
+            included_files.append(str(path))
         logger.debug(f"[FILES] Formatted content for {file_path}: {len(formatted)} chars, {tokens} tokens")
         return formatted, tokens
 
@@ -521,6 +528,34 @@ def read_file_content(
         return content, tokens
 
 
+@dataclass
+class FileReadReport:
+    included: list[str] = field(default_factory=list)
+    omitted: list[str] = field(default_factory=list)
+    unavailable: list[str] = field(default_factory=list)
+    file_tokens: dict[str, int] = field(default_factory=dict)
+    required_tokens: int = 0
+    rendered_tokens: int = 0
+    limit: int = 0
+
+
+def expand_file_inputs(paths: list[str]) -> list[str]:
+    """Expand/deduplicate aliases while retaining unsuccessful inputs for diagnostics."""
+    result = []
+    seen = set()
+    for path in paths:
+        expanded = expand_paths([path])
+        for candidate in expanded or [path]:
+            try:
+                candidate = str(resolve_and_validate_path(candidate))
+            except (ValueError, PermissionError):
+                pass
+            if candidate not in seen:
+                result.append(candidate)
+                seen.add(candidate)
+    return result
+
+
 def read_files(
     file_paths: list[str],
     code: Optional[str] = None,
@@ -528,6 +563,8 @@ def read_files(
     reserve_tokens: int = 50_000,
     *,
     include_line_numbers: bool = False,
+    report: Optional[FileReadReport] = None,
+    token_estimator: Callable[[str], int] = estimate_tokens,
 ) -> str:
     """
     Read multiple files and optional direct code with smart token management.
@@ -549,81 +586,56 @@ def read_files(
     """
     if max_tokens is None:
         max_tokens = DEFAULT_CONTEXT_WINDOW
+    report = report if report is not None else FileReadReport()
+    report.included.clear()
+    report.omitted.clear()
+    report.unavailable.clear()
+    report.file_tokens.clear()
+    report.limit = max(0, max_tokens - reserve_tokens)
+    report.required_tokens = 0
 
-    logger.debug(f"[FILES] read_files called with {len(file_paths)} paths")
-    logger.debug(
-        f"[FILES] Token budget: max={max_tokens:,}, reserve={reserve_tokens:,}, available={max_tokens - reserve_tokens:,}"
-    )
+    def blocks():
+        if code:
+            yield f"\n--- BEGIN DIRECT CODE ---\n{code}\n--- END DIRECT CODE ---\n", []
+        for path in expand_file_inputs(file_paths):
+            included: list[str] = []
+            content, _ = read_file_content(path, include_line_numbers=include_line_numbers, included_files=included)
+            report.file_tokens[path] = token_estimator(content)
+            if not included:
+                report.unavailable.append(path)
+            yield content, included
 
-    content_parts = []
-    total_tokens = 0
-    available_tokens = max_tokens - reserve_tokens
-
-    files_skipped = []
-
-    # Priority 1: Handle direct code if provided
-    # Direct code is prioritized because it's explicitly provided by the user
-    if code:
-        formatted_code = f"\n--- BEGIN DIRECT CODE ---\n{code}\n--- END DIRECT CODE ---\n"
-        code_tokens = estimate_tokens(formatted_code)
-
-        if code_tokens <= available_tokens:
-            content_parts.append(formatted_code)
-            total_tokens += code_tokens
-            available_tokens -= code_tokens
-
-    # Priority 2: Process file paths
-    if file_paths:
-        # Expand directories to get all individual files
-        logger.debug(f"[FILES] Expanding {len(file_paths)} file paths")
-        all_files = expand_paths(file_paths)
-        logger.debug(f"[FILES] After expansion: {len(all_files)} individual files")
-
-        if not all_files and file_paths:
-            # No files found but paths were provided
-            logger.debug("[FILES] No files found from provided paths")
-            content_parts.append(f"\n--- NO FILES FOUND ---\nProvided paths: {', '.join(file_paths)}\n--- END ---\n")
+    # At most the admitted contents remain in memory. Two tokens per separator
+    # conservatively cover joining and per-block rounding for the text estimators.
+    separator_tokens = max(2, token_estimator("\n\n"))
+    selected: list[tuple[str, list[str], int]] = []
+    selected_tokens = 0
+    skipped = False
+    for index, (content, included) in enumerate(blocks()):
+        tokens = token_estimator(content)
+        report.required_tokens += tokens + (separator_tokens if index else 0)
+        cost = tokens + (separator_tokens if selected else 0)
+        if selected_tokens + cost <= report.limit:
+            selected.append((content, included, tokens))
+            selected_tokens += cost
         else:
-            # Read files sequentially until token limit is reached
-            logger.debug(f"[FILES] Reading {len(all_files)} files with token budget {available_tokens:,}")
-            for i, file_path in enumerate(all_files):
-                if total_tokens >= available_tokens:
-                    logger.debug(f"[FILES] Token budget exhausted, skipping remaining {len(all_files) - i} files")
-                    files_skipped.extend(all_files[i:])
-                    break
-
-                file_content, file_tokens = read_file_content(file_path, include_line_numbers=include_line_numbers)
-                logger.debug(f"[FILES] File {file_path}: {file_tokens:,} tokens")
-
-                # Check if adding this file would exceed limit
-                if total_tokens + file_tokens <= available_tokens:
-                    content_parts.append(file_content)
-                    total_tokens += file_tokens
-                    logger.debug(f"[FILES] Added file {file_path}, total tokens: {total_tokens:,}")
-                else:
-                    # File too large for remaining budget
-                    logger.debug(
-                        f"[FILES] File {file_path} too large for remaining budget ({file_tokens:,} tokens, {available_tokens - total_tokens:,} remaining)"
-                    )
-                    files_skipped.append(file_path)
-
-    # Add informative note about skipped files to help users understand
-    # what was omitted and why
-    if files_skipped:
-        logger.debug(f"[FILES] {len(files_skipped)} files skipped due to token limits")
-        skip_note = "\n\n--- SKIPPED FILES (TOKEN LIMIT) ---\n"
-        skip_note += f"Total skipped: {len(files_skipped)}\n"
-        # Show first 10 skipped files as examples
-        for _i, file_path in enumerate(files_skipped[:10]):
-            skip_note += f"  - {file_path}\n"
-        if len(files_skipped) > 10:
-            skip_note += f"  ... and {len(files_skipped) - 10} more\n"
-        skip_note += "--- END SKIPPED FILES ---\n"
-        content_parts.append(skip_note)
-
-    result = "\n\n".join(content_parts) if content_parts else ""
-    logger.debug(f"[FILES] read_files complete: {len(result)} chars, {total_tokens:,} tokens used")
-    return result
+            skipped = True
+            report.omitted.extend(included)
+    if skipped:
+        # Omission diagnostics are part of the allowance, never unbudgeted suffixes.
+        note = "\n--- SKIPPED FILES (TOKEN LIMIT) ---\nSome file content or diagnostics omitted.\n--- END SKIPPED FILES ---\n"
+        note_tokens = token_estimator(note)
+        while selected and selected_tokens + separator_tokens + note_tokens > report.limit:
+            _, removed, tokens = selected.pop()
+            selected_tokens -= tokens + (separator_tokens if selected else 0)
+            report.omitted.extend(removed)
+        if selected_tokens + (separator_tokens if selected else 0) + note_tokens <= report.limit:
+            selected.append((note, [], note_tokens))
+    content = "\n\n".join(part for part, _, _ in selected)
+    report.included = list(dict.fromkeys(path for _, paths, _ in selected for path in paths))
+    report.omitted = list(dict.fromkeys(report.omitted))
+    report.rendered_tokens = token_estimator(content)
+    return content
 
 
 def estimate_file_tokens(file_path: str) -> int:
@@ -806,74 +818,55 @@ def read_file_safely(file_path: str, max_size: int = 10 * 1024 * 1024) -> Option
         return None
 
 
-def check_total_file_size(files: list[str], model_name: str) -> Optional[dict]:
-    """
-    Check if total file sizes would exceed token threshold before embedding.
-
-    IMPORTANT: This performs STRICT REJECTION at MCP boundary.
-    No partial inclusion - either all files fit or request is rejected.
-    This forces the CLI to make better file selection decisions.
-
-    This function MUST be called with the effective model name (after resolution).
-    It should never receive 'auto' or None - model resolution happens earlier.
-
-    Args:
-        files: List of file paths to check
-        model_name: The resolved model name for context-aware thresholds (required)
-
-    Returns:
-        Dict with `code_too_large` response if too large, None if acceptable
-    """
+def check_total_file_size(
+    files: list[str],
+    model_name: str,
+    *,
+    model_context=None,
+    remaining_budget: Optional[int] = None,
+    reserve_tokens: int = 1000,
+    include_line_numbers: bool = False,
+    budget=None,
+    report: Optional[FileReadReport] = None,
+) -> Optional[dict]:
+    """Admit the actual rendered input using the same allowance as the embedder."""
     if not files:
         return None
-
-    # Validate we have a proper model name (not auto or None)
     if not model_name or model_name.lower() == "auto":
-        raise ValueError(
-            f"check_total_file_size called with unresolved model: '{model_name}'. "
-            "Model must be resolved before file size checking."
-        )
-
-    logger.info(f"File size check: Using model '{model_name}' for token limit calculation")
-
+        raise ValueError(f"check_total_file_size called with unresolved model: '{model_name}'")
     from utils.model_context import ModelContext
 
-    model_context = ModelContext(model_name)
-    token_allocation = model_context.calculate_token_allocation()
-
-    # Dynamic threshold based on model capacity
-    context_window = token_allocation.total_tokens
-    if context_window >= 1_000_000:  # Gemini-class models
-        threshold_percent = 0.8  # Can be more generous
-    elif context_window >= 500_000:  # Mid-range models
-        threshold_percent = 0.7  # Moderate
-    else:  # OpenAI-class models (200K)
-        threshold_percent = 0.6  # Conservative
-
-    max_file_tokens = int(token_allocation.file_tokens * threshold_percent)
-
-    # Use centralized file size checking (threshold already applied to max_file_tokens)
-    within_limit, total_estimated_tokens, file_count = check_files_size_limit(files, max_file_tokens)
-
-    if not within_limit:
-        return {
-            "status": "code_too_large",
-            "content": (
-                f"The selected files are too large for analysis "
-                f"(estimated {total_estimated_tokens:,} tokens, limit {max_file_tokens:,}). "
-                f"Please select fewer, more specific files that are most relevant "
-                f"to your question, then invoke the tool again."
-            ),
-            "content_type": "text",
-            "metadata": {
-                "total_estimated_tokens": total_estimated_tokens,
-                "limit": max_file_tokens,
-                "file_count": file_count,
-                "threshold_percent": threshold_percent,
-                "model_context_window": context_window,
-                "model_name": model_name,
-                "instructions": "Reduce file selection and try again - all files must fit within budget. If this persists, please use a model with a larger context window where available.",
-            },
-        }
-
-    return None  # Proceed with ALL files
+    model_context = model_context or ModelContext(model_name)
+    budget = budget or model_context.file_budget(remaining_budget, reserve_tokens)
+    if report is None:
+        report = FileReadReport()
+        read_files(
+            files,
+            max_tokens=budget.limit,
+            reserve_tokens=0,
+            include_line_numbers=include_line_numbers,
+            report=report,
+            token_estimator=model_context.estimate_tokens,
+        )
+    if report.required_tokens <= budget.limit:
+        return None
+    largest = sorted(report.file_tokens.items(), key=lambda item: (-item[1], item[0]))[:5]
+    return {
+        "status": "code_too_large",
+        "content": (
+            f"The selected files are too large for analysis (estimated {report.required_tokens:,} rendered tokens, "
+            f"limit {budget.limit:,}; binding limit: {budget.binding_limit}). "
+            "Select fewer files or reduce conversation context."
+        ),
+        "content_type": "text",
+        "metadata": {
+            "total_estimated_tokens": report.required_tokens,
+            "limit": budget.limit,
+            "overage": report.required_tokens - budget.limit,
+            "binding_limit": budget.binding_limit,
+            "file_count": len(report.file_tokens),
+            "largest_files": [{"path": path, "tokens": tokens} for path, tokens in largest],
+            "model_name": model_name,
+            "response_tokens": budget.response_tokens,
+        },
+    }

@@ -431,9 +431,11 @@ class BaseWorkflowMixin(ABC):
 
             return file_content
 
+        except ToolExecutionError:
+            raise
         except Exception as e:
             logger.error(f"[WORKFLOW_FILES] {self.get_name()}: Failed to prepare files for expert analysis: {e}")
-            return ""
+            raise
 
     def _force_embed_files_for_expert_analysis(self, files: list[str]) -> tuple[str, list[str]]:
         """
@@ -449,42 +451,15 @@ class BaseWorkflowMixin(ABC):
         Returns:
             tuple[str, list[str]]: (file_content, processed_files)
         """
-        # Use read_files directly with token budgeting, bypassing filter_new_files
-        from utils.file_utils import expand_paths, read_files
-
-        # Get token budget for files
-        current_model_context = self.get_current_model_context()
-        if current_model_context:
-            try:
-                token_allocation = current_model_context.calculate_token_allocation()
-                max_tokens = token_allocation.file_tokens
-                logger.debug(
-                    f"[WORKFLOW_FILES] {self.get_name()}: Using {max_tokens:,} tokens for expert analysis files"
-                )
-            except Exception as e:
-                logger.warning(f"[WORKFLOW_FILES] {self.get_name()}: Failed to get token allocation: {e}")
-                max_tokens = 100_000  # Fallback
-        else:
-            max_tokens = 100_000  # Fallback
-
-        # Read files directly without conversation history filtering
-        logger.debug(f"[WORKFLOW_FILES] {self.get_name()}: Force embedding {len(files)} files for expert analysis")
-        file_content = read_files(
+        content, included = self._prepare_file_content_for_prompt(
             files,
-            max_tokens=max_tokens,
-            reserve_tokens=1000,
-            include_line_numbers=self.wants_line_numbers_by_default(),
+            None,
+            "Expert analysis files",
+            model_context=self.get_current_model_context(),
         )
-
-        # Expand paths to get individual files for tracking
-        processed_files = expand_paths(files)
-
-        logger.debug(
-            f"[WORKFLOW_FILES] {self.get_name()}: Expert analysis embedding: {len(processed_files)} files, "
-            f"{len(file_content):,} characters"
-        )
-
-        return file_content, processed_files
+        self._embedded_file_content = content
+        self._actually_processed_files = included
+        return content, included
 
     def wants_line_numbers_by_default(self) -> bool:
         """
@@ -621,7 +596,7 @@ class BaseWorkflowMixin(ABC):
                 f"[WORKFLOW_FILES] {self.get_name()}: Embedded {len(processed_files)} relevant_files for final analysis"
             )
 
-        except ConversationMemoryError:
+        except (ConversationMemoryError, ToolExecutionError):
             raise
         except Exception as e:
             logger.error(f"[WORKFLOW_FILES] {self.get_name()}: Failed to embed files: {e}")
@@ -767,6 +742,11 @@ class BaseWorkflowMixin(ABC):
 
             # Allow tools to customize the final response
             response_data = self.customize_workflow_response(response_data, request)
+            if self._file_context_report:
+                response_data["file_context"] = dict(self._file_context_report)
+                response_data["file_context"]["files_in_history"] = len(self._files_in_history)
+                if self._attempted_model_name is None:
+                    response_data["file_context"].update(type="reference_only", files_embedded=0, files_in_history=0)
 
             # Add metadata (provider_used and model_used) to workflow response
             self._add_workflow_metadata(response_data, arguments)
@@ -1499,13 +1479,18 @@ class BaseWorkflowMixin(ABC):
             provider = self._model_context.provider
 
             # Prepare expert analysis context
+            # The final-step preflight report is not proof that files reached
+            # this expert. Track the rendering actually used in its prompt.
+            self._file_context_report = {}
+            self._actually_processed_files = []
+            self._embedded_file_content = ""
             expert_context = self.prepare_expert_analysis_context(self.consolidated_findings)
             history = invocation_history(self, self._model_context, expert=True, represented_context=expert_context)
             if history:
                 expert_context = f"{history}\n\n{expert_context}"
 
             # Check if tool wants to include files in prompt
-            if self.should_include_files_in_expert_prompt():
+            if self.should_include_files_in_expert_prompt() or not self._file_context_report:
                 file_content = self._prepare_files_for_expert_analysis()
                 if file_content:
                     expert_context = self._add_files_to_expert_context(expert_context, file_content)

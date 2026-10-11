@@ -56,6 +56,15 @@ class TokenAllocation:
         return self.content_tokens - self.file_tokens - self.history_tokens
 
 
+@dataclass(frozen=True)
+class FileBudget:
+    limit: int
+    binding_limit: str
+    file_capacity: int
+    remaining_input: int
+    response_tokens: int
+
+
 class ModelContext:
     """
     Encapsulates model-specific information and token calculations.
@@ -194,6 +203,28 @@ class ModelContext:
                 f"after reserving {allocation.response_tokens} output tokens. Reduce input or attachments."
             )
         return allocation
+
+    def file_budget(self, remaining_tokens: Optional[int] = None, reserve_tokens: int = 1000) -> FileBudget:
+        """One file allowance for admission and rendering, without another output reserve."""
+        allocation = self.calculate_token_allocation()
+        if remaining_tokens is not None and (type(remaining_tokens) is not int or remaining_tokens < 0):
+            raise ValueError("Remaining input tokens must be a nonnegative integer")
+        if type(reserve_tokens) is not int or reserve_tokens < 0:
+            raise ValueError("File prompt reserve must be a nonnegative integer")
+        remaining = (
+            allocation.content_tokens if remaining_tokens is None else min(remaining_tokens, allocation.content_tokens)
+        )
+        # Apply the same conservative text/protocol estimate used at final admission.
+        used = allocation.content_tokens - remaining
+        remaining = max(0, math.floor((allocation.content_tokens - 64) / 1.1) - used)
+        limit = max(0, min(allocation.file_tokens, remaining) - reserve_tokens)
+        return FileBudget(
+            limit=limit,
+            binding_limit="remaining_input" if remaining < allocation.file_tokens else "file_allocation",
+            file_capacity=allocation.file_tokens,
+            remaining_input=remaining,
+            response_tokens=allocation.response_tokens,
+        )
 
     def estimate_tokens(self, text: str) -> int:
         """

@@ -383,6 +383,10 @@ of the evidence, even when it strongly points in one direction.""",
         """
         return False
 
+    def _should_embed_files_in_workflow_step(self, step_number, continuation_id, is_final_step):
+        # Each participant embeds its explicit attachments with its own budget.
+        return False
+
     # Hook method overrides for consensus-specific behavior
 
     def prepare_step_data(self, request) -> dict:
@@ -601,6 +605,7 @@ of the evidence, even when it strongly points in one direction.""",
 
     async def _consult_model(self, model_config: dict, request) -> dict:
         """Consult a single model and return its response."""
+        self._file_context_report = {}
         invocation = current_invocation(self)
         if invocation:
             invocation.provider_failed = True
@@ -613,7 +618,7 @@ of the evidence, even when it strongly points in one direction.""",
             provider = self.get_model_provider(model_name)
 
             # Create model context once and reuse for both file processing and temperature validation
-            model_context = ModelContext(model_name=model_name)
+            model_context = ModelContext(model_name=model_name, provider=provider)
 
             # Prepare the prompt with any relevant files
             # Use continuation_id=None for blinded consensus - each model should only see
@@ -621,20 +626,27 @@ of the evidence, even when it strongly points in one direction.""",
             # CRITICAL: Use the original proposal from step 1, NOT what's in request.step for steps 2+!
             # Steps 2+ contain summaries/notes that must NEVER be sent to other models
             prompt = self.original_proposal if self.original_proposal else self.initial_prompt
+            stance = model_config.get("stance", "neutral")
+            stance_prompt = model_config.get("stance_prompt")
+            system_prompt = self._get_stance_enhanced_prompt(stance, stance_prompt)
             if request.relevant_files:
+                remaining_input = max(
+                    0,
+                    model_context.calculate_token_allocation().content_tokens
+                    - model_context.estimate_tokens(prompt)
+                    - model_context.estimate_tokens(system_prompt)
+                    - 8192 * len(request.images or []),
+                )
                 file_content, _ = self._prepare_file_content_for_prompt(
                     request.relevant_files,
                     None,  # Use None instead of request.continuation_id for blinded consensus
                     "Context files",
                     model_context=model_context,
+                    remaining_budget=remaining_input,
+                    blinded=True,
                 )
                 if file_content:
                     prompt = f"{prompt}\n\n=== CONTEXT FILES ===\n{file_content}\n=== END CONTEXT ==="
-
-            # Get stance-specific system prompt
-            stance = model_config.get("stance", "neutral")
-            stance_prompt = model_config.get("stance_prompt")
-            system_prompt = self._get_stance_enhanced_prompt(stance, stance_prompt)
 
             # Validate temperature against model constraints (respects supports_temperature)
             validated_temperature, temp_warnings = self.validate_and_correct_temperature(
@@ -673,6 +685,15 @@ of the evidence, even when it strongly points in one direction.""",
                 "metadata": {
                     "provider": provider.get_provider_type().value,
                     "model_name": model_name,
+                    "file_context": (
+                        dict(self._file_context_report)
+                        if self._file_context_report
+                        else {
+                            "type": "none",
+                            "files_embedded": 0,
+                            "files_in_history": 0,
+                        }
+                    ),
                 },
             }
 

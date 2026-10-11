@@ -49,6 +49,7 @@ class TestConversationMissingFiles:
         mock_model_context.calculate_token_allocation.return_value = Mock(file_tokens=50000, history_tokens=50000)
         mock_model_context.estimate_tokens.return_value = 100
         mock_model_context.model_name = "test-model"
+        mock_model_context.file_budget.return_value = Mock(limit=49000)
 
         # Should not crash, should handle missing file gracefully
         history, tokens = build_conversation_history(context, mock_model_context)

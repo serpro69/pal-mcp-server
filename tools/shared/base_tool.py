@@ -25,11 +25,11 @@ from providers import ModelProvider, ModelProviderRegistry
 from utils import estimate_tokens
 from utils.conversation_memory import (
     ConversationTurn,
-    get_conversation_file_list,
-    get_thread,
 )
 from utils.env import get_env
 from utils.file_utils import read_file_content, read_files
+
+from .exceptions import ToolExecutionError
 
 # Import models from tools.models for compatibility
 try:
@@ -719,18 +719,13 @@ class BaseTool(ABC):
         Returns:
             list[str]: List of file paths already embedded in conversation history
         """
-        if not continuation_id:
-            # New conversation, no files embedded yet
-            return []
+        from utils.conversation_context import current_invocation
 
-        thread_context = get_thread(continuation_id)
-        if not thread_context:
-            # Thread not found, no files embedded
-            return []
-
-        embedded_files = get_conversation_file_list(thread_context)
-        logger.debug(f"[FILES] {self.name}: Found {len(embedded_files)} embedded files")
-        return embedded_files
+        invocation = current_invocation(self)
+        if invocation is not None and invocation.thread_id == continuation_id:
+            return list(invocation.history_files)
+        # Stored references do not prove content was rendered in this request.
+        return []
 
     def filter_new_files(self, requested_files: list[str], continuation_id: Optional[str]) -> list[str]:
         """
@@ -949,166 +944,72 @@ class BaseTool(ABC):
         continuation_id: Optional[str],
         context_description: str = "New files",
         max_tokens: Optional[int] = None,
-        reserve_tokens: int = 1_000,
+        reserve_tokens: int = 1000,
         remaining_budget: Optional[int] = None,
         arguments: Optional[dict] = None,
         model_context: Optional[Any] = None,
+        *,
+        blinded: bool = False,
     ) -> tuple[str, list[str]]:
-        """
-        Centralized file processing implementing dual prioritization strategy.
-
-        This method is the heart of conversation-aware file processing across all tools.
-
-        Args:
-            request_files: List of files requested for current tool execution
-            continuation_id: Thread continuation ID, or None for new conversations
-            context_description: Description for token limit validation (e.g. "Code", "New files")
-            max_tokens: Maximum tokens to use (defaults to remaining budget or model-specific content allocation)
-            reserve_tokens: Tokens to reserve for additional prompt content (default 1K)
-            remaining_budget: Remaining token budget after conversation history (from server.py)
-            arguments: Original tool arguments (used to extract _remaining_tokens if available)
-            model_context: Model context object with all model information including token allocation
-
-        Returns:
-            tuple[str, list[str]]: (formatted_file_content, actually_processed_files)
-                - formatted_file_content: Formatted file content string ready for prompt inclusion
-                - actually_processed_files: List of individual file paths that were actually read and embedded
-                  (directories are expanded to individual files)
-        """
+        """Admit and render files once, recording only successfully included content."""
         if not request_files:
             return "", []
+        from utils.conversation_context import current_invocation, remaining_input_budget
+        from utils.file_utils import FileReadReport, check_total_file_size, expand_file_inputs
 
-        # Extract remaining budget from arguments if available
-        if remaining_budget is None:
-            # Use provided arguments or fall back to stored arguments from execute()
-            args_to_use = arguments or getattr(self, "_current_arguments", {})
-            remaining_budget = args_to_use.get("_remaining_tokens")
-
-        # Use remaining budget if provided, otherwise fall back to max_tokens or model-specific default
-        if remaining_budget is not None:
-            effective_max_tokens = remaining_budget - reserve_tokens
-        elif max_tokens is not None:
-            effective_max_tokens = max_tokens - reserve_tokens
+        model_context = model_context or getattr(self, "_model_context", None)
+        if model_context is None:
+            raise RuntimeError("Model context not provided for file preparation.")
+        args = arguments if arguments is not None else getattr(self, "_current_arguments", {})
+        if not blinded:
+            if remaining_budget is None:
+                remaining_budget = args.get("_remaining_tokens")
+            if current_invocation(self) is not None:
+                measured = remaining_input_budget(self, model_context)
+                remaining_budget = measured if remaining_budget is None else min(remaining_budget, measured)
         else:
-            # Use model_context for token allocation
-            if not model_context:
-                # Try to get from stored attributes as fallback
-                model_context = getattr(self, "_model_context", None)
-                if not model_context:
-                    logger.error(
-                        f"[FILES] {self.name}: _prepare_file_content_for_prompt called without model_context. "
-                        "This indicates an incorrect call sequence in the tool's implementation."
-                    )
-                    raise RuntimeError("Model context not provided for file preparation.")
-
-            # This is now the single source of truth for token allocation.
-            try:
-                token_allocation = model_context.calculate_token_allocation()
-                # Standardize on `file_tokens` for consistency and correctness.
-                effective_max_tokens = token_allocation.file_tokens - reserve_tokens
-                logger.debug(
-                    f"[FILES] {self.name}: Using model context for {model_context.model_name}: "
-                    f"{token_allocation.file_tokens:,} file tokens from {token_allocation.total_tokens:,} total"
-                )
-            except Exception as e:
-                logger.error(
-                    f"[FILES] {self.name}: Failed to calculate token allocation from model context: {e}", exc_info=True
-                )
-                # If the context exists but calculation fails, we still need to prevent a crash.
-                # A loud error is logged, and we fall back to a safe default.
-                effective_max_tokens = 100_000 - reserve_tokens
-
-        # Ensure we have a reasonable minimum budget
-        effective_max_tokens = max(1000, effective_max_tokens)
-
-        files_to_embed = self.filter_new_files(request_files, continuation_id)
-        logger.debug(f"[FILES] {self.name}: Will embed {len(files_to_embed)} files after filtering")
-
-        # Log the specific files for debugging/testing
-        if files_to_embed:
-            logger.info(
-                f"[FILE_PROCESSING] {self.name} tool will embed new files: {', '.join([os.path.basename(f) for f in files_to_embed])}"
-            )
-        else:
-            logger.info(
-                f"[FILE_PROCESSING] {self.name} tool: No new files to embed (all files already in conversation history)"
-            )
-
-        content_parts = []
-        actually_processed_files = []
-
-        # Read content of new files only
-        if files_to_embed:
-            logger.debug(f"{self.name} tool embedding {len(files_to_embed)} new files: {', '.join(files_to_embed)}")
-            logger.debug(
-                f"[FILES] {self.name}: Starting file embedding with token budget {effective_max_tokens + reserve_tokens:,}"
-            )
-            try:
-                # Before calling read_files, expand directories to get individual file paths
-                from utils.file_utils import expand_paths
-
-                expanded_files = expand_paths(files_to_embed)
-                logger.debug(
-                    f"[FILES] {self.name}: Expanded {len(files_to_embed)} paths to {len(expanded_files)} individual files"
-                )
-
-                file_content = read_files(
-                    files_to_embed,
-                    max_tokens=effective_max_tokens + reserve_tokens,
-                    reserve_tokens=reserve_tokens,
-                    include_line_numbers=self.wants_line_numbers_by_default(),
-                )
-                # Note: No need to validate against MCP_PROMPT_SIZE_LIMIT here
-                # read_files already handles token-aware truncation based on model's capabilities
-                content_parts.append(file_content)
-
-                # Track the expanded files as actually processed
-                actually_processed_files.extend(expanded_files)
-
-                # Estimate tokens for debug logging
-                from utils.token_utils import estimate_tokens
-
-                content_tokens = estimate_tokens(file_content)
-                logger.debug(
-                    f"{self.name} tool successfully embedded {len(files_to_embed)} files ({content_tokens:,} tokens)"
-                )
-                logger.debug(f"[FILES] {self.name}: Successfully embedded files - {content_tokens:,} tokens used")
-                logger.debug(
-                    f"[FILES] {self.name}: Actually processed {len(actually_processed_files)} individual files"
-                )
-            except Exception as e:
-                logger.error(f"{self.name} tool failed to embed files {files_to_embed}: {type(e).__name__}: {e}")
-                logger.debug(f"[FILES] {self.name}: File embedding failed - {type(e).__name__}: {e}")
-                raise
-        else:
-            logger.debug(f"[FILES] {self.name}: No files to embed after filtering")
-
-        # Generate note about files already in conversation history
-        if continuation_id and len(files_to_embed) < len(request_files):
-            embedded_files = self.get_conversation_embedded_files(continuation_id)
-            skipped_files = [f for f in request_files if f in embedded_files]
-            if skipped_files:
-                logger.debug(
-                    f"{self.name} tool skipping {len(skipped_files)} files already in conversation history: {', '.join(skipped_files)}"
-                )
-                logger.debug(f"[FILES] {self.name}: Adding note about {len(skipped_files)} skipped files")
-                if content_parts:
-                    content_parts.append("\n\n")
-                note_lines = [
-                    "--- NOTE: Additional files referenced in conversation history ---",
-                    "The following files are already available in our conversation context:",
-                    "\n".join(f"  - {f}" for f in skipped_files),
-                    "--- END NOTE ---",
-                ]
-                content_parts.append("\n".join(note_lines))
-            else:
-                logger.debug(f"[FILES] {self.name}: No skipped files to note")
-
-        result = "".join(content_parts) if content_parts else ""
-        logger.debug(
-            f"[FILES] {self.name}: _prepare_file_content_for_prompt returning {len(result)} chars, {len(actually_processed_files)} processed files"
+            # Participants never consume generic thread history or its attachment set.
+            continuation_id = None
+        if max_tokens is not None:
+            remaining_budget = max_tokens if remaining_budget is None else min(remaining_budget, max_tokens)
+        budget = model_context.file_budget(remaining_budget, reserve_tokens)
+        requested = expand_file_inputs(request_files)
+        historical = set(self.get_conversation_embedded_files(continuation_id)) if continuation_id else set()
+        files_to_embed = [path for path in requested if path not in historical]
+        report = FileReadReport()
+        content = read_files(
+            files_to_embed,
+            max_tokens=budget.limit,
+            reserve_tokens=0,
+            include_line_numbers=self.wants_line_numbers_by_default(),
+            report=report,
+            token_estimator=model_context.estimate_tokens,
         )
-        return result, actually_processed_files
+        self._file_context_report = {
+            "type": (
+                ("partially_embedded" if report.unavailable or report.omitted else "fully_embedded")
+                if report.included
+                else "history_only" if historical else "unavailable"
+            ),
+            "files_embedded": len(report.included),
+            "files_in_history": len(historical),
+            "files_omitted": len(report.omitted),
+            "files_unavailable": len(report.unavailable),
+            "budget": budget.limit,
+            "binding_limit": budget.binding_limit,
+        }
+        self._actually_processed_files = report.included
+        failure = check_total_file_size(
+            files_to_embed,
+            model_context.model_name,
+            model_context=model_context,
+            budget=budget,
+            report=report,
+        )
+        if failure:
+            failure.setdefault("metadata", {}).update(tool_name=self.get_name(), model_used=None, provider_used=None)
+            raise ToolExecutionError(ToolOutput(**failure).model_dump_json())
+        return content, report.included
 
     def get_websearch_instruction(self, tool_specific: Optional[str] = None) -> str:
         """

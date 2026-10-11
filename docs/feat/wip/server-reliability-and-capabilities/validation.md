@@ -3,6 +3,55 @@
 Recorded 2026-10-11. This covers the completed maintenance tasks below, not the
 remaining roadmap or optional live-provider behavior.
 
+## Task 24: Shared file budgets and actual context coverage
+
+Recorded 2026-10-11. `ModelContext.file_budget` reuses Task 20's output reservation
+and input capacity, caps files by remaining history/input/system/image allowance,
+and applies the conservative request margin plus a 1,000-token prompt allowance.
+Gate and renderer share that result; zero stays zero and invalid capabilities no
+longer trigger a 100,000-token fallback. Admission measures the rendered headers,
+line numbers and conservative separator overhead, reporting binding limit, largest
+files and overage. File reading retains only admitted blocks in memory and budgets
+omission diagnostics instead of appending unbounded text after the limit.
+
+`FileReadReport` records successfully included contents independently of requested
+or stored paths. Directory/symlink aliases deduplicate before reading; missing,
+denied, oversized and omitted contents never inflate coverage. Chat continuation
+reports describe actual history contents. Workflows rebuild coverage from the
+expert prompt, and local-only completion reports no external file delivery.
+Consensus snapshots each participant's coverage and budgets only its proposal,
+stance/system instructions and explicit attachments, with no hidden history cost.
+All five common-renderer routes remain intact; no file-description parameter or
+annotation persistence was introduced.
+
+Changed shared model/file helpers, invocation/history coverage, mechanical server,
+simple/workflow/consensus hooks, regression fixtures, configuration and release
+notes. The old early MCP size check was moved to rendering so it can use the
+actual remaining allowance. Task 20's final total-request check remains in force.
+
+Verification:
+
+- `BLACK_NUM_WORKERS=1 ./code_quality_checks.sh`, locked Python 3.10 environment:
+  **1,506 passed**, 4 skipped, 16 deselected, 19 subtests passed; lint, formatting
+  and import sorting passed.
+- Focused file gate/coverage, conversation ownership, workflow embedding, output
+  propagation and request-budget suites: **126 passed each** on Python 3.11/3.12.
+- Captured provider requests verify fresh and continued files, missing/deleted
+  files, rendered-header accounting, exhausted budgets, direct-code accounting,
+  thinkdeep/codereview/debug file delivery, local-only counts, history omissions,
+  and two blinded consensus participants retaining explicit attachments.
+- Isolated review approved after correcting a chat-continuation path that omitted
+  the remaining allowance and exposing per-participant coverage in consensus.
+- External PAL remains unavailable due to its rejected API key. The previously
+  recorded integration/simulator launcher prerequisites are unchanged; those
+  live/setup gates remain open. No live provider validation is claimed.
+
+The existing final-step file preflight did not guarantee that the expert prompt
+actually contained those files. Capturing the real provider input exposed that
+gap; the final assembly now determines coverage rather than the preflight read.
+History omission policy remains explicit, with the current raw input preserved
+independently of history truncation.
+
 ## Task 23: Missing credentials and broken registry configuration
 
 Recorded 2026-10-11. No provider credentials now permits startup, tool listing,

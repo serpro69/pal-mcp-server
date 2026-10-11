@@ -75,6 +75,22 @@ CUSTOM_MODEL_NAME=llama3.2                          # Default model
 
 ### Model Configuration
 
+File allowances reuse the effective response reservation and remaining input
+capacity. The admission check and renderer use the same allowance and count the
+rendered file headers/line numbers, with the conservative request-estimation margin
+and a 1,000-token allowance for surrounding prompt text. This is not an additional
+output reservation. A zero remaining allowance stays zero; there is no fallback
+to a larger file budget. Oversized selections report the binding limit, overage
+and largest contributors. Historical files may be omitted with explicit diagnostics.
+
+Workflow `file_context` and chat metadata distinguish `files_embedded` in the
+current file block from `files_in_history` actually present in rendered history.
+Missing, denied, unreadable and oversized files do not count as covered. Stored
+path references alone never suppress an embedding. Consensus participants use
+their own model/proposal/stance/attachment budget and never deduct hidden audit
+history or deduplicate attachments against it. File descriptions remain separate
+planned work; existing successful file headers are preserved.
+
 Model names are matched as complete identifiers, ignoring outer whitespace and
 case. Colons in registered names are preserved, including custom tags, DIAL `:0`
 deployments and OpenRouter suffixes. To migrate an invocation that previously

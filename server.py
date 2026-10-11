@@ -539,7 +539,6 @@ async def _dispatch_tool(name: str, arguments: dict[str, Any]) -> list[TextConte
         # Resolve model before passing to tool - this ensures consistent model handling
         # NOTE: Consensus tool is exempt as it handles multiple models internally
         from providers.registry import ModelProviderRegistry
-        from utils.file_utils import check_total_file_size
         from utils.model_context import ModelContext
 
         # Get model from arguments or use default
@@ -610,18 +609,8 @@ async def _dispatch_tool(name: str, arguments: dict[str, Any]) -> list[TextConte
         if model_option:
             logger.debug(f"Model option stored in context: '{model_option}'")
 
-        # EARLY FILE SIZE VALIDATION AT MCP BOUNDARY
-        # Check file sizes before tool execution using resolved model
-        argument_files = arguments.get("absolute_file_paths")
-        if argument_files:
-            logger.debug(f"Checking file sizes for {len(argument_files)} files with model {model_name}")
-            file_size_check = check_total_file_size(argument_files, model_name)
-            if file_size_check:
-                logger.warning(f"File size check failed for {name} with model {model_name}")
-                metadata = file_size_check.get("metadata") or {}
-                metadata.update(tool_name=name, model_used=None, provider_used=None)
-                file_size_check["metadata"] = metadata
-                raise ToolExecutionError(ToolOutput(**file_size_check).model_dump_json())
+        # File admission runs with rendering after history reconstruction, so both
+        # use the same remaining allowance and rendered header/token accounting.
 
         # Execute tool with pre-resolved model context
         result = await tool.execute(arguments)
