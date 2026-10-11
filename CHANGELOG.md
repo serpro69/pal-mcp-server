@@ -4,6 +4,11 @@
 
 ## Unreleased
 
+- OpenAI, Azure, OpenRouter, custom and xAI generation now uses native async SDK
+  requests and yielding retry delays. Direct provider callers must await generation;
+  allocated clients expose awaited `aclose()`. Server shutdown wiring follows in
+  the final lifecycle migration. Existing payloads, routing and transport policy remain.
+
 - Expert analysis and consensus consultations now yield through the same temporary
   provider adapter as chat, preserving participant errors and request provenance.
   Cancellation propagates without being retried as a provider failure.

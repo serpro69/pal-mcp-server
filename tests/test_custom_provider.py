@@ -107,7 +107,7 @@ class TestCustomProvider:
             provider.get_capabilities("any-model")
 
     @patch("providers.custom.OpenAICompatibleProvider.generate_content")
-    def test_generate_content_with_alias_resolution(self, mock_generate):
+    async def test_generate_content_with_alias_resolution(self, mock_generate):
         """Test generate_content resolves aliases before calling parent."""
         mock_response = MagicMock()
         mock_generate.return_value = mock_response
@@ -115,7 +115,7 @@ class TestCustomProvider:
         provider = CustomProvider(api_key="test-key", base_url="http://localhost:11434/v1")
 
         # Call with an alias
-        result = provider.generate_content(
+        result = await provider.generate_content(
             prompt="test prompt",
             model_name="llama",
             temperature=0.7,  # This is an alias

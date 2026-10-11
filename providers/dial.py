@@ -128,7 +128,7 @@ class DIALModelProvider(RegistryBackedProviderMixin, OpenAICompatibleProvider):
                 from openai import OpenAI
 
                 # Build deployment-specific URL
-                base_url = str(self.client.base_url)
+                base_url = self.base_url
                 if base_url.endswith("/"):
                     base_url = base_url[:-1]
 
@@ -295,9 +295,9 @@ class DIALModelProvider(RegistryBackedProviderMixin, OpenAICompatibleProvider):
 
         # Also close the client created by the superclass (OpenAICompatibleProvider)
         # as it holds its own httpx.Client instance that is not used by DIAL's generate_content
-        if hasattr(self, "client") and self.client and hasattr(self.client, "close"):
+        if self._client is not None:
             try:
-                self.client.close()
+                self._client.close()
                 logger.debug("Closed superclass's OpenAI client")
             except Exception as e:
                 logger.warning(f"Error closing superclass's OpenAI client: {e}")

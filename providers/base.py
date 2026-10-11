@@ -1,8 +1,10 @@
 """Base interfaces and common behaviour for model providers."""
 
+import asyncio
 import logging
 import time
 from abc import ABC, abstractmethod
+from collections.abc import Awaitable
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
 if TYPE_CHECKING:
@@ -294,6 +296,73 @@ class ModelProvider(ABC):
                         delay,
                     )
                     time.sleep(delay)
+                else:
+                    logger.warning(
+                        "%s retryable error (attempt %s/%s): %s. Retrying...",
+                        log_prefix or self.__class__.__name__,
+                        attempt_number,
+                        attempts,
+                        exc,
+                    )
+
+        # Should never reach here because loop either returns or raises
+        raise last_exc if last_exc else RuntimeError("Retry loop exited without result")
+
+    async def _run_with_retries_async(
+        self,
+        operation: Callable[[], Awaitable[Any]],
+        *,
+        max_attempts: int,
+        delays: Optional[list[float]] = None,
+        log_prefix: str = "",
+    ):
+        """Execute ``operation`` with retry semantics.
+
+        Args:
+            operation: Callable returning an awaitable provider result.
+            max_attempts: Maximum number of attempts (>=1).
+            delays: Optional list of sleep durations between attempts.
+            log_prefix: Optional identifier for log clarity.
+
+        Returns:
+            Whatever ``operation`` returns.
+
+        Raises:
+            The last exception when all retries fail or the error is not retryable.
+        """
+
+        if max_attempts < 1:
+            raise ValueError("max_attempts must be >= 1")
+
+        attempts = max_attempts
+        delays = delays or []
+        last_exc: Optional[Exception] = None
+
+        for attempt_index in range(attempts):
+            try:
+                return await operation()
+            except Exception as exc:  # noqa: BLE001 - bubble exact provider errors
+                last_exc = exc
+                attempt_number = attempt_index + 1
+
+                # Decide whether to retry based on subclass hook
+                retryable = self._is_error_retryable(exc)
+                if not retryable or attempt_number >= attempts:
+                    raise
+
+                delay_idx = min(attempt_index, len(delays) - 1) if delays else -1
+                delay = delays[delay_idx] if delay_idx >= 0 else 0.0
+
+                if delay > 0:
+                    logger.warning(
+                        "%s retryable error (attempt %s/%s): %s. Retrying in %ss...",
+                        log_prefix or self.__class__.__name__,
+                        attempt_number,
+                        attempts,
+                        exc,
+                        delay,
+                    )
+                    await asyncio.sleep(delay)
                 else:
                     logger.warning(
                         "%s retryable error (attempt %s/%s): %s. Retrying...",

@@ -6,9 +6,9 @@ import logging
 from dataclasses import asdict, replace
 
 try:  # pragma: no cover - optional dependency
-    from openai import AzureOpenAI
+    from openai import AsyncAzureOpenAI
 except ImportError:  # pragma: no cover
-    AzureOpenAI = None  # type: ignore[assignment]
+    AsyncAzureOpenAI = None  # type: ignore[assignment]
 
 from utils.env import get_env
 
@@ -229,13 +229,13 @@ class AzureOpenAIProvider(OpenAICompatibleProvider):
     # ------------------------------------------------------------------
     # Azure-specific configuration
     # ------------------------------------------------------------------
-    def _create_client(self):
+    async def _create_client(self):
         """Use the base initialization guard and explicit HTTP transport policy."""
-        if AzureOpenAI is None:
+        if AsyncAzureOpenAI is None:
             raise ImportError(
                 "Azure OpenAI support requires the 'openai' package. Install it with `pip install openai`."
             )
-        http_client = self._create_http_client()
+        http_client = await self._create_http_client()
         client_kwargs = {
             "api_key": self.api_key,
             "azure_endpoint": self.azure_endpoint,
@@ -245,15 +245,15 @@ class AzureOpenAIProvider(OpenAICompatibleProvider):
         if self.DEFAULT_HEADERS:
             client_kwargs["default_headers"] = self.DEFAULT_HEADERS.copy()
         try:
-            return AzureOpenAI(**client_kwargs)
+            return AsyncAzureOpenAI(**client_kwargs)
         except Exception:
-            http_client.close()
+            await http_client.aclose()
             raise
 
     # ------------------------------------------------------------------
     # Request delegation
     # ------------------------------------------------------------------
-    def generate_content(
+    async def generate_content(
         self,
         prompt: str,
         model_name: str,
@@ -269,7 +269,7 @@ class AzureOpenAIProvider(OpenAICompatibleProvider):
         # deployment name – Azure requires the deployment identifier in the
         # ``model`` field.  The returned ``ModelResponse`` is normalised so
         # downstream consumers continue to see the canonical model name.
-        raw_response = super().generate_content(
+        raw_response = await super().generate_content(
             prompt=prompt,
             model_name=deployment_name,
             system_prompt=system_prompt,

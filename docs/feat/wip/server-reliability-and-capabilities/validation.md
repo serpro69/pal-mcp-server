@@ -1,7 +1,51 @@
-# Validation evidence: Tasks 1–12
+# Validation evidence: server reliability and capabilities
 
 Recorded 2026-10-11. This covers the completed maintenance tasks below, not the
 remaining roadmap or optional live-provider behavior.
+
+## Task 16: native OpenAI-compatible and Azure generation
+
+Recorded 2026-10-11. OpenAI, Azure, OpenRouter, custom and xAI now use
+`AsyncOpenAI`/`AsyncAzureOpenAI` with `httpx.AsyncClient`. Shared request builders
+and response parsing retain their previous wire behavior; generation and retry
+waits are awaited. Initialization/fallback cleanup and publication use an async
+lock; it is not held during generation. `aclose()` closes an allocated client once
+without constructing one. DIAL remains synchronous for this slice and derives
+its deployment URL from configuration, avoiding an unused superclass client.
+
+Dependency verification: locked **openai 2.41.0**, **httpx 0.28.1**. Context7
+provided the official OpenAI Python SDK async-client/close documentation, but not
+these exact version tags. Inspected the installed locked constructors, async
+Chat Completions/Responses methods, `AsyncAPIClient.close`, HTTPX transport and
+awaited event-hook implementation to establish the exact retained API contract.
+No dependency pins or catalogs changed.
+
+Verification:
+
+- Baseline full quality: **1,203 passed**. Seven SDK wire characterization tests
+  passed before migration and passed unchanged afterward (Azure deployment/auth,
+  custom/xAI/OpenRouter routing, Chat Completions payload/usage, Responses input
+  and OpenRouter `store` omission). Existing image/temperature regressions passed.
+- `BLACK_NUM_WORKERS=1 ./code_quality_checks.sh`, locked Python 3.10.12:
+  **1,216 passed**, 4 skipped, 16 deselected, 19 subtests passed; no warnings.
+  Ruff/Black/isort passed. Host permissions were required for thread/subprocess tests.
+- Provider/wire/initialization/retry/DIAL compatibility suites on Python 3.11.13
+  and 3.12.11 with `-W error::RuntimeWarning`: **109 passed each**.
+- Native concurrency, failed constructor cleanup, retryability, unused/repeated
+  cleanup and cancellation during request/backoff passed. Cancellation through
+  an actual AsyncOpenAI transport exits the pending request. Proxy/CA environment
+  and real child-process checks remain intact, including constructor fallback.
+- The existing cassette helper now adapts its synchronous recorder at the test
+  transport boundary; recorded request bodies were not changed.
+- Required integration and quick simulator commands stop before tests at the
+  existing absent `.pal_venv` and simulator interpreter-path checks. Live gates
+  remain open. Task 19 still owns async-only ABC/adapter removal and server shutdown;
+  Task 20 owns pre-existing output-limit and Responses usage corrections.
+
+Independent isolated review: **APPROVE** after fixing a P2 image-preparation
+regression. Image reads/conversion remain off the event loop; a delayed worker
+regression verifies concurrent SDK progress and exact image payload preservation.
+No systemic P0/P1 findings needed indexing. External PAL reviewer unavailable.
 
 ## Task 15: yielding expert and consensus generation
 

@@ -1,5 +1,6 @@
-"""Cold-start and environment safety before shared providers enter worker threads."""
+"""Cold-start and environment safety for legacy and native async providers."""
 
+import asyncio
 import json
 import os
 import subprocess
@@ -47,14 +48,14 @@ def patch_sdk(monkeypatch, kind, constructor):
     if kind == "gemini":
         monkeypatch.setattr("providers.gemini.genai.Client", constructor)
     elif kind == "azure":
-        monkeypatch.setattr("providers.azure_openai.AzureOpenAI", constructor)
+        monkeypatch.setattr("providers.azure_openai.AsyncAzureOpenAI", constructor)
     else:
-        monkeypatch.setattr("providers.openai_compatible.OpenAI", constructor)
+        monkeypatch.setattr("providers.openai_compatible.AsyncOpenAI", constructor)
         if kind == "dial":
             monkeypatch.setattr("openai.OpenAI", constructor)
 
 
-@pytest.mark.parametrize("kind", ["openai", "azure", "gemini", "dial"])
+@pytest.mark.parametrize("kind", ["gemini", "dial"])
 def test_concurrent_cold_generation_publishes_once_and_network_waits_overlap(monkeypatch, kind):
     provider, model = make_provider(kind)
     constructing = threading.Event()
@@ -106,7 +107,7 @@ def test_concurrent_cold_generation_publishes_once_and_network_waits_overlap(mon
                 release_constructor.set()
             assert first.result(timeout=8).content == "answer"
             assert second.result(timeout=8).content == "answer"
-        assert len(clients) == (2 if kind == "dial" else 1)
+        assert len(clients) == 1
         if kind == "dial":
             assert len(provider._deployment_clients) == 1
             assert clients[-1]["http_client"] is provider._http_client
@@ -117,7 +118,7 @@ def test_concurrent_cold_generation_publishes_once_and_network_waits_overlap(mon
                 kwargs["http_client"].close()
 
 
-@pytest.mark.parametrize("kind", ["openai", "azure", "gemini", "dial"])
+@pytest.mark.parametrize("kind", ["gemini", "dial"])
 def test_failed_initialization_releases_guard_and_can_retry(monkeypatch, kind):
     provider, model = make_provider(kind)
     clients = []
@@ -132,11 +133,18 @@ def test_failed_initialization_releases_guard_and_can_retry(monkeypatch, kind):
     patch_sdk(monkeypatch, kind, constructor)
     try:
         with pytest.raises(ValueError, match="synthetic initialization failure"):
-            _ = provider.client
+            _ = provider._get_deployment_client(model) if kind == "dial" else provider.client
         assert provider._client is None
-        assert all(kwargs["http_client"].is_closed for kwargs in clients if "http_client" in kwargs)
+        if kind == "dial":
+            assert not provider._http_client.is_closed  # Failed wrapper must not close the borrowed pool.
+            assert not provider._deployment_clients
+        else:
+            assert all(kwargs["http_client"].is_closed for kwargs in clients if "http_client" in kwargs)
         failing = False
-        assert provider.client is provider.client
+        if kind == "dial":
+            assert provider._get_deployment_client(model) is provider._get_deployment_client(model)
+        else:
+            assert provider.client is provider.client
     finally:
         for kwargs in clients:
             if "http_client" in kwargs:
@@ -147,7 +155,7 @@ def test_failed_initialization_releases_guard_and_can_retry(monkeypatch, kind):
 
 @pytest.mark.parametrize("kind,fallback", [("openai", False), ("openai", True), ("azure", False)])
 @pytest.mark.parametrize("ca_variable", ["SSL_CERT_FILE", "SSL_CERT_DIR"])
-def test_initialization_keeps_proxy_and_tls_environment_for_other_provider_and_child(
+async def test_initialization_keeps_proxy_and_tls_environment_for_other_provider_and_child(
     monkeypatch, tmp_path, kind, fallback, ca_variable
 ):
     bundle = tmp_path / "ca.pem"
@@ -193,7 +201,7 @@ def test_initialization_keeps_proxy_and_tls_environment_for_other_provider_and_c
     provider, _ = make_provider(kind)
     try:
         with ThreadPoolExecutor(max_workers=1) as pool:
-            result = pool.submit(lambda: provider.client)
+            result = pool.submit(lambda: asyncio.run(provider._get_client()))
             try:
                 assert entered.wait(5)
                 assert {key: os.environ[key] for key in environment} == environment
@@ -232,10 +240,10 @@ def test_initialization_keeps_proxy_and_tls_environment_for_other_provider_and_c
     finally:
         release.set()
         for client in clients:
-            client.close()
+            await client.aclose()
 
 
-def test_injected_transport_remains_usable(monkeypatch):
+async def test_injected_transport_remains_usable(monkeypatch):
     provider = OpenAIModelProvider("synthetic")
     transport = httpx.MockTransport(
         lambda request: httpx.Response(
@@ -244,10 +252,10 @@ def test_injected_transport_remains_usable(monkeypatch):
     )
     provider._test_transport = transport
     try:
-        assert provider.generate_content("prompt", "gpt-4.1").content == "wire answer"
+        assert (await provider.generate_content("prompt", "gpt-4.1")).content == "wire answer"
     finally:
         if provider._client is not None:
-            provider._client.close()
+            await provider.aclose()
 
 
 def test_concurrent_alias_checks_preserve_configured_allowlist(monkeypatch):

@@ -1,7 +1,7 @@
 """Tests for X.AI provider implementation."""
 
 import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -261,8 +261,8 @@ class TestXAIProvider:
         assert "grok-4.1-fast" in grok41fast_config.aliases
         assert "grok-4.1-fast-reasoning" in grok41fast_config.aliases
 
-    @patch("providers.openai_compatible.OpenAI")
-    def test_generate_content_resolves_alias_before_api_call(self, mock_openai_class):
+    @patch("providers.openai_compatible.AsyncOpenAI")
+    async def test_generate_content_resolves_alias_before_api_call(self, mock_openai_class):
         """Test that generate_content resolves aliases before making API calls.
 
         This is the CRITICAL test that ensures aliases like 'grok' get resolved
@@ -285,12 +285,12 @@ class TestXAIProvider:
         mock_response.usage.completion_tokens = 5
         mock_response.usage.total_tokens = 15
 
-        mock_client.chat.completions.create.return_value = mock_response
+        mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
 
         provider = XAIModelProvider("test-key")
 
         # Call generate_content with alias 'grok'
-        result = provider.generate_content(
+        result = await provider.generate_content(
             prompt="Test prompt", model_name="grok", temperature=0.7  # This should be resolved to "grok-4"
         )
 
@@ -311,8 +311,8 @@ class TestXAIProvider:
         assert result.content == "Test response"
         assert result.model_name == "grok-4"  # Should be the resolved name
 
-    @patch("providers.openai_compatible.OpenAI")
-    def test_generate_content_other_aliases(self, mock_openai_class):
+    @patch("providers.openai_compatible.AsyncOpenAI")
+    async def test_generate_content_other_aliases(self, mock_openai_class):
         """Test other alias resolutions in generate_content."""
         from unittest.mock import MagicMock
 
@@ -327,28 +327,28 @@ class TestXAIProvider:
         mock_response.usage.prompt_tokens = 10
         mock_response.usage.completion_tokens = 5
         mock_response.usage.total_tokens = 15
-        mock_client.chat.completions.create.return_value = mock_response
+        mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
 
         provider = XAIModelProvider("test-key")
 
         # Test grok4 -> grok-4
         mock_response.model = "grok-4"
-        provider.generate_content(prompt="Test", model_name="grok4", temperature=0.7)
+        await provider.generate_content(prompt="Test", model_name="grok4", temperature=0.7)
         call_kwargs = mock_client.chat.completions.create.call_args[1]
         assert call_kwargs["model"] == "grok-4"
 
         # Test grok-4 -> grok-4
-        provider.generate_content(prompt="Test", model_name="grok-4", temperature=0.7)
+        await provider.generate_content(prompt="Test", model_name="grok-4", temperature=0.7)
         call_kwargs = mock_client.chat.completions.create.call_args[1]
         assert call_kwargs["model"] == "grok-4"
 
         # Test grok-4.1-fast-reasoning -> grok-4-1-fast-reasoning
         mock_response.model = "grok-4-1-fast-reasoning"
-        provider.generate_content(prompt="Test", model_name="grok-4.1-fast-reasoning", temperature=0.7)
+        await provider.generate_content(prompt="Test", model_name="grok-4.1-fast-reasoning", temperature=0.7)
         call_kwargs = mock_client.chat.completions.create.call_args[1]
         assert call_kwargs["model"] == "grok-4-1-fast-reasoning"
 
         # Test grok-4.1-fast -> grok-4-1-fast-reasoning
-        provider.generate_content(prompt="Test", model_name="grok-4.1-fast", temperature=0.7)
+        await provider.generate_content(prompt="Test", model_name="grok-4.1-fast", temperature=0.7)
         call_kwargs = mock_client.chat.completions.create.call_args[1]
         assert call_kwargs["model"] == "grok-4-1-fast-reasoning"
