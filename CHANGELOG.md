@@ -4,6 +4,11 @@
 
 ## Unreleased
 
+- Filter clink child environments to shared runtime and target-vendor variables,
+  with operator `env_passthrough` and `env` overrides. Default to private per-call
+  working directories and reap cancelled/timed-out children before cleanup;
+  configured working directories and explicit edit controls remain supported.
+
 - Bound context-file reads by actual bytes before decoding, and deny pseudofilesystem
   paths during reading and token estimation while retaining sensitive-home protections.
 

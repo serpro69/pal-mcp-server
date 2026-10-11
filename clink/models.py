@@ -56,6 +56,10 @@ class CLIClientConfig(BaseModel):
         description="Args appended when allow_edits=true. Keep write-enabling flags here.",
     )
     env: dict[str, str] = Field(default_factory=dict)
+    env_passthrough: list[str] = Field(
+        default_factory=list,
+        description="Additional inherited environment names; explicit env values take precedence.",
+    )
     timeout_seconds: PositiveInt | None = Field(default=None)
     roles: dict[str, CLIRoleConfig] = Field(default_factory=dict)
     output_to_file: OutputCaptureConfig | None = None
@@ -143,6 +147,7 @@ class ResolvedCLIClient(BaseModel):
     safe_args: list[str] = Field(default_factory=list)
     edit_args: list[str] = Field(default_factory=list)
     env: dict[str, str] = Field(default_factory=dict)
+    env_passthrough: list[str] = Field(default_factory=list)
     timeout_seconds: int
     parser: str
     runner: str | None = None

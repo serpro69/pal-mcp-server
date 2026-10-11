@@ -165,6 +165,7 @@ class ClinkRegistry:
             safe_args=list(raw.safe_args),
             edit_args=list(raw.edit_args),
             env=env,
+            env_passthrough=list(dict.fromkeys((*internal_defaults.env_passthrough, *raw.env_passthrough))),
             timeout_seconds=int(timeout_seconds),
             parser=parser_name,
             runner=runner_name,

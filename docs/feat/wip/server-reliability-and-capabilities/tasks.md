@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Implementation: [implementation.md](implementation.md)
 > Review resolutions: [review.md](review.md#revalidation-and-resolution)
-> Status: in-progress (Tasks 1–5 done; Tasks 6–42 pending)
+> Status: in-progress (Tasks 1–6 done; Tasks 7–42 pending)
 > Created: 2026-10-10
 > Not Doing: toolchain/release-process migration; MCP 2.x; wholesale catalogs; replacement of safety controls; file-annotation implementation; persistent continuation recovery; remote multi-user transport; automatic service activation
 
@@ -122,17 +122,24 @@ validation/use resolution race; external PAL reviewer unavailable.
 
 ## Task 6: Isolate clink environment and working directory
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** —
 - **Size:** M
 - **Can run in parallel with:** Task 3, Task 4, Task 5, Task 8
 - **Docs:** [Implementation slice](implementation.md#task-6); [design contract](design.md#d2-file-and-cli-boundaries)
 
-- [ ] 6.1 Add shared environment names, vendor-specific passthrough and explicit config overrides. Preserve auth/runtime variables including Windows/locale/TLS requirements.
-- [ ] 6.2 Run in configured working_dir or a temporary per-call directory. Forward allow_edits and editable_paths through every wrapper unchanged, and retain system-prompt ContextVar cleanup.
-- [ ] 6.3 Verify the acceptance cases in [Task 6](implementation.md#task-6) and record the result here.
+- [x] 6.1 Add shared environment names, vendor-specific passthrough and explicit config overrides. Preserve auth/runtime variables including Windows/locale/TLS requirements.
+- [x] 6.2 Run in configured working_dir or a temporary per-call directory. Forward allow_edits and editable_paths through every wrapper unchanged, and retain system-prompt ContextVar cleanup.
+- [x] 6.3 Verify the acceptance cases in [Task 6](implementation.md#task-6) and record the result here.
 
 **Scope / gate:** Model/registry declarations are mechanical; the behavior lives in the runner. A scratch directory is not a filesystem sandbox. Verify the configured CLI's repository requirements.
+
+**Evidence:** [Task 6 validation](validation.md#task-6-clink-environment-and-working-directory),
+2026-10-11. Full quality: 1,000 passed; lifecycle/Codex suite: 22 passed each on
+Python 3.11 and 3.12. Real Codex 0.162.1 scratch-cwd run against a loopback-only
+synthetic provider passed with exit 0 and cleanup. Isolated review approved after
+bounding output draining and correcting Windows assertions. External PAL reviewer
+unavailable; live vendor auth/native Windows remain unverified.
 
 ## Task 7: Report Gemini CLI unsupported-client failures
 
