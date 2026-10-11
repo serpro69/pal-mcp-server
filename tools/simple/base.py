@@ -27,6 +27,7 @@ from utils.conversation_context import (
     invocation_history,
 )
 from utils.conversation_memory import ConversationMemoryError, memory_persistence_warning
+from utils.provider_execution import invoke_provider
 
 
 class SimpleTool(BaseTool):
@@ -408,7 +409,8 @@ class SimpleTool(BaseTool):
             supports_thinking = capabilities.supports_extended_thinking
 
             # Generate content with provider abstraction
-            model_response = provider.generate_content(
+            model_response = await invoke_provider(
+                provider,
                 prompt=prompt,
                 model_name=self._current_model_name,
                 system_prompt=system_prompt,
@@ -465,7 +467,8 @@ class SimpleTool(BaseTool):
                         retry_prompt = f"{original_prompt}\n\nIMPORTANT: Please provide a substantive response. If you cannot respond to the above request, please explain why and suggest alternatives."
 
                         try:
-                            retry_response = provider.generate_content(
+                            retry_response = await invoke_provider(
+                                provider,
                                 prompt=retry_prompt,
                                 model_name=self._current_model_name,
                                 system_prompt=system_prompt,

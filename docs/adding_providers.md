@@ -18,6 +18,32 @@ mode or the `listmodels` output. The runtime rank starts from this human score
 and adds smaller bonuses for context window, extended thinking, and other
 features ([details here](model_ranking.md)).
 
+## Temporary async migration
+
+Simple-tool primary and empty-response recovery calls currently use
+`utils.provider_execution.invoke_provider`: coroutine methods are awaited and
+legacy synchronous methods run with `asyncio.to_thread`, carrying request context.
+Expert and consensus callers migrate in the next slice. Task 19 removes this
+adapter after all providers have native async generation and cleanup.
+
+Providers are shared between requests. OpenAI-compatible/Azure and Gemini client
+initialization is guarded per provider, publishes only a fully constructed client,
+and releases its lock before generation. Failed initialization can be retried.
+Azure overrides `_create_client` and inherits the common initialization guard.
+DIAL retains a separate deployment-client lock and its shared transport ownership.
+Do not mutate request-specific headers or configuration on these shared clients.
+
+OpenAI-compatible/Azure clients continue to route directly, without environment
+proxies. An explicit HTTPX transport retains `SSL_CERT_FILE`/`SSL_CERT_DIR` trust;
+no proxy variables are temporarily removed from the process environment. The
+minimal OpenAI SDK fallback retains this transport policy and timeouts, and failed
+SDK construction closes the HTTP client it just allocated. Gemini and DIAL retain
+their existing transport policies.
+
+Cancelling an adapter await does **not** stop a synchronous worker's network
+request or retries. Request cleanup releases conversation coordination, but full
+network cancellation and deterministic async shutdown arrive with native migration.
+
 ## Choose Your Implementation Path
 
 **Option A: Full Provider (`ModelProvider`)**

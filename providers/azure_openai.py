@@ -10,7 +10,7 @@ try:  # pragma: no cover - optional dependency
 except ImportError:  # pragma: no cover
     AzureOpenAI = None  # type: ignore[assignment]
 
-from utils.env import get_env, suppress_env_vars
+from utils.env import get_env
 
 from .openai import OpenAIModelProvider
 from .openai_compatible import OpenAICompatibleProvider
@@ -229,50 +229,26 @@ class AzureOpenAIProvider(OpenAICompatibleProvider):
     # ------------------------------------------------------------------
     # Azure-specific configuration
     # ------------------------------------------------------------------
-    @property
-    def client(self):  # type: ignore[override]
-        """Instantiate the Azure OpenAI client on first use."""
-
-        if self._client is None:
-            if AzureOpenAI is None:
-                raise ImportError(
-                    "Azure OpenAI support requires the 'openai' package. Install it with `pip install openai`."
-                )
-
-            import httpx
-
-            proxy_env_vars = ["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy"]
-
-            with suppress_env_vars(*proxy_env_vars):
-                try:
-                    timeout_config = self.timeout_config
-
-                    http_client = httpx.Client(timeout=timeout_config, follow_redirects=True)
-
-                    client_kwargs = {
-                        "api_key": self.api_key,
-                        "azure_endpoint": self.azure_endpoint,
-                        "api_version": self.api_version,
-                        "http_client": http_client,
-                    }
-
-                    if self.DEFAULT_HEADERS:
-                        client_kwargs["default_headers"] = self.DEFAULT_HEADERS.copy()
-
-                    logger.debug(
-                        "Initializing Azure OpenAI client endpoint=%s api_version=%s timeouts=%s",
-                        self.azure_endpoint,
-                        self.api_version,
-                        timeout_config,
-                    )
-
-                    self._client = AzureOpenAI(**client_kwargs)
-
-                except Exception as exc:
-                    logger.error("Failed to create Azure OpenAI client: %s", exc)
-                    raise
-
-        return self._client
+    def _create_client(self):
+        """Use the base initialization guard and explicit HTTP transport policy."""
+        if AzureOpenAI is None:
+            raise ImportError(
+                "Azure OpenAI support requires the 'openai' package. Install it with `pip install openai`."
+            )
+        http_client = self._create_http_client()
+        client_kwargs = {
+            "api_key": self.api_key,
+            "azure_endpoint": self.azure_endpoint,
+            "api_version": self.api_version,
+            "http_client": http_client,
+        }
+        if self.DEFAULT_HEADERS:
+            client_kwargs["default_headers"] = self.DEFAULT_HEADERS.copy()
+        try:
+            return AzureOpenAI(**client_kwargs)
+        except Exception:
+            http_client.close()
+            raise
 
     # ------------------------------------------------------------------
     # Request delegation
