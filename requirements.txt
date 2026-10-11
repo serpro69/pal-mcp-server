@@ -59,7 +59,7 @@ jsonschema==4.26.0
     # via mcp
 jsonschema-specifications==2025.9.1
     # via jsonschema
-mcp==1.27.2
+mcp==1.30.0
     # via pal-mcp-server (pyproject.toml)
 openai==2.41.0
     # via pal-mcp-server (pyproject.toml)

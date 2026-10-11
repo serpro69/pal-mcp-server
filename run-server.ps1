@@ -368,7 +368,7 @@ function Find-Python {
     }
     
     # Try Windows Python Launcher with specific versions
-    $pythonVersions = @("3.12", "3.11", "3.10", "3.9")
+    $pythonVersions = @("3.12", "3.11", "3.10")
     foreach ($version in $pythonVersions) {
         $cmd = "py -$version"
         try {

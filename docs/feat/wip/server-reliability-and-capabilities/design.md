@@ -1,6 +1,6 @@
 # Design: server reliability and capabilities
 
-> Status: draft; implementation and independent review pending
+> Status: implementation in progress; see tasks.md for completed scope
 > Created: 2026-10-10
 > Scope: reliability, provider execution, model policy, diagnostics and optional integrations
 > Implementation: [implementation.md](implementation.md)

@@ -3,28 +3,35 @@
 > Design: [design.md](design.md)
 > Implementation: [implementation.md](implementation.md)
 > Review resolutions: [review.md](review.md#revalidation-and-resolution)
-> Status: pending
+> Status: in-progress (Tasks 1–3)
 > Created: 2026-10-10
 > Not Doing: toolchain/release-process migration; MCP 2.x; wholesale catalogs; replacement of safety controls; file-annotation implementation; persistent continuation recovery; remote multi-user transport; automatic service activation
 
-All checkboxes are intentionally open: these documents specify planned work;
-implementation has not started. Use each implementation section's acceptance contract and record
+Use each implementation section's acceptance contract and record
 actual verification evidence when updating status. A dash under parallel work is
 conservative because most slices share core files; it is not a runtime dependency.
 
 ## Task 1: Validate a patched MCP 1.x lock set
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** —
 - **Size:** M
 - **Can run in parallel with:** —
 - **Docs:** [Implementation slice](implementation.md#task-1); [design contract](design.md#d1-runtime-and-packaging)
 
-- [ ] 1.1 Confirm the proposed Python 3.10 floor against the existing 3.10–3.12 matrix and actual supported consumers; correct package metadata if accepted. Record any retained 3.9 requirement as a blocking compatibility decision.
-- [ ] 1.2 Check current MCP advisories and select a compatible patched 1.x release; retain <2.0.0 and pip-compile both locks with --strip-extras --no-header. Create a fresh validation environment from both lock files.
-- [ ] 1.3 Verify the acceptance cases in [Task 1](implementation.md#task-1) and record the result here.
+- [x] 1.1 Confirm the proposed Python 3.10 floor against the existing 3.10–3.12 matrix and actual supported consumers; correct package metadata if accepted. Record any retained 3.9 requirement as a blocking compatibility decision.
+- [x] 1.2 Check current MCP advisories and select a compatible patched 1.x release; retain <2.0.0 and pip-compile both locks with --strip-extras --no-header. Create a fresh validation environment from both lock files.
+- [x] 1.3 Verify the acceptance cases in [Task 1](implementation.md#task-1) and record the result here.
 
 **Scope / gate:** Risk-first. Validate in a fresh environment installed from the generated locks; an existing developer environment is not evidence for those pins. No general dependency upgrade or toolchain switch.
+
+**Evidence:** [Task 1 validation](validation.md#task-1-mcp-and-python-compatibility).
+MCP 1.30.0 and Python >=3.10 verified on 2026-10-11. Fresh-lock CI-equivalent
+matrix: 913 passed per interpreter (3.10–3.12); quality script and lock freshness
+passed. Changed metadata, runtime lock, Windows fallback, release notes and SDK
+compatibility tests; dev lock regenerated unchanged. Isolated code review approved
+with no findings; PAL external reviewer unavailable. Live checks remain explicitly
+open in the validation record, separate from this task's lock/API acceptance.
 
 ## Task 2: Refresh and verify the existing container
 
