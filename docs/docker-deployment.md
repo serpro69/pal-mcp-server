@@ -108,15 +108,28 @@ Use the PowerShell script for Windows environments:
 
 The Dockerfile uses a multi-stage build for optimal image size:
 
-1. **Builder Stage**: Installs dependencies and creates virtual environment
-2. **Runtime Stage**: Copies only necessary files for minimal footprint
+1. **Builder Stage**: Installs locked pip dependencies in a virtual environment.
+2. **Runtime Stage**: Copies the environment and application from the filtered build context.
+
+Both stages use the same digest-pinned Python 3.11.17 slim-trixie base and apply
+available Debian package updates. Rebuild with `docker build --pull --no-cache`
+after reviewing base updates; a cached build does not establish current patch status.
+The image version labels default to the repository version, 1.3.0. Existing release
+workflows can supply release-specific labels.
 
 ### Security Features
 
-- **Non-root user**: Runs as `paluser` (UID/GID 1000)
-- **Read-only filesystem**: Container filesystem is immutable
-- **No new privileges**: Prevents privilege escalation
-- **Secure tmpfs**: Temporary directories with strict permissions
+- **Non-root user**: The image runs as the system account `paluser`; inspect its
+  actual UID/GID before setting host-volume ownership.
+- **Build context**: `.dockerignore` excludes environment files, local agent/cloud
+  configuration, the capy database, caches and distribution artifacts.
+- **Compose controls**: The supplied Compose file requests a read-only root
+  filesystem, `no-new-privileges`, and temporary mounts with `noexec,nosuid`.
+  A plain `docker run` does not inherit those Compose settings.
+
+See the [dated build and scan evidence](feat/wip/server-reliability-and-capabilities/validation.md#task-2-container)
+for tested properties and unresolved package findings. A successful build or
+health check does not establish that the image has no vulnerabilities.
 
 ### Resource Management
 
@@ -174,7 +187,9 @@ The container includes comprehensive health checks:
 - **Process check**: Verifies server.py is running
 - **Import check**: Validates critical Python modules
 - **Directory check**: Ensures log directory is writable
-- **API check**: Tests provider connectivity
+- **Environment check**: Checks that at least one recognized API key is present
+  and configured values pass a basic length check. It does not authenticate keys
+  or contact providers.
 
 Health check configuration:
 ```yaml
