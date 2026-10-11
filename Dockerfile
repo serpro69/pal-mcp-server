@@ -1,10 +1,10 @@
 # ===========================================
 # STAGE 1: Build dependencies
 # ===========================================
-FROM python:3.11-slim AS builder
+FROM python:3.11.17-slim-trixie@sha256:e88e9763f943ec1834f992a4b51e0f24500486803e8bc534e5767af9ea65f6ce AS builder
 
 # Install system dependencies for building
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
     && rm -rf /var/lib/apt/lists/*
@@ -26,28 +26,32 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
 # ===========================================
 # STAGE 2: Runtime image
 # ===========================================
-FROM python:3.11-slim AS runtime
+FROM python:3.11.17-slim-trixie@sha256:e88e9763f943ec1834f992a4b51e0f24500486803e8bc534e5767af9ea65f6ce AS runtime
 
 # Add metadata labels for traceability
 LABEL maintainer="PAL MCP Server Team"
-LABEL version="1.0.0"
+LABEL version="1.3.0"
 LABEL description="PAL MCP Server - AI-powered Model Context Protocol server"
 LABEL org.opencontainers.image.title="pal-mcp-server"
 LABEL org.opencontainers.image.description="AI-powered Model Context Protocol server with multi-provider support"
-LABEL org.opencontainers.image.version="1.0.0"
+LABEL org.opencontainers.image.version="1.3.0"
 LABEL org.opencontainers.image.source="https://github.com/serpro69/pal-mcp-server"
 LABEL org.opencontainers.image.documentation="https://github.com/serpro69/pal-mcp-server/blob/main/README.md"
-LABEL org.opencontainers.image.licenses="Apache 2.0 License"
+LABEL org.opencontainers.image.licenses="Apache-2.0"
 
 # Create non-root user for security
 RUN groupadd -r paluser && useradd -r -g paluser paluser
 
 # Install minimal runtime dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     ca-certificates \
     procps \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
+
+# Refresh the base interpreter's packaging tools too; updating /opt/venv alone
+# leaves older, vulnerable copies under /usr/local in the runtime image.
+RUN python -m pip install --no-cache-dir --upgrade pip setuptools wheel
 
 # Copy virtual environment from builder
 COPY --from=builder /opt/venv /opt/venv

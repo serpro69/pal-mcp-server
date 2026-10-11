@@ -35,17 +35,27 @@ open in the validation record, separate from this task's lock/API acceptance.
 
 ## Task 2: Refresh and verify the existing container
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 1
 - **Size:** S
 - **Can run in parallel with:** —
 - **Docs:** [Implementation slice](implementation.md#task-2); [design contract](design.md#d1-runtime-and-packaging)
 
-- [ ] 2.1 Rebuild the current pip-based image with a verified supported base and required distribution fixes; preserve non-root execution and local image metadata.
-- [ ] 2.2 Record scanner findings by installed package and applicability, with an actionable follow-up for each unresolved finding. Report only the security properties established by the current build and scan.
-- [ ] 2.3 Verify the acceptance cases in [Task 2](implementation.md#task-2) and record the result here.
+- [x] 2.1 Rebuild the current pip-based image with a verified supported base and required distribution fixes; preserve non-root execution and local image metadata.
+- [x] 2.2 Record scanner findings by installed package and applicability, with an actionable follow-up for each unresolved finding. Report only the security properties established by the current build and scan.
+- [x] 2.3 Verify the acceptance cases in [Task 2](implementation.md#task-2) and record the result here.
 
 **Scope / gate:** Use kk:dependency-handling before selecting a new image tag; keep the existing release workflow. Retain scanner evidence and actionable follow-up for unresolved findings.
+
+**Evidence:** [Build, health check and package follow-up register](validation.md#task-2-container)
+and [raw Trivy report](container-scan.json), 2026-10-11. Changed Dockerfile,
+build-context exclusions and deployment documentation. Verified Python 3.11.17
+slim-trixie digest, applied Debian/base-tool fixes, built amd64 and passed the
+actual health check as UID/GID 999. Docker tests: 44 passed; full quality: 913
+passed. Isolated review approved with no findings (external PAL reviewer unavailable).
+**Security release gate remains open:** 199 package/advisory occurrences, including
+2 critical Python findings, have explicit applicability/remediation follow-up.
+This task's completion is the verified build/scan/register, not vulnerability clearance.
 
 ## Task 3: Repair canonical license and package notices
 

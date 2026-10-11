@@ -47,8 +47,20 @@ test_simulation_files/
 pytest.ini
 
 # Development
-.env
-.env.local
+.env*
+.aws/
+.agents/
+.claude/
+.codex/
+.capy/
+.capy.toml
+.mcp.json
+.pytest_cache/
+.ruff_cache/
+build/
+dist/
+*.egg-info/
+worktrees/
 examples/
 code_quality_checks.sh
 run_integration_tests.sh
