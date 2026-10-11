@@ -1,4 +1,4 @@
-"""Observable scheduling, context and cancellation at the temporary provider boundary."""
+"""Observable scheduling, context and cancellation at the native async provider boundary."""
 
 import asyncio
 import json
@@ -35,12 +35,9 @@ async def chat(path, model="gemini-2.5-flash", **kwargs):
     return json.loads(result[0].text)
 
 
-@pytest.mark.parametrize("native_async", [False, True])
-async def test_chat_waits_overlap_and_keep_context_and_provenance(conversation_env, monkeypatch, native_async):
-    loop = asyncio.get_running_loop()
+async def test_chat_waits_overlap_and_keep_context_and_provenance(conversation_env, monkeypatch):
     loop_thread = threading.get_ident()
     entered = asyncio.Queue()
-    release = threading.Event()
     release_async = asyncio.Event()
     request_label = ContextVar("test_request_label")
     observed = []
@@ -49,19 +46,13 @@ async def test_chat_waits_overlap_and_keep_context_and_provenance(conversation_e
         name = self.get_provider_type().value
         return ModelResponse(content=f"{name} answer", model_name=kwargs["model_name"], provider=name)
 
-    def sync_generate(self, **kwargs):
-        observed.append((request_label.get(), threading.get_ident()))
-        loop.call_soon_threadsafe(entered.put_nowait, kwargs["model_name"])
-        assert release.wait(5)
-        return response(self, kwargs)
-
     async def async_generate(self, **kwargs):
         observed.append((request_label.get(), threading.get_ident()))
         entered.put_nowait(kwargs["model_name"])
         await release_async.wait()
         return response(self, kwargs)
 
-    generate = async_generate if native_async else sync_generate
+    generate = async_generate
     monkeypatch.setattr(GeminiModelProvider, "generate_content", generate)
     monkeypatch.setattr(OpenAIModelProvider, "generate_content", generate)
 
@@ -77,18 +68,16 @@ async def test_chat_waits_overlap_and_keep_context_and_provenance(conversation_e
         names = {await asyncio.wait_for(entered.get(), 2) for _ in range(2)}
         assert names == {"gemini-2.5-flash", "gpt-5"}
         assert all(not task.done() for task in tasks)
-        release.set()
         release_async.set()
         results = await asyncio.wait_for(asyncio.gather(*tasks), 2)
     finally:
-        release.set()
         release_async.set()
         for task in tasks:
             if not task.done():
                 task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
     assert {label for label, _ in observed} == names
-    assert all((thread == loop_thread) == native_async for _, thread in observed)
+    assert all(thread == loop_thread for _, thread in observed)
     for result, provider, model in zip(results, ("google", "openai"), ("gemini-2.5-flash", "gpt-5")):
         assert result["metadata"]["model_used"] == model
         assert result["metadata"]["provider_used"] == provider
@@ -97,15 +86,10 @@ async def test_chat_waits_overlap_and_keep_context_and_provenance(conversation_e
         assert thread.turns[-1].content == f"{provider} answer"
 
 
-@pytest.mark.parametrize("native_async", [False, True])
 @pytest.mark.parametrize("outcome", ["success", "failure", "cancel"])
-async def test_chat_recovery_yields_and_preserves_failure_or_cancellation(
-    conversation_env, monkeypatch, native_async, outcome
-):
-    loop = asyncio.get_running_loop()
+async def test_chat_recovery_yields_and_preserves_failure_or_cancellation(conversation_env, monkeypatch, outcome):
     entered = asyncio.Event()
     finished = threading.Event()
-    release = threading.Event()
     release_async = asyncio.Event()
     calls = []
     thread_id = memory.create_thread("chat", {})
@@ -119,17 +103,6 @@ async def test_chat_recovery_yields_and_preserves_failure_or_cancellation(
             raise RuntimeError("synthetic recovery failure")
         return ModelResponse(content="recovered answer", model_name=kwargs["model_name"], provider="google")
 
-    def sync_generate(self, **kwargs):
-        calls.append(kwargs)
-        if len(calls) > 1:
-            loop.call_soon_threadsafe(entered.set)
-            try:
-                assert release.wait(5)
-                return answer(kwargs)
-            finally:
-                finished.set()
-        return answer(kwargs)
-
     async def async_generate(self, **kwargs):
         calls.append(kwargs)
         if len(calls) > 1:
@@ -141,7 +114,7 @@ async def test_chat_recovery_yields_and_preserves_failure_or_cancellation(
                 finished.set()
         return answer(kwargs)
 
-    monkeypatch.setattr(GeminiModelProvider, "generate_content", async_generate if native_async else sync_generate)
+    monkeypatch.setattr(GeminiModelProvider, "generate_content", async_generate)
     task = asyncio.create_task(chat(conversation_env, continuation_id=thread_id))
     try:
         await asyncio.wait_for(entered.wait(), 2)
@@ -159,7 +132,6 @@ async def test_chat_recovery_yields_and_preserves_failure_or_cancellation(
             with pytest.raises(asyncio.CancelledError):
                 await task
         else:
-            release.set()
             release_async.set()
             if outcome == "failure":
                 with pytest.raises(ToolExecutionError, match="synthetic recovery failure"):
@@ -171,7 +143,6 @@ async def test_chat_recovery_yields_and_preserves_failure_or_cancellation(
         assert len(calls) == 2
         assert not coordination._entries
     finally:
-        release.set()
         release_async.set()
         if not task.done():
             task.cancel()
@@ -182,14 +153,11 @@ async def test_chat_recovery_yields_and_preserves_failure_or_cancellation(
 
 
 @pytest.mark.parametrize("tool_name", ["thinkdeep", "consensus"])
-@pytest.mark.parametrize("native_async", [False, True])
 @pytest.mark.parametrize("outcome", ["success", "failure", "cancel"])
 async def test_workflow_provider_waits_yield_without_mixing_or_retrying_cancellation(
-    conversation_env, monkeypatch, tool_name, native_async, outcome
+    conversation_env, monkeypatch, tool_name, outcome
 ):
-    loop = asyncio.get_running_loop()
     entered = asyncio.Queue()
-    release = threading.Event()
     release_async = asyncio.Event()
     models = ["gemini-2.5-flash", "gpt-5"]
     finished = {model: threading.Event() for model in models}
@@ -202,16 +170,6 @@ async def test_workflow_provider_waits_yield_without_mixing_or_retrying_cancella
             raise RuntimeError(f"failed {model}")
         return ModelResponse(content=f"answer {model}", model_name=model, provider=self.get_provider_type())
 
-    def sync_generate(self, **kwargs):
-        model = kwargs["model_name"]
-        calls.append(model)
-        loop.call_soon_threadsafe(entered.put_nowait, model)
-        try:
-            assert release.wait(5)
-            return answer(self, kwargs)
-        finally:
-            finished[model].set()
-
     async def async_generate(self, **kwargs):
         model = kwargs["model_name"]
         calls.append(model)
@@ -222,7 +180,7 @@ async def test_workflow_provider_waits_yield_without_mixing_or_retrying_cancella
         finally:
             finished[model].set()
 
-    generate = async_generate if native_async else sync_generate
+    generate = async_generate
     monkeypatch.setattr(GeminiModelProvider, "generate_content", generate)
     monkeypatch.setattr(OpenAIModelProvider, "generate_content", generate)
 
@@ -267,7 +225,6 @@ async def test_workflow_provider_waits_yield_without_mixing_or_retrying_cancella
                     await task
             assert not coordination._entries
         else:
-            release.set()
             release_async.set()
             results = await asyncio.wait_for(asyncio.gather(*tasks), 2)
             for result, model, provider in zip(results, models, ("google", "openai")):
@@ -292,7 +249,6 @@ async def test_workflow_provider_waits_yield_without_mixing_or_retrying_cancella
                         assert result["content"] == f"failed {model}"
         assert sorted(calls) == sorted(models)
     finally:
-        release.set()
         release_async.set()
         for task in tasks:
             if not task.done():

@@ -37,7 +37,6 @@ from utils.conversation_memory import (
     get_thread,
     memory_persistence_warning,
 )
-from utils.provider_execution import invoke_provider
 
 from .workflow.base import WorkflowTool
 
@@ -647,8 +646,7 @@ of the evidence, even when it strongly points in one direction.""",
 
             # Call the model with validated temperature
             self._record_provider_attempt(model_name, provider)
-            response = await invoke_provider(
-                provider,
+            response = await provider.generate_content(
                 prompt=prompt,
                 model_name=model_name,
                 system_prompt=system_prompt,

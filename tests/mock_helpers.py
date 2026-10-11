@@ -1,6 +1,6 @@
 """Helper functions for test mocking."""
 
-from unittest.mock import Mock
+from unittest.mock import AsyncMock, Mock
 
 from providers.shared import ModelCapabilities, ProviderType, RangeTemperatureConstraint
 
@@ -8,7 +8,7 @@ from providers.shared import ModelCapabilities, ProviderType, RangeTemperatureCo
 def create_mock_provider(model_name="gemini-2.5-flash", context_window=1_048_576):
     """Create a properly configured mock provider."""
     mock_provider = Mock()
-
+    mock_provider.generate_content = AsyncMock()
     # Set up capabilities
     mock_capabilities = ModelCapabilities(
         provider=ProviderType.GOOGLE,

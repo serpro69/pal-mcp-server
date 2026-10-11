@@ -23,10 +23,12 @@ def capture_providers(monkeypatch, *, google_answer="Gemini answer", openai_answ
         content = answer(kwargs) if callable(answer) else answer
         return ModelResponse(content=content, model_name=kwargs["model_name"], provider=provider_name)
 
-    monkeypatch.setattr(
-        GeminiModelProvider, "generate_content", lambda self, **kwargs: generate("google", google_answer, kwargs)
-    )
-    monkeypatch.setattr(
-        OpenAIModelProvider, "generate_content", lambda self, **kwargs: generate("openai", openai_answer, kwargs)
-    )
+    async def google_generate(self, **kwargs):
+        return generate("google", google_answer, kwargs)
+
+    async def openai_generate(self, **kwargs):
+        return generate("openai", openai_answer, kwargs)
+
+    monkeypatch.setattr(GeminiModelProvider, "generate_content", google_generate)
+    monkeypatch.setattr(OpenAIModelProvider, "generate_content", openai_generate)
     return calls

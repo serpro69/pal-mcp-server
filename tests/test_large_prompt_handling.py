@@ -10,7 +10,7 @@ import json
 import os
 import shutil
 import tempfile
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -264,6 +264,7 @@ class TestLargePromptHandling:
             patch.object(tool, "_prepare_file_content_for_prompt") as mock_prepare_files,
         ):
             mock_provider = MagicMock()
+            mock_provider.generate_content = AsyncMock()
             mock_provider.get_provider_type.return_value = MagicMock(value="google")
             mock_provider.generate_content.return_value = MagicMock(
                 content="Success",
@@ -323,6 +324,7 @@ class TestLargePromptHandling:
         # Mock the model provider to avoid real API calls
         with patch.object(tool, "get_model_provider") as mock_get_provider:
             mock_provider = MagicMock()
+            mock_provider.generate_content = AsyncMock()
             mock_provider.get_provider_type.return_value = MagicMock(value="google")
             mock_provider.get_capabilities.return_value = MagicMock(supports_extended_thinking=False)
             mock_provider.generate_content.return_value = MagicMock(
@@ -371,6 +373,7 @@ class TestLargePromptHandling:
 
         with patch.object(tool, "get_model_provider") as mock_get_provider:
             mock_provider = MagicMock()
+            mock_provider.generate_content = AsyncMock()
             mock_provider.get_provider_type.return_value = MagicMock(value="google")
             mock_provider.get_capabilities.return_value = MagicMock(supports_extended_thinking=False)
             mock_provider.generate_content.return_value = MagicMock(

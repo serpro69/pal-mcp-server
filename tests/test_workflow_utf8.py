@@ -6,7 +6,7 @@ and the generation of properly encoded JSON responses.
 import json
 import os
 import unittest
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -113,9 +113,8 @@ class TestWorkflowToolsUTF8(unittest.IsolatedAsyncioTestCase):
 
 
 @pytest.mark.parametrize("tool_class", [AnalyzeTool, CodeReviewTool, DebugIssueTool])
-@pytest.mark.parametrize("native_async", [False, True])
 @pytest.mark.parametrize("fails", [False, True])
-async def test_workflow_expert_unicode_result_and_error(monkeypatch, tmp_path, tool_class, native_async, fails):
+async def test_workflow_expert_unicode_result_and_error(monkeypatch, tmp_path, tool_class, fails):
     storage = FaultStorage()
     monkeypatch.setattr(memory, "get_storage", lambda: storage)
     monkeypatch.setenv("LOCALE", "fr-FR")
@@ -125,7 +124,7 @@ async def test_workflow_expert_unicode_result_and_error(monkeypatch, tmp_path, t
         "ÉLEVÉ: problème de données; fonctions spécialisées, validation appropriée, paramètres présents 🔴 🟠 🟡 ✅"
     )
     error = "Échec de l’analyse: données indisponibles ❌"
-    generate = (AsyncMock if native_async else Mock)(
+    generate = AsyncMock(
         return_value=ModelResponse(
             content=json.dumps({"status": "analysis_complete", "raw_analysis": answer}, ensure_ascii=False),
             model_name=model,
@@ -151,10 +150,7 @@ async def test_workflow_expert_unicode_result_and_error(monkeypatch, tmp_path, t
         }
     )
     result = json.loads(output[0].text)
-    if native_async:
-        generate.assert_awaited_once()
-    else:
-        generate.assert_called_once()
+    generate.assert_awaited_once()
     sent = generate.call_args.kwargs
     assert "fr-FR" in sent["system_prompt"] + sent["prompt"]
     assert result["metadata"]["model_used"] == model
