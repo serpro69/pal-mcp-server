@@ -1085,12 +1085,7 @@ async def reconstruct_thread_context(arguments: dict[str, Any]) -> dict[str, Any
             f"[CONVERSATION_DEBUG] User prompt length: {len(user_prompt)} chars (~{user_prompt_tokens:,} tokens)"
         )
         logger.debug(f"[CONVERSATION_DEBUG] User files: {user_files}")
-        success = add_turn(continuation_id, "user", user_prompt, files=user_files)
-        if not success:
-            logger.warning(f"Failed to add user turn to thread {continuation_id}")
-            logger.debug("[CONVERSATION_DEBUG] Failed to add user turn - thread may be at turn limit or expired")
-        else:
-            logger.debug(f"[CONVERSATION_DEBUG] Successfully added user turn to thread {continuation_id}")
+        add_turn(continuation_id, "user", user_prompt, files=user_files, required=True)
 
     # Create model context early to use for history building
     from utils.model_context import ModelContext

@@ -525,7 +525,9 @@ class TestAutoModeComprehensive:
 
             # Mock the actual provider to simulate successful execution
             mock_provider = MagicMock()
+            mock_provider.get_provider_type.return_value = ProviderType.GOOGLE
             mock_response = MagicMock()
+            mock_response.metadata = {}
             mock_response.content = "test response"
             mock_response.model_name = "gemini-3.5-flash"  # The resolved name
             mock_response.usage = {"input_tokens": 10, "output_tokens": 5}

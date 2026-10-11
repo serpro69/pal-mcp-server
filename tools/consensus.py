@@ -29,7 +29,14 @@ from mcp.types import TextContent
 from config import TEMPERATURE_ANALYTICAL
 from systemprompts import CONSENSUS_PROMPT
 from tools.shared.base_models import ConsolidatedFindings, WorkflowRequest
-from utils.conversation_memory import MAX_CONVERSATION_TURNS, create_thread, get_thread
+from utils.conversation_memory import (
+    MAX_CONVERSATION_TURNS,
+    ConversationMemoryError,
+    ConversationNotFoundError,
+    create_thread,
+    get_thread,
+    memory_persistence_warning,
+)
 
 from .workflow.base import WorkflowTool
 
@@ -444,6 +451,8 @@ of the evidence, even when it strongly points in one direction.""",
 
         # Resolve existing continuation_id or create a new one on first step
         continuation_id = request.continuation_id
+        if continuation_id and get_thread(continuation_id) is None:
+            raise ConversationNotFoundError("Conversation thread was not found or has expired")
 
         if request.step_number == 1:
             if not continuation_id:
@@ -535,9 +544,13 @@ of the evidence, even when it strongly points in one direction.""",
 
                 if continuation_id:
                     self.store_conversation_turn(continuation_id, response_data, request)
-                    continuation_offer = self._build_continuation_offer(continuation_id)
-                    if continuation_offer:
-                        response_data["continuation_offer"] = continuation_offer
+                    if not response_data.get("metadata", {}).get("memory_persistence_warning"):
+                        try:
+                            continuation_offer = self._build_continuation_offer(continuation_id)
+                            if continuation_offer:
+                                response_data["continuation_offer"] = continuation_offer
+                        except ConversationMemoryError as exc:
+                            response_data.setdefault("metadata", {}).update(memory_persistence_warning(exc))
 
                 return [TextContent(type="text", text=json.dumps(response_data, indent=2, ensure_ascii=False))]
 
@@ -546,30 +559,29 @@ of the evidence, even when it strongly points in one direction.""",
 
     def _build_continuation_offer(self, continuation_id: str) -> dict[str, Any] | None:
         """Create a continuation offer without exposing prior model responses."""
-        try:
-            from tools.models import ContinuationOffer
+        from tools.models import ContinuationOffer
 
-            thread = get_thread(continuation_id)
-            if thread and thread.turns:
-                remaining_turns = max(0, MAX_CONVERSATION_TURNS - len(thread.turns))
-            else:
-                remaining_turns = MAX_CONVERSATION_TURNS - 1
+        thread = get_thread(continuation_id)
+        if thread is None:
+            raise ConversationNotFoundError("Conversation thread was not found or has expired")
+        if thread and thread.turns:
+            remaining_turns = max(0, MAX_CONVERSATION_TURNS - len(thread.turns))
+        else:
+            remaining_turns = MAX_CONVERSATION_TURNS - 1
 
-            # Provide a neutral note specific to consensus workflow
-            note = (
-                f"Consensus workflow can continue for {remaining_turns} more exchanges."
-                if remaining_turns > 0
-                else "Consensus workflow continuation limit reached."
-            )
+        # Provide a neutral note specific to consensus workflow
+        note = (
+            f"Consensus workflow can continue for {remaining_turns} more exchanges."
+            if remaining_turns > 0
+            else "Consensus workflow continuation limit reached."
+        )
 
-            continuation_offer = ContinuationOffer(
-                continuation_id=continuation_id,
-                note=note,
-                remaining_turns=remaining_turns,
-            )
-            return continuation_offer.model_dump()
-        except Exception:
-            return None
+        continuation_offer = ContinuationOffer(
+            continuation_id=continuation_id,
+            note=note,
+            remaining_turns=remaining_turns,
+        )
+        return continuation_offer.model_dump()
 
     async def _consult_model(self, model_config: dict, request) -> dict:
         """Consult a single model and return its response."""

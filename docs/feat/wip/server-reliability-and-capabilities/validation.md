@@ -1,7 +1,46 @@
-# Validation evidence: Tasks 1–7
+# Validation evidence: Tasks 1–8
 
 Recorded 2026-10-11. This covers the completed maintenance tasks below, not the
 remaining roadmap or optional live-provider behavior.
+
+## Task 8: explicit conversation storage errors
+
+Recorded 2026-10-11. Storage reads/writes now raise `ConversationStorageError`
+for expected backend I/O faults; malformed JSON/schema records raise
+`ConversationDecodeError`. Original causes are retained and sensitive backend
+details are excluded from public messages. Absent/expired records still return
+`None`; `add_turn` retains `False` for absent/full threads, with `required=True`
+providing distinct not-found/limit exceptions to callers. False backend write
+acknowledgments are errors. Serialization and programming errors are not converted
+to storage failures.
+
+Audited server, simple-tool, workflow, clink and consensus callers. Required
+continuation failures stop work; post-response failures retain results and add
+`metadata.memory_persistence_warning` with `conversation_ready: false`. Initial
+input ownership and pair admission remain Task 9. The substantive boundaries are
+memory, its exception module, server, simple tools and workflow; clink/consensus
+use those shared semantics. Exception identities live separately because test
+configuration reloads the memory module.
+
+Verification:
+
+- `BLACK_NUM_WORKERS=1 ./code_quality_checks.sh`, locked Python 3.10 environment,
+  outside process sandbox: **1,053 passed**, 4 skipped, 16 deselected,
+  19 subtests passed; existing two AsyncMock warnings unchanged.
+- 32 new tests cover missing/expired/corrupt/empty data, read/write faults, parent
+  chain corruption, rejected writes, cap outcomes, original causes, programming
+  errors, MCP/direct pre-provider failures, and answer preservation for chat,
+  planner, clink and consensus. Existing fixtures now supply valid provider
+  metadata and actual continuation threads instead of relying on silent failures.
+- Pydantic **2.13.4** decode exception behavior verified against its
+  [tagged source](https://github.com/pydantic/pydantic/blob/v2.13.4/pydantic/main.py)
+  after Context7 had no matching version. No dependency pins changed.
+- Integration/simulator setup limits remain those attempted in Task 7; no live
+  provider requests or cassettes were changed.
+
+- Focused memory/error/field-mapping/model-metadata suite: **58 passed**.
+- Isolated code review: **APPROVE**, no actionable findings or systemic findings
+  to index. External PAL reviewer unavailable.
 
 ## Task 7: Gemini unsupported-client diagnostics
 
