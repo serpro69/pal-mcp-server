@@ -110,8 +110,15 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
+from utils.conversation_errors import (
+    ConversationDecodeError,
+    ConversationLimitError,
+    ConversationMemoryError,
+    ConversationNotFoundError,
+    ConversationStorageError,
+)
 from utils.env import get_env
 
 logger = logging.getLogger(__name__)
@@ -146,6 +153,18 @@ except ValueError:
     CONVERSATION_TIMEOUT_HOURS = 3
 
 CONVERSATION_TIMEOUT_SECONDS = CONVERSATION_TIMEOUT_HOURS * 3600
+
+
+def memory_persistence_warning(error: ConversationMemoryError) -> dict[str, Any]:
+    """Result metadata for an answer whose memory update could not complete."""
+    return {
+        "conversation_ready": False,
+        "memory_persistence_warning": {
+            "code": type(error).__name__,
+            "message": "The response was generated, but conversation persistence failed. "
+            "The reply may not be saved; provide full context in a new conversation.",
+        },
+    }
 
 
 class ConversationTurn(BaseModel):
@@ -260,9 +279,7 @@ def create_thread(tool_name: str, initial_request: dict[str, Any], parent_thread
     )
 
     # Store in memory with configurable TTL to prevent indefinite accumulation
-    storage = get_storage()
-    key = f"thread:{thread_id}"
-    storage.setex(key, CONVERSATION_TIMEOUT_SECONDS, context.model_dump_json())
+    _save_thread(context)
 
     logger.debug(f"[THREAD] Created new thread {thread_id} with parent {parent_thread_id}")
 
@@ -286,7 +303,7 @@ def get_thread(thread_id: str) -> Optional[ThreadContext]:
 
     Security:
         - Validates UUID format to prevent injection attacks
-        - Handles storage connection failures gracefully
+        - Raises typed storage/decode errors with original causes
         - No error information leakage on failure
     """
     if not thread_id or not _is_valid_uuid(thread_id):
@@ -297,12 +314,26 @@ def get_thread(thread_id: str) -> Optional[ThreadContext]:
         key = f"thread:{thread_id}"
         data = storage.get(key)
 
-        if data:
-            return ThreadContext.model_validate_json(data)
+    except OSError as exc:
+        raise ConversationStorageError("Conversation storage read failed") from exc
+
+    if data is None:
         return None
-    except Exception:
-        # Silently handle errors to avoid exposing storage details
-        return None
+    try:
+        return ThreadContext.model_validate_json(data)
+    except ValidationError as exc:
+        raise ConversationDecodeError("Stored conversation could not be decoded") from exc
+
+
+def _save_thread(context: ThreadContext) -> None:
+    # Serialization failures are programming errors, not storage outages.
+    data = context.model_dump_json()
+    try:
+        result = get_storage().setex(f"thread:{context.thread_id}", CONVERSATION_TIMEOUT_SECONDS, data)
+    except OSError as exc:
+        raise ConversationStorageError("Conversation storage write failed") from exc
+    if result is False:
+        raise ConversationStorageError("Conversation storage rejected the write")
 
 
 def add_turn(
@@ -315,6 +346,8 @@ def add_turn(
     model_provider: Optional[str] = None,
     model_name: Optional[str] = None,
     model_metadata: Optional[dict[str, Any]] = None,
+    *,
+    required: bool = False,
 ) -> bool:
     """
     Add turn to existing thread with atomic file ordering.
@@ -335,7 +368,8 @@ def add_turn(
         model_metadata: Additional model info (e.g., thinking mode, token usage)
 
     Returns:
-        bool: True if turn was successfully added, False otherwise
+        bool: True if saved; False for missing/capped threads unless required=True.
+        Storage/decode faults always raise ConversationStorageError.
 
     Failure cases:
         - Thread doesn't exist or expired
@@ -353,11 +387,15 @@ def add_turn(
 
     context = get_thread(thread_id)
     if not context:
+        if required:
+            raise ConversationNotFoundError("Conversation thread was not found or has expired")
         logger.debug(f"[FLOW] Thread {thread_id} not found for turn addition")
         return False
 
     # Check turn limit to prevent runaway conversations
     if len(context.turns) >= MAX_CONVERSATION_TURNS:
+        if required:
+            raise ConversationLimitError("Conversation message limit reached")
         logger.debug(f"[FLOW] Thread {thread_id} at max turns ({MAX_CONVERSATION_TURNS})")
         return False
 
@@ -378,14 +416,8 @@ def add_turn(
     context.last_updated_at = datetime.now(timezone.utc).isoformat()
 
     # Save back to storage and refresh TTL
-    try:
-        storage = get_storage()
-        key = f"thread:{thread_id}"
-        storage.setex(key, CONVERSATION_TIMEOUT_SECONDS, context.model_dump_json())  # Refresh TTL to configured timeout
-        return True
-    except Exception as e:
-        logger.debug(f"[FLOW] Failed to save turn to storage: {type(e).__name__}")
-        return False
+    _save_thread(context)
+    return True
 
 
 def get_thread_chain(thread_id: str, max_depth: int = 20) -> list[ThreadContext]:

@@ -9,6 +9,7 @@ import pytest
 from tools.models import ToolModelCategory
 from tools.planner import PlannerRequest, PlannerTool
 from tools.shared.exceptions import ToolExecutionError
+from utils.conversation_memory import create_thread
 
 
 class TestPlannerTool:
@@ -125,7 +126,7 @@ class TestPlannerTool:
             "step_number": 2,
             "total_steps": 8,
             "next_step_required": True,
-            "continuation_id": "existing-uuid-456",
+            "continuation_id": create_thread("planner", {}),
         }
 
         # Mock conversation memory functions
@@ -144,7 +145,7 @@ class TestPlannerTool:
         assert parsed_response["step_number"] == 2
         assert parsed_response["total_steps"] == 8
         assert parsed_response["next_step_required"] is True
-        assert parsed_response["continuation_id"] == "existing-uuid-456"
+        assert parsed_response["continuation_id"] == arguments["continuation_id"]
         # For complex plans (>=5 steps) on step 2, expect deep thinking pause
         assert parsed_response["status"] == "pause_for_deep_thinking"
         assert parsed_response["thinking_required"] is True
@@ -209,7 +210,7 @@ class TestPlannerTool:
             "step_number": 10,
             "total_steps": 10,
             "next_step_required": False,  # Final step
-            "continuation_id": "test-uuid-789",
+            "continuation_id": create_thread("planner", {}),
         }
 
         # Mock conversation memory functions
@@ -244,7 +245,7 @@ class TestPlannerTool:
             "is_branch_point": True,
             "branch_from_step": 3,
             "branch_id": "cloud-native-path",
-            "continuation_id": "test-uuid-branch",
+            "continuation_id": create_thread("planner", {}),
         }
 
         # Mock conversation memory functions
@@ -274,7 +275,7 @@ class TestPlannerTool:
             "next_step_required": True,
             "is_step_revision": True,
             "revises_step_number": 2,
-            "continuation_id": "test-uuid-revision",
+            "continuation_id": create_thread("planner", {}),
         }
 
         # Mock conversation memory functions
@@ -310,7 +311,7 @@ class TestPlannerTool:
             "step_number": 8,
             "total_steps": 5,  # Current step exceeds total
             "next_step_required": True,
-            "continuation_id": "test-uuid-adjust",
+            "continuation_id": create_thread("planner", {}),
         }
 
         # Mock conversation memory functions
@@ -370,7 +371,10 @@ class TestPlannerTool:
         # Mock conversation memory functions
         with patch("utils.conversation_memory.create_thread", return_value="test-uuid-history"):
             with patch("utils.conversation_memory.add_turn"):
-                await tool.execute(step1_args)
+                import json
+
+                first = json.loads((await tool.execute(step1_args))[0].text)
+                step2_args["continuation_id"] = first["continuation_id"]
                 await tool.execute(step2_args)
 
         # Should have tracked both steps

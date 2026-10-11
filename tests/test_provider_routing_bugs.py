@@ -389,7 +389,11 @@ class TestProviderMetadataBug:
         mock_provider.get_provider_type.return_value = ProviderType.OPENROUTER
 
         # Create model_info like the execute method does
-        model_info = {"provider": mock_provider, "model_name": "test-model", "model_response": Mock()}
+        model_info = {
+            "provider": mock_provider,
+            "model_name": "test-model",
+            "model_response": Mock(usage={}, metadata={}),
+        }
 
         # Test _parse_response directly with a simple response
         request = MockRequest()

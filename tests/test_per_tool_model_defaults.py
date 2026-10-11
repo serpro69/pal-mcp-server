@@ -528,7 +528,12 @@ class TestUnavailableModelFallback:
                 with patch.object(ModelProviderRegistry, "get_provider_for_model") as mock_get_provider:
                     # Model is available
                     mock_provider = MagicMock()
-                    mock_provider.generate_content.return_value = MagicMock(content="Test response", metadata={})
+                    from providers.shared import ProviderType
+
+                    mock_provider.get_provider_type.return_value = ProviderType.GOOGLE
+                    mock_provider.generate_content.return_value = MagicMock(
+                        content="Test response", metadata={}, usage={}
+                    )
                     mock_get_provider.return_value = mock_provider
 
                     # Mock the provider lookup in BaseTool.get_model_provider

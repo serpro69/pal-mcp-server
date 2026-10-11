@@ -19,6 +19,7 @@ from tools.shared.base_models import ToolRequest
 from tools.shared.base_tool import BaseTool
 from tools.shared.exceptions import ToolExecutionError
 from tools.shared.schema_builders import SchemaBuilder
+from utils.conversation_memory import ConversationMemoryError, ConversationNotFoundError, memory_persistence_warning
 
 
 class SimpleTool(BaseTool):
@@ -355,7 +356,7 @@ class SimpleTool(BaseTool):
                         user_prompt = self.get_request_prompt(request)
                         user_files = self.get_request_files(request)
                         if user_prompt:
-                            add_turn(continuation_id, "user", user_prompt, files=user_files)
+                            add_turn(continuation_id, "user", user_prompt, files=user_files, required=True)
 
                             # Get updated thread context after adding the turn
                             thread_context = get_thread(continuation_id)
@@ -377,9 +378,7 @@ class SimpleTool(BaseTool):
                         else:
                             prompt = base_prompt
                     else:
-                        # Thread not found, prepare normally
-                        logger.warning(f"Thread {continuation_id} not found, preparing prompt normally")
-                        prompt = await self.prepare_prompt(request)
+                        raise ConversationNotFoundError("Conversation thread was not found or has expired")
             else:
                 # New conversation, prepare prompt normally
                 prompt = await self.prepare_prompt(request)
@@ -609,18 +608,22 @@ class SimpleTool(BaseTool):
         formatted_response = self.format_response(raw_text, request, model_info)
         recordable_response = self.get_recordable_response(raw_text, formatted_response, request)
 
-        # Handle conversation continuation like old base.py
-        continuation_id = self.get_request_continuation_id(request)
-        if continuation_id:
-            self._record_assistant_turn(continuation_id, recordable_response, request, model_info)
+        try:
+            # Handle conversation continuation like old base.py
+            continuation_id = self.get_request_continuation_id(request)
+            if continuation_id:
+                self._record_assistant_turn(continuation_id, recordable_response, request, model_info)
 
-        # Create continuation offer like old base.py
-        continuation_data = self._create_continuation_offer(request, model_info)
-        if continuation_data:
-            return self._create_continuation_offer_response(
-                formatted_response, continuation_data, request, model_info, recordable_content=recordable_response
-            )
-        else:
+            # Create continuation offer like old base.py
+            continuation_data = self._create_continuation_offer(request, model_info)
+            if continuation_data:
+                return self._create_continuation_offer_response(
+                    formatted_response, continuation_data, request, model_info, recordable_content=recordable_response
+                )
+        except ConversationMemoryError as exc:
+            return ToolOutput(status="success", content=formatted_response, metadata=memory_persistence_warning(exc))
+
+        if not continuation_data:
             # Build metadata with model and provider info for success response
             metadata = {}
             if model_info:
@@ -650,51 +653,56 @@ class SimpleTool(BaseTool):
         """Create continuation offer following old base.py pattern"""
         continuation_id = self.get_request_continuation_id(request)
 
-        try:
-            from utils.conversation_memory import create_thread, get_thread
+        from utils.conversation_memory import create_thread, get_thread
 
-            if continuation_id:
-                # Existing conversation
-                thread_context = get_thread(continuation_id)
-                if thread_context and thread_context.turns:
-                    turn_count = len(thread_context.turns)
-                    from utils.conversation_memory import MAX_CONVERSATION_TURNS
+        if continuation_id:
+            # Existing conversation
+            thread_context = get_thread(continuation_id)
+            if thread_context is None:
+                raise ConversationNotFoundError("Conversation thread was not found or has expired")
+            if thread_context and thread_context.turns:
+                turn_count = len(thread_context.turns)
+                from utils.conversation_memory import MAX_CONVERSATION_TURNS
 
-                    if turn_count >= MAX_CONVERSATION_TURNS - 1:
-                        return None  # No more turns allowed
+                if turn_count >= MAX_CONVERSATION_TURNS - 1:
+                    return None  # No more turns allowed
 
-                    remaining_turns = MAX_CONVERSATION_TURNS - turn_count - 1
-                    return {
-                        "continuation_id": continuation_id,
-                        "remaining_turns": remaining_turns,
-                        "note": f"You can continue this conversation for {remaining_turns} more exchanges.",
-                    }
-            else:
-                # New conversation - create thread and offer continuation
-                # Convert request to dict for initial_context
-                initial_request_dict = self.get_request_as_dict(request)
-
-                new_thread_id = create_thread(tool_name=self.get_name(), initial_request=initial_request_dict)
-
-                # Add the initial user turn to the new thread
-                from utils.conversation_memory import MAX_CONVERSATION_TURNS, add_turn
-
-                user_prompt = self.get_request_prompt(request)
-                user_files = self.get_request_files(request)
-                user_images = self.get_request_images(request)
-
-                # Add user's initial turn
-                add_turn(
-                    new_thread_id, "user", user_prompt, files=user_files, images=user_images, tool_name=self.get_name()
-                )
-
+                remaining_turns = MAX_CONVERSATION_TURNS - turn_count - 1
                 return {
-                    "continuation_id": new_thread_id,
-                    "remaining_turns": MAX_CONVERSATION_TURNS - 1,
-                    "note": f"You can continue this conversation for {MAX_CONVERSATION_TURNS - 1} more exchanges.",
+                    "continuation_id": continuation_id,
+                    "remaining_turns": remaining_turns,
+                    "note": f"You can continue this conversation for {remaining_turns} more exchanges.",
                 }
-        except Exception:
-            return None
+        else:
+            # New conversation - create thread and offer continuation
+            # Convert request to dict for initial_context
+            initial_request_dict = self.get_request_as_dict(request)
+
+            new_thread_id = create_thread(tool_name=self.get_name(), initial_request=initial_request_dict)
+
+            # Add the initial user turn to the new thread
+            from utils.conversation_memory import MAX_CONVERSATION_TURNS, add_turn
+
+            user_prompt = self.get_request_prompt(request)
+            user_files = self.get_request_files(request)
+            user_images = self.get_request_images(request)
+
+            # Add user's initial turn
+            add_turn(
+                new_thread_id,
+                "user",
+                user_prompt,
+                files=user_files,
+                images=user_images,
+                tool_name=self.get_name(),
+                required=True,
+            )
+
+            return {
+                "continuation_id": new_thread_id,
+                "remaining_turns": MAX_CONVERSATION_TURNS - 1,
+                "note": f"You can continue this conversation for {MAX_CONVERSATION_TURNS - 1} more exchanges.",
+            }
 
     def _create_continuation_offer_response(
         self,
@@ -708,49 +716,45 @@ class SimpleTool(BaseTool):
         """Create response with continuation offer following old base.py pattern"""
         from tools.models import ContinuationOffer, ToolOutput
 
-        try:
-            if not self.get_request_continuation_id(request):
-                self._record_assistant_turn(
-                    continuation_data["continuation_id"],
-                    content if recordable_content is None else recordable_content,
-                    request,
-                    model_info,
-                )
-
-            continuation_offer = ContinuationOffer(
-                continuation_id=continuation_data["continuation_id"],
-                note=continuation_data["note"],
-                remaining_turns=continuation_data["remaining_turns"],
+        if not self.get_request_continuation_id(request):
+            self._record_assistant_turn(
+                continuation_data["continuation_id"],
+                content if recordable_content is None else recordable_content,
+                request,
+                model_info,
             )
 
-            # Build metadata with model and provider info
-            metadata = {"tool_name": self.get_name(), "conversation_ready": True}
-            if model_info:
-                model_name = model_info.get("model_name")
-                if model_name:
-                    metadata["model_used"] = model_name
-                provider = model_info.get("provider")
-                if provider:
-                    # Handle both provider objects and string values
-                    if isinstance(provider, str):
-                        metadata["provider_used"] = provider
-                    else:
-                        try:
-                            metadata["provider_used"] = provider.get_provider_type().value
-                        except AttributeError:
-                            # Fallback if provider doesn't have get_provider_type method
-                            metadata["provider_used"] = str(provider)
+        continuation_offer = ContinuationOffer(
+            continuation_id=continuation_data["continuation_id"],
+            note=continuation_data["note"],
+            remaining_turns=continuation_data["remaining_turns"],
+        )
 
-            return ToolOutput(
-                status="continuation_available",
-                content=content,
-                content_type="text",
-                continuation_offer=continuation_offer,
-                metadata=metadata,
-            )
-        except Exception:
-            # Fallback to simple success if continuation offer fails
-            return ToolOutput(status="success", content=content, content_type="text")
+        # Build metadata with model and provider info
+        metadata = {"tool_name": self.get_name(), "conversation_ready": True}
+        if model_info:
+            model_name = model_info.get("model_name")
+            if model_name:
+                metadata["model_used"] = model_name
+            provider = model_info.get("provider")
+            if provider:
+                # Handle both provider objects and string values
+                if isinstance(provider, str):
+                    metadata["provider_used"] = provider
+                else:
+                    try:
+                        metadata["provider_used"] = provider.get_provider_type().value
+                    except AttributeError:
+                        # Fallback if provider doesn't have get_provider_type method
+                        metadata["provider_used"] = str(provider)
+
+        return ToolOutput(
+            status="continuation_available",
+            content=content,
+            content_type="text",
+            continuation_offer=continuation_offer,
+            metadata=metadata,
+        )
 
     def _record_assistant_turn(
         self, continuation_id: str, response_text: str, request, model_info: Optional[dict]
@@ -791,6 +795,7 @@ class SimpleTool(BaseTool):
             model_provider=model_provider,
             model_name=model_name,
             model_metadata=model_metadata,
+            required=True,
         )
 
     # Convenience methods for common tool patterns

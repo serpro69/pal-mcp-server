@@ -21,6 +21,7 @@ from tools.models import ToolModelCategory, ToolOutput
 from tools.shared.base_models import COMMON_FIELD_DESCRIPTIONS
 from tools.shared.exceptions import ToolExecutionError
 from tools.simple.base import SchemaBuilder, SimpleTool
+from utils.conversation_memory import ConversationNotFoundError, get_thread
 
 logger = logging.getLogger(__name__)
 
@@ -240,6 +241,9 @@ class CLinkTool(SimpleTool):
         images = self.get_request_images(request)
         continuation_id = self.get_request_continuation_id(request)
 
+        if continuation_id and get_thread(continuation_id) is None:
+            raise ConversationNotFoundError("Conversation thread was not found or has expired")
+
         self._model_context = arguments.get("_model_context")
 
         system_prompt_text = role_config.prompt_path.read_text(encoding="utf-8")
@@ -289,28 +293,8 @@ class CLinkTool(SimpleTool):
             "model_name": result.parsed.metadata.get("model_used"),
         }
 
-        if continuation_id:
-            try:
-                self._record_assistant_turn(continuation_id, content, request, model_info)
-            except Exception:
-                logger.debug("Failed to record assistant turn for continuation %s", continuation_id, exc_info=True)
-
-        continuation_offer = self._create_continuation_offer(request, model_info)
-        if continuation_offer:
-            tool_output = self._create_continuation_offer_response(
-                content,
-                continuation_offer,
-                request,
-                model_info,
-            )
-            tool_output.metadata = self._merge_metadata(tool_output.metadata, metadata)
-        else:
-            tool_output = ToolOutput(
-                status="success",
-                content=content,
-                content_type="text",
-                metadata=metadata,
-            )
+        tool_output = self._parse_response(content, request, model_info)
+        tool_output.metadata = self._merge_metadata(tool_output.metadata, metadata)
 
         return [TextContent(type="text", text=tool_output.model_dump_json())]
 

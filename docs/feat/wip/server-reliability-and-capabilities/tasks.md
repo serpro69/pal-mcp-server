@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Implementation: [implementation.md](implementation.md)
 > Review resolutions: [review.md](review.md#revalidation-and-resolution)
-> Status: in-progress (Tasks 1–7 done; Tasks 8–42 pending)
+> Status: in-progress (Tasks 1–8 done; Tasks 9–42 pending)
 > Created: 2026-10-10
 > Not Doing: toolchain/release-process migration; MCP 2.x; wholesale catalogs; replacement of safety controls; file-annotation implementation; persistent continuation recovery; remote multi-user transport; automatic service activation
 
@@ -162,17 +162,22 @@ External PAL review and live Gemini authentication remain unavailable.
 
 ## Task 8: Make conversation storage failures explicit
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** —
 - **Size:** M
 - **Can run in parallel with:** Task 4, Task 6, Task 30
 - **Docs:** [Implementation slice](implementation.md#task-8); [design contract](design.md#d3-conversation-ownership-and-truthful-results)
 
-- [ ] 8.1 Introduce typed storage/decode errors distinct from absent/expired/capped threads, preserving original causes. Fail required continuation reads/input writes before a provider call; verify the existing exhausted-message-cap outcome is distinct from an outage. Task 9 owns pair admission and its invocation-level edge tests after establishing one input writer.
-- [ ] 8.2 Propagate post-response persistence failures as visible result warnings while retaining the generated response; audit create/get/add/chain callers and false return values.
-- [ ] 8.3 Verify the acceptance cases in [Task 8](implementation.md#task-8) and record the result here.
+- [x] 8.1 Introduce typed storage/decode errors distinct from absent/expired/capped threads, preserving original causes. Fail required continuation reads/input writes before a provider call; verify the existing exhausted-message-cap outcome is distinct from an outage. Task 9 owns pair admission and its invocation-level edge tests after establishing one input writer.
+- [x] 8.2 Propagate post-response persistence failures as visible result warnings while retaining the generated response; audit create/get/add/chain callers and false return values.
+- [x] 8.3 Verify the acceptance cases in [Task 8](implementation.md#task-8) and record the result here.
 
 **Scope / gate:** Preserve genuine programming errors and exception causes. Only expected storage/decoding faults enter the typed memory-error path. Do not independently enforce pair admission at each legacy input writer; that ships with Task 9's single-owner recording.
+
+**Evidence:** [Task 8 validation](validation.md#task-8-explicit-conversation-storage-errors),
+2026-10-11. Full quality: 1,053 passed; focused memory/continuation suite: 58 passed.
+Isolated review approved with no findings; external PAL reviewer unavailable.
+Typed faults and visible result warnings are implemented; pair admission follows in Task 9.
 
 ## Task 9: Record turns once and rebuild complete continuation context
 

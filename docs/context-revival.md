@@ -1,5 +1,21 @@
 # Context Revival: AI Memory Beyond Context Limits
 
+## Memory failures
+
+Conversation memory lasts only for the current server process and expires after
+its configured timeout. An absent or expired continuation is an explicit error.
+Corrupt stored data and storage read/write failures are reported separately; a
+required continuation read or input save failure stops the request before model
+execution.
+
+If saving fails after a response has been generated, the answer is still returned.
+Its metadata includes `memory_persistence_warning` (a code and message) and
+`conversation_ready: false`; no continuation offer claims that saving succeeded.
+Start a new conversation with full context after such a warning. In-process callers
+can catch the exceptions in `utils.conversation_errors`; storage/decode exceptions
+retain their original cause. `add_turn(required=True)` also distinguishes a missing
+thread from a full message cap, while the default retains `False` for those cases.
+
 ## **The Most Profound Feature: Context Revival After Reset**
 
 **This powerful feature cannot be highlighted enough**: The PAL MCP Server implements a simple continuation system that seemingly transcends Claude's context limitations. 
