@@ -336,3 +336,32 @@ reports zero bytes. Oversized prompt files produce an explicit `FILE TOO LARGE`
 marker; the optional safe-reader API returns `None`. Ordinary successful formatting
 and each reader's invalid-UTF-8 behavior are unchanged. Token estimation validates
 the path before reading size metadata and returns zero for denied paths.
+
+
+### Provider request budgets
+
+PAL reserves and sends one output limit per request: the minimum of the model's
+`max_output_tokens`, 40% of context below 300,000 tokens (20% otherwise), and any
+lower positive limit supplied by a direct provider caller. MCP tools add no new
+public output parameter. Remaining input capacity is context minus that limit.
+Chat, empty-response recovery, expert analysis and each blinded consensus
+participant check their assembled prompt, system instructions and images before
+I/O. Requests that exceed the estimate fail explicitly; reduce input/attachments.
+
+Text estimation uses UTF-8 bytes/3 rounded up, plus a 10% margin, 64 protocol tokens
+and 8,192 tokens per image. These conservative estimates do not promise tokenizer
+precision. History/file rendering retains its existing omission policy; final
+admission counts only the payload that will actually reach that participant.
+
+Configured models/deployments must declare positive integer `context_window` and
+`max_output_tokens`. Generic OpenRouter fallback capacities are unverified and
+cannot be used for generation. Unknown Azure deployments need explicit capacity
+metadata. `output_token_parameter` can declare the verified endpoint field:
+`max_tokens` or `max_completion_tokens` for Chat Completions, `max_output_tokens`
+for Responses/Gemini. The default is `max_tokens` for OpenAI-compatible Chat
+Completions and `max_output_tokens` for Responses/Gemini; native OpenAI registry
+entries (inherited by Azure) and DIAL O3/O4-mini explicitly select their field.
+Invalid or endpoint-incompatible declarations fail before I/O. Custom endpoints
+must actually support their configured field; PAL cannot discover arbitrary server
+capabilities. Usage includes only valid counts reported by the endpoint; absent
+counts remain unknown, while a reported zero is retained.

@@ -174,6 +174,19 @@ class GeminiModelProvider(RegistryBackedProviderMixin, ModelProvider):
         # Validate parameters and fetch capabilities
         self.validate_parameters(model_name, temperature)
         capabilities = self.get_capabilities(model_name)
+
+        from utils.model_context import get_request_budget
+
+        max_output_tokens = get_request_budget(
+            self,
+            model_name,
+            prompt=prompt,
+            system_prompt=system_prompt,
+            images=images,
+            max_output_tokens=max_output_tokens,
+        ).response_tokens
+        if capabilities.output_token_parameter not in (None, "max_output_tokens"):
+            raise ValueError(f"Unsupported Gemini output token parameter: {capabilities.output_token_parameter!r}")
         capability_map = self.get_all_model_capabilities()
 
         resolved_model_name = self._resolve_model_name(model_name)
@@ -221,9 +234,7 @@ class GeminiModelProvider(RegistryBackedProviderMixin, ModelProvider):
             candidate_count=1,
         )
 
-        # Add max output tokens if specified
-        if max_output_tokens:
-            generation_config.max_output_tokens = max_output_tokens
+        generation_config.max_output_tokens = max_output_tokens
 
         # Add thinking configuration for models that support it
         if capabilities.supports_extended_thinking and effective_thinking_mode in self.THINKING_BUDGETS:
@@ -348,41 +359,17 @@ class GeminiModelProvider(RegistryBackedProviderMixin, ModelProvider):
         return ProviderType.GOOGLE
 
     def _extract_usage(self, response) -> dict[str, int]:
-        """Extract token usage from Gemini response."""
+        """Preserve the SDK's reported counts, including its total with thoughts."""
         usage = {}
-
-        # Try to extract usage metadata from response
-        # Note: The actual structure depends on the SDK version and response format
-        try:
-            metadata = response.usage_metadata
-            if metadata:
-                # Extract token counts with explicit None checks
-                input_tokens = None
-                output_tokens = None
-
-                try:
-                    value = metadata.prompt_token_count
-                    if value is not None:
-                        input_tokens = value
-                        usage["input_tokens"] = value
-                except (AttributeError, TypeError):
-                    pass
-
-                try:
-                    value = metadata.candidates_token_count
-                    if value is not None:
-                        output_tokens = value
-                        usage["output_tokens"] = value
-                except (AttributeError, TypeError):
-                    pass
-
-                # Calculate total only if both values are available and valid
-                if input_tokens is not None and output_tokens is not None:
-                    usage["total_tokens"] = input_tokens + output_tokens
-        except (AttributeError, TypeError):
-            # response doesn't have usage_metadata
-            pass
-
+        metadata = getattr(response, "usage_metadata", None)
+        for target, source in (
+            ("input_tokens", "prompt_token_count"),
+            ("output_tokens", "candidates_token_count"),
+            ("total_tokens", "total_token_count"),
+        ):
+            value = getattr(metadata, source, None)
+            if type(value) is int and value >= 0:
+                usage[target] = value
         return usage
 
     def _is_error_retryable(self, error: Exception) -> bool:

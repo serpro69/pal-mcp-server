@@ -27,6 +27,7 @@
   "models": [
     {
       "model_name": "gpt-5",
+      "output_token_parameter": "max_completion_tokens",
       "friendly_name": "OpenAI (GPT-5)",
       "aliases": [
         "gpt5",
@@ -48,6 +49,7 @@
     },
     {
       "model_name": "gpt-5.2-pro",
+      "output_token_parameter": "max_output_tokens",
       "friendly_name": "OpenAI (GPT-5.2 Pro)",
       "aliases": [
         "gpt5.2-pro",
@@ -74,6 +76,7 @@
     },
     {
       "model_name": "gpt-5-mini",
+      "output_token_parameter": "max_completion_tokens",
       "friendly_name": "OpenAI (GPT-5-mini)",
       "aliases": [
         "gpt5-mini",
@@ -96,6 +99,7 @@
     },
     {
       "model_name": "gpt-5-nano",
+      "output_token_parameter": "max_completion_tokens",
       "friendly_name": "OpenAI (GPT-5 nano)",
       "aliases": [
         "gpt5nano",
@@ -118,6 +122,7 @@
     },
     {
       "model_name": "o3",
+      "output_token_parameter": "max_completion_tokens",
       "friendly_name": "OpenAI (O3)",
       "intelligence_score": 14,
       "description": "Strong reasoning (200K context) - Logical problems, code generation, systematic analysis",
@@ -135,6 +140,7 @@
     },
     {
       "model_name": "o3-mini",
+      "output_token_parameter": "max_completion_tokens",
       "friendly_name": "OpenAI (O3-mini)",
       "aliases": [
         "o3mini"
@@ -155,6 +161,7 @@
     },
     {
       "model_name": "o3-pro",
+      "output_token_parameter": "max_output_tokens",
       "friendly_name": "OpenAI (O3-Pro)",
       "aliases": [
         "o3pro"
@@ -176,6 +183,7 @@
     },
     {
       "model_name": "o4-mini",
+      "output_token_parameter": "max_completion_tokens",
       "friendly_name": "OpenAI (O4-mini)",
       "aliases": [
         "o4mini"
@@ -183,6 +191,7 @@
       "intelligence_score": 11,
       "description": "Latest reasoning model (200K context) - Optimized for shorter contexts, rapid reasoning",
       "context_window": 200000,
+      "max_output_tokens": 100000,
       "supports_extended_thinking": false,
       "supports_system_prompts": true,
       "supports_streaming": true,
@@ -195,6 +204,7 @@
     },
     {
       "model_name": "gpt-4.1",
+      "output_token_parameter": "max_completion_tokens",
       "friendly_name": "OpenAI (GPT 4.1)",
       "aliases": [
         "gpt4.1"
@@ -214,6 +224,7 @@
     },
     {
       "model_name": "gpt-5-codex",
+      "output_token_parameter": "max_output_tokens",
       "friendly_name": "OpenAI (GPT-5 Codex)",
       "aliases": [
         "gpt5-codex",
@@ -236,6 +247,7 @@
     },
     {
       "model_name": "gpt-5.2",
+      "output_token_parameter": "max_completion_tokens",
       "friendly_name": "OpenAI (GPT-5.2)",
       "aliases": [
         "gpt5.2",
@@ -263,6 +275,7 @@
     },
     {
       "model_name": "gpt-5.1-codex",
+      "output_token_parameter": "max_output_tokens",
       "friendly_name": "OpenAI (GPT-5.1 Codex)",
       "aliases": [
         "gpt5.1-codex",
@@ -290,6 +303,7 @@
     },
     {
       "model_name": "gpt-5.1-codex-mini",
+      "output_token_parameter": "max_completion_tokens",
       "friendly_name": "OpenAI (GPT-5.1 Codex mini)",
       "aliases": [
         "gpt5.1-codex-mini",
@@ -314,6 +328,7 @@
     },
     {
       "model_name": "gpt-6-astra",
+      "output_token_parameter": "max_output_tokens",
       "friendly_name": "OpenAI (GPT-6 Astra)",
       "aliases": [
         "astra",
@@ -341,6 +356,7 @@
     },
     {
       "model_name": "gpt-5.3-codex",
+      "output_token_parameter": "max_output_tokens",
       "friendly_name": "OpenAI (GPT-5.3 Codex)",
       "aliases": [
         "gpt5.3-codex",
@@ -366,6 +382,7 @@
     },
     {
       "model_name": "gpt-5.6-sol",
+      "output_token_parameter": "max_output_tokens",
       "friendly_name": "OpenAI (GPT-5.6 Sol)",
       "aliases": [
         "sol",
@@ -393,6 +410,7 @@
     },
     {
       "model_name": "gpt-5.6-terra",
+      "output_token_parameter": "max_output_tokens",
       "friendly_name": "OpenAI (GPT-5.6 Terra)",
       "aliases": [
         "terra",
@@ -418,6 +436,7 @@
     },
     {
       "model_name": "gpt-5.6-luna",
+      "output_token_parameter": "max_output_tokens",
       "friendly_name": "OpenAI (GPT-5.6 Luna)",
       "aliases": [
         "luna",

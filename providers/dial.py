@@ -163,6 +163,20 @@ class DIALModelProvider(RegistryBackedProviderMixin, OpenAICompatibleProvider):
         self.validate_parameters(model_name, temperature)
         capabilities = self.get_capabilities(model_name)
 
+        from utils.model_context import get_request_budget
+
+        max_output_tokens = get_request_budget(
+            self,
+            model_name,
+            prompt=prompt,
+            system_prompt=system_prompt,
+            images=images,
+            max_output_tokens=max_output_tokens,
+        ).response_tokens
+        if capabilities.use_openai_response_api:
+            raise ValueError("DIAL deployment generation requires a Chat Completions output token field")
+        output_parameter = self._output_token_parameter(capabilities)
+
         # Prepare messages
         messages = []
         if system_prompt:
@@ -203,9 +217,7 @@ class DIALModelProvider(RegistryBackedProviderMixin, OpenAICompatibleProvider):
         if supports_temperature:
             completion_params["temperature"] = temperature
 
-        # Add max tokens if specified and model supports it
-        if max_output_tokens and supports_temperature:
-            completion_params["max_tokens"] = max_output_tokens
+        completion_params[output_parameter] = max_output_tokens
 
         # Add additional parameters
         for key, value in kwargs.items():

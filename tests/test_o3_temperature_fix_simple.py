@@ -81,7 +81,7 @@ class TestO3TemperatureParameterFixSimple:
         mock_response.choices = [Mock()]
         mock_response.choices[0].message.content = "Test response"
         mock_response.choices[0].finish_reason = "stop"
-        mock_response.model = "gpt-4.1-2025-04-14"
+        mock_response.model = "gpt-4.1"
         mock_response.id = "test-id"
         mock_response.created = 1234567890
         mock_response.usage = Mock()
@@ -101,7 +101,7 @@ class TestO3TemperatureParameterFixSimple:
 
         # Call generate_content with regular model (use supported model)
         await provider.generate_content(
-            prompt="Test prompt", model_name="gpt-4.1-2025-04-14", temperature=0.5, max_output_tokens=100
+            prompt="Test prompt", model_name="gpt-4.1", temperature=0.5, max_output_tokens=100
         )
 
         # Verify the API call was made WITH temperature and max_tokens
@@ -109,8 +109,10 @@ class TestO3TemperatureParameterFixSimple:
         call_kwargs = mock_client.chat.completions.create.call_args[1]
 
         assert call_kwargs["temperature"] == 0.5, "Regular models should include temperature parameter"
-        assert call_kwargs["max_tokens"] == 100, "Regular models should include max_tokens parameter"
-        assert call_kwargs["model"] == "gpt-4.1-2025-04-14"
+        assert (
+            call_kwargs["max_completion_tokens"] == 100
+        ), "Regular models should include max_completion_tokens parameter"
+        assert call_kwargs["model"] == "gpt-4.1"
 
     @patch("utils.model_restrictions.get_restriction_service")
     @patch("providers.openai_compatible.AsyncOpenAI")
@@ -197,7 +199,7 @@ class TestO3TemperatureParameterFixSimple:
             assert capabilities.supports_temperature is False, f"Model {model} should have supports_temperature=False"
 
         # Test that regular models DO support temperature parameter
-        regular_models = ["gpt-4.1-2025-04-14"]
+        regular_models = ["gpt-4.1"]
 
         for model in regular_models:
             try:

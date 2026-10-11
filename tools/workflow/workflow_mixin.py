@@ -44,6 +44,7 @@ from utils.conversation_memory import (
     memory_persistence_warning,
     save_failed_workflow_state,
 )
+from utils.model_context import get_request_budget
 
 from ..shared.base_models import ConsolidatedFindings
 from ..shared.exceptions import ToolExecutionError
@@ -1540,10 +1541,14 @@ class BaseWorkflowMixin(ABC):
                 _, history_images = invocation_attachments(self)
                 images = list(dict.fromkeys(images + history_images))
             thinking_mode = self.get_request_thinking_mode(request)
+            output_limit = get_request_budget(
+                provider, model_name, prompt=prompt, system_prompt=system_prompt, images=images
+            ).response_tokens
             self._record_provider_attempt(model_name, provider)
             model_response = await provider.generate_content(
                 prompt=prompt,
                 model_name=model_name,
+                max_output_tokens=output_limit,
                 system_prompt=system_prompt,
                 temperature=validated_temperature,
                 thinking_mode=thinking_mode,

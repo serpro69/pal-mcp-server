@@ -50,6 +50,7 @@ class TestModelResolutionBug:
 
         # Create a mock OpenRouter provider that tracks what model names it receives
         mock_provider = Mock(spec=OpenRouterProvider)
+        mock_provider.get_capabilities.side_effect = OpenRouterProvider("synthetic").get_capabilities
         mock_provider.get_provider_type.return_value = ProviderType.OPENROUTER
 
         # Mock response for successful generation

@@ -43,6 +43,8 @@ class ModelCapabilities:
     context_window: int = 0
     max_output_tokens: int = 0
     max_thinking_tokens: int = 0
+    # Explicit endpoint field override; None uses the provider's verified default.
+    output_token_parameter: Optional[str] = None
 
     # Capability flags
     supports_extended_thinking: bool = False

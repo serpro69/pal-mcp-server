@@ -57,7 +57,14 @@ async def test_generate_content_uses_deployment_mapping(dummy_azure_client):
     provider = AzureOpenAIProvider(
         api_key="key",
         azure_endpoint="https://example.openai.azure.com/",
-        deployments={"gpt-4o": "prod-gpt4o"},
+        deployments={
+            "gpt-4o": {
+                "deployment": "prod-gpt4o",
+                "context_window": 128000,
+                "max_output_tokens": 16384,
+                "output_token_parameter": "max_completion_tokens",
+            }
+        },
     )
 
     result = await provider.generate_content("hello", "gpt-4o")
@@ -72,7 +79,14 @@ async def test_generate_content_accepts_deployment_alias(dummy_azure_client):
     provider = AzureOpenAIProvider(
         api_key="key",
         azure_endpoint="https://example.openai.azure.com/",
-        deployments={"gpt-4o-mini": "mini-deployment"},
+        deployments={
+            "gpt-4o-mini": {
+                "deployment": "mini-deployment",
+                "context_window": 128000,
+                "max_output_tokens": 16384,
+                "output_token_parameter": "max_completion_tokens",
+            }
+        },
     )
 
     # Calling with the deployment alias should still resolve properly.
@@ -87,7 +101,14 @@ async def test_client_initialization_uses_endpoint_and_version(dummy_azure_clien
         api_key="key",
         azure_endpoint="https://example.openai.azure.com/",
         api_version="2024-03-15-preview",
-        deployments={"gpt-4o": "prod"},
+        deployments={
+            "gpt-4o": {
+                "deployment": "prod",
+                "context_window": 128000,
+                "max_output_tokens": 16384,
+                "output_token_parameter": "max_completion_tokens",
+            }
+        },
     )
 
     _ = await provider._get_client()

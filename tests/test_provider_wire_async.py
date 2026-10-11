@@ -1,6 +1,7 @@
 """Wire contracts captured through the locked SDKs across the async migration."""
 
 import json
+from dataclasses import replace
 
 import httpx
 import pytest
@@ -19,7 +20,14 @@ def make_provider(kind):
                 "synthetic",
                 azure_endpoint="https://example.openai.azure.com",
                 api_version="2024-03-15-preview",
-                deployments={"gpt-4o": "production"},
+                deployments={
+                    "gpt-4o": {
+                        "deployment": "production",
+                        "context_window": 128000,
+                        "max_output_tokens": 16384,
+                        "output_token_parameter": "max_completion_tokens",
+                    }
+                },
             ),
             "gpt-4o",
             "production",
@@ -35,7 +43,7 @@ def make_provider(kind):
     if kind == "xai":
         return XAIModelProvider("synthetic"), "grok-4", "grok-4", "/v1/chat/completions"
     if kind == "openrouter":
-        return OpenRouterProvider("synthetic"), "openai/gpt-4.1", "openai/gpt-4.1", "/api/v1/chat/completions"
+        return OpenRouterProvider("synthetic"), "openai/gpt-5", "openai/gpt-5", "/api/v1/chat/completions"
     return OpenAIModelProvider("synthetic"), "gpt4.1", "gpt-4.1", "/v1/chat/completions"
 
 
@@ -57,8 +65,13 @@ def chat_response():
 
 
 @pytest.mark.parametrize("kind", ["openai", "azure", "openrouter", "custom", "xai"])
-async def test_chat_wire_contract(kind):
+@pytest.mark.parametrize(
+    "limit,ceiling,expected_output", [(32, 272000, 32), (None, 272000, 80000), (None, 16000, 16000)]
+)
+async def test_chat_wire_contract(kind, limit, ceiling, expected_output, monkeypatch):
     provider, model, wire_model, path = make_provider(kind)
+    caps = replace(provider.get_capabilities(model), context_window=400000, max_output_tokens=ceiling)
+    monkeypatch.setattr(provider, "get_capabilities", lambda _: caps)
     requests = []
 
     def handler(request):
@@ -72,7 +85,7 @@ async def test_chat_wire_contract(kind):
             model_name=model,
             system_prompt="system",
             temperature=0.4,
-            max_output_tokens=32,
+            max_output_tokens=limit,
             seed=7,
         )
         (request,) = requests
@@ -83,7 +96,7 @@ async def test_chat_wire_contract(kind):
             "messages": [{"role": "system", "content": "system"}, {"role": "user", "content": "héllo"}],
             "stream": False,
             "temperature": 0.4,
-            "max_tokens": 32,
+            ("max_completion_tokens" if kind in {"openai", "azure"} else "max_tokens"): expected_output,
             "seed": 7,
         }
         assert request.extensions["timeout"] == provider.timeout_config.as_dict()
@@ -116,6 +129,7 @@ async def test_responses_wire_contract(kind):
                 "model": model,
                 "created_at": 123,
                 "object": "response",
+                "usage": {"input_tokens": 17, "output_tokens": 5, "total_tokens": 22},
                 "output": [
                     {
                         "type": "message",
@@ -140,6 +154,7 @@ async def test_responses_wire_contract(kind):
                 {"role": "user", "content": [{"type": "input_text", "text": "héllo"}]},
             ],
             "reasoning": {"effort": "medium" if kind == "openai" else "high"},
+            "max_output_tokens": 65536 if kind == "openai" else 80000,
         }
         if kind == "openai":
             expected["store"] = True
@@ -147,5 +162,6 @@ async def test_responses_wire_contract(kind):
         assert request.url.path.endswith("/responses")
         assert result.content == "answer"
         assert result.metadata["endpoint"] == "responses"
+        assert result.usage == {"input_tokens": 17, "output_tokens": 5, "total_tokens": 22}
     finally:
         await close_provider(provider)

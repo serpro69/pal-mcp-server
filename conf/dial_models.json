@@ -23,6 +23,7 @@
   "models": [
     {
       "model_name": "o3-2025-04-16",
+      "output_token_parameter": "max_completion_tokens",
       "friendly_name": "DIAL (O3)",
       "aliases": ["o3"],
       "intelligence_score": 14,
@@ -39,6 +40,7 @@
     },
     {
       "model_name": "o4-mini-2025-04-16",
+      "output_token_parameter": "max_completion_tokens",
       "friendly_name": "DIAL (O4-mini)",
       "aliases": ["o4-mini"],
       "intelligence_score": 11,

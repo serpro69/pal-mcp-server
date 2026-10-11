@@ -11,6 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from providers.registry import ModelProviderRegistry, ProviderType
+from tests.mock_helpers import create_mock_provider
 from tools.analyze import AnalyzeTool
 from tools.chat import ChatTool
 from tools.codereview import CodeReviewTool
@@ -527,7 +528,7 @@ class TestUnavailableModelFallback:
             with patch("config.IS_AUTO_MODE", False):
                 with patch.object(ModelProviderRegistry, "get_provider_for_model") as mock_get_provider:
                     # Model is available
-                    mock_provider = MagicMock()
+                    mock_provider = create_mock_provider()
                     mock_provider.generate_content = AsyncMock()
                     from providers.shared import ProviderType
 

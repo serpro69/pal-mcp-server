@@ -6,6 +6,7 @@ from unittest.mock import Mock
 
 import pytest
 
+from tests.mock_helpers import create_mock_provider
 from tools.consensus import ConsensusRequest, ConsensusTool
 from tools.models import ToolModelCategory
 
@@ -369,7 +370,7 @@ class TestConsensusTool:
         ):
 
             # Setup mocks
-            mock_provider = Mock()
+            mock_provider = create_mock_provider()
             mock_provider.get_provider_type.return_value = ProviderType.GOOGLE
             mock_provider.generate_content = AsyncMock(
                 return_value=ModelResponse(content="test response", model_name="flash", provider=ProviderType.GOOGLE)

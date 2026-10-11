@@ -135,6 +135,7 @@ class TestGeminiProvider:
         mock_usage = Mock()
         mock_usage.prompt_token_count = 10
         mock_usage.candidates_token_count = 20
+        mock_usage.total_token_count = 30
         mock_response.usage_metadata = mock_usage
         mock_client.aio.models.generate_content = AsyncMock(return_value=mock_response)
         mock_client_class.return_value = mock_client

@@ -27,11 +27,15 @@ optimal token allocation for multi-turn conversations:
 """
 
 import logging
+import math
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from config import DEFAULT_MODEL
 from providers import ModelCapabilities, ModelProviderRegistry
+
+if TYPE_CHECKING:
+    from providers.base import ModelProvider
 
 logger = logging.getLogger(__name__)
 
@@ -60,10 +64,12 @@ class ModelContext:
     token calculations, ensuring consistency across the system.
     """
 
-    def __init__(self, model_name: str, model_option: Optional[str] = None):
+    def __init__(
+        self, model_name: str, model_option: Optional[str] = None, *, provider: Optional["ModelProvider"] = None
+    ):
         self.model_name = model_name
         self.model_option = model_option  # Store optional model option (e.g., "for", "against", etc.)
-        self._provider = None
+        self._provider = provider
         self._capabilities = None
         self._token_allocation = None
 
@@ -116,30 +122,32 @@ class ModelContext:
            - Remaining budget passed to tools via _remaining_tokens parameter
 
         Args:
-            reserved_for_response: Override response token reservation
+            reserved_for_response: Optional positive caller limit, bounded by policy and model ceiling
 
         Returns:
             TokenAllocation with calculated budgets for dual prioritization strategy
         """
-        total_tokens = self.capabilities.context_window
+        capabilities = self.capabilities
+        total_tokens = capabilities.context_window
+        ceiling = capabilities.max_output_tokens
+        if getattr(capabilities, "_is_generic", False) is True:
+            raise ValueError(f"Unverified token capacities for {self.model_name}; configure explicit model metadata")
+        for name, value in (("context_window", total_tokens), ("max_output_tokens", ceiling)):
+            if type(value) is not int or value <= 0:
+                raise ValueError(f"Invalid {name} for {self.model_name}: a positive integer is required")
+        if reserved_for_response is not None and (type(reserved_for_response) is not int or reserved_for_response <= 0):
+            raise ValueError("Caller max_output_tokens must be a positive integer")
 
-        # Dynamic allocation based on model capacity
-        if total_tokens < 300_000:
-            # Smaller context models (O3): Conservative allocation
-            content_ratio = 0.6  # 60% for content
-            response_ratio = 0.4  # 40% for response
-            file_ratio = 0.3  # 30% of content for files
-            history_ratio = 0.5  # 50% of content for history
-        else:
-            # Larger context models (Gemini): More generous allocation
-            content_ratio = 0.8  # 80% for content
-            response_ratio = 0.2  # 20% for response
-            file_ratio = 0.4  # 40% of content for files
-            history_ratio = 0.4  # 40% of content for history
-
-        # Calculate allocations
-        content_tokens = int(total_tokens * content_ratio)
-        response_tokens = reserved_for_response or int(total_tokens * response_ratio)
+        response_ratio = 0.4 if total_tokens < 300_000 else 0.2
+        file_ratio = 0.3 if total_tokens < 300_000 else 0.4
+        history_ratio = 0.5 if total_tokens < 300_000 else 0.4
+        response_tokens = min(int(total_tokens * response_ratio), ceiling)
+        if reserved_for_response is not None:
+            response_tokens = min(response_tokens, reserved_for_response)
+        content_tokens = total_tokens - response_tokens
+        if response_tokens <= 0 or content_tokens <= 0:
+            raise ValueError(f"Invalid request budget for {self.model_name}")
+        content_ratio = content_tokens / total_tokens
 
         # Sub-allocations within content budget
         file_tokens = int(content_tokens * file_ratio)
@@ -156,10 +164,35 @@ class ModelContext:
         logger.debug(f"Token allocation for {self.model_name}:")
         logger.debug(f"  Total: {allocation.total_tokens:,}")
         logger.debug(f"  Content: {allocation.content_tokens:,} ({content_ratio:.0%})")
-        logger.debug(f"  Response: {allocation.response_tokens:,} ({response_ratio:.0%})")
+        logger.debug(f"  Response: {allocation.response_tokens:,} ({response_tokens / total_tokens:.0%})")
         logger.debug(f"  Files: {allocation.file_tokens:,} ({file_ratio:.0%} of content)")
         logger.debug(f"  History: {allocation.history_tokens:,} ({history_ratio:.0%} of content)")
 
+        return allocation
+
+    def request_budget(
+        self,
+        prompt: str,
+        system_prompt: Optional[str] = None,
+        images: Optional[list[str]] = None,
+        max_output_tokens: Optional[int] = None,
+    ) -> TokenAllocation:
+        """Admit the assembled request against the exact output reservation.
+
+        Estimates use UTF-8 bytes/3, a 10% margin, 64 protocol tokens and 8192
+        tokens per image. This is a conservative local policy, not a tokenizer
+        guarantee. Files/history/headers already in prompt are counted once.
+        Oversize requests fail explicitly; no content is silently discarded.
+        """
+        allocation = self.calculate_token_allocation(max_output_tokens)
+        text_tokens = self.estimate_tokens(prompt) + self.estimate_tokens(system_prompt or "")
+        estimated_input = math.ceil(text_tokens * 1.1) + 64 + 8192 * len(images or [])
+        if estimated_input > allocation.content_tokens:
+            raise ValueError(
+                f"Request for {self.model_name} exceeds input budget: estimated {estimated_input} tokens "
+                f"including system/image/protocol overhead, capacity {allocation.content_tokens} "
+                f"after reserving {allocation.response_tokens} output tokens. Reduce input or attachments."
+            )
         return allocation
 
     def estimate_tokens(self, text: str) -> int:
@@ -171,10 +204,23 @@ class ModelContext:
         """
         # TODO: Integrate model-specific tokenizers
         # For now, use conservative estimation
-        return len(text) // 3  # Conservative estimate
+        return (len(text.encode("utf-8")) + 2) // 3  # Conservative estimate
 
     @classmethod
     def from_arguments(cls, arguments: dict[str, Any]) -> "ModelContext":
         """Create ModelContext from tool arguments."""
         model_name = arguments.get("model") or DEFAULT_MODEL
         return cls(model_name)
+
+
+def get_request_budget(
+    provider: "ModelProvider",
+    model_name: str,
+    *,
+    prompt: str,
+    system_prompt: Optional[str] = None,
+    images: Optional[list[str]] = None,
+    max_output_tokens: Optional[int] = None,
+) -> TokenAllocation:
+    """Recompute for the selected provider/model and actual payload on every call."""
+    return ModelContext(model_name, provider=provider).request_budget(prompt, system_prompt, images, max_output_tokens)
