@@ -625,7 +625,7 @@ class RefactorTool(WorkflowTool):
                     refactor_types[issue_type] = 0
                 refactor_types[issue_type] += 1
             response_data["refactoring_status"]["opportunities_by_type"] = refactor_types
-            response_data["refactoring_status"]["refactor_confidence"] = request.confidence
+            response_data["refactoring_status"]["refactor_confidence"] = self.get_caller_confidence(request)
 
         # Map complete_refactor to complete_refactoring
         if f"complete_{tool_name}" in response_data:

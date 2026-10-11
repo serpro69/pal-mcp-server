@@ -193,7 +193,7 @@ class ThinkDeepTool(WorkflowTool):
                     "total_steps": request.total_steps,
                     "files_checked": len(request.files_checked),
                     "relevant_files": len(request.relevant_files),
-                    "thinking_confidence": request.confidence,
+                    "thinking_confidence": self.get_caller_confidence(request),
                     "analysis_focus": request.focus_areas or ["general"],
                 }
             }
@@ -204,24 +204,25 @@ class ThinkDeepTool(WorkflowTool):
             response_data["thinking_complete"] = True
 
             # Add complete_thinking summary (test expects this)
-            response_data["complete_thinking"] = {
-                "steps_completed": len(self.work_history),
-                "final_confidence": request.confidence,
-                "relevant_context": list(self.consolidated_findings.relevant_context),
-                "key_findings": self.consolidated_findings.findings,
-                "issues_identified": self.consolidated_findings.issues_found,
-                "files_analyzed": list(self.consolidated_findings.relevant_files),
-            }
+            response_data.setdefault("complete_thinking", {}).update(
+                {
+                    "steps_completed": len(self.work_history),
+                    "final_confidence": self.get_caller_confidence(request),
+                    "relevant_context": list(self.consolidated_findings.relevant_context),
+                    "key_findings": self.consolidated_findings.findings,
+                    "issues_identified": self.consolidated_findings.issues_found,
+                    "files_analyzed": list(self.consolidated_findings.relevant_files),
+                }
+            )
 
         # Add thinking-specific completion message based on confidence
         if request.confidence == "certain":
             response_data["completion_message"] = (
-                "Deep thinking analysis is complete with high certainty. "
-                "All aspects have been thoroughly considered and conclusions are definitive."
+                "The caller marked these findings as certain. " "No external model analysis was performed."
             )
         elif not request.next_step_required:
             response_data["completion_message"] = (
-                "Deep thinking analysis phase complete. Expert validation will provide additional insights and recommendations."
+                "Local findings are recorded above. Review any returned external analysis separately."
             )
 
         return response_data
@@ -525,7 +526,7 @@ but also acknowledge strong insights and valid conclusions.
             "thinking_analysis": assistant_response,
             "analysis_metadata": {
                 "total_steps_completed": request.step_number,
-                "final_confidence": request.confidence,
+                "final_confidence": self.get_caller_confidence(request),
                 "files_analyzed": len(request.relevant_files),
                 "key_insights": len(request.relevant_context),
                 "issues_identified": len(request.issues_found),

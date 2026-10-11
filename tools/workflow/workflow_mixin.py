@@ -87,6 +87,8 @@ class BaseWorkflowMixin(ABC):
         self.work_history: list[dict[str, Any]] = []
         self.consolidated_findings: ConsolidatedFindings = ConsolidatedFindings()
         self.initial_request: Optional[str] = None
+        self._attempted_model_name: str | None = None
+        self._attempted_provider_name: str | None = None
 
     def restore_workflow_state(self, request) -> None:
         """Reset a reused object, then load only this tool's latest saved state."""
@@ -675,6 +677,8 @@ class BaseWorkflowMixin(ABC):
         """
         from mcp.types import TextContent
 
+        self._attempted_model_name = None
+        self._attempted_provider_name = None
         try:
             # Store arguments for access by helper methods
             self._current_arguments = arguments
@@ -739,6 +743,7 @@ class BaseWorkflowMixin(ABC):
 
             # Process work step - allow tools to customize field mapping
             step_data = self.prepare_step_data(request)
+            step_data["caller_confidence"] = self.get_caller_confidence(request)
 
             # Store in history
             self.work_history.append(step_data)
@@ -825,7 +830,7 @@ class BaseWorkflowMixin(ABC):
                 "relevant_context": len(self.consolidated_findings.relevant_context),
                 "issues_found": len(self.consolidated_findings.issues_found),
                 "images_collected": len(self.consolidated_findings.images),
-                "current_confidence": self.get_request_confidence(request),
+                "current_confidence": self.get_caller_confidence(request),
             },
         }
 
@@ -870,7 +875,9 @@ class BaseWorkflowMixin(ABC):
         """
         return False
 
-    def handle_completion_without_expert_analysis(self, request, consolidated_findings) -> dict:
+    def handle_completion_without_expert_analysis(
+        self, request, consolidated_findings, initial_description: str | None = None
+    ) -> dict:
         """
         Handle completion when skipping expert analysis.
 
@@ -879,20 +886,28 @@ class BaseWorkflowMixin(ABC):
         """
         work_summary = self.prepare_work_summary()
         continuation_id = self.get_request_continuation_id(request)
+        caller_findings = self.get_final_analysis_from_request(request)
+        # Schema defaults and tool-specific confidence hooks are not caller claims.
+        confidence = self.get_caller_confidence(request)
 
         response_data = {
             "status": self.get_completion_status(),
-            f"complete_{self.get_name()}": {
-                "initial_request": self.get_initial_request(request.step),
+            self.get_completion_data_key(): {
+                "initial_request": initial_description or self.get_initial_request(request.step),
                 "steps_taken": len(consolidated_findings.findings),
                 "files_examined": list(consolidated_findings.files_checked),
                 "relevant_files": list(consolidated_findings.relevant_files),
                 "relevant_context": list(consolidated_findings.relevant_context),
                 "work_summary": work_summary,
-                "final_analysis": self.get_final_analysis_from_request(request),
-                "confidence_level": self.get_confidence_level(request),
+                "caller_findings": caller_findings,
+                "final_analysis": caller_findings,  # Deprecated caller-data alias, retained through PAL 1.x.
+                "final_analysis_source": "caller",
+                "confidence_level": confidence,
             },
-            "next_steps": self.get_completion_message(),
+            "next_steps": (
+                "These are caller-provided findings; no external model analysis was performed. "
+                + self.get_completion_message()
+            ),
             "skip_expert_analysis": True,
             "expert_analysis": {
                 "status": self.get_skip_expert_analysis_status(),
@@ -908,6 +923,10 @@ class BaseWorkflowMixin(ABC):
     # ================================================================================
     # Inheritance Hook Methods - Replace hasattr/getattr Anti-patterns
     # ================================================================================
+
+    def get_caller_confidence(self, request: Any) -> str | None:
+        """Expose only explicitly supplied confidence, keeping workflow defaults internal."""
+        return request.confidence if "confidence" in request.model_fields_set else None
 
     def get_request_confidence(self, request: Any) -> str:
         """Get confidence from request. Override for custom confidence handling."""
@@ -1043,26 +1062,23 @@ class BaseWorkflowMixin(ABC):
 
     def get_completion_status(self) -> str:
         """Get completion status. Override for tool-specific status."""
-        return "high_confidence_completion"
+        return "local_work_complete"
 
     def get_final_analysis_from_request(self, request):
         """Extract final analysis from request. Override for tool-specific fields."""
         return self.get_request_hypothesis(request)
 
-    def get_confidence_level(self, request) -> str:
+    def get_confidence_level(self, request) -> str | None:
         """Get confidence level. Override for tool-specific confidence handling."""
-        return self.get_request_confidence(request) or "high"
+        return self.get_caller_confidence(request)
 
     def get_completion_message(self) -> str:
         """Get completion message. Override for tool-specific messaging."""
-        return (
-            f"{self.get_name().capitalize()} complete with high confidence. Present results "
-            "and proceed with implementation without requiring further consultation."
-        )
+        return f"Local {self.get_name()} complete. Present the caller's findings and proposed next steps."
 
     def get_skip_reason(self) -> str:
         """Get reason for skipping expert analysis. Override for tool-specific reasons."""
-        return f"{self.get_name()} completed with sufficient confidence"
+        return f"{self.get_name()} completed without external model analysis"
 
     def get_skip_expert_analysis_status(self) -> str:
         """Get status for skipped expert analysis. Override for tool-specific status."""
@@ -1166,6 +1182,11 @@ class BaseWorkflowMixin(ABC):
             "work_history": self.work_history,
             "initial_request": self.initial_request,
             "tool_state": {name: getattr(self, name) for name in self.workflow_state_defaults},
+            "provider_attempt": (
+                {"model": self._attempted_model_name, "provider": self._attempted_provider_name}
+                if self._attempted_model_name is not None
+                else None
+            ),
         }
 
         try:
@@ -1182,8 +1203,8 @@ class BaseWorkflowMixin(ABC):
                 images=self.get_request_images(request),
                 required=True,
                 model_metadata=workflow_state,
-                model_name=invocation.model_name if invocation else None,
-                model_provider=invocation.model_provider if invocation else None,
+                model_name=self._attempted_model_name,
+                model_provider=self._attempted_provider_name,
             )
             if invocation:
                 invocation.reply_saved = True
@@ -1194,71 +1215,23 @@ class BaseWorkflowMixin(ABC):
         except ConversationMemoryError as exc:
             response_data.setdefault("metadata", {}).update(memory_persistence_warning(exc))
 
+    def _record_provider_attempt(self, model_name: str, provider: Any) -> None:
+        """Record provenance immediately before invoking a provider, after preparation."""
+        provider_name = provider.get_provider_type().value
+        self._attempted_model_name = model_name
+        self._attempted_provider_name = provider_name
+        invocation = current_invocation(self)
+        if invocation:
+            invocation.model_name = model_name
+            invocation.model_provider = provider_name
+
     def _add_workflow_metadata(self, response_data: dict, arguments: dict[str, Any]) -> None:
-        """
-        Add metadata (provider_used and model_used) to workflow response.
-
-        This ensures workflow tools have the same metadata as regular tools,
-        making it consistent across all tool types for tracking which provider
-        and model were used for the response.
-
-        Args:
-            response_data: The response data dictionary to modify
-            arguments: The original arguments containing model context
-        """
-        try:
-            # Get model information from arguments (set by server.py)
-            resolved_model_name = arguments.get("_resolved_model_name")
-            model_context = arguments.get("_model_context")
-
-            if resolved_model_name and model_context:
-                # Extract provider information from model context
-                provider = model_context.provider
-                provider_name = provider.get_provider_type().value if provider else "unknown"
-
-                # Create metadata dictionary
-                metadata = {
-                    "tool_name": self.get_name(),
-                    "model_used": resolved_model_name,
-                    "provider_used": provider_name,
-                }
-
-                # Preserve existing metadata and add workflow metadata
-                if "metadata" not in response_data:
-                    response_data["metadata"] = {}
-                response_data["metadata"].update(metadata)
-
-                logger.debug(
-                    f"[WORKFLOW_METADATA] {self.get_name()}: Added metadata - "
-                    f"model: {resolved_model_name}, provider: {provider_name}"
-                )
-            else:
-                # Fallback - try to get model info from request
-                request = self.get_workflow_request_model()(**arguments)
-                model_name = self.get_request_model_name(request)
-
-                # Basic metadata without provider info
-                metadata = {
-                    "tool_name": self.get_name(),
-                    "model_used": model_name,
-                    "provider_used": "unknown",
-                }
-
-                # Preserve existing metadata and add workflow metadata
-                if "metadata" not in response_data:
-                    response_data["metadata"] = {}
-                response_data["metadata"].update(metadata)
-
-                logger.debug(
-                    f"[WORKFLOW_METADATA] {self.get_name()}: Added fallback metadata - "
-                    f"model: {model_name}, provider: unknown"
-                )
-
-        except Exception as e:
-            # Don't fail the workflow if metadata addition fails
-            logger.warning(f"[WORKFLOW_METADATA] {self.get_name()}: Failed to add metadata: {e}")
-            # Still add basic metadata with tool name
-            response_data["metadata"] = {"tool_name": self.get_name()}
+        """Report this invocation's actual attempt; configuration is not provenance."""
+        response_data.setdefault("metadata", {}).update(
+            tool_name=self.get_name(),
+            model_used=self._attempted_model_name,
+            provider_used=self._attempted_provider_name,
+        )
 
     def _extract_clean_workflow_content_for_history(self, response_data: dict) -> str:
         """
@@ -1394,18 +1367,19 @@ class BaseWorkflowMixin(ABC):
             }
         else:
             # Tool doesn't require expert analysis or local work was sufficient
+            response_data["caller_findings"] = getattr(request, "findings", request.step)
             if not self.requires_expert_analysis():
                 # Tool is self-contained (like planner)
                 response_data["status"] = f"{self.get_name()}_complete"
                 response_data["next_steps"] = (
-                    f"{self.get_name().capitalize()} work complete. Present results to the user."
+                    f"Local {self.get_name()} work complete. Present caller-provided findings; no external analysis was performed."
                 )
             else:
                 # Local work was sufficient for tools that support expert analysis
                 response_data["status"] = "local_work_complete"
                 response_data["next_steps"] = (
-                    f"Local {self.get_name()} complete with sufficient confidence. Present findings "
-                    "and recommendations to the user based on the work results."
+                    f"Local {self.get_name()} complete. Present caller-provided findings "
+                    "and recommendations; no external model analysis was performed."
                 )
 
         return response_data
@@ -1440,6 +1414,7 @@ class BaseWorkflowMixin(ABC):
                     "step": step_data["step_number"],
                     "hypothesis": step_data["hypothesis"],
                     "confidence": step_data["confidence"],
+                    "caller_confidence": step_data.get("caller_confidence"),
                 }
             )
         if step_data.get("issues_found"):
@@ -1480,7 +1455,9 @@ class BaseWorkflowMixin(ABC):
                 ]
             )
             for hyp in self.consolidated_findings.hypotheses:
-                summary_parts.append(f"Step {hyp['step']} ({hyp['confidence']} confidence): {hyp['hypothesis']}")
+                confidence = hyp.get("caller_confidence")
+                qualifier = f" ({confidence} confidence)" if confidence is not None else ""
+                summary_parts.append(f"Step {hyp['step']}{qualifier}: {hyp['hypothesis']}")
 
         if self.consolidated_findings.issues_found:
             summary_parts.extend(
@@ -1562,19 +1539,20 @@ class BaseWorkflowMixin(ABC):
             if invocation:
                 _, history_images = invocation_attachments(self)
                 images = list(dict.fromkeys(images + history_images))
-            model_response = provider.generate_content(
+            thinking_mode = self.get_request_thinking_mode(request)
+            generate = provider.generate_content
+            self._record_provider_attempt(model_name, provider)
+            model_response = generate(
                 prompt=prompt,
                 model_name=model_name,
                 system_prompt=system_prompt,
                 temperature=validated_temperature,
-                thinking_mode=self.get_request_thinking_mode(request),
+                thinking_mode=thinking_mode,
                 images=images or None,
             )
             if invocation:
                 invocation.provider_failed = not bool(model_response.content)
                 invocation.reply_content = model_response.content or None
-                invocation.model_name = model_name
-                invocation.model_provider = provider.get_provider_type().value
 
             if model_response.content:
                 content = model_response.content.strip()

@@ -795,7 +795,12 @@ async def _dispatch_tool(name: str, arguments: dict[str, Any]) -> list[TextConte
                 status="error",
                 content=error_message,
                 content_type="text",
-                metadata={"tool_name": name, "requested_model": model_name},
+                metadata={
+                    "tool_name": name,
+                    "requested_model": model_name,
+                    "model_used": None,
+                    "provider_used": None,
+                },
             )
             raise ToolExecutionError(error_output.model_dump_json())
 
@@ -817,6 +822,9 @@ async def _dispatch_tool(name: str, arguments: dict[str, Any]) -> list[TextConte
             file_size_check = check_total_file_size(argument_files, model_name)
             if file_size_check:
                 logger.warning(f"File size check failed for {name} with model {model_name}")
+                metadata = file_size_check.get("metadata") or {}
+                metadata.update(tool_name=name, model_used=None, provider_used=None)
+                file_size_check["metadata"] = metadata
                 raise ToolExecutionError(ToolOutput(**file_size_check).model_dump_json())
 
         # Execute tool with pre-resolved model context

@@ -563,7 +563,7 @@ class AnalyzeTool(WorkflowTool):
                 if severity not in response_data["analysis_status"]["insights_by_severity"]:
                     response_data["analysis_status"]["insights_by_severity"][severity] = 0
                 response_data["analysis_status"]["insights_by_severity"][severity] += 1
-            response_data["analysis_status"]["analysis_confidence"] = self.get_request_confidence(request)
+            response_data["analysis_status"]["analysis_confidence"] = self.get_caller_confidence(request)
 
         # Map complete_analyze to complete_analysis
         if f"complete_{tool_name}" in response_data:

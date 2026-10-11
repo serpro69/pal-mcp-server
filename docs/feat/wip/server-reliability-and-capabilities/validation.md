@@ -1,7 +1,62 @@
-# Validation evidence: Tasks 1–11
+# Validation evidence: Tasks 1–12
 
 Recorded 2026-10-11. This covers the completed maintenance tasks below, not the
 remaining roadmap or optional live-provider behavior.
+
+## Task 12: truthful workflow provenance
+
+Recorded 2026-10-11. Workflow result metadata names only an actual provider call
+attempt, recorded after request preparation and immediately before generation.
+Local, intermediate, internal-only, skipped and pre-provider-error paths return
+null model/provider fields. Reused objects clear attempt state, and restoring
+workflow configuration never restores provenance from a previous invocation.
+Successful raw replies carry the attempted identity; failed attempts preserve
+identity in the saved input's workflow metadata without fabricating a reply or
+attributing a user message to a model. Consensus uses the same recording hook;
+its degraded aggregate counts remain Task 13.
+
+The duplicate local-completion handler is consolidated in the workflow mixin,
+preserving tool-specific completion keys and the optional `initial_description`.
+`caller_findings` labels caller-provided content; `final_analysis` is an equal
+deprecated alias retained through PAL 1.x, with `final_analysis_source: "caller"`.
+`docs/adding_tools.md` documents migration and the separate `expert_analysis`
+channel. Missing caller confidence produces null response confidence fields;
+internal workflow defaults still govern guidance. ThinkDeep customization preserves
+the common completion fields instead of replacing them.
+
+Verification:
+
+- `BLACK_NUM_WORKERS=1 ./code_quality_checks.sh`, locked Python 3.10.12:
+  **1,151 passed**, 4 skipped, 16 deselected, 19 subtests passed. Ruff/Black/isort
+  passed. The two pre-existing AsyncMock warnings remain assigned to Task 15.
+- Replaced four inference-based metadata tests with **31 behavioral cases** using
+  explicit provider captures: intermediate/provider-free/internal/skipped paths,
+  Google/OpenAI success through MCP and direct APIs, preparation failure, attempted
+  provider error, recovery, invalid reused objects, compatibility aliases, omitted
+  and explicit confidence, completion-handler compatibility and interleaved providers. Added
+  early path/prompt and MCP model/file-size validation cases plus explicitly
+  supplied deprecated code-review confidence. Summary tests cover review, analysis,
+  precommit, per-step explicit values and legacy history without an explicit marker.
+- Metadata/state/concurrency/ownership suites on Python 3.11.13 and 3.12.11:
+  **102 passed each**.
+- Integration and quick simulator commands were attempted; their existing
+  environment/interpreter setup blockers and the live release gates remain open.
+
+Independent review identified three P2 edge cases: serialization exclusion discarded
+explicit legacy confidence, early validation errors omitted null provenance, and
+returned summaries rendered internal default confidence as a caller claim. All
+are corrected with regression coverage. Steps now retain explicit caller confidence
+separately from guidance defaults; legacy steps without the marker omit the label. Verified `model_fields_set` against
+the installed Pydantic 2.13.4 implementation; serialization exclusion and explicit
+field presence are independent.
+
+Final isolated code review: **APPROVE**, no remaining findings. No systemic P0/P1
+findings required indexing. External PAL reviewer unavailable.
+
+Reflection: provenance cannot be inferred from a configured model or restored
+workflow state, and recording it only after success loses attempted-call errors.
+ThinkDeep's completion customization also needed to merge its fields so caller
+labels and compatibility aliases survive. No dependency pins changed.
 
 ## Task 11: conversation coordination
 
