@@ -25,6 +25,7 @@ import logging
 import os
 import re
 from abc import ABC, abstractmethod
+from copy import deepcopy
 from typing import Any, Optional
 
 from mcp.types import TextContent
@@ -41,6 +42,7 @@ from utils.conversation_memory import (
     ConversationNotFoundError,
     add_turn,
     memory_persistence_warning,
+    save_failed_workflow_state,
 )
 
 from ..shared.base_models import ConsolidatedFindings
@@ -77,11 +79,56 @@ class BaseWorkflowMixin(ABC):
     - _prepare_file_content_for_prompt()
     """
 
+    # Only declared JSON-compatible state is persisted, scoped by tool_name.
+    workflow_state_defaults: dict[str, Any] = {}
+
     def __init__(self) -> None:
         super().__init__()
         self.work_history: list[dict[str, Any]] = []
         self.consolidated_findings: ConsolidatedFindings = ConsolidatedFindings()
         self.initial_request: Optional[str] = None
+
+    def restore_workflow_state(self, request) -> None:
+        """Reset a reused object, then load only this tool's latest saved state."""
+        self.work_history = []
+        self.consolidated_findings = ConsolidatedFindings()
+        self.initial_request = None
+        self.store_initial_issue(None)
+        self._current_model_name = None
+        self._model_context = None
+        self._embedded_file_content = ""
+        self._file_reference_note = ""
+        self._actually_processed_files = []
+        self._referenced_files = []
+        for name, default in self.workflow_state_defaults.items():
+            setattr(self, name, deepcopy(default))
+
+        invocation = current_invocation(self)
+        continuation_id = invocation.thread_id if invocation else request.continuation_id
+        if continuation_id and request.step_number != 1:
+            from utils.conversation_memory import get_thread
+
+            thread = get_thread(continuation_id)
+            if thread is None:
+                raise ConversationNotFoundError("Conversation thread was not found or has expired")
+            for turn in reversed(thread.turns):
+                if turn.tool_name != self.get_name():
+                    continue
+                state = turn.model_metadata
+                if not isinstance(state, dict) or "work_history" not in state:
+                    continue
+                self.work_history = deepcopy(state["work_history"])
+                self.initial_request = state.get("initial_request")
+                self.store_initial_issue(self.initial_request)
+                tool_state = state.get("tool_state", {})
+                for name, default in self.workflow_state_defaults.items():
+                    setattr(self, name, deepcopy(tool_state.get(name, default)))
+                self._reprocess_consolidated_findings()
+                break
+
+        if self.initial_request is None:
+            self.initial_request = request.step
+            self.store_initial_issue(request.step)
 
     # ================================================================================
     # Abstract Methods - Required Implementation by BaseTool or Subclasses
@@ -634,6 +681,7 @@ class BaseWorkflowMixin(ABC):
 
             # Validate request using tool-specific model
             request = self.get_workflow_request_model()(**arguments)
+            self.restore_workflow_state(request)
 
             # Validate step field size (basic validation for workflow instructions)
             # If step is too large, user should use shorter instructions and put details in files
@@ -685,36 +733,9 @@ class BaseWorkflowMixin(ABC):
             invocation = current_invocation(self)
             continuation_id = invocation.thread_id if invocation else request.continuation_id
 
-            # Restore workflow state only for an existing thread.
-            if continuation_id and not (invocation and invocation.is_new):
-                from utils.conversation_memory import get_thread
-
-                thread = get_thread(continuation_id)
-                if thread is None:
-                    raise ConversationNotFoundError("Conversation thread was not found or has expired")
-                if thread and thread.turns:
-                    # Find the most recent assistant turn from this tool with workflow state
-                    for turn in reversed(thread.turns):
-                        if turn.role == "assistant" and turn.tool_name == self.get_name() and turn.model_metadata:
-                            state = turn.model_metadata
-                            if isinstance(state, dict) and "work_history" in state:
-                                self.work_history = state.get("work_history", [])
-                                self.initial_request = state.get("initial_request")
-                                # Rebuild consolidated findings from restored history
-                                self._reprocess_consolidated_findings()
-                                logger.debug(
-                                    f"[{self.get_name()}] Restored workflow state with {len(self.work_history)} history items"
-                                )
-                                break  # State restored, exit loop
-
             # Adjust total steps if needed
             if request.step_number > request.total_steps:
                 request.total_steps = request.step_number
-
-            # The invocation owner created the thread and saved the first input.
-            if invocation and invocation.is_new:
-                self.initial_request = request.step
-                self.store_initial_issue(request.step)
 
             # Process work step - allow tools to customize field mapping
             step_data = self.prepare_step_data(request)
@@ -1132,7 +1153,7 @@ class BaseWorkflowMixin(ABC):
         Store the conversation turn. Tools can override for custom memory storage.
         """
         invocation = current_invocation(self)
-        if invocation and (invocation.reply_saved or invocation.provider_failed):
+        if invocation and invocation.reply_saved:
             return
         clean_content = (
             invocation.reply_content
@@ -1141,9 +1162,17 @@ class BaseWorkflowMixin(ABC):
         )
 
         # Serialize workflow state for persistence across stateless tool calls
-        workflow_state = {"work_history": self.work_history, "initial_request": getattr(self, "initial_request", None)}
+        workflow_state = {
+            "work_history": self.work_history,
+            "initial_request": self.initial_request,
+            "tool_state": {name: getattr(self, name) for name in self.workflow_state_defaults},
+        }
 
         try:
+            if invocation and invocation.provider_failed:
+                save_failed_workflow_state(continuation_id, self.get_name(), workflow_state)
+                response_data["continuation_offer"] = continuation_offer(continuation_id)
+                return
             add_turn(
                 thread_id=continuation_id,
                 role="assistant",

@@ -126,6 +126,8 @@ class SecauditTool(WorkflowTool):
     security-specific capabilities.
     """
 
+    workflow_state_defaults = {"security_config": {}}
+
     def __init__(self):
         super().__init__()
         self.initial_request = None

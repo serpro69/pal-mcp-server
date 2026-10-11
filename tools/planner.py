@@ -119,6 +119,8 @@ class PlannerTool(WorkflowTool):
     - Self-contained operation (no expert analysis)
     """
 
+    workflow_state_defaults = {"branches": {}}
+
     def __init__(self):
         super().__init__()
         self.branches = {}

@@ -140,6 +140,8 @@ class AnalyzeTool(WorkflowTool):
     including architectural review, performance analysis, security assessment, and maintainability evaluation.
     """
 
+    workflow_state_defaults = {"analysis_config": {}}
+
     def __init__(self):
         super().__init__()
         self.initial_request = None

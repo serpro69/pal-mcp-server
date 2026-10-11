@@ -109,6 +109,8 @@ class ThinkDeepTool(WorkflowTool):
         "Provides systematic hypothesis testing, evidence-based investigation, and expert validation."
     )
 
+    workflow_state_defaults = {"stored_request_params": {}}
+
     def __init__(self):
         """Initialize the ThinkDeep workflow tool"""
         super().__init__()
@@ -177,16 +179,11 @@ class ThinkDeepTool(WorkflowTool):
         Customize the workflow response for thinkdeep-specific needs
         """
         # Store request parameters for later use in expert analysis
-        self.stored_request_params = {}
-        try:
-            self.stored_request_params["temperature"] = request.temperature
-        except AttributeError:
-            self.stored_request_params["temperature"] = None
-
-        try:
-            self.stored_request_params["thinking_mode"] = request.thinking_mode
-        except AttributeError:
-            self.stored_request_params["thinking_mode"] = None
+        if request.step_number == 1:
+            self.stored_request_params = {
+                "temperature": request.temperature,
+                "thinking_mode": request.thinking_mode,
+            }
 
         # Add thinking-specific context to response
         response_data.update(

@@ -4,6 +4,10 @@
 
 ## Unreleased
 
+- Execute each MCP call on a fresh tool and restore workflow configuration from
+  conversation metadata, including planner branches and blinded consensus state.
+  Reused direct workflow objects reset between calls; legacy state uses safe defaults.
+
 - Record conversation inputs once before generation and retain raw replies across
   chat, workflows and clink. Require two free message slots per invocation;
   `remaining_turns` continues to count messages, while follow-up wording counts

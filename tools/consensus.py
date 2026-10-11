@@ -29,6 +29,7 @@ from mcp.types import TextContent
 from config import TEMPERATURE_ANALYTICAL
 from systemprompts import CONSENSUS_PROMPT
 from tools.shared.base_models import ConsolidatedFindings, WorkflowRequest
+from tools.shared.exceptions import ToolExecutionError
 from utils.conversation_context import continuation_offer, current_invocation
 from utils.conversation_memory import (
     ConversationMemoryError,
@@ -140,6 +141,13 @@ class ConsensusTool(WorkflowTool):
     its own neutral analysis, then consults each specified model individually,
     and finally synthesizes all perspectives into a unified recommendation.
     """
+
+    workflow_state_defaults = {
+        "original_proposal": None,
+        "initial_prompt": None,
+        "models_to_consult": [],
+        "accumulated_responses": [],
+    }
 
     def __init__(self):
         super().__init__()
@@ -447,6 +455,7 @@ of the evidence, even when it strongly points in one direction.""",
 
         # Validate request
         request = self.get_workflow_request_model()(**arguments)
+        self.restore_workflow_state(request)
 
         invocation = current_invocation(self)
         continuation_id = invocation.thread_id if invocation else request.continuation_id
@@ -463,6 +472,10 @@ of the evidence, even when it strongly points in one direction.""",
             self.models_to_consult = request.models or []
             self.accumulated_responses = []
             # Set total steps: len(models) (each step includes consultation + response)
+            request.total_steps = len(self.models_to_consult)
+        elif not self.models_to_consult:
+            raise ToolExecutionError("Consensus configuration is unavailable; restart with step_number=1 and models.")
+        else:
             request.total_steps = len(self.models_to_consult)
 
         # For all steps (1 through total_steps), consult the corresponding model

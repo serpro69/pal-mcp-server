@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Implementation: [implementation.md](implementation.md)
 > Review resolutions: [review.md](review.md#revalidation-and-resolution)
-> Status: in-progress (Tasks 1–9 done; Tasks 10–42 pending)
+> Status: in-progress (Tasks 1–10 done; Tasks 11–42 pending)
 > Created: 2026-10-10
 > Not Doing: toolchain/release-process migration; MCP 2.x; wholesale catalogs; replacement of safety controls; file-annotation implementation; persistent continuation recovery; remote multi-user transport; automatic service activation
 
@@ -210,17 +210,22 @@ Concurrent admission and full workflow-instance restoration remain Tasks 10–11
 
 ## Task 10: Isolate workflow instances and persist their configuration
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 8, Task 9
 - **Size:** M
 - **Can run in parallel with:** —
 - **Docs:** [Implementation slice](implementation.md#task-10); [design contract](design.md#d3-conversation-ownership-and-truthful-results)
 
-- [ ] 10.1 Dispatch each invocation to a fresh tool while keeping schema prototypes; reset reused direct-call objects and restore work_history plus tool_state for the correct tool/thread.
-- [ ] 10.2 Declare/persist review_config, analysis_config, git_config, refactor_config, trace_config, stored_request_params and planner branches; implement consensus original proposal/roster/responses explicitly. Repeat the participant required/forbidden-content checks after restoration on a fresh tool instance.
-- [ ] 10.3 Verify the acceptance cases in [Task 10](implementation.md#task-10) and record the result here.
+- [x] 10.1 Dispatch each invocation to a fresh tool while keeping schema prototypes; reset reused direct-call objects and restore work_history plus tool_state for the correct tool/thread.
+- [x] 10.2 Declare/persist review_config, analysis_config, git_config, refactor_config, trace_config, stored_request_params and planner branches; implement consensus original proposal/roster/responses explicitly. Repeat the participant required/forbidden-content checks after restoration on a fresh tool instance.
+- [x] 10.3 Verify the acceptance cases in [Task 10](implementation.md#task-10) and record the result here.
 
 **Scope / gate:** State declarations across workflow tools are mechanical; per-call construction and correct restoration are the substantive change. Preserve each declared configuration and planner/consensus state.
+
+**Evidence:** [Task 10 validation](validation.md#task-10-workflow-instance-and-configuration-isolation),
+2026-10-11. Full quality: **1,117 passed**; focused suites: **110 passed each**
+on Python 3.11 and 3.12. Isolated review approved with no findings; external PAL
+review unavailable. Integration/simulator setup and live release gates remain open.
 
 ## Task 11: Serialize concurrent updates to one conversation
 

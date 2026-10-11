@@ -125,6 +125,8 @@ class CodeReviewTool(WorkflowTool):
     including security audits, performance analysis, architectural review, and maintainability assessment.
     """
 
+    workflow_state_defaults = {"review_config": {}}
+
     def __init__(self):
         super().__init__()
         self.initial_request = None
