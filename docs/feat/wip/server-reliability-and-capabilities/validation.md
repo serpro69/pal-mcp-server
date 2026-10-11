@@ -3,6 +3,50 @@
 Recorded 2026-10-11. This covers the completed maintenance tasks below, not the
 remaining roadmap or optional live-provider behavior.
 
+## Task 17: native Gemini generation and cleanup
+
+Recorded 2026-10-11. Gemini now awaits `client.aio.models.generate_content` and
+the shared async retry path. Image validation/read/conversion remains in a worker,
+while safety metadata, usage parsing, current thinking budgets and timeout settings
+remain unchanged. `aclose()` serializes cleanup, closes the async SDK transport
+and the sync transport allocated by the same SDK, and clears the client only after
+successful cleanup. Per-transport completion state ensures a failed/cancelled
+async cleanup still attempts synchronous cleanup and retry only repeats unfinished
+cleanup. Simultaneous failures preserve the original async exception/cancellation.
+Repeated/concurrent cleanup closes once; unused cleanup does
+not construct a client. The base provider declares the async cleanup hook for the
+remaining migrations; Task 19 owns server shutdown wiring.
+
+Dependency verification: retained **google-genai 2.8.0**, **httpx 0.28.1**.
+Context7's official GenAI documentation describes `Client.aio` generation/cleanup;
+its tags did not include the lock version. Inspected installed `AsyncModels`,
+`Client`/`AsyncClient` close methods and `BaseApiClient` resource ownership, including
+HTTPX injection and awaited event hooks. No dependency or capability changes.
+
+Verification:
+
+- Captured a real locked SDK request using the pre-migration provider from git:
+  text/system concatenation, Unicode, inline image data, output cap, sampling and
+  thinking budget match the async SDK request. The locked serializer emits the
+  nested `thinking_budget` spelling; it was preserved, not guessed from documentation.
+- `BLACK_NUM_WORKERS=1 ./code_quality_checks.sh`, locked Python 3.10.12:
+  **1,228 passed**, 4 skipped, 16 deselected, 19 subtests passed, no warnings;
+  Ruff/Black/isort passed.
+- Tests cover two requests sharing one client while waiting concurrently, blocked
+  local image preparation allowing another request, transient retry/permanent error,
+  request/backoff cancellation, safety-blocked empty results and absent usage,
+  custom endpoint/auth/timeouts, UTF-8/image wire content, and both actual SDK
+  transports closed after use. Existing client initialization failures remain retryable.
+- Gemini/usage/thinking/UTF-8/image/concurrency/consensus suites on Python
+  3.11.13 and 3.12.11 with RuntimeWarnings as errors: **119 passed, 4 skipped each**.
+- Integration/quick simulator entry points still stop at the existing environment
+  prerequisites; no configured live API was invoked. Server lifecycle and per-model
+  thinking-control changes remain assigned to Tasks 19 and 21 respectively.
+
+Independent isolated review: **APPROVE** after fixing P2 partial-cleanup failure
+handling. Four regressions cover async failure/cancellation, sync failure and both
+failures together. No systemic P0/P1 findings needed indexing. External PAL unavailable.
+
 ## Task 16: native OpenAI-compatible and Azure generation
 
 Recorded 2026-10-11. OpenAI, Azure, OpenRouter, custom and xAI now use

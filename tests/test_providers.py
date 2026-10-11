@@ -1,7 +1,7 @@
 """Tests for the model provider abstraction system"""
 
 import os
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
@@ -121,7 +121,7 @@ class TestGeminiProvider:
         assert capabilities.model_name == "gemini-3.8-flash"
 
     @patch("google.genai.Client")
-    def test_generate_content(self, mock_client_class):
+    async def test_generate_content(self, mock_client_class):
         """Test content generation"""
         # Mock the client
         mock_client = Mock()
@@ -136,12 +136,12 @@ class TestGeminiProvider:
         mock_usage.prompt_token_count = 10
         mock_usage.candidates_token_count = 20
         mock_response.usage_metadata = mock_usage
-        mock_client.models.generate_content.return_value = mock_response
+        mock_client.aio.models.generate_content = AsyncMock(return_value=mock_response)
         mock_client_class.return_value = mock_client
 
         provider = GeminiModelProvider(api_key="test-key")
 
-        response = provider.generate_content(prompt="Test prompt", model_name="gemini-2.5-flash", temperature=0.7)
+        response = await provider.generate_content(prompt="Test prompt", model_name="gemini-2.5-flash", temperature=0.7)
 
         assert isinstance(response, ModelResponse)
         assert response.content == "Generated content"

@@ -4,6 +4,10 @@
 
 ## Unreleased
 
+- Gemini generation now awaits the native GenAI async SDK and yielding retries;
+  local image preparation stays off the event loop. Awaited provider cleanup closes
+  both SDK transports without initializing unused clients.
+
 - OpenAI, Azure, OpenRouter, custom and xAI generation now uses native async SDK
   requests and yielding retry delays. Direct provider callers must await generation;
   allocated clients expose awaited `aclose()`. Server shutdown wiring follows in

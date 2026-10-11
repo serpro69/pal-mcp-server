@@ -205,6 +205,11 @@ class ModelProvider(ABC):
 
         return
 
+    async def aclose(self) -> None:
+        """Await cleanup of allocated resources; unused providers allocate nothing."""
+
+        return
+
     # ------------------------------------------------------------------
     # Retry helpers
     # ------------------------------------------------------------------
