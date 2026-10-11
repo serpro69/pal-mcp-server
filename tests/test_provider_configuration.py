@@ -100,7 +100,24 @@ def test_metadata_drives_configuration(factory, monkeypatch, isolated_provider_e
 
 
 @pytest.mark.parametrize("kind", [ProviderType.CUSTOM, ProviderType.DIAL, ProviderType.OPENROUTER])
-@pytest.mark.parametrize("form", ["canonical", "alias", "legacy", "case", "unknown", "denied", "stance-name"])
+@pytest.mark.parametrize(
+    "form",
+    [
+        "canonical",
+        "alias",
+        "legacy",
+        "case",
+        "unknown",
+        "denied",
+        "stance-name",
+        "disabled",
+        "disabled-scoped",
+        "disabled-alias",
+        "disabled-via-alias",
+        "disabled-stance",
+        "other-scope",
+    ],
+)
 async def test_dispatch_identity_reaches_real_serializer(
     kind, form, monkeypatch, tmp_path, isolated_provider_environment
 ):
@@ -141,6 +158,16 @@ async def test_dispatch_identity_reaches_real_serializer(
         monkeypatch.setenv(declaration.restriction_env, "local")
     else:
         monkeypatch.setenv(declaration.restriction_env, "tagged,local:for")
+    disabled = {
+        "disabled": canonical,
+        "disabled-scoped": f"{kind.value}:{canonical}",
+        "disabled-alias": "tagged",
+        "disabled-via-alias": canonical,
+        "disabled-stance": "local:for",
+        "other-scope": f"google:{canonical}",
+    }
+    if form in disabled:
+        monkeypatch.setenv("DISABLED_MODELS", disabled[form])
     ModelProviderRegistry.register_provider(kind, factory)
     provider = ModelProviderRegistry.get_provider(kind)
     requests = []
@@ -163,11 +190,17 @@ async def test_dispatch_identity_reaches_real_serializer(
         "unknown": "local:unregistered",
         "denied": canonical,
         "stance-name": "local:for",
+        "disabled": canonical,
+        "disabled-scoped": canonical,
+        "disabled-alias": canonical,
+        "disabled-via-alias": "tagged",
+        "disabled-stance": "local:for",
+        "other-scope": canonical,
     }[form]
     monkeypatch.setenv("PAL_WORKSPACE_ROOT", str(tmp_path))
     args = {"model": requested, "prompt": "hello", "working_directory_absolute_path": str(tmp_path)}
     try:
-        if form in {"unknown", "denied"}:
+        if form in {"unknown", "denied"} or form.startswith("disabled"):
             with pytest.raises(ToolExecutionError):
                 await server.handle_call_tool("chat", args)
             assert not requests

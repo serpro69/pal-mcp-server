@@ -4,6 +4,10 @@
 
 ## Unreleased
 
+- Add `DISABLED_MODELS` as a global deny override for explicit calls, aliases,
+  discovery and automatic fallback. Optional provider scopes preserve complete
+  colon-bearing model IDs, and provider allowlists cannot override a deny.
+
 - File admission and rendering share the model's effective output/input budget
   and count rendered headers and line numbers. Exhausted budgets no longer gain
   a minimum allowance. Errors identify the binding limit, largest files and overage.

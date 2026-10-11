@@ -12,6 +12,7 @@ Environment Variables:
 - XAI_ALLOWED_MODELS: Comma-separated list of allowed X.AI GROK models
 - OPENROUTER_ALLOWED_MODELS: Comma-separated list of allowed OpenRouter models
 - DIAL_ALLOWED_MODELS: Comma-separated list of allowed DIAL models
+- DISABLED_MODELS: Global canonical/alias deny override, optionally provider-scoped
 
 Example:
     OPENAI_ALLOWED_MODELS=o3-mini,o4-mini
@@ -22,16 +23,20 @@ Example:
 
 import logging
 from collections import defaultdict
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from providers.configuration import provider_configurations
 from providers.shared import ProviderType
+from utils.env import get_env
+
+if TYPE_CHECKING:
+    from providers.base import ModelProvider
 
 logger = logging.getLogger(__name__)
 
 
 class ModelRestrictionService:
-    """Central authority for environment-driven model allowlists.
+    """Central authority for environment-driven model allowlists and denies.
 
     Role
         Interpret ``*_ALLOWED_MODELS`` environment variables, keep their
@@ -53,11 +58,23 @@ class ModelRestrictionService:
     def __init__(self):
         """Initialize the restriction service by loading from environment."""
         self.restrictions: dict[ProviderType, set[str]] = {}
+        self.disabled_models: list[tuple[Optional[ProviderType], str]] = []
         self._alias_resolution_cache: dict[ProviderType, dict[str, str]] = defaultdict(dict)
         self._load_from_env()
 
     def _load_from_env(self) -> None:
         """Load restrictions from environment variables."""
+        scopes = {kind.value: kind for kind in provider_configurations()}
+        for entry in (get_env("DISABLED_MODELS") or "").split(","):
+            entry = entry.strip().lower()
+            if not entry:
+                continue
+            prefix, separator, remainder = entry.partition(":")
+            scope = scopes.get(prefix) if separator else None
+            # Only the first recognized provider prefix is syntax. Every other
+            # colon belongs to the complete model identity, including :for.
+            self.disabled_models.append((scope, remainder.strip() if scope else entry))
+
         for provider_type, env_var in self.ENV_VARS.items():
             env_value = provider_configurations()[provider_type].allowed_models_value()
 
@@ -91,6 +108,20 @@ class ModelRestrictionService:
         Args:
             provider_instances: Dictionary of provider type to provider instance
         """
+        for position, (scope, entry) in enumerate(self.disabled_models, start=1):
+            if not any(
+                provider.resolve_model_identity(entry)
+                for kind, provider in provider_instances.items()
+                if scope is None or scope == kind
+            ):
+                # A typo may actually be a pasted credential; identify the
+                # entry by position instead of echoing unrecognized input.
+                logger.warning(
+                    "DISABLED_MODELS entry %d does not resolve in the configured provider catalogs; "
+                    "check its provider scope and complete model name",
+                    position,
+                )
+
         for provider_type, allowed_models in self.restrictions.items():
             provider = provider_instances.get(provider_type)
             if not provider:
@@ -119,7 +150,51 @@ class ModelRestrictionService:
                         f"Please check for typos. Known models: {sorted(supported_models)}"
                     )
 
-    def is_allowed(self, provider_type: ProviderType, model_name: str, original_name: Optional[str] = None) -> bool:
+    def is_allowed(
+        self,
+        provider_type: ProviderType,
+        model_name: str,
+        original_name: Optional[str] = None,
+        *,
+        provider: Optional["ModelProvider"] = None,
+    ) -> bool:
+        """Apply the provider allowlist, then the global canonical deny override."""
+        return self._is_allowlisted(
+            provider_type, model_name, original_name, provider=provider
+        ) and not self.is_disabled(provider_type, model_name, provider=provider)
+
+    def is_disabled(
+        self,
+        provider_type: ProviderType,
+        model_name: str,
+        *,
+        provider: Optional["ModelProvider"] = None,
+    ) -> bool:
+        """Match denies against this provider's full catalog, without option parsing."""
+        entries = [entry for scope, entry in self.disabled_models if scope is None or scope == provider_type]
+        if not entries:
+            return False
+
+        from providers.registry import ModelProviderRegistry
+
+        if provider is None:
+            provider = ModelProviderRegistry.get_provider(provider_type)
+        canonical = provider.resolve_model_identity(model_name) if provider else None
+        target = (canonical or model_name).strip().lower()
+        for entry in entries:
+            resolved = provider.resolve_model_identity(entry) if provider else None
+            if target == (resolved or entry).lower():
+                return True
+        return False
+
+    def _is_allowlisted(
+        self,
+        provider_type: ProviderType,
+        model_name: str,
+        original_name: Optional[str] = None,
+        *,
+        provider: Optional["ModelProvider"] = None,
+    ) -> bool:
         """
         Check if a model is allowed for a specific provider.
 
@@ -154,7 +229,8 @@ class ModelRestrictionService:
         try:
             from providers.registry import ModelProviderRegistry
 
-            provider = ModelProviderRegistry.get_provider(provider_type)
+            if provider is None:
+                provider = ModelProviderRegistry.get_provider(provider_type)
         except Exception:  # pragma: no cover - registry lookup failure shouldn't break validation
             provider = None
 
@@ -205,7 +281,9 @@ class ModelRestrictionService:
         Returns:
             True if restrictions exist, False otherwise
         """
-        return provider_type in self.restrictions
+        return provider_type in self.restrictions or any(
+            scope is None or scope == provider_type for scope, _ in self.disabled_models
+        )
 
     def filter_models(self, provider_type: ProviderType, models: list[str]) -> list[str]:
         """

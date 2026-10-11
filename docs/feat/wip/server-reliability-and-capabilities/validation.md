@@ -3,6 +3,44 @@
 Recorded 2026-10-11. This covers the completed maintenance tasks below, not the
 remaining roadmap or optional live-provider behavior.
 
+## Task 25: Global model deny policy
+
+Recorded 2026-10-11. `DISABLED_MODELS` removes at most one recognized provider
+scope, preserves all remaining colons and resolves canonical names/aliases without
+invocation-only option parsing. Denies override allowlists for explicit calls,
+provider/registry listings, listmodels summaries and fallback. Direct providers
+pass their own catalog to the policy service. Unknown entries warn by position;
+OpenRouter no longer logs their raw value at DEBUG. Policy/catalog changes require
+a server restart, consistent with existing provider alias-cache lifetimes.
+
+Changed the restriction service and registry error, mechanical base/OpenRouter
+policy forwarding, offline dispatcher/policy tests and test environment isolation,
+configuration docs and release notes. The security hook blocks `.env.example`,
+so runnable configuration examples live in `docs/configuration.md`.
+
+Verification:
+
+- Baseline quality: **1,506 passed**. Final `BLACK_NUM_WORKERS=1
+  ./code_quality_checks.sh` in the locked Python 3.10 environment: **1,542 passed**,
+  4 skipped, 16 deselected, 19 subtests passed; lint/format/import checks passed.
+  Ran outside the process sandbox after reproducing the known async teardown stall.
+- Policy, dispatcher, alias, auto-selection, listing and xAI contracts:
+  **163 passed each** on Python 3.11/3.12.
+- Actual SDK serializers behind fake transports cover custom tags, DIAL `:0`
+  and OpenRouter suffixes, scoped/unscoped/alias denies, unchanged allowed wire
+  identities and zero transport calls when denied. A direct-provider bypass was
+  reproduced before the fix; DEBUG log assertions cover unknown-entry secrecy.
+- Integration launcher and quick simulator were attempted; the existing missing
+  `.pal_venv` and simulator interpreter-path prerequisites still prevent execution.
+  PAL external review failed with `API_KEY_INVALID`; no live coverage is claimed.
+- Isolated code review approved with no remaining findings after fixing direct
+  provider identity forwarding, unknown-value logging and test isolation. The
+  resolved systemic logging finding was indexed as `kk:review-findings`.
+
+Direct-provider tests exposed old dependence on cached provider credentials and an
+xAI assertion treating aliases of one canonical model differently. Tests now pass
+the explicit provider and assert equivalent policy for that identity.
+
 ## Task 24: Shared file budgets and actual context coverage
 
 Recorded 2026-10-11. `ModelContext.file_budget` reuses Task 20's output reservation
