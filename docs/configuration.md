@@ -20,7 +20,19 @@ OPENAI_API_KEY=your-openai-key
 **Workspace Root:**
 ```env
 
-### API Keys (At least one required)
+### API Keys (required for model calls)
+
+With no provider credentials, PAL still starts and exposes its tools. Version,
+model listing and provider-free planner operations remain available; clink uses
+its own configured CLI authentication. Model calls return MCP tool errors with
+setup guidance. There is no invented fallback model when none is eligible.
+
+Invalid model configuration is a separate startup fault. Explicit paths must
+exist and be readable; invalid UTF-8/JSON, malformed model entries, conflicting
+aliases and invalid Azure deployments raise errors naming the registry file.
+Shipped required registries are also validated. Default Custom/Azure catalogs
+may be absent or contain `{"models": []}`; an explicitly selected missing file
+is always an error. A malformed file never silently becomes an empty catalog.
 
 Providers can coexist. Complete registered names and aliases resolve in this
 priority order: Gemini, OpenAI, Azure, X.AI, DIAL, Custom, OpenRouter. Policy is

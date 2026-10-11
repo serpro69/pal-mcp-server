@@ -5,6 +5,8 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 from providers.registries.openrouter import OpenRouterModelRegistry
 
 
@@ -101,11 +103,8 @@ class TestUvxPathResolution:
         """Test behavior when config file is missing."""
         # Use a non-existent path
         with patch.dict("os.environ", {}, clear=True):
-            registry = OpenRouterModelRegistry(config_path="/nonexistent/path/config.json")
-
-        # Should gracefully handle missing config
-        assert len(registry.list_models()) == 0
-        assert len(registry.list_aliases()) == 0
+            with pytest.raises(ValueError, match="/nonexistent/path/config.json"):
+                OpenRouterModelRegistry(config_path="/nonexistent/path/config.json")
 
     def test_resource_loading_success(self):
         """Test successful resource loading via importlib.resources."""

@@ -193,12 +193,8 @@ class TestOpenRouterModelRegistry:
         """Test behavior with missing config file."""
         # Use a non-existent path
         with patch.dict("os.environ", {}, clear=True):
-            registry = OpenRouterModelRegistry(config_path="/non/existent/path.json")
-
-        # Should initialize with empty maps
-        assert len(registry.list_models()) == 0
-        assert len(registry.list_aliases()) == 0
-        assert registry.resolve("anything") is None
+            with pytest.raises(ValueError, match="/non/existent/path.json"):
+                OpenRouterModelRegistry(config_path="/non/existent/path.json")
 
     def test_invalid_json_config(self):
         """Test handling of invalid JSON."""
@@ -207,10 +203,8 @@ class TestOpenRouterModelRegistry:
             temp_path = f.name
 
         try:
-            registry = OpenRouterModelRegistry(config_path=temp_path)
-            # Should handle gracefully and initialize empty
-            assert len(registry.list_models()) == 0
-            assert len(registry.list_aliases()) == 0
+            with pytest.raises(ValueError, match="Invalid JSON"):
+                OpenRouterModelRegistry(config_path=temp_path)
         finally:
             os.unlink(temp_path)
 

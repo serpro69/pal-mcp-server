@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Implementation: [implementation.md](implementation.md)
 > Review resolutions: [review.md](review.md#revalidation-and-resolution)
-> Status: in-progress (Tasks 1–22 done; Tasks 23–42 pending)
+> Status: in-progress (Tasks 1–23 done; Tasks 24–42 pending)
 > Created: 2026-10-10
 > Not Doing: toolchain/release-process migration; MCP 2.x; wholesale catalogs; replacement of safety controls; file-annotation implementation; persistent continuation recovery; remote multi-user transport; automatic service activation
 
@@ -490,17 +490,23 @@ API credentials. Existing integration/simulator setup gates remain open.
 
 ## Task 23: Report missing and broken provider configuration correctly
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 22
 - **Size:** M
 - **Can run in parallel with:** —
 - **Docs:** [Implementation slice](implementation.md#task-23); [design contract](design.md#d5-providers-and-model-policy)
 
-- [ ] 23.1 Keep the server discoverable with no configured providers; return explicit MCP tool-error results only for calls that require one.
-- [ ] 23.2 Raise file-naming typed errors for malformed explicitly selected/shipped registries, distinguishing absent optional, empty optional, JSON/schema/alias and I/O failures.
-- [ ] 23.3 Verify the acceptance cases in [Task 23](implementation.md#task-23) and record the result here.
+- [x] 23.1 Keep the server discoverable with no configured providers; return explicit MCP tool-error results only for calls that require one.
+- [x] 23.2 Raise file-naming typed errors for malformed explicitly selected/shipped registries, distinguishing absent optional, empty optional, JSON/schema/alias and I/O failures.
+- [x] 23.3 Verify the acceptance cases in [Task 23](implementation.md#task-23) and record the result here.
 
 **Scope / gate:** Use MCP 1.x decorators/results. Avoid circular-import error plumbing where a dedicated exception module suffices.
+
+**Evidence:** [Task 23 validation](validation.md#task-23-missing-credentials-and-broken-registry-configuration),
+2026-10-11. Full quality **1,490 passed**; focused contracts **104 passed each**
+on Python 3.11/3.12 before final numeric/schema edge cases. Isolated review
+approved after typed-error/reload corrections. External PAL and existing live/setup
+gates remain unavailable; real MCP SDK session verifies provider-free behavior.
 
 ## Task 24: Unify file budgets and report actual context coverage
 

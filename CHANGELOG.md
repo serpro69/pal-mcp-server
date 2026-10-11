@@ -4,6 +4,11 @@
 
 ## Unreleased
 
+- PAL now starts without model-provider credentials so discovery and provider-free
+  tools remain usable. Model calls return explicit configuration errors. Broken
+  selected or shipped model registries raise file-naming errors instead of silently
+  disappearing; missing default optional Custom/Azure catalogs remain distinct.
+
 - Provider configuration, setup hints and allowlists share provider declarations.
   Custom and Azure restrictions now apply to discovery and calls alike. Complete
   registered model IDs and aliases take precedence over legacy `:for`, `:against`

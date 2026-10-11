@@ -438,6 +438,11 @@ class BaseTool(ABC):
     def _build_model_unavailable_message(self, model_name: str) -> str:
         """Compose a consistent error message for unavailable model scenarios."""
 
+        if not ModelProviderRegistry.get_available_model_names():
+            return (
+                f"Model '{model_name}' is not available. No eligible models are configured; "
+                "configure provider credentials and check model allowlists."
+            )
         tool_category = self.get_model_category()
         suggested_model = ModelProviderRegistry.get_preferred_fallback_model(tool_category)
         available_models_text = self._format_available_models_list()
@@ -452,6 +457,8 @@ class BaseTool(ABC):
     def _build_auto_mode_required_message(self) -> str:
         """Compose the auto-mode prompt when an explicit model selection is required."""
 
+        if not ModelProviderRegistry.get_available_model_names():
+            return "No eligible models available. Configure provider credentials and check model allowlists."
         tool_category = self.get_model_category()
         suggested_model = ModelProviderRegistry.get_preferred_fallback_model(tool_category)
         available_models_text = self._format_available_models_list()

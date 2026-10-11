@@ -5,13 +5,15 @@ from __future__ import annotations
 import importlib.resources
 import json
 import logging
+import math
 from collections.abc import Iterable
 from dataclasses import fields
 from pathlib import Path
+from typing import Optional
 
 from utils.env import get_env
-from utils.file_utils import read_json_file
 
+from ..errors import RegistryConfigurationError
 from ..shared import ModelCapabilities, ProviderType, TemperatureConstraint
 
 logger = logging.getLogger(__name__)
@@ -22,6 +24,8 @@ CAPABILITY_FIELD_NAMES = {field.name for field in fields(ModelCapabilities)}
 
 class CustomModelRegistryBase:
     """Load and expose capability metadata from a JSON manifest."""
+
+    OPTIONAL = False
 
     def __init__(
         self,
@@ -35,6 +39,7 @@ class CustomModelRegistryBase:
         self._use_resources = False
         self._resource_package = "conf"
         self._default_path = Path(__file__).resolve().parents[3] / "conf" / default_filename
+        self._explicit_path = bool(config_path or get_env(env_var_name))
 
         if config_path:
             self.config_path = Path(config_path)
@@ -59,8 +64,24 @@ class CustomModelRegistryBase:
 
     def reload(self) -> None:
         data = self._load_config_data()
-        configs = [config for config in self._parse_models(data) if config is not None]
-        self._build_maps(configs)
+        previous_extras = self._extras
+        previous_models, previous_aliases = self.model_map, self.alias_map
+        self._extras = {}
+        try:
+            if not isinstance(data, dict) or not isinstance(data.get("models"), list):
+                raise ValueError("Expected an object containing a 'models' array")
+            if not data["models"] and not self.OPTIONAL:
+                raise ValueError("Required model registry must not be empty")
+            configs = list(self._parse_models(data))
+            self._build_maps(configs)
+        except (ValueError, TypeError, OverflowError) as exc:
+            self._extras = previous_extras
+            self.model_map, self.alias_map = previous_models, previous_aliases
+            raise RegistryConfigurationError(self.source_name, "schema", str(exc)) from exc
+
+    @property
+    def source_name(self) -> str:
+        return str(self.config_path) if self.config_path else f"{self._resource_package}/{self._default_filename}"
 
     def list_models(self) -> list[str]:
         return list(self.model_map.keys())
@@ -98,40 +119,32 @@ class CustomModelRegistryBase:
     # Internal helpers
     # ------------------------------------------------------------------
     def _load_config_data(self) -> dict:
-        if self._use_resources:
-            try:
+        try:
+            if self._use_resources:
                 resource = importlib.resources.files(self._resource_package).joinpath(self._default_filename)
-                if hasattr(resource, "read_text"):
-                    config_text = resource.read_text(encoding="utf-8")
-                else:  # pragma: no cover - legacy Python fallback
-                    with resource.open("r", encoding="utf-8") as handle:
-                        config_text = handle.read()
-                data = json.loads(config_text)
-            except FileNotFoundError:
-                logger.debug("Packaged %s not found", self._default_filename)
-                return {"models": []}
-            except Exception as exc:
-                logger.warning("Failed to read packaged %s: %s", self._default_filename, exc)
-                return {"models": []}
-            return data or {"models": []}
-
-        if not self.config_path:
-            raise FileNotFoundError("Registry configuration path is not set")
-
-        if not self.config_path.exists():
-            logger.debug("Model registry config not found at %s", self.config_path)
-            if self.config_path == self._default_path:
-                fallback = Path.cwd() / "conf" / self._default_filename
-                if fallback != self.config_path and fallback.exists():
-                    logger.debug("Falling back to %s", fallback)
-                    self.config_path = fallback
-                else:
-                    return {"models": []}
+                config_text = resource.read_text(encoding="utf-8")
             else:
+                if not self.config_path:
+                    raise FileNotFoundError("Registry configuration path is not set")
+                if not self._explicit_path and not self.config_path.exists():
+                    fallback = Path.cwd() / "conf" / self._default_filename
+                    if fallback != self.config_path and fallback.exists():
+                        self.config_path = fallback
+                config_text = self.config_path.read_text(encoding="utf-8")
+        except FileNotFoundError as exc:
+            if self.OPTIONAL and not self._explicit_path:
                 return {"models": []}
-
-        data = read_json_file(str(self.config_path))
-        return data or {"models": []}
+            raise RegistryConfigurationError(self.source_name, "missing", "File not found") from exc
+        except (OSError, UnicodeError) as exc:
+            raise RegistryConfigurationError(self.source_name, "io", "Unable to read UTF-8 registry") from exc
+        try:
+            return json.loads(config_text)
+        except json.JSONDecodeError as exc:
+            raise RegistryConfigurationError(
+                self.source_name, "json", f"Invalid JSON at line {exc.lineno}, column {exc.colno}"
+            ) from exc
+        except ValueError as exc:
+            raise RegistryConfigurationError(self.source_name, "json", "JSON value exceeds decoder limits") from exc
 
     @property
     def use_resources(self) -> bool:
@@ -140,26 +153,58 @@ class CustomModelRegistryBase:
     def _parse_models(self, data: dict) -> Iterable[ModelCapabilities | None]:
         for raw in data.get("models", []):
             if not isinstance(raw, dict):
-                continue
+                raise ValueError("Every model entry must be an object")
             yield self._convert_entry(raw)
 
     def _convert_entry(self, raw: dict) -> ModelCapabilities | None:
         entry = dict(raw)
         model_name = entry.get("model_name")
-        if not model_name:
-            return None
+        if not isinstance(model_name, str) or not model_name.strip() or model_name != model_name.strip():
+            raise ValueError("Every model needs a nonempty model_name without surrounding whitespace")
 
         aliases = entry.get("aliases")
         if isinstance(aliases, str):
             entry["aliases"] = [alias.strip() for alias in aliases.split(",") if alias.strip()]
+        elif aliases is not None and (
+            not isinstance(aliases, list)
+            or any(not isinstance(alias, str) or not alias.strip() or alias != alias.strip() for alias in aliases)
+        ):
+            raise ValueError("aliases must be a list of nonempty names or a comma-separated string")
+        elif "aliases" in entry and aliases is None:
+            raise ValueError("aliases must not be null")
+
+        for field in fields(ModelCapabilities):
+            if field.name not in entry or field.name in {"provider", "temperature_constraint", "aliases"}:
+                continue
+            value = entry[field.name]
+            if field.type in (str, int, bool) and type(value) is not field.type:
+                raise ValueError(f"Invalid type for {field.name}")
+            if field.type == Optional[str] and value is not None and not isinstance(value, str):
+                raise ValueError(f"Invalid type for {field.name}")
+            if (
+                field.type == Optional[list[str]]
+                and value is not None
+                and (not isinstance(value, list) or any(not isinstance(item, str) for item in value))
+            ):
+                raise ValueError(f"Invalid type for {field.name}")
+            if field.type is int and value < 0:
+                raise ValueError(f"Invalid negative value for {field.name}")
+            if field.type is float and (type(value) not in (float, int) or not math.isfinite(value) or value < 0):
+                raise ValueError(f"Invalid nonnegative number for {field.name}")
 
         entry.setdefault("friendly_name", self._default_friendly_name(model_name))
+        if "provider" in entry:
+            ProviderType(entry["provider"])
 
         temperature_hint = entry.get("temperature_constraint")
         if isinstance(temperature_hint, str):
+            if temperature_hint not in {"fixed", "discrete", "range"}:
+                raise ValueError("temperature_constraint must be fixed, discrete or range")
             entry["temperature_constraint"] = TemperatureConstraint.create(temperature_hint)
         elif temperature_hint is None:
             entry["temperature_constraint"] = TemperatureConstraint.create("range")
+        else:
+            raise ValueError("temperature_constraint must be a supported string")
 
         if "max_tokens" in entry:
             raise ValueError(
@@ -194,6 +239,9 @@ class CustomModelRegistryBase:
         for config in configs:
             if not config:
                 continue
+            lowered = config.model_name.lower()
+            if lowered in alias_map:
+                raise ValueError(f"Duplicate alias or canonical model name '{config.model_name}'")
             model_map[config.model_name] = config
 
             model_name_lower = config.model_name.lower()

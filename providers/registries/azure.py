@@ -13,6 +13,8 @@ logger = logging.getLogger(__name__)
 class AzureModelRegistry(CustomModelRegistryBase):
     """Load Azure-specific model metadata from configuration files."""
 
+    OPTIONAL = True
+
     def __init__(self, config_path: str | None = None) -> None:
         super().__init__(
             env_var_name="AZURE_MODELS_CONFIG_PATH",
@@ -32,7 +34,7 @@ class AzureModelRegistry(CustomModelRegistryBase):
 
     def _finalise_entry(self, entry: dict) -> tuple[ModelCapabilities, dict]:
         deployment = entry.pop("deployment", None) or entry.pop("deployment_name", None)
-        if not deployment:
+        if not isinstance(deployment, str) or not deployment.strip():
             raise ValueError(f"Azure model '{entry.get('model_name')}' is missing required 'deployment' field")
 
         temp_hint = entry.get("temperature_constraint")
@@ -43,3 +45,13 @@ class AzureModelRegistry(CustomModelRegistryBase):
         filtered.setdefault("provider", ProviderType.AZURE)
         capability = ModelCapabilities(**filtered)
         return capability, {"deployment": deployment}
+
+    def _build_maps(self, configs):
+        super()._build_maps(configs)
+        deployments = set()
+        for canonical, _, extra in self.iter_entries():
+            deployment = extra["deployment"].lower()
+            target = self.alias_map.get(deployment)
+            if deployment in deployments or (target is not None and target != canonical):
+                raise ValueError("Ambiguous Azure deployment: conflicts with another model's name, alias or deployment")
+            deployments.add(deployment)

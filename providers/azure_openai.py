@@ -37,6 +37,7 @@ class AzureOpenAIProvider(OpenAICompatibleProvider):
     )
 
     FRIENDLY_NAME = "Azure OpenAI"
+    REGISTRY_CLASS = AzureModelRegistry
     DEFAULT_API_VERSION = "2024-02-15-preview"
 
     # The OpenAI-compatible base expects subclasses to expose capabilities via
@@ -190,11 +191,7 @@ class AzureOpenAIProvider(OpenAICompatibleProvider):
         return capabilities
 
     def _load_registry_entries(self) -> dict[str, dict]:
-        try:
-            registry = AzureModelRegistry()
-        except Exception as exc:  # pragma: no cover - registry failure should not crash provider
-            logger.warning("Unable to load Azure model registry: %s", exc)
-            return {}
+        registry = AzureModelRegistry()
 
         entries: dict[str, dict] = {}
         for model_name, capability, extra in registry.iter_entries():

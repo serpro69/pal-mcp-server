@@ -110,7 +110,7 @@ class TestModelSelection:
             ModelProviderRegistry.unregister_provider(provider_type)
 
         # Register only Gemini provider
-        with patch.dict(os.environ, {"GOOGLE_API_KEY": "test-key"}, clear=False):
+        with patch.dict(os.environ, {"GEMINI_API_KEY": "test-key"}, clear=False):
             from providers.gemini import GeminiModelProvider
 
             ModelProviderRegistry.register_provider(ProviderType.GOOGLE, GeminiModelProvider)
@@ -145,7 +145,7 @@ class TestModelSelection:
             ModelProviderRegistry.unregister_provider(provider_type)
 
         # Register only Gemini provider
-        with patch.dict(os.environ, {"GOOGLE_API_KEY": "test-key"}, clear=False):
+        with patch.dict(os.environ, {"GEMINI_API_KEY": "test-key"}, clear=False):
             from providers.gemini import GeminiModelProvider
 
             ModelProviderRegistry.register_provider(ProviderType.GOOGLE, GeminiModelProvider)
@@ -272,9 +272,8 @@ class TestCustomProviderFallback:
         ):
             ModelProviderRegistry.unregister_provider(provider_type)
 
-        model = ModelProviderRegistry.get_preferred_fallback_model(ToolModelCategory.EXTENDED_REASONING)
-        # Should fall back to hardcoded default
-        assert model == "gemini-2.5-flash"
+        with pytest.raises(ValueError, match="No eligible models"):
+            ModelProviderRegistry.get_preferred_fallback_model(ToolModelCategory.EXTENDED_REASONING)
 
 
 class TestAutoModeErrorMessages:
@@ -361,9 +360,8 @@ class TestProviderHelperMethods:
         ):
             ModelProviderRegistry.unregister_provider(provider_type)
 
-        # Should return hardcoded fallback
-        model = ModelProviderRegistry.get_preferred_fallback_model(ToolModelCategory.EXTENDED_REASONING)
-        assert model == "gemini-2.5-flash"
+        with pytest.raises(ValueError, match="No eligible models"):
+            ModelProviderRegistry.get_preferred_fallback_model(ToolModelCategory.EXTENDED_REASONING)
 
 
 class TestEffectiveAutoMode:

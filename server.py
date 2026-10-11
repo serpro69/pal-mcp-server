@@ -385,14 +385,21 @@ def configure_providers():
     configured = {}
     for factory in provider_classes():
         config = factory.CONFIGURATION
+        # Validate explicit and shipped registries even without credentials.
+        # Re-read on startup so an import-time cache cannot conceal a broken file.
+        if hasattr(factory, "reload_registry"):
+            factory.reload_registry()
+            catalog = factory._registry
+        else:
+            catalog = factory.REGISTRY_CLASS()
+            if config.provider_type != ProviderType.AZURE:
+                factory._registry = catalog
         if not config.is_configured():
             ModelProviderRegistry.unregister_provider(config.provider_type)
             logger.debug("%s not configured; set %s", config.label, config.setup_hint())
             continue
         if config.provider_type == ProviderType.AZURE:
-            from providers.registries.azure import AzureModelRegistry
-
-            if not AzureModelRegistry().list_models():
+            if not catalog.list_models():
                 logger.warning("Azure OpenAI models configuration is empty; configure AZURE_MODELS_CONFIG_PATH")
                 ModelProviderRegistry.unregister_provider(config.provider_type)
                 continue
@@ -405,15 +412,14 @@ def configure_providers():
             f"- {factory.CONFIGURATION.setup_hint()} for {factory.CONFIGURATION.label}"
             for factory in provider_classes()
         ]
-        raise ValueError("At least one API configuration is required. Please set either:\n" + "\n".join(hints))
+        logger.warning("No model providers configured. Model calls require:\n%s", "\n".join(hints))
+        return
     get_restriction_service().validate_against_known_models(configured)
 
     from config import IS_AUTO_MODE
 
     if IS_AUTO_MODE and not ModelProviderRegistry.get_available_models(respect_restrictions=True):
-        raise ValueError(
-            "No models available for auto mode due to restrictions. Please adjust your allowed model settings."
-        )
+        logger.warning("No models available for auto mode after restrictions; provider-free tools remain available.")
 
 
 @server.list_tools()
@@ -551,7 +557,10 @@ async def _dispatch_tool(name: str, arguments: dict[str, Any]) -> list[TextConte
         if model_name.lower() == "auto":
             # Get tool category to determine appropriate model
             tool_category = tool.get_model_category()
-            resolved_model = ModelProviderRegistry.get_preferred_fallback_model(tool_category)
+            try:
+                resolved_model = ModelProviderRegistry.get_preferred_fallback_model(tool_category)
+            except ValueError as exc:
+                raise ToolExecutionError(str(exc)) from exc
             logger.info(f"Auto mode resolved to {resolved_model} for {name} (category: {tool_category.value})")
             model_name = resolved_model
             # Update arguments with resolved model
@@ -563,14 +572,20 @@ async def _dispatch_tool(name: str, arguments: dict[str, Any]) -> list[TextConte
             # Get list of available models for error message
             available_models = list(ModelProviderRegistry.get_available_models(respect_restrictions=True).keys())
             tool_category = tool.get_model_category()
-            suggested_model = ModelProviderRegistry.get_preferred_fallback_model(tool_category)
+            suggested_model = (
+                ModelProviderRegistry.get_preferred_fallback_model(tool_category) if available_models else None
+            )
 
             error_message = (
                 f"Model '{model_name}' is not available with current API keys. "
                 f"Available models: {', '.join(available_models)}. "
-                f"Suggested model for {name}: '{suggested_model}' "
-                f"(category: {tool_category.value})"
             )
+            if suggested_model:
+                error_message += f"Suggested model for {name}: '{suggested_model}' (category: {tool_category.value})"
+            else:
+                error_message += (
+                    "Configure provider credentials and check model allowlists; use listmodels for setup hints."
+                )
             error_output = ToolOutput(
                 status="error",
                 content=error_message,
