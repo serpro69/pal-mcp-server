@@ -4,6 +4,10 @@
 
 ## Unreleased
 
+- Serialize MCP invocations sharing a continuation ID through admission and reply
+  persistence. Different conversations remain independent; cancelled/finished
+  calls release their locks and unused reply capacity.
+
 - Execute each MCP call on a fresh tool and restore workflow configuration from
   conversation metadata, including planner branches and blinded consensus state.
   Reused direct workflow objects reset between calls; legacy state uses safe defaults.

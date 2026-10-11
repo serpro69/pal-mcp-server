@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Implementation: [implementation.md](implementation.md)
 > Review resolutions: [review.md](review.md#revalidation-and-resolution)
-> Status: in-progress (Tasks 1–10 done; Tasks 11–42 pending)
+> Status: in-progress (Tasks 1–11 done; Tasks 12–42 pending)
 > Created: 2026-10-10
 > Not Doing: toolchain/release-process migration; MCP 2.x; wholesale catalogs; replacement of safety controls; file-annotation implementation; persistent continuation recovery; remote multi-user transport; automatic service activation
 
@@ -229,17 +229,22 @@ review unavailable. Integration/simulator setup and live release gates remain op
 
 ## Task 11: Serialize concurrent updates to one conversation
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 10
 - **Size:** M
 - **Can run in parallel with:** —
 - **Docs:** [Implementation slice](implementation.md#task-11); [design contract](design.md#d3-conversation-ownership-and-truthful-results)
 
-- [ ] 11.1 Add a per-thread async critical section covering Task 9's two-slot admission through reply persistence, with bounded/ref-counted lock lifetime and no placeholder turns. Test two competing calls with only one pair of slots available: one runs, one fails before input save. Independent thread IDs do not share the same lock.
-- [ ] 11.2 Define cancellation and failed-call cleanup: retain only actual saved turns, release unused reply capacity and the coordinator, and document that direct tool-object APIs do not acquire the MCP boundary's lock unless explicitly using it.
-- [ ] 11.3 Verify the acceptance cases in [Task 11](implementation.md#task-11) and record the result here.
+- [x] 11.1 Add a per-thread async critical section covering Task 9's two-slot admission through reply persistence, with bounded/ref-counted lock lifetime and no placeholder turns. Test two competing calls with only one pair of slots available: one runs, one fails before input save. Independent thread IDs do not share the same lock.
+- [x] 11.2 Define cancellation and failed-call cleanup: retain only actual saved turns, release unused reply capacity and the coordinator, and document that direct tool-object APIs do not acquire the MCP boundary's lock unless explicitly using it.
+- [x] 11.3 Verify the acceptance cases in [Task 11](implementation.md#task-11) and record the result here.
 
 **Scope / gate:** Complete same-thread coordination before enabling more provider concurrency. Do not hold one global lock while awaiting a model.
+
+**Evidence:** [Task 11 validation](validation.md#task-11-conversation-coordination),
+2026-10-11. Full quality: **1,124 passed**; concurrency/state/ownership suites:
+**71 passed each** on Python 3.11 and 3.12. Isolated review approved with no
+findings; external PAL unavailable. Existing live/setup release gates remain open.
 
 ## Task 12: Make workflow model provenance truthful
 
