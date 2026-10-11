@@ -365,3 +365,26 @@ Invalid or endpoint-incompatible declarations fail before I/O. Custom endpoints
 must actually support their configured field; PAL cannot discover arbitrary server
 capabilities. Usage includes only valid counts reported by the endpoint; absent
 counts remain unknown, while a reported zero is retained.
+
+
+### Gemini thinking controls
+
+Native Gemini model metadata selects `thinking_parameter`: `thinking_budget`
+for verified Gemini 2.5 entries and `thinking_level` for verified Gemini 3 entries.
+Level-based models also declare a nonempty `supported_thinking_levels` list using
+`minimal`, `low`, `medium`, and/or `high`. The list is model-specific; SDK enum
+membership alone does not establish model support.
+
+PAL maps its requested mode to the nearest accepted level at or below it. If none
+exists, it chooses the lowest accepted level above it. `max` maps to the highest
+accepted level. For example, Gemini 3 Pro Preview's `medium` now maps to `low`,
+and Gemini 3.8 Flash's `minimal` maps to `low`. Response metadata reports the
+selected level. Gemini 2.5 retains the existing percentage-of-budget mapping.
+Models without thinking support omit the control.
+
+Invalid modes, empty/malformed level lists and unverified controls fail before
+provider I/O. The retained experimental Gemini 2.0 Flash entry has no verified
+current budget/level contract and now fails explicitly; its retirement and the
+broader catalog audit remain Task 28. No model entries or aliases are removed by
+this change. Capability validation and fake-transport tests do not establish live
+availability of legacy models.

@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Implementation: [implementation.md](implementation.md)
 > Review resolutions: [review.md](review.md#revalidation-and-resolution)
-> Status: in-progress (Tasks 1–20 done; Tasks 21–42 pending)
+> Status: in-progress (Tasks 1–21 done; Tasks 22–42 pending)
 > Created: 2026-10-10
 > Not Doing: toolchain/release-process migration; MCP 2.x; wholesale catalogs; replacement of safety controls; file-annotation implementation; persistent continuation recovery; remote multi-user transport; automatic service activation
 
@@ -445,17 +445,23 @@ external PAL unavailable. Existing live/setup gates remain open.
 
 ## Task 21: Send valid Gemini thinking controls
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 17
 - **Size:** M
 - **Can run in parallel with:** —
 - **Docs:** [Implementation slice](implementation.md#task-21); [design contract](design.md#d4-async-provider-lifecycle)
 
-- [ ] 21.1 Select budget versus level from verified model generation/capability metadata; add supported_thinking_levels only where verified.
-- [ ] 21.2 Map PAL minimal/low/medium/high/max to accepted levels, clamping down then up when needed and surfacing invalid/empty capability configuration.
-- [ ] 21.3 Verify the acceptance cases in [Task 21](implementation.md#task-21) and record the result here.
+- [x] 21.1 Select budget versus level from verified model generation/capability metadata; add supported_thinking_levels only where verified.
+- [x] 21.2 Map PAL minimal/low/medium/high/max to accepted levels, clamping down then up when needed and surfacing invalid/empty capability configuration.
+- [x] 21.3 Verify the acceptance cases in [Task 21](implementation.md#task-21) and record the result here.
 
 **Scope / gate:** The SDK having an enum does not prove a particular model accepts every member. Capability declarations need per-model verification.
+
+**Evidence:** [Task 21 validation](validation.md#task-21-gemini-thinking-controls),
+2026-10-11. Full quality **1,394 passed**; thinking/provider/caller suites
+**152 passed each** on Python 3.11/3.12. Isolated review approved after raising
+the published GenAI floor to the already-locked 2.8.0; both locks regenerate
+unchanged. External PAL unavailable; existing live/setup gates remain open.
 
 ## Task 22: Centralize provider configuration and restriction discovery
 
