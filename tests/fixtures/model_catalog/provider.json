@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "provider": "openai",
+  "source_url": "https://provider.invalid/models",
+  "observed_on": "2026-10-11",
+  "complete": true,
+  "models": [
+    {"id": "current:tag", "status": "active", "capabilities": {"context_window": 200000, "max_output_tokens": 8000, "supports_temperature": false}},
+    {"id": "old", "status": "deprecated", "capabilities": {"context_window": 100000, "max_output_tokens": 8000}},
+    {"id": "expired", "status": "active", "expires_on": "2026-10-10", "capabilities": {"context_window": 100000, "max_output_tokens": 8000}},
+    {"id": "community-missing", "status": "active", "capabilities": {"context_window": 100000, "max_output_tokens": 8000}},
+    {"id": "new:for", "status": "active", "capabilities": {"context_window": 128000, "max_output_tokens": 16000, "supports_temperature": false, "output_token_parameter": "max_completion_tokens"}},
+    {"id": "insufficient", "status": "active", "capabilities": {"supports_images": true}},
+    {"id": "alias-collision", "status": "active", "capabilities": {"context_window": 100000, "max_output_tokens": 8000}},
+    {"id": "retired-candidate", "status": "retired", "capabilities": {"context_window": 100000, "max_output_tokens": 8000}}
+  ]
+}

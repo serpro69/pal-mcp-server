@@ -1,0 +1,9 @@
+{
+  "_README": {"description": "Synthetic fixture; not a real provider catalog"},
+  "models": [
+    {"model_name": "current:tag", "aliases": ["current", "alias-collision"], "context_window": 100000, "max_output_tokens": 8000, "intelligence_score": 17, "supports_temperature": true},
+    {"model_name": "old", "aliases": ["legacy"], "context_window": 100000, "max_output_tokens": 8000},
+    {"model_name": "expired", "context_window": 100000, "max_output_tokens": 8000},
+    {"model_name": "community-missing", "context_window": 100000, "max_output_tokens": 8000}
+  ]
+}
