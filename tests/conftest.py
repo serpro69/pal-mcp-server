@@ -95,6 +95,7 @@ def isolated_provider_environment(monkeypatch):
         for name in declaration.environment_names():
             monkeypatch.delenv(name, raising=False)
     monkeypatch.delenv("DISABLED_MODELS", raising=False)
+    monkeypatch.delenv("PREFERRED_MODELS", raising=False)
     registry = ModelProviderRegistry()
     monkeypatch.setattr(registry, "_providers", {})
     monkeypatch.setattr(registry, "_initialized_providers", {})
@@ -206,7 +207,7 @@ def clear_model_restriction_env(monkeypatch):
         for declaration in provider_configurations().values()
         for name in (declaration.restriction_env, *declaration.restriction_aliases)
     ]
-    restriction_vars.append("DISABLED_MODELS")
+    restriction_vars.extend(["DISABLED_MODELS", "PREFERRED_MODELS"])
 
     for var in restriction_vars:
         monkeypatch.delenv(var, raising=False)

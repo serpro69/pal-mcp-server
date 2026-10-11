@@ -127,7 +127,9 @@ class ModelProviderRegistry:
         return provider if provider.validate_model_name(canonical) else None
 
     @classmethod
-    def resolve_model_identity(cls, model_name: str) -> Optional[tuple[ModelProvider, str]]:
+    def resolve_model_identity(
+        cls, model_name: str, *, catalog_only: bool = False
+    ) -> Optional[tuple[ModelProvider, str]]:
         """Resolve complete catalog names before policy or legacy options."""
         requested = model_name.strip()
         candidates = []
@@ -141,7 +143,7 @@ class ModelProviderRegistry:
                 return provider, canonical
         # Preserve the existing unregistered OpenRouter provider/model fallback,
         # but never accept arbitrary unregistered tags.
-        if ":" not in requested:
+        if not catalog_only and ":" not in requested:
             for provider in candidates:
                 if provider.validate_model_name(requested):
                     return provider, provider._resolve_model_name(requested)
@@ -219,7 +221,9 @@ class ModelProviderRegistry:
             callable_models = {}
             for model_name in models:
                 provider = cls.get_provider_for_model(model_name)
-                if provider is not None:
+                if provider is not None and restriction_service.is_discoverable(
+                    provider, provider.get_capabilities(model_name)
+                ):
                     callable_models[model_name] = provider.get_provider_type()
             return callable_models
         return models
@@ -322,7 +326,7 @@ class ModelProviderRegistry:
         # Get the provider's supported models
         try:
             # Use list_models to get all supported models (handles both regular and custom providers)
-            supported_models = provider.list_models(respect_restrictions=False)
+            supported_models = provider.list_models(respect_restrictions=True)
         except (NotImplementedError, AttributeError):
             # Fallback to provider-declared capability maps if list_models not implemented
             model_map = getattr(provider, "MODEL_CAPABILITIES", None)
@@ -354,6 +358,19 @@ class ModelProviderRegistry:
             Model name string for fallback use
         """
         from tools.models import ToolModelCategory
+        from utils.model_restrictions import get_restriction_service
+
+        restriction_service = get_restriction_service()
+        for provider, canonical, requested in cls.get_preferred_model_choices():
+            if provider.validate_model_name(canonical) and restriction_service.is_discoverable(
+                provider, provider.get_capabilities(canonical)
+            ):
+                # A unique alias may select a lower-priority provider whose
+                # canonical name is also registered by a native provider.
+                # Preserve that routing name through the string-based callers.
+                if cls.resolve_model_identity(canonical, catalog_only=True) == (provider, canonical):
+                    return canonical
+                return requested
 
         effective_category = tool_category or ToolModelCategory.BALANCED
         first_available_model = None
@@ -390,6 +407,24 @@ class ModelProviderRegistry:
         raise ValueError(
             "No eligible models available. Configure provider credentials and check model allowlists and DISABLED_MODELS."
         )
+
+    @classmethod
+    def get_preferred_model_choices(cls) -> list[tuple[ModelProvider, str, str]]:
+        """Return ordered provider/canonical/requested choices, deduplicated by identity."""
+        from utils.model_restrictions import get_restriction_service
+
+        identities = []
+        seen = set()
+        for name in get_restriction_service().preferred_models:
+            identity = cls.resolve_model_identity(name, catalog_only=True)
+            if identity is None:
+                continue
+            provider, canonical = identity
+            key = (provider.get_provider_type(), canonical.lower())
+            if key not in seen:
+                identities.append((provider, canonical, name))
+                seen.add(key)
+        return identities
 
     @classmethod
     def get_available_providers_with_keys(cls) -> list[ProviderType]:

@@ -167,6 +167,8 @@ class OpenRouterProvider(OpenAICompatibleProvider):
 
                 if not allowed:
                     continue
+                if not restriction_service.is_discoverable(self, config):
+                    continue
 
             allowed_configs[model_name] = config
 
