@@ -3,6 +3,42 @@
 Recorded 2026-10-11. This covers the completed maintenance tasks below, not the
 remaining roadmap or optional live-provider behavior.
 
+## Task 13: truthful consensus degradation
+
+Recorded 2026-10-11. Both completion paths share one summary of the latest outcome
+for each requested model/stance pair. Results distinguish complete, partial and
+failed coverage; report requested/successful/failed/pending participants, successful
+provider coverage and participant errors; and preserve the original proposal and
+all collected outcomes. Empty replies fail. Repeated steps cannot inflate coverage,
+and skipped participants stay pending. No completion invents confidence.
+
+Changed `tools/consensus.py`, new degradation tests, the storage-test participant
+stub, consensus docs and release notes. `models_consulted`/`total_responses` now
+count successful participants; `consensus_complete` means full coverage, while
+`next_step_required=false` means the consultation sequence has ended.
+
+Verification:
+
+- Baseline full quality: **1,151 passed**. Final
+  `BLACK_NUM_WORKERS=1 ./code_quality_checks.sh`, locked Python 3.10.12:
+  **1,158 passed**, 4 skipped, 16 deselected, 19 subtests passed. Ruff/Black/isort
+  passed. Two pre-existing AsyncMock warnings remain assigned to Task 15.
+- Degradation/state/integration/storage suites on Python 3.11.13 and 3.12.11:
+  **72 passed each**. Cases cover all-success, one-failure, lost-provider,
+  zero-success, blank replies, skipped/repeated steps, unknown provider metadata,
+  preserved proposal/verdicts, and equivalent fresh-object completion paths.
+- Integration and quick simulator entry points were attempted and retain the
+  documented missing `.pal_venv`/simulator interpreter setup blockers. Live
+  release gates remain open; no paid APIs or recorded cassettes changed.
+
+Independent isolated code review: **APPROVE**, no findings. No systemic P0/P1
+findings required indexing. External PAL reviewer unavailable.
+
+Reflection: finishing the sequence cannot establish agreement or confidence.
+Provider coverage must come from successful stored responses; resolving today's
+provider registry would misreport historical consultations after configuration loss.
+No dependencies changed.
+
 ## Task 12: truthful workflow provenance
 
 Recorded 2026-10-11. Workflow result metadata names only an actual provider call

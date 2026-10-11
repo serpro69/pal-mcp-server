@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Implementation: [implementation.md](implementation.md)
 > Review resolutions: [review.md](review.md#revalidation-and-resolution)
-> Status: in-progress (Tasks 1–12 done; Tasks 13–42 pending)
+> Status: in-progress (Tasks 1–13 done; Tasks 14–42 pending)
 > Created: 2026-10-10
 > Not Doing: toolchain/release-process migration; MCP 2.x; wholesale catalogs; replacement of safety controls; file-annotation implementation; persistent continuation recovery; remote multi-user transport; automatic service activation
 
@@ -268,17 +268,22 @@ confidence. External PAL unavailable; existing live/setup release gates remain o
 
 ## Task 13: Report partial and failed consensus honestly
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 10, Task 12
 - **Size:** S
 - **Can run in parallel with:** —
 - **Docs:** [Implementation slice](implementation.md#task-13); [design contract](design.md#d3-conversation-ownership-and-truthful-results)
 
-- [ ] 13.1 Count successful consultations separately from requested/failed models, including represented providers when available.
-- [ ] 13.2 Use the same summary builder for both completion paths, expose participant errors and mark partial or zero-success outcomes without claiming full/high-confidence consensus.
-- [ ] 13.3 Verify the acceptance cases in [Task 13](implementation.md#task-13) and record the result here.
+- [x] 13.1 Count successful consultations separately from requested/failed models, including represented providers when available.
+- [x] 13.2 Use the same summary builder for both completion paths, expose participant errors and mark partial or zero-success outcomes without claiming full/high-confidence consensus.
+- [x] 13.3 Verify the acceptance cases in [Task 13](implementation.md#task-13) and record the result here.
 
 **Scope / gate:** Keep the original proposal and successful responses available even when another participant fails. Both completion paths must produce the same degraded-result accounting.
+
+**Evidence:** [Task 13 validation](validation.md#task-13-truthful-consensus-degradation),
+2026-10-11. Full quality: **1,158 passed**; focused continuation/degradation/storage
+suites: **72 passed each** on Python 3.11 and 3.12. Isolated review approved with no
+findings; external PAL unavailable. Existing live/setup release gates remain open.
 
 ## Task 14: Make chat generation yield through a migration adapter
 

@@ -400,29 +400,68 @@ of the evidence, even when it strongly points in one direction.""",
         }
         return step_data
 
-    async def handle_work_completion(self, response_data: dict, request, arguments: dict) -> dict:  # noqa: ARG002
-        """Handle consensus workflow completion - no expert analysis, just final synthesis."""
-        response_data["consensus_complete"] = True
-        response_data["status"] = "consensus_workflow_complete"
-
-        # Prepare final synthesis data
-        response_data["complete_consensus"] = {
+    def _build_consensus_summary(self) -> dict[str, Any]:
+        """Summarize the latest outcome for each requested model/stance pair."""
+        outcomes = {(r["model"], r.get("stance", "neutral")): r for r in self.accumulated_responses}
+        participants = [outcomes.get((m["model"], m.get("stance", "neutral"))) for m in self.models_to_consult]
+        successful = [r for r in participants if r and r.get("status") == "success"]
+        failed = [r for r in participants if r and r.get("status") != "success"]
+        pending = sum(r is None for r in participants)
+        providers = sorted({r["metadata"]["provider"] for r in successful if r.get("metadata", {}).get("provider")})
+        status = "complete" if successful and not failed and not pending else "partial" if successful else "failed"
+        return {
             "initial_prompt": self.original_proposal if self.original_proposal else self.initial_prompt,
-            "models_consulted": [m["model"] + ":" + m.get("stance", "neutral") for m in self.accumulated_responses],
-            "total_responses": len(self.accumulated_responses),
-            "consensus_confidence": "high",  # Consensus complete
+            "status": status,
+            "requested_models": len(self.models_to_consult),
+            "successful_models": len(successful),
+            "failed_models": len(failed),
+            "pending_models": pending,
+            "models_consulted": [f"{r['model']}:{r.get('stance', 'neutral')}" for r in successful],
+            "total_responses": len(successful),
+            "successful_providers": providers,
+            "successful_provider_count": len(providers),
+            "participant_errors": [
+                {
+                    "model": r["model"],
+                    "stance": r.get("stance", "neutral"),
+                    "error": r.get("error", "Consultation failed"),
+                }
+                for r in failed
+            ],
+            # Finishing consultations does not establish agreement or confidence.
+            "consensus_confidence": None,
         }
 
-        response_data["next_steps"] = (
-            "CONSENSUS GATHERING IS COMPLETE. You MUST now synthesize all perspectives and present:\n"
-            "1. Key points of AGREEMENT across models\n"
-            "2. Key points of DISAGREEMENT and why they differ\n"
-            "3. Your final consolidated recommendation\n"
-            "4. Specific, actionable next steps for implementation\n"
-            "5. Critical risks or concerns that must be addressed"
-        )
-
+    def _complete_consensus(self, response_data: dict) -> dict:
+        """Apply the same outcome and synthesis instructions on both completion paths."""
+        summary = self._build_consensus_summary()
+        status = summary["status"]
+        response_data["complete_consensus"] = summary
+        response_data["consensus_complete"] = status == "complete"
+        response_data["status"] = f"consensus_workflow_{status}"
+        response_data["next_step_required"] = False
+        if status == "failed":
+            response_data["next_steps"] = (
+                "CONSENSUS FAILED: no successful model responses are available. Report the participant errors "
+                "and any unconsulted models. Do not claim a consensus or infer model agreement. "
+                "Resolve the failures before requesting another consultation."
+            )
+        else:
+            prefix = (
+                "CONSULTATIONS COMPLETE. "
+                if status == "complete"
+                else "PARTIAL CONSENSUS: coverage is incomplete. Report failed or unconsulted participants and "
+                "qualify any recommendation; do not claim full or high-confidence consensus. "
+            )
+            response_data["next_steps"] = prefix + (
+                "Synthesize only successful perspectives: identify agreement and disagreement, explain the "
+                "evidence for your recommendation, and present actionable next steps and remaining risks."
+            )
         return response_data
+
+    async def handle_work_completion(self, response_data: dict, request, arguments: dict) -> dict:  # noqa: ARG002
+        """Handle final synthesis without inferring consensus from attempted calls."""
+        return self._complete_consensus(response_data)
 
     def handle_work_continuation(self, response_data: dict, request) -> dict:
         """Handle continuation between consensus steps."""
@@ -519,31 +558,20 @@ of the evidence, even when it strongly points in one direction.""",
 
                 # Check if this is the final step
                 if request.step_number == request.total_steps:
-                    response_data["status"] = "consensus_workflow_complete"
-                    response_data["consensus_complete"] = True
-                    response_data["complete_consensus"] = {
-                        "initial_prompt": self.original_proposal if self.original_proposal else self.initial_prompt,
-                        "models_consulted": [
-                            f"{m['model']}:{m.get('stance', 'neutral')}" for m in self.accumulated_responses
-                        ],
-                        "total_responses": len(self.accumulated_responses),
-                        "consensus_confidence": "high",
-                    }
-                    response_data["next_steps"] = (
-                        "CONSENSUS GATHERING IS COMPLETE. Synthesize all perspectives and present:\n"
-                        "1. Key points of AGREEMENT across models\n"
-                        "2. Key points of DISAGREEMENT and why they differ\n"
-                        "3. Your final consolidated recommendation\n"
-                        "4. Specific, actionable next steps for implementation\n"
-                        "5. Critical risks or concerns that must be addressed"
-                    )
+                    self._complete_consensus(response_data)
                 else:
-                    response_data["next_steps"] = (
-                        f"Model {model_response['model']} has provided its {model_response.get('stance', 'neutral')} "
-                        f"perspective. Please analyze this response and call {self.get_name()} again with:\n"
-                        f"- step_number: {request.step_number + 1}\n"
-                        f"- findings: Summarize key points from this model's response"
-                    )
+                    if model_response["status"] == "success":
+                        response_data["next_steps"] = (
+                            f"Model {model_response['model']} provided its {model_response.get('stance', 'neutral')} "
+                            f"perspective. Analyze it and call {self.get_name()} again with "
+                            f"step_number: {request.step_number + 1} and findings summarizing its key points."
+                        )
+                    else:
+                        response_data["next_steps"] = (
+                            f"Model {model_response['model']} failed: {model_response['error']}. "
+                            f"Record the failure and call {self.get_name()} with step_number: "
+                            f"{request.step_number + 1} to consult the next participant."
+                        )
 
                 # Add continuation information and workflow customization
                 response_data = self.customize_workflow_response(response_data, request)
@@ -626,8 +654,10 @@ of the evidence, even when it strongly points in one direction.""",
                 thinking_mode="medium",
                 images=request.images if request.images else None,
             )
+            if not response.content or not response.content.strip():
+                raise ToolExecutionError("Model returned an empty response")
             if invocation:
-                invocation.provider_failed = not bool(response.content)
+                invocation.provider_failed = False
                 invocation.reply_content = response.content or None
 
             return {
@@ -734,7 +764,9 @@ of the evidence, even when it strongly points in one direction.""",
             response_data["accumulated_responses"] = self.accumulated_responses
 
         # Add consensus-specific fields
-        if request.step_number == 1:
+        if "complete_consensus" in response_data:
+            response_data["consensus_workflow_status"] = response_data["complete_consensus"]["status"]
+        elif request.step_number == 1:
             response_data["consensus_workflow_status"] = "initial_analysis_complete"
         elif request.step_number < request.total_steps - 1:
             response_data["consensus_workflow_status"] = "consulting_models"
@@ -762,22 +794,20 @@ of the evidence, even when it strongly points in one direction.""",
         # Always preserve tool_name
         metadata["tool_name"] = self.get_name()
 
-        if request.step_number == request.total_steps:
-            # Final step - show comprehensive consensus metadata
-            models_consulted = []
-            if self.models_to_consult:
-                models_consulted = [f"{m['model']}:{m.get('stance', 'neutral')}" for m in self.models_to_consult]
-
+        if "complete_consensus" in response_data:
+            summary = response_data["complete_consensus"]
             metadata.update(
                 {
                     "workflow_type": "multi_model_consensus",
-                    "models_consulted": models_consulted,
-                    "consensus_complete": True,
-                    "total_models": len(self.models_to_consult) if self.models_to_consult else 0,
+                    "models_consulted": summary["models_consulted"],
+                    "consensus_complete": response_data["consensus_complete"],
+                    "total_models": summary["requested_models"],
+                    "successful_models": summary["successful_models"],
+                    "failed_models": summary["failed_models"],
+                    "pending_models": summary["pending_models"],
+                    "successful_providers": summary["successful_providers"],
                 }
             )
-
-            # Remove the misleading single model metadata
             metadata.pop("model_used", None)
             metadata.pop("provider_used", None)
 

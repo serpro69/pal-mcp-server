@@ -251,7 +251,7 @@ async def test_consensus_answer_survives_memory_failure(storage, monkeypatch):
 
     async def consult(config, request):
         storage.write_error = OSError("save failed")
-        return {"model": config["model"], "stance": "neutral", "response": "participant answer"}
+        return {"model": config["model"], "stance": "neutral", "status": "success", "verdict": "participant answer"}
 
     monkeypatch.setattr(tool, "_consult_model", consult)
     result = json.loads(
@@ -268,7 +268,7 @@ async def test_consensus_answer_survives_memory_failure(storage, monkeypatch):
             )
         )[0].text
     )
-    assert result["model_response"]["response"] == "participant answer"
+    assert result["model_response"]["verdict"] == "participant answer"
     assert result["metadata"]["memory_persistence_warning"]["code"] == "ConversationStorageError"
     assert "continuation_offer" not in result
 

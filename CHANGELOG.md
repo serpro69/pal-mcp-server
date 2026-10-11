@@ -4,6 +4,10 @@
 
 ## Unreleased
 
+- Consensus now distinguishes complete, partial and failed coverage, reports
+  participant errors and successful provider coverage, and counts only successful
+  participants in response totals. Completion no longer implies high confidence.
+
 - Workflow model/provider metadata now identifies only attempted calls; local and
   skipped steps return null provenance. Local completion uses `caller_findings`,
   retaining `final_analysis` as a caller-data alias through PAL 1.x. Missing caller

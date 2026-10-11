@@ -4,6 +4,27 @@
 
 The `consensus` tool orchestrates multiple AI models to provide diverse perspectives on your proposals, enabling structured decision-making through for/against analysis and multi-model expert opinions.
 
+## Completion and participant failures
+
+Completion reports consultation coverage, not agreement between models. The
+`complete_consensus.status` is `complete` when every requested participant succeeds,
+`partial` when only some succeed, and `failed` when none succeed. Top-level statuses
+are `consensus_workflow_complete`, `consensus_workflow_partial` and
+`consensus_workflow_failed`; `consensus_complete` is true only for full coverage.
+Both the last consultation and a later synthesis step use the same accounting.
+
+The summary includes `requested_models`, `successful_models`, `failed_models`,
+`pending_models`, `successful_providers`, `successful_provider_count` and
+`participant_errors`. Each model/stance pair is one participant; repeated steps
+use its latest outcome. Provider coverage counts only known successful providers.
+Skipped participants remain pending; an empty answer is a failure.
+
+For compatibility, `models_consulted` and `total_responses` remain present but now
+count successful participants only. `consensus_confidence` is null: completing
+consultations does not establish high confidence. The original proposal and all
+collected outcomes remain available. Partial results ask for a qualified synthesis
+of successful answers; zero-success results ask for failure reporting and recovery.
+
 ## Thinking Mode
 
 **Default is `medium` (8,192 tokens).** Use `high` for complex architectural decisions or `max` for critical strategic choices requiring comprehensive analysis.
