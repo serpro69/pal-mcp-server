@@ -3,6 +3,51 @@
 Recorded 2026-10-11. This covers the completed maintenance tasks below, not the
 remaining roadmap or optional live-provider behavior.
 
+## Task 15: yielding expert and consensus generation
+
+Recorded 2026-10-11. Workflow expert analysis and individual consensus consultations
+now await the same temporary `invoke_provider` adapter as simple tools. Actual
+provider attempts are still recorded before invocation, and reply/state mutation
+stays on the event-loop side after the await. Per-participant errors and Task 13's
+coverage accounting remain intact. Cancellation propagates through both workflow
+boundaries without becoming an error result or triggering another provider call.
+The synchronous worker cancellation limit documented in Task 14 still applies.
+
+Corrected the consensus file-context regression's fake response shape and asserted
+that its coroutine provider is awaited successfully. Replaced three misleading
+workflow UTF-8 tests with 12 behavior cases across analyze/codereview/debug,
+synchronous/coroutine providers and successful/failed calls. These assert the
+returned Unicode analysis/error, language instructions in the appropriate prompt
+channel, actual call/await, provenance, raw memory and absence of fabricated replies.
+The former conditional assertions could pass even when no expert result existed.
+
+Verification:
+
+- Focused async/consensus/degradation/UTF-8/metadata suite with
+  `-W error::RuntimeWarning`: **89 passed**.
+- `BLACK_NUM_WORKERS=1 ./code_quality_checks.sh`, locked Python 3.10.12:
+  **1,203 passed**, 4 skipped, 16 deselected, 19 subtests passed.
+  Ruff/Black/isort passed; **no warnings**, including neither of the previous
+  unawaited AsyncMock warnings.
+- Expanded consensus/workflow/state/ownership/concurrency suites on Python
+  3.11.13 and 3.12.11, also with RuntimeWarnings as errors: **163 passed each**.
+- Twelve additional interleaving cases cover expert/consensus, sync/coroutine
+  generation and success/error/cancellation through MCP dispatch. Two different
+  providers reach controlled waits concurrently, a provider-free request advances,
+  metadata/results remain isolated, no cancelled call retries, locks are reclaimed
+  and memory contains only real turns. Existing multi-step consensus degradation
+  and blinded prompt captures continue to pass after offload.
+- Required integration and quick simulator commands were attempted and retain the
+  existing environment/interpreter blockers. Live release gates remain open.
+
+Independent isolated review: **APPROVE**, no findings. No systemic P0/P1 findings
+required indexing. External PAL reviewer unavailable.
+
+Reflection: supporting coroutine providers required asserting awaited calls and
+valid ModelResponse objects, not merely silencing mock warnings. Some workflow
+tools embed system instructions in their main prompt, so localization checks must
+validate the actual selected channel. No dependencies or provider wire formats changed.
+
 ## Task 14: chat yielding and shared-provider safety
 
 Recorded 2026-10-11. Implemented in two sequential slices: client/transport safety

@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Implementation: [implementation.md](implementation.md)
 > Review resolutions: [review.md](review.md#revalidation-and-resolution)
-> Status: in-progress (Tasks 1–14 done; Tasks 15–42 pending)
+> Status: in-progress (Tasks 1–15 done; Tasks 16–42 pending)
 > Created: 2026-10-10
 > Not Doing: toolchain/release-process migration; MCP 2.x; wholesale catalogs; replacement of safety controls; file-annotation implementation; persistent continuation recovery; remote multi-user transport; automatic service activation
 
@@ -313,17 +313,23 @@ External PAL unavailable; existing live/setup release gates remain open.
 
 ## Task 15: Make expert and consensus generation yield
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 13, Task 14
 - **Size:** M
 - **Can run in parallel with:** —
 - **Docs:** [Implementation slice](implementation.md#task-15); [design contract](design.md#d4-async-provider-lifecycle)
 
-- [ ] 15.1 Route expert generation and consensus consultation through the temporary invocation adapter; preserve per-model error results and request-scoped state.
-- [ ] 15.2 Correct affected AsyncMock use and failure-path assertions, including the pre-existing consensus/workflow UTF-8 warnings.
-- [ ] 15.3 Verify the acceptance cases in [Task 15](implementation.md#task-15) and record the result here.
+- [x] 15.1 Route expert generation and consensus consultation through the temporary invocation adapter; preserve per-model error results and request-scoped state.
+- [x] 15.2 Correct affected AsyncMock use and failure-path assertions, including the pre-existing consensus/workflow UTF-8 warnings.
+- [x] 15.3 Verify the acceptance cases in [Task 15](implementation.md#task-15) and record the result here.
 
 **Scope / gate:** Preserve participant result semantics and the degraded-accounting contract in Task 13. Use mocks that match the active sync/async boundary.
+
+**Evidence:** [Task 15 validation](validation.md#task-15-yielding-expert-and-consensus-generation),
+2026-10-11. Full quality: **1,203 passed with no warnings**; expanded
+consensus/workflow/state/concurrency suites: **163 passed each** on Python 3.11
+and 3.12 with RuntimeWarnings as errors. Isolated review approved with no findings;
+external PAL unavailable. Existing live/setup release gates remain open.
 
 ## Task 16: Migrate OpenAI-compatible and Azure wire calls
 

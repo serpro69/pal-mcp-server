@@ -346,6 +346,7 @@ class TestConsensusTool:
         """
         from unittest.mock import AsyncMock, Mock, patch
 
+        from providers.shared import ModelResponse, ProviderType
         from utils.model_context import ModelContext
 
         tool = ConsensusTool()
@@ -354,6 +355,7 @@ class TestConsensusTool:
         mock_request = Mock()
         mock_request.relevant_files = ["/test/file1.py", "/test/file2.js"]
         mock_request.continuation_id = None
+        mock_request.images = None
 
         # Mock model configuration
         model_config = {"model": "flash", "stance": "neutral"}
@@ -368,7 +370,10 @@ class TestConsensusTool:
 
             # Setup mocks
             mock_provider = Mock()
-            mock_provider.generate_content = AsyncMock(return_value={"response": "test response"})
+            mock_provider.get_provider_type.return_value = ProviderType.GOOGLE
+            mock_provider.generate_content = AsyncMock(
+                return_value=ModelResponse(content="test response", model_name="flash", provider=ProviderType.GOOGLE)
+            )
             mock_get_provider.return_value = mock_provider
             mock_prepare_files.return_value = ("file content", [])
             mock_get_prompt.return_value = "system prompt"
@@ -379,7 +384,10 @@ class TestConsensusTool:
             try:
                 # This should not raise RuntimeError after the fix
                 # The method should create ModelContext and pass it to _prepare_file_content_for_prompt
-                await tool._consult_model(model_config, mock_request)
+                result = await tool._consult_model(model_config, mock_request)
+                assert result["status"] == "success"
+                assert result["verdict"] == "test response"
+                mock_provider.generate_content.assert_awaited_once()
 
                 # Verify that _prepare_file_content_for_prompt was called with model_context
                 mock_prepare_files.assert_called_once()
