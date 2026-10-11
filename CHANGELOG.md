@@ -4,6 +4,13 @@
 
 ## Unreleased
 
+- Provider configuration, setup hints and allowlists share provider declarations.
+  Custom and Azure restrictions now apply to discovery and calls alike. Complete
+  registered model IDs and aliases take precedence over legacy `:for`, `:against`
+  and `:neutral` options. Unknown tags are rejected: register the exact tagged ID
+  (for example `llama3.2:latest`) or an intentional alias instead of relying on
+  the previous suffix stripping. Registered tags are preserved on provider requests.
+
 - Gemini thinking now uses verified per-model controls: 2.5 budgets and 3.x levels.
   Unsupported PAL levels clamp down, or up to the lowest supported level when
   necessary; `max` maps to the highest accepted level. Invalid/empty capabilities

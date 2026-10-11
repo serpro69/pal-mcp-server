@@ -3,9 +3,8 @@
 import logging
 from typing import TYPE_CHECKING, Optional
 
-from utils.env import get_env
-
 from .base import ModelProvider
+from .configuration import provider_configurations
 from .shared import ProviderType
 
 if TYPE_CHECKING:
@@ -90,60 +89,16 @@ class ModelProviderRegistry:
         if provider_type not in instance._providers:
             return None
 
-        # Get API key from environment
-        api_key = cls._get_api_key_for_provider(provider_type)
-
-        # Get provider class or factory function
-        provider_class = instance._providers[provider_type]
-
-        # For custom providers, handle special initialization requirements
-        if provider_type == ProviderType.CUSTOM:
-            # Check if it's a factory function (callable but not a class)
-            if callable(provider_class) and not isinstance(provider_class, type):
-                # Factory function - call it with api_key parameter
-                provider = provider_class(api_key=api_key)
-            else:
-                # Regular class - need to handle URL requirement
-                custom_url = get_env("CUSTOM_API_URL", "") or ""
-                if not custom_url:
-                    if api_key:  # Key is set but URL is missing
-                        logging.warning("CUSTOM_API_KEY set but CUSTOM_API_URL missing – skipping Custom provider")
-                    return None
-                # Use empty string as API key for custom providers that don't need auth (e.g., Ollama)
-                # This allows the provider to be created even without CUSTOM_API_KEY being set
-                api_key = api_key or ""
-                # Initialize custom provider with both API key and base URL
-                provider = provider_class(api_key=api_key, base_url=custom_url)
-        elif provider_type == ProviderType.GOOGLE:
-            # For Gemini, check if custom base URL is configured
-            if not api_key:
-                return None
-            gemini_base_url = get_env("GEMINI_BASE_URL")
-            provider_kwargs = {"api_key": api_key}
-            if gemini_base_url:
-                provider_kwargs["base_url"] = gemini_base_url
-                logging.info(f"Initialized Gemini provider with custom endpoint: {gemini_base_url}")
-            provider = provider_class(**provider_kwargs)
-        elif provider_type == ProviderType.AZURE:
-            if not api_key:
-                return None
-
-            azure_endpoint = get_env("AZURE_OPENAI_ENDPOINT")
-            if not azure_endpoint:
-                logging.warning("AZURE_OPENAI_ENDPOINT missing – skipping Azure OpenAI provider")
-                return None
-
-            azure_version = get_env("AZURE_OPENAI_API_VERSION")
-            provider = provider_class(
-                api_key=api_key,
-                azure_endpoint=azure_endpoint,
-                api_version=azure_version,
-            )
+        config = provider_configurations()[provider_type]
+        factory = instance._providers[provider_type]
+        custom_factory = provider_type == ProviderType.CUSTOM and not isinstance(factory, type)
+        if not custom_factory and not config.is_configured():
+            return None
+        if isinstance(factory, type):
+            provider = factory(**config.constructor_kwargs())
         else:
-            if not api_key:
-                return None
-            # Initialize non-custom provider with just API key
-            provider = provider_class(api_key=api_key)
+            # Preserve the public factory registration contract.
+            provider = factory(api_key=config.api_key())
 
         # Cache the instance
         instance._initialized_providers[provider_type] = provider
@@ -165,27 +120,31 @@ class ModelProviderRegistry:
         Returns:
             ModelProvider instance that supports this model
         """
-        logging.debug(f"get_provider_for_model called with model_name='{model_name}'")
+        identity = cls.resolve_model_identity(model_name)
+        if identity is None:
+            return None
+        provider, canonical = identity
+        return provider if provider.validate_model_name(canonical) else None
 
-        # Check providers in priority order
-        instance = cls()
-        logging.debug(f"Registry instance: {instance}")
-        logging.debug(f"Available providers in registry: {list(instance._providers.keys())}")
-
+    @classmethod
+    def resolve_model_identity(cls, model_name: str) -> Optional[tuple[ModelProvider, str]]:
+        """Resolve complete catalog names before policy or legacy options."""
+        requested = model_name.strip()
+        candidates = []
         for provider_type in cls.PROVIDER_PRIORITY_ORDER:
-            if provider_type in instance._providers:
-                logging.debug(f"Found {provider_type} in registry")
-                # Get or create provider instance
-                provider = cls.get_provider(provider_type)
-                if provider and provider.validate_model_name(model_name):
-                    logging.debug(f"{provider_type} validates model {model_name}")
-                    return provider
-                else:
-                    logging.debug(f"{provider_type} does not validate model {model_name}")
-            else:
-                logging.debug(f"{provider_type} not found in registry")
-
-        logging.debug(f"No provider found for model {model_name}")
+            provider = cls.get_provider(provider_type)
+            if provider is None:
+                continue
+            candidates.append(provider)
+            canonical = provider.resolve_model_identity(requested)
+            if isinstance(canonical, str):
+                return provider, canonical
+        # Preserve the existing unregistered OpenRouter provider/model fallback,
+        # but never accept arbitrary unregistered tags.
+        if ":" not in requested:
+            for provider in candidates:
+                if provider.validate_model_name(requested):
+                    return provider, provider._resolve_model_name(requested)
         return None
 
     @classmethod
@@ -254,6 +213,15 @@ class ModelProviderRegistry:
                     continue
                 models[model_name] = provider_type
 
+        if respect_restrictions:
+            # A lower-priority catalog must not advertise a name that invocation
+            # binds to a disallowed higher-priority identity.
+            callable_models = {}
+            for model_name in models:
+                provider = cls.get_provider_for_model(model_name)
+                if provider is not None:
+                    callable_models[model_name] = provider.get_provider_type()
+            return callable_models
         return models
 
     @classmethod
@@ -331,21 +299,8 @@ class ModelProviderRegistry:
         Returns:
             API key string or None if not found
         """
-        key_mapping = {
-            ProviderType.GOOGLE: "GEMINI_API_KEY",
-            ProviderType.OPENAI: "OPENAI_API_KEY",
-            ProviderType.AZURE: "AZURE_OPENAI_API_KEY",
-            ProviderType.XAI: "XAI_API_KEY",
-            ProviderType.OPENROUTER: "OPENROUTER_API_KEY",
-            ProviderType.CUSTOM: "CUSTOM_API_KEY",  # Can be empty for providers that don't need auth
-            ProviderType.DIAL: "DIAL_API_KEY",
-        }
-
-        env_var = key_mapping.get(provider_type)
-        if not env_var:
-            return None
-
-        return get_env(env_var)
+        config = provider_configurations().get(provider_type)
+        return config.api_key() if config else None
 
     @classmethod
     def _get_allowed_models_for_provider(cls, provider: ModelProvider, provider_type: ProviderType) -> list[str]:
@@ -375,7 +330,10 @@ class ModelProviderRegistry:
 
         # Filter by restrictions
         for model_name in supported_models:
-            if restriction_service.is_allowed(provider_type, model_name):
+            if (
+                restriction_service.is_allowed(provider_type, model_name)
+                and cls.get_provider_for_model(model_name) is provider
+            ):
                 allowed_models.append(model_name)
 
         return allowed_models

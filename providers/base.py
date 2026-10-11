@@ -402,6 +402,11 @@ class ModelProvider(ABC):
 
         raise ValueError(f"Unsupported model '{model_name}' for provider {self.get_provider_type().value}.")
 
+    def resolve_model_identity(self, model_name: str) -> str | None:
+        """Look up a complete catalog identity without applying eligibility policy."""
+        canonical = self._resolve_model_name(model_name.strip())
+        return canonical if canonical in self.get_all_model_capabilities() else None
+
     def _resolve_model_name(self, model_name: str) -> str:
         """Resolve model shorthand to full name.
 

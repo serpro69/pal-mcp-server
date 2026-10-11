@@ -89,7 +89,7 @@ class TestCustomProvider:
         # Test that aliases resolve properly
         # "llama" now resolves to "meta-llama/llama-3-70b" (the OpenRouter model)
         resolved = provider._resolve_model_name("llama")
-        assert resolved == "meta-llama/llama-3-70b"
+        assert resolved == "llama"  # Another provider's alias cannot route a custom endpoint.
 
         # Test local model alias
         resolved_local = provider._resolve_model_name("local-llama")

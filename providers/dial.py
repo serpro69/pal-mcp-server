@@ -6,6 +6,7 @@ from typing import ClassVar, Optional
 
 from utils.env import get_env
 
+from .configuration import ProviderConfiguration
 from .openai_compatible import OpenAICompatibleProvider
 from .registries.dial import DialModelRegistry
 from .registry_provider_mixin import RegistryBackedProviderMixin
@@ -22,6 +23,16 @@ class DIALModelProvider(RegistryBackedProviderMixin, OpenAICompatibleProvider):
     for the known deployments, and centralises retry/backoff settings tailored
     to DIAL's latency characteristics.
     """
+
+    CONFIGURATION = ProviderConfiguration(
+        ProviderType.DIAL,
+        "AI DIAL",
+        "DIAL_API_KEY",
+        "DIAL_ALLOWED_MODELS",
+        placeholders=("your_dial_api_key_here",),
+        optional_env=("DIAL_API_HOST", "DIAL_API_VERSION", "DIAL_MODELS_CONFIG_PATH"),
+        arguments=(("base_url", "DIAL_API_HOST"),),
+    )
 
     FRIENDLY_NAME = "DIAL"
 
@@ -72,7 +83,7 @@ class DIALModelProvider(RegistryBackedProviderMixin, OpenAICompatibleProvider):
         self._closed = False
         self._close_task: Optional[asyncio.Task] = None
 
-        logger.info(f"Initialized DIAL provider with host: {dial_host} and api-version: {self.api_version}")
+        logger.info("Initialized DIAL provider with configured endpoint and API version")
 
     def _create_dial_http_client(self):
         """Allocate the owned pool lazily, retaining DIAL's proxy/TLS policy."""

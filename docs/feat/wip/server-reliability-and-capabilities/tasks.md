@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Implementation: [implementation.md](implementation.md)
 > Review resolutions: [review.md](review.md#revalidation-and-resolution)
-> Status: in-progress (Tasks 1–21 done; Tasks 22–42 pending)
+> Status: in-progress (Tasks 1–22 done; Tasks 23–42 pending)
 > Created: 2026-10-10
 > Not Doing: toolchain/release-process migration; MCP 2.x; wholesale catalogs; replacement of safety controls; file-annotation implementation; persistent continuation recovery; remote multi-user transport; automatic service activation
 
@@ -465,18 +465,28 @@ unchanged. External PAL unavailable; existing live/setup gates remain open.
 
 ## Task 22: Centralize provider configuration and restriction discovery
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 19
 - **Size:** M
 - **Can run in parallel with:** —
 - **Docs:** [Implementation slice](implementation.md#task-22); [design contract](design.md#d5-providers-and-model-policy)
 
-- [ ] 22.1 Declare provider identity/env/placeholder/required/optional/restriction metadata and factories; derive configuration/help/listmodels/test isolation from that source.
-- [ ] 22.2 Centralize complete request-to-wire identity across server.parse_model_option, provider lookup and custom routing. Resolve full canonical IDs/aliases from the full catalog before eligibility or legacy options. Only unresolved full IDs may use terminal for/against/neutral options with a resolvable preceding ID. Preserve registered custom tags, DIAL :0 IDs and OpenRouter suffixes; reject other unknown suffixes instead of stripping to a base model. Document exact-tag/explicit-alias migration and update parser fixtures.
-- [ ] 22.3 Apply allowlists to that resolved provider/canonical identity for every provider, including CUSTOM and Azure, keeping custom API keys optional. Add dispatcher-to-wire captures for full IDs, aliases, supported options, whitespace/case, unknown tags and registered :for IDs that take precedence even when denied.
-- [ ] 22.4 Verify the acceptance cases in [Task 22](implementation.md#task-22) and record the result here.
+- [x] 22.1 Declare provider identity/env/placeholder/required/optional/restriction metadata and factories; derive configuration/help/listmodels/test isolation from that source.
+- [x] 22.2 Centralize complete request-to-wire identity across server.parse_model_option, provider lookup and custom routing. Resolve full canonical IDs/aliases from the full catalog before eligibility or legacy options. Only unresolved full IDs may use terminal for/against/neutral options with a resolvable preceding ID. Preserve registered custom tags, DIAL :0 IDs and OpenRouter suffixes; reject other unknown suffixes instead of stripping to a base model. Document exact-tag/explicit-alias migration and update parser fixtures.
+- [x] 22.3 Apply allowlists to that resolved provider/canonical identity for every provider, including CUSTOM and Azure, keeping custom API keys optional. Add dispatcher-to-wire captures for full IDs, aliases, supported options, whitespace/case, unknown tags and registered :for IDs that take precedence even when denied.
+- [x] 22.4 Verify the acceptance cases in [Task 22](implementation.md#task-22) and record the result here.
 
 **Scope / gate:** Preserve intentional routing priority; add OpenCode Go separately in Task 36. Provider metadata drives discovery, restrictions, setup diagnostics and test isolation. Establish full model identity here before Tasks 25/26; policy rejection cannot trigger option reinterpretation. No new provider-prefix syntax is added to tool requests.
+
+**Execution slices:** Centralize provider declarations/factories and their mechanical
+consumers first; then implement complete model identity, policy and dispatcher-to-wire
+verification. These sequential slices form this task's single commit.
+
+**Evidence:** [Task 22 validation](validation.md#task-22-provider-configuration-and-complete-model-identity),
+2026-10-11. Full quality **1,437 passed**; focused contracts **107 passed each**
+on Python 3.11/3.12 before the final collision cases. Isolated review approved
+following discovery/identity corrections; external PAL unavailable due to rejected
+API credentials. Existing integration/simulator setup gates remain open.
 
 ## Task 23: Report missing and broken provider configuration correctly
 

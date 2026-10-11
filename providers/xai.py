@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, ClassVar, Optional
 if TYPE_CHECKING:
     from tools.models import ToolModelCategory
 
+from .configuration import ProviderConfiguration
 from .openai_compatible import OpenAICompatibleProvider
 from .registries.xai import XAIModelRegistry
 from .registry_provider_mixin import RegistryBackedProviderMixin
@@ -20,6 +21,15 @@ class XAIModelProvider(RegistryBackedProviderMixin, OpenAICompatibleProvider):
     Publishes capability metadata for the officially supported deployments and
     maps tool-category preferences to the appropriate GROK model.
     """
+
+    CONFIGURATION = ProviderConfiguration(
+        ProviderType.XAI,
+        "X.AI (Grok)",
+        "XAI_API_KEY",
+        "XAI_ALLOWED_MODELS",
+        placeholders=("your_xai_api_key_here",),
+        optional_env=("XAI_MODELS_CONFIG_PATH",),
+    )
 
     FRIENDLY_NAME = "X.AI"
 

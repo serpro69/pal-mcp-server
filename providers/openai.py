@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, ClassVar, Optional
 if TYPE_CHECKING:
     from tools.models import ToolModelCategory
 
+from .configuration import ProviderConfiguration
 from .openai_compatible import OpenAICompatibleProvider
 from .registries.openai import OpenAIModelRegistry
 from .registry_provider_mixin import RegistryBackedProviderMixin
@@ -21,6 +22,15 @@ class OpenAIModelProvider(RegistryBackedProviderMixin, OpenAICompatibleProvider)
     defined in ``conf/custom_models.json`` (for organisations running their own
     OpenAI-compatible gateways) while still respecting restriction policies.
     """
+
+    CONFIGURATION = ProviderConfiguration(
+        ProviderType.OPENAI,
+        "OpenAI",
+        "OPENAI_API_KEY",
+        "OPENAI_ALLOWED_MODELS",
+        placeholders=("your_openai_api_key_here",),
+        optional_env=("OPENAI_MODELS_CONFIG_PATH",),
+    )
 
     REGISTRY_CLASS = OpenAIModelRegistry
     MODEL_CAPABILITIES: ClassVar[dict[str, ModelCapabilities]] = {}

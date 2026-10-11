@@ -21,7 +21,9 @@ class TestOpenAICompatibleTokenUsage(unittest.TestCase):
                 return Mock()
 
             def get_provider_type(self):
-                return Mock()
+                from providers.shared import ProviderType
+
+                return ProviderType.OPENAI
 
             def validate_model_name(self, model_name):
                 return True

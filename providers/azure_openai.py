@@ -12,6 +12,7 @@ except ImportError:  # pragma: no cover
 
 from utils.env import get_env
 
+from .configuration import ProviderConfiguration
 from .openai import OpenAIModelProvider
 from .openai_compatible import OpenAICompatibleProvider
 from .registries.azure import AzureModelRegistry
@@ -22,6 +23,18 @@ logger = logging.getLogger(__name__)
 
 class AzureOpenAIProvider(OpenAICompatibleProvider):
     """Thin Azure wrapper that reuses the OpenAI-compatible request pipeline."""
+
+    CONFIGURATION = ProviderConfiguration(
+        ProviderType.AZURE,
+        "Azure OpenAI",
+        "AZURE_OPENAI_API_KEY",
+        "AZURE_ALLOWED_MODELS",
+        placeholders=("your_azure_openai_key_here", "your_azure_openai_api_key_here"),
+        required_env=("AZURE_OPENAI_ENDPOINT",),
+        optional_env=("AZURE_OPENAI_API_VERSION", "AZURE_MODELS_CONFIG_PATH"),
+        arguments=(("azure_endpoint", "AZURE_OPENAI_ENDPOINT"), ("api_version", "AZURE_OPENAI_API_VERSION")),
+        restriction_aliases=("AZURE_OPENAI_ALLOWED_MODELS",),
+    )
 
     FRIENDLY_NAME = "Azure OpenAI"
     DEFAULT_API_VERSION = "2024-02-15-preview"
@@ -66,6 +79,16 @@ class AzureOpenAIProvider(OpenAICompatibleProvider):
 
         self._capabilities = self._build_capabilities_map()
         self._deployment_map = {name: spec["deployment"] for name, spec in self._model_specs.items()}
+        deployments_seen: set[str] = set()
+        for canonical, deployment in self._deployment_map.items():
+            lowered = deployment.lower()
+            registered = super()._resolve_model_name(deployment)
+            if lowered in deployments_seen or (registered in self._capabilities and registered != canonical):
+                raise ValueError(
+                    f"Ambiguous Azure deployment '{deployment}': deployment IDs must not collide "
+                    "with another model's canonical name, alias or deployment."
+                )
+            deployments_seen.add(lowered)
         self._deployment_alias_lookup = {
             deployment.lower(): canonical for canonical, deployment in self._deployment_map.items()
         }
@@ -91,11 +114,19 @@ class AzureOpenAIProvider(OpenAICompatibleProvider):
             return super().get_capabilities(canonical)
         return super().get_capabilities(model_name)
 
-    def validate_model_name(self, model_name: str) -> bool:  # type: ignore[override]
-        lowered = model_name.lower()
-        if lowered in self._deployment_alias_lookup or lowered in self._canonical_lookup:
-            return True
-        return super().validate_model_name(model_name)
+    def resolve_model_identity(self, model_name: str) -> str | None:
+        lowered = model_name.strip().lower()
+        if lowered in self._deployment_alias_lookup:
+            return self._deployment_alias_lookup[lowered]
+        return super().resolve_model_identity(model_name.strip())
+
+    def _resolve_model_name(self, model_name: str) -> str:
+        # The shared serializer receives deployment IDs. Preserve them even if
+        # one is also an alias/canonical name of a different configured model.
+        lowered = model_name.strip().lower()
+        if lowered in self._deployment_alias_lookup:
+            return self._deployment_map[self._deployment_alias_lookup[lowered]]
+        return super()._resolve_model_name(model_name.strip())
 
     def _build_capabilities_map(self) -> dict[str, ModelCapabilities]:
         capabilities: dict[str, ModelCapabilities] = {}
@@ -292,7 +323,7 @@ class AzureOpenAIProvider(OpenAICompatibleProvider):
         )
 
     def _resolve_canonical_and_deployment(self, model_name: str) -> tuple[str, str]:
-        resolved_canonical = self._resolve_model_name(model_name)
+        resolved_canonical = self.resolve_model_identity(model_name)
 
         if resolved_canonical not in self._deployment_map:
             # The base resolver may hand back the deployment alias. Try to map it
@@ -303,16 +334,3 @@ class AzureOpenAIProvider(OpenAICompatibleProvider):
             raise ValueError(f"Model '{model_name}' is not configured for Azure OpenAI")
 
         return resolved_canonical, self._deployment_map[resolved_canonical]
-
-    def _parse_allowed_models(self) -> set[str] | None:  # type: ignore[override]
-        # Support both AZURE_ALLOWED_MODELS (inherited behaviour) and the
-        # clearer AZURE_OPENAI_ALLOWED_MODELS alias.
-        explicit = get_env("AZURE_OPENAI_ALLOWED_MODELS")
-        if explicit:
-            models = {m.strip().lower() for m in explicit.split(",") if m.strip()}
-            if models:
-                logger.info("Configured allowed models for Azure OpenAI: %s", sorted(models))
-                self._allowed_alias_cache = {}
-                return models
-
-        return super()._parse_allowed_models()

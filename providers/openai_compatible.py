@@ -83,7 +83,7 @@ class OpenAICompatibleProvider(ModelProvider):
                     normalized_resolved = self._allowed_alias_cache.get(allowed_entry)
                     if normalized_resolved is None:
                         try:
-                            resolved_name = self._resolve_model_name(allowed_entry)
+                            resolved_name = self.resolve_model_identity(allowed_entry)
                         except Exception:
                             continue
 
@@ -111,9 +111,11 @@ class OpenAICompatibleProvider(ModelProvider):
             Set of allowed model names (lowercase) or None if not configured
         """
         # Get provider-specific allowed models
-        provider_type = self.get_provider_type().value.upper()
-        env_var = f"{provider_type}_ALLOWED_MODELS"
-        models_str = get_env(env_var, "") or ""
+        from .configuration import provider_configurations
+
+        declaration = provider_configurations()[self.get_provider_type()]
+        env_var = declaration.restriction_env
+        models_str = declaration.allowed_models_value() or ""
 
         if models_str:
             # Parse and normalize to lowercase for case-insensitive comparison
@@ -157,13 +159,13 @@ class OpenAICompatibleProvider(ModelProvider):
             default_read = 1800.0  # 30 minutes for local models (extended thinking)
             default_write = 1800.0  # 30 minutes for local models
             default_pool = 1800.0  # 30 minutes for local models
-            logging.info(f"Using extended timeouts for local endpoint: {self.base_url}")
+            logging.info("Using extended timeouts for local endpoint")
         elif self.base_url:
             default_connect = 45.0  # 45 seconds for custom remote endpoints
             default_read = 900.0  # 15 minutes for custom remote endpoints
             default_write = 900.0  # 15 minutes for custom remote endpoints
             default_pool = 900.0  # 15 minutes for custom remote endpoints
-            logging.info(f"Using extended timeouts for custom endpoint: {self.base_url}")
+            logging.info("Using extended timeouts for custom endpoint")
 
         # Allow override via kwargs or environment variables in future, for now...
         connect_timeout = kwargs.get("connect_timeout")

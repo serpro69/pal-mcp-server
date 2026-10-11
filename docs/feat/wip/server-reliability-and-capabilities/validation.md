@@ -3,6 +3,47 @@
 Recorded 2026-10-11. This covers the completed maintenance tasks below, not the
 remaining roadmap or optional live-provider behavior.
 
+## Task 22: Provider configuration and complete model identity
+
+Recorded 2026-10-11. Provider classes now declare setup credentials, placeholders,
+required/optional settings, restrictions and constructor settings. Startup, registry
+factories, setup hints, model discovery and test isolation consume those declarations.
+Custom keys remain optional; Azure retains its compatibility allowlist setting.
+
+Complete catalog identity resolves before policy or legacy options. Registered
+custom tags, DIAL deployment suffixes and OpenRouter variants survive MCP dispatch
+and actual SDK serialization. Only resolvable terminal stance options are parsed;
+unknown tags fail explicitly. Alias and canonical allowlists govern Custom and
+Azure as well as other backends. Discovery, schema summaries and fallback honor
+the same routing priority, including denied names shadowing lower-priority aliases.
+Azure rejects ambiguous deployment/canonical/alias mappings before client creation.
+
+Changes cover provider declarations/registry/base and Custom/Azure identity hooks,
+server dispatch, restriction service, listing/schema helpers, regressions and
+configuration/release documentation. No dependency versions changed.
+
+Verification:
+
+- `BLACK_NUM_WORKERS=1 ./code_quality_checks.sh` in the existing fresh-lock Python
+  3.10 environment: **1,437 passed**, 4 skipped, 16 deselected, 19 subtests passed;
+  lint, formatting and import sorting passed. Ran outside the process sandbox,
+  which stalled existing thread/process tests and Black workers.
+- Focused identity, parser, serializer, restrictions and enumeration suites:
+  **107 passed each** on Python 3.11/3.12 before the final Azure collision-rejection
+  cases; those final cases passed in the full Python 3.10 run.
+- Isolated review identified priority/discovery disagreement and Azure identity
+  collisions; both were corrected with regressions. External PAL review could not
+  run because the configured key was rejected (`API_KEY_INVALID`).
+- Integration launcher exited before collection because `.pal_venv` is absent.
+  Quick simulator exited during setup because it checks the literal `python`
+  fallback as a file. These existing launcher/live-service gates remain open;
+  no live model validation is claimed.
+
+The main compatibility correction is intentional rejection of unknown model tags;
+exact tag registration or an explicit alias is the migration path. The implementation
+also had to remove raw-registry alias additions from tool discovery, since those
+would undo the centralized policy even after the registry itself was corrected.
+
 ## Task 21: Gemini thinking controls
 
 Recorded 2026-10-11. Native Gemini selects `thinking_budget` or `thinking_level`

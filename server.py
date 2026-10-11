@@ -376,235 +376,44 @@ PROMPT_TEMPLATES = {
 
 
 def configure_providers():
-    """
-    Configure and validate AI providers based on available API keys.
-
-    This function checks for API keys and registers the appropriate providers.
-    At least one valid API key (Gemini or OpenAI) is required.
-
-    Raises:
-        ValueError: If no valid API keys are found or conflicting configurations detected
-    """
-    # Log environment variable status for debugging
-    logger.debug("Checking environment variables for API keys...")
-    api_keys_to_check = ["OPENAI_API_KEY", "OPENROUTER_API_KEY", "GEMINI_API_KEY", "XAI_API_KEY", "CUSTOM_API_URL"]
-    for key in api_keys_to_check:
-        value = get_env(key)
-        logger.debug(f"  {key}: {'[PRESENT]' if value else '[MISSING]'}")
-    from providers import ModelProviderRegistry
-    from providers.azure_openai import AzureOpenAIProvider
-    from providers.custom import CustomProvider
-    from providers.dial import DIALModelProvider
-    from providers.gemini import GeminiModelProvider
-    from providers.openai import OpenAIModelProvider
-    from providers.openrouter import OpenRouterProvider
+    """Register configured backends using their shared declarations."""
+    from providers.configuration import provider_classes
+    from providers.registry import ModelProviderRegistry
     from providers.shared import ProviderType
-    from providers.xai import XAIModelProvider
     from utils.model_restrictions import get_restriction_service
 
-    valid_providers = []
-    has_native_apis = False
-    has_openrouter = False
-    has_custom = False
-
-    # Check for Gemini API key
-    gemini_key = get_env("GEMINI_API_KEY")
-    if gemini_key and gemini_key != "your_gemini_api_key_here":
-        valid_providers.append("Gemini")
-        has_native_apis = True
-        logger.info("Gemini API key found - Gemini models available")
-
-    # Check for OpenAI API key
-    openai_key = get_env("OPENAI_API_KEY")
-    logger.debug(f"OpenAI key check: key={'[PRESENT]' if openai_key else '[MISSING]'}")
-    if openai_key and openai_key != "your_openai_api_key_here":
-        valid_providers.append("OpenAI")
-        has_native_apis = True
-        logger.info("OpenAI API key found")
-    else:
-        if not openai_key:
-            logger.debug("OpenAI API key not found in environment")
-        else:
-            logger.debug("OpenAI API key is placeholder value")
-
-    # Check for Azure OpenAI configuration
-    azure_key = get_env("AZURE_OPENAI_API_KEY")
-    azure_endpoint = get_env("AZURE_OPENAI_ENDPOINT")
-    azure_models_available = False
-    if azure_key and azure_key != "your_azure_openai_key_here" and azure_endpoint:
-        try:
+    configured = {}
+    for factory in provider_classes():
+        config = factory.CONFIGURATION
+        if not config.is_configured():
+            ModelProviderRegistry.unregister_provider(config.provider_type)
+            logger.debug("%s not configured; set %s", config.label, config.setup_hint())
+            continue
+        if config.provider_type == ProviderType.AZURE:
             from providers.registries.azure import AzureModelRegistry
 
-            azure_registry = AzureModelRegistry()
-            if azure_registry.list_models():
-                valid_providers.append("Azure OpenAI")
-                has_native_apis = True
-                azure_models_available = True
-                logger.info("Azure OpenAI configuration detected")
-            else:
-                logger.warning(
-                    "Azure OpenAI models configuration is empty. Populate conf/azure_models.json or set AZURE_MODELS_CONFIG_PATH."
-                )
-        except Exception as exc:
-            logger.warning(f"Failed to load Azure OpenAI models: {exc}")
+            if not AzureModelRegistry().list_models():
+                logger.warning("Azure OpenAI models configuration is empty; configure AZURE_MODELS_CONFIG_PATH")
+                ModelProviderRegistry.unregister_provider(config.provider_type)
+                continue
+        ModelProviderRegistry.register_provider(config.provider_type, factory)
+        configured[config.provider_type] = ModelProviderRegistry.get_provider(config.provider_type)
+        logger.info("%s configured", config.label)
 
-    # Check for X.AI API key
-    xai_key = get_env("XAI_API_KEY")
-    if xai_key and xai_key != "your_xai_api_key_here":
-        valid_providers.append("X.AI (GROK)")
-        has_native_apis = True
-        logger.info("X.AI API key found - GROK models available")
+    if not configured:
+        hints = [
+            f"- {factory.CONFIGURATION.setup_hint()} for {factory.CONFIGURATION.label}"
+            for factory in provider_classes()
+        ]
+        raise ValueError("At least one API configuration is required. Please set either:\n" + "\n".join(hints))
+    get_restriction_service().validate_against_known_models(configured)
 
-    # Check for DIAL API key
-    dial_key = get_env("DIAL_API_KEY")
-    if dial_key and dial_key != "your_dial_api_key_here":
-        valid_providers.append("DIAL")
-        has_native_apis = True
-        logger.info("DIAL API key found - DIAL models available")
-
-    # Check for OpenRouter API key
-    openrouter_key = get_env("OPENROUTER_API_KEY")
-    logger.debug(f"OpenRouter key check: key={'[PRESENT]' if openrouter_key else '[MISSING]'}")
-    if openrouter_key and openrouter_key != "your_openrouter_api_key_here":
-        valid_providers.append("OpenRouter")
-        has_openrouter = True
-        logger.info("OpenRouter API key found - Multiple models available via OpenRouter")
-    else:
-        if not openrouter_key:
-            logger.debug("OpenRouter API key not found in environment")
-        else:
-            logger.debug("OpenRouter API key is placeholder value")
-
-    # Check for custom API endpoint (Ollama, vLLM, etc.)
-    custom_url = get_env("CUSTOM_API_URL")
-    if custom_url:
-        # IMPORTANT: Always read CUSTOM_API_KEY even if empty
-        # - Some providers (vLLM, LM Studio, enterprise APIs) require authentication
-        # - Others (Ollama) work without authentication (empty key)
-        # - DO NOT remove this variable - it's needed for provider factory function
-        custom_key = get_env("CUSTOM_API_KEY", "") or ""  # Default to empty (Ollama doesn't need auth)
-        custom_model = get_env("CUSTOM_MODEL_NAME", "llama3.2") or "llama3.2"
-        valid_providers.append(f"Custom API ({custom_url})")
-        has_custom = True
-        logger.info(f"Custom API endpoint found: {custom_url} with model {custom_model}")
-        if custom_key:
-            logger.debug("Custom API key provided for authentication")
-        else:
-            logger.debug("No custom API key provided (using unauthenticated access)")
-
-    # Register providers in priority order:
-    # 1. Native APIs first (most direct and efficient)
-    registered_providers = []
-
-    if has_native_apis:
-        if gemini_key and gemini_key != "your_gemini_api_key_here":
-            ModelProviderRegistry.register_provider(ProviderType.GOOGLE, GeminiModelProvider)
-            registered_providers.append(ProviderType.GOOGLE.value)
-            logger.debug(f"Registered provider: {ProviderType.GOOGLE.value}")
-        if openai_key and openai_key != "your_openai_api_key_here":
-            ModelProviderRegistry.register_provider(ProviderType.OPENAI, OpenAIModelProvider)
-            registered_providers.append(ProviderType.OPENAI.value)
-            logger.debug(f"Registered provider: {ProviderType.OPENAI.value}")
-        if azure_models_available:
-            ModelProviderRegistry.register_provider(ProviderType.AZURE, AzureOpenAIProvider)
-            registered_providers.append(ProviderType.AZURE.value)
-            logger.debug(f"Registered provider: {ProviderType.AZURE.value}")
-        if xai_key and xai_key != "your_xai_api_key_here":
-            ModelProviderRegistry.register_provider(ProviderType.XAI, XAIModelProvider)
-            registered_providers.append(ProviderType.XAI.value)
-            logger.debug(f"Registered provider: {ProviderType.XAI.value}")
-        if dial_key and dial_key != "your_dial_api_key_here":
-            ModelProviderRegistry.register_provider(ProviderType.DIAL, DIALModelProvider)
-            registered_providers.append(ProviderType.DIAL.value)
-            logger.debug(f"Registered provider: {ProviderType.DIAL.value}")
-
-    # 2. Custom provider second (for local/private models)
-    if has_custom:
-        # Factory function that creates CustomProvider with proper parameters
-        def custom_provider_factory(api_key=None):
-            # api_key is CUSTOM_API_KEY (can be empty for Ollama), base_url from CUSTOM_API_URL
-            base_url = get_env("CUSTOM_API_URL", "") or ""
-            return CustomProvider(api_key=api_key or "", base_url=base_url)  # Use provided API key or empty string
-
-        ModelProviderRegistry.register_provider(ProviderType.CUSTOM, custom_provider_factory)
-        registered_providers.append(ProviderType.CUSTOM.value)
-        logger.debug(f"Registered provider: {ProviderType.CUSTOM.value}")
-
-    # 3. OpenRouter last (catch-all for everything else)
-    if has_openrouter:
-        ModelProviderRegistry.register_provider(ProviderType.OPENROUTER, OpenRouterProvider)
-        registered_providers.append(ProviderType.OPENROUTER.value)
-        logger.debug(f"Registered provider: {ProviderType.OPENROUTER.value}")
-
-    # Log all registered providers
-    if registered_providers:
-        logger.info(f"Registered providers: {', '.join(registered_providers)}")
-
-    # Require at least one valid provider
-    if not valid_providers:
-        raise ValueError(
-            "At least one API configuration is required. Please set either:\n"
-            "- GEMINI_API_KEY for Gemini models\n"
-            "- OPENAI_API_KEY for OpenAI models\n"
-            "- XAI_API_KEY for X.AI GROK models\n"
-            "- DIAL_API_KEY for DIAL models\n"
-            "- OPENROUTER_API_KEY for OpenRouter (multiple models)\n"
-            "- CUSTOM_API_URL for local models (Ollama, vLLM, etc.)"
-        )
-
-    logger.info(f"Available providers: {', '.join(valid_providers)}")
-
-    # Log provider priority
-    priority_info = []
-    if has_native_apis:
-        priority_info.append("Native APIs (Gemini, OpenAI)")
-    if has_custom:
-        priority_info.append("Custom endpoints")
-    if has_openrouter:
-        priority_info.append("OpenRouter (catch-all)")
-
-    if len(priority_info) > 1:
-        logger.info(f"Provider priority: {' → '.join(priority_info)}")
-
-    # Check and log model restrictions
-    restriction_service = get_restriction_service()
-    restrictions = restriction_service.get_restriction_summary()
-
-    if restrictions:
-        logger.info("Model restrictions configured:")
-        for provider_name, allowed_models in restrictions.items():
-            if isinstance(allowed_models, list):
-                logger.info(f"  {provider_name}: {', '.join(allowed_models)}")
-            else:
-                logger.info(f"  {provider_name}: {allowed_models}")
-
-        # Validate restrictions against known models
-        provider_instances = {}
-        provider_types_to_validate = [ProviderType.GOOGLE, ProviderType.OPENAI, ProviderType.XAI, ProviderType.DIAL]
-        for provider_type in provider_types_to_validate:
-            provider = ModelProviderRegistry.get_provider(provider_type)
-            if provider:
-                provider_instances[provider_type] = provider
-
-        if provider_instances:
-            restriction_service.validate_against_known_models(provider_instances)
-    else:
-        logger.info("No model restrictions configured - all models allowed")
-
-    # Check if auto mode has any models available after restrictions
     from config import IS_AUTO_MODE
 
-    if IS_AUTO_MODE:
-        available_models = ModelProviderRegistry.get_available_models(respect_restrictions=True)
-        if not available_models:
-            logger.error(
-                "Auto mode is enabled but no models are available after applying restrictions. "
-                "Please check your OPENAI_ALLOWED_MODELS and GOOGLE_ALLOWED_MODELS settings."
-            )
-            raise ValueError(
-                "No models available for auto mode due to restrictions. "
-                "Please adjust your allowed model settings or disable auto mode."
-            )
+    if IS_AUTO_MODE and not ModelProviderRegistry.get_available_models(respect_restrictions=True):
+        raise ValueError(
+            "No models available for auto mode due to restrictions. Please adjust your allowed model settings."
+        )
 
 
 @server.list_tools()
@@ -731,21 +540,12 @@ async def _dispatch_tool(name: str, arguments: dict[str, Any]) -> list[TextConte
         model_name = arguments.get("model") or DEFAULT_MODEL
         logger.debug(f"Initial model for {name}: {model_name}")
 
-        # Parse model:option format if present
-        model_name, model_option = parse_model_option(model_name)
-        if model_option:
-            logger.info(f"Parsed model format - model: '{model_name}', option: '{model_option}'")
-        else:
-            logger.info(f"Parsed model format - model: '{model_name}'")
-
-        # Consensus tool handles its own model configuration validation
-        # No special handling needed at server level
-
-        # Skip model resolution for tools that don't require models (e.g., planner)
         if not tool.requires_model():
-            logger.debug(f"Tool {name} doesn't require model resolution - skipping model validation")
-            # Execute tool directly without model context
             return await tool.execute(arguments)
+        try:
+            model_name, model_option = parse_model_option(model_name)
+        except ValueError as exc:
+            raise ToolExecutionError(str(exc)) from exc
 
         # Handle auto mode at MCP boundary - resolve to specific model
         if model_name.lower() == "auto":
@@ -785,7 +585,8 @@ async def _dispatch_tool(name: str, arguments: dict[str, Any]) -> list[TextConte
             raise ToolExecutionError(error_output.model_dump_json())
 
         # Create model context with resolved model and option
-        model_context = ModelContext(model_name, model_option)
+        model_context = ModelContext(model_name, model_option, provider=provider)
+        arguments["model"] = model_name
         arguments["_model_context"] = model_context
         arguments["_resolved_model_name"] = model_name
         logger.debug(
@@ -825,37 +626,24 @@ async def _dispatch_tool(name: str, arguments: dict[str, Any]) -> list[TextConte
 
 
 def parse_model_option(model_string: str) -> tuple[str, Optional[str]]:
-    """
-    Parse model:option format into model name and option.
+    """Preserve full registered IDs; accept only resolvable legacy stance options."""
+    from providers.registry import ModelProviderRegistry
 
-    Handles different formats:
-    - OpenRouter models: preserve :free, :beta, :preview suffixes as part of model name
-    - Ollama/Custom models: split on : to extract tags like :latest
-    - Consensus stance: extract options like :for, :against
-
-    Args:
-        model_string: String that may contain "model:option" format
-
-    Returns:
-        tuple: (model_name, option) where option may be None
-    """
-    if ":" in model_string and not model_string.startswith("http"):  # Avoid parsing URLs
-        # Check if this looks like an OpenRouter model (contains /)
-        if "/" in model_string and model_string.count(":") == 1:
-            # Could be openai/gpt-4:something - check what comes after colon
-            parts = model_string.split(":", 1)
-            suffix = parts[1].strip().lower()
-
-            # Known OpenRouter suffixes to preserve
-            if suffix in ["free", "beta", "preview"]:
-                return model_string.strip(), None
-
-        # For other patterns (Ollama tags, consensus stances), split normally
-        parts = model_string.split(":", 1)
-        model_name = parts[0].strip()
-        model_option = parts[1].strip() if len(parts) > 1 else None
-        return model_name, model_option
-    return model_string.strip(), None
+    requested = model_string.strip()
+    if ":" not in requested:
+        return requested, None
+    if ModelProviderRegistry.resolve_model_identity(requested) is not None:
+        return requested, None
+    preceding, _, option = requested.rpartition(":")
+    option = option.strip().lower()
+    if option in {"for", "against", "neutral"}:
+        preceding = preceding.strip()
+        if ModelProviderRegistry.resolve_model_identity(preceding) is not None:
+            return preceding, option
+    raise ValueError(
+        f"Unknown model '{requested}'. Register the exact tagged model or an explicit alias in its model registry; "
+        "only :for, :against and :neutral are supported legacy options."
+    )
 
 
 def get_follow_up_instructions(current_turn_count: int, max_turns: int = None) -> str:

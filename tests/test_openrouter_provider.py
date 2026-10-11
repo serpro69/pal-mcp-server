@@ -224,11 +224,14 @@ class TestOpenRouterAutoMode:
         ]
         mock_registry.list_models.return_value = mock_models
 
-        # Mock the resolve method to return model configs with aliases
-        mock_model_config = Mock()
-        mock_model_config.aliases = []  # Empty aliases for simplicity
-        mock_model_config.get_effective_capability_rank = Mock(return_value=50)  # Add ranking method
-        mock_registry.resolve.return_value = mock_model_config
+        from providers.shared import ModelCapabilities
+
+        configs = {
+            name: ModelCapabilities(model_name=name, provider=ProviderType.OPENROUTER, friendly_name=name, aliases=[])
+            for name in mock_models
+        }
+        mock_registry.resolve.side_effect = configs.get
+        mock_registry.get_capabilities.side_effect = configs.get
 
         ModelProviderRegistry.register_provider(ProviderType.OPENROUTER, OpenRouterProvider)
 

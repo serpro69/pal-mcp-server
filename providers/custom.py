@@ -4,9 +4,9 @@ import logging
 
 from utils.env import get_env
 
+from .configuration import ProviderConfiguration
 from .openai_compatible import OpenAICompatibleProvider
 from .registries.custom import CustomEndpointModelRegistry
-from .registries.openrouter import OpenRouterModelRegistry
 from .shared import ModelCapabilities, ProviderType
 
 
@@ -24,10 +24,22 @@ class CustomProvider(OpenAICompatibleProvider):
         * Uses :class:`OpenRouterModelRegistry` to load model definitions and
           aliases so custom deployments share the same metadata pipeline as
           OpenRouter itself.
-        * Normalises version-tagged model names (``model:latest``) and applies
+        * Preserves registered version-tagged model names (``model:latest``) and applies
           restriction policies just like cloud providers, ensuring consistent
           behaviour across environments.
     """
+
+    CONFIGURATION = ProviderConfiguration(
+        ProviderType.CUSTOM,
+        "Custom/Local API",
+        "CUSTOM_API_KEY",
+        "CUSTOM_ALLOWED_MODELS",
+        placeholders=("your_custom_api_key_here",),
+        required_env=("CUSTOM_API_URL",),
+        optional_env=("CUSTOM_MODELS_CONFIG_PATH", "CUSTOM_MODEL_NAME"),
+        arguments=(("base_url", "CUSTOM_API_URL"),),
+        key_optional=True,
+    )
 
     FRIENDLY_NAME = "Custom API"
 
@@ -72,7 +84,7 @@ class CustomProvider(OpenAICompatibleProvider):
             api_key = "dummy-key-for-unauthenticated-endpoint"
             logging.debug("Using dummy API key for unauthenticated custom endpoint")
 
-        logging.info(f"Initializing Custom provider with endpoint: {base_url}")
+        logging.info("Initializing Custom provider with configured endpoint")
 
         self._alias_cache: dict[str, str] = {}
 
@@ -121,7 +133,7 @@ class CustomProvider(OpenAICompatibleProvider):
     # ------------------------------------------------------------------
 
     def _resolve_model_name(self, model_name: str) -> str:
-        """Resolve registry aliases and strip version tags for local models."""
+        """Resolve only exact registered names and aliases, retaining model tags."""
 
         cache_key = model_name.lower()
         if cache_key in self._alias_cache:
@@ -132,30 +144,6 @@ class CustomProvider(OpenAICompatibleProvider):
             if config.model_name != model_name:
                 logging.debug("Resolved model alias '%s' to '%s'", model_name, config.model_name)
             resolved = config.model_name
-            self._alias_cache[cache_key] = resolved
-            self._alias_cache.setdefault(resolved.lower(), resolved)
-            return resolved
-
-        if ":" in model_name:
-            base_model = model_name.split(":")[0]
-            logging.debug(f"Stripped version tag from '{model_name}' -> '{base_model}'")
-
-            base_config = self._registry.resolve(base_model)
-            if base_config:
-                logging.debug("Resolved base model '%s' to '%s'", base_model, base_config.model_name)
-                resolved = base_config.model_name
-                self._alias_cache[cache_key] = resolved
-                self._alias_cache.setdefault(resolved.lower(), resolved)
-                return resolved
-            self._alias_cache[cache_key] = base_model
-            return base_model
-
-        logging.debug(f"Model '{model_name}' not found in registry, using as-is")
-        # Attempt to resolve via OpenRouter registry so aliases still map cleanly
-        openrouter_registry = OpenRouterModelRegistry()
-        openrouter_config = openrouter_registry.resolve(model_name)
-        if openrouter_config:
-            resolved = openrouter_config.model_name
             self._alias_cache[cache_key] = resolved
             self._alias_cache.setdefault(resolved.lower(), resolved)
             return resolved

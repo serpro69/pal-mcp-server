@@ -16,6 +16,7 @@ from utils.env import get_env
 from utils.image_utils import validate_image
 
 from .base import ModelProvider
+from .configuration import ProviderConfiguration
 from .registries.gemini import GeminiModelRegistry
 from .registry_provider_mixin import RegistryBackedProviderMixin
 from .shared import ModelCapabilities, ModelResponse, ProviderType
@@ -30,6 +31,16 @@ class GeminiModelProvider(RegistryBackedProviderMixin, ModelProvider):
     custom endpoints, and performs image pre-processing before forwarding a
     request to the Gemini APIs.
     """
+
+    CONFIGURATION = ProviderConfiguration(
+        ProviderType.GOOGLE,
+        "Google Gemini",
+        "GEMINI_API_KEY",
+        "GOOGLE_ALLOWED_MODELS",
+        placeholders=("your_gemini_api_key_here",),
+        optional_env=("GEMINI_BASE_URL", "GEMINI_MODELS_CONFIG_PATH"),
+        arguments=(("base_url", "GEMINI_BASE_URL"),),
+    )
 
     REGISTRY_CLASS = GeminiModelRegistry
     MODEL_CAPABILITIES: ClassVar[dict[str, ModelCapabilities]] = {}
