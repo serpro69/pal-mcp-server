@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Implementation: [implementation.md](implementation.md)
 > Review resolutions: [review.md](review.md#revalidation-and-resolution)
-> Status: in-progress (Tasks 1–16 done; Tasks 17–42 pending)
+> Status: in-progress (Tasks 1–17 done; Tasks 18–42 pending)
 > Created: 2026-10-10
 > Not Doing: toolchain/release-process migration; MCP 2.x; wholesale catalogs; replacement of safety controls; file-annotation implementation; persistent continuation recovery; remote multi-user transport; automatic service activation
 
@@ -359,17 +359,23 @@ live/setup release gates remain open.
 
 ## Task 17: Migrate Gemini generation to the async SDK
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 15
 - **Size:** M
 - **Can run in parallel with:** —
 - **Docs:** [Implementation slice](implementation.md#task-17); [design contract](design.md#d4-async-provider-lifecycle)
 
-- [ ] 17.1 Use the verified GenAI async generation surface and the shared retry contract; preserve image conversion, safety/usage parsing and timeouts.
-- [ ] 17.2 Add an awaited async cleanup hook without creating a previously unused client. Keep budget/level behavior unchanged until Task 21.
-- [ ] 17.3 Verify the acceptance cases in [Task 17](implementation.md#task-17) and record the result here.
+- [x] 17.1 Use the verified GenAI async generation surface and the shared retry contract; preserve image conversion, safety/usage parsing and timeouts.
+- [x] 17.2 Add an awaited async cleanup hook without creating a previously unused client. Keep budget/level behavior unchanged until Task 21.
+- [x] 17.3 Verify the acceptance cases in [Task 17](implementation.md#task-17) and record the result here.
 
 **Scope / gate:** Native SDK capability is verified separately from per-model behavior. Cleanup must not allocate a client that was never used.
+
+**Evidence:** [Task 17 validation](validation.md#task-17-native-gemini-generation-and-cleanup),
+2026-10-11. Full quality: **1,228 passed** without warnings; focused suites
+**119 passed, 4 skipped each** on Python 3.11/3.12. Isolated review approved after
+covering partial cleanup failure/cancellation; external PAL unavailable. Existing
+live/setup release gates remain open.
 
 ## Task 18: Migrate DIAL generation and shared transport ownership
 

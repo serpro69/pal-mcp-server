@@ -55,7 +55,7 @@ def patch_sdk(monkeypatch, kind, constructor):
             monkeypatch.setattr("openai.OpenAI", constructor)
 
 
-@pytest.mark.parametrize("kind", ["gemini", "dial"])
+@pytest.mark.parametrize("kind", ["dial"])
 def test_concurrent_cold_generation_publishes_once_and_network_waits_overlap(monkeypatch, kind):
     provider, model = make_provider(kind)
     constructing = threading.Event()

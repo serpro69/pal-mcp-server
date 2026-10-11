@@ -180,13 +180,7 @@ async def test_consensus_multi_model_consultations(monkeypatch, openai_model):
     # Ensure Gemini replay session is flushed to disk before verification
     gemini_provider = ModelProviderRegistry.get_provider_for_model("gemini-2.5-flash")
     if gemini_provider is not None:
-        try:
-            client = gemini_provider.client
-            if hasattr(client, "close"):
-                client.close()
-        finally:
-            if hasattr(gemini_provider, "_client"):
-                gemini_provider._client = None
+        await gemini_provider.aclose()
 
     # Ensure cassettes exist for future replays
     assert consensus_cassette_path.exists()

@@ -1,5 +1,6 @@
 """Gemini model provider implementation."""
 
+import asyncio
 import base64
 import logging
 import threading
@@ -49,6 +50,9 @@ class GeminiModelProvider(RegistryBackedProviderMixin, ModelProvider):
         super().__init__(api_key, **kwargs)
         self._client = None
         self._client_init_lock = threading.Lock()
+        self._close_lock = asyncio.Lock()
+        self._async_client_closed = False
+        self._sync_client_closed = False
         self._token_counters = {}  # Cache for token counting
         self._base_url = kwargs.get("base_url", None)  # Optional custom endpoint
         self._timeout_override = self._resolve_http_timeout()
@@ -86,6 +90,31 @@ class GeminiModelProvider(RegistryBackedProviderMixin, ModelProvider):
                         self._client = genai.Client(api_key=self.api_key)
         return self._client
 
+    async def aclose(self) -> None:
+        """Close both SDK transports once without initializing an unused client."""
+        async with self._close_lock:
+            if self._client is not None:
+                async_close_succeeded = False
+                try:
+                    if not self._async_client_closed:
+                        await self._client.aio.aclose()
+                        self._async_client_closed = True
+                    async_close_succeeded = True
+                finally:
+                    if not self._sync_client_closed:
+                        try:
+                            self._client.close()
+                        except Exception:
+                            if async_close_succeeded:
+                                raise
+                            # Preserve the original async failure/cancellation.
+                            logger.warning("Gemini synchronous cleanup also failed", exc_info=True)
+                        else:
+                            self._sync_client_closed = True
+                self._client = None
+                self._async_client_closed = False
+                self._sync_client_closed = False
+
     def _resolve_http_timeout(self) -> Optional[float]:
         """Compute timeout override from shared custom timeout environment variables."""
 
@@ -115,7 +144,7 @@ class GeminiModelProvider(RegistryBackedProviderMixin, ModelProvider):
     # Request execution
     # ------------------------------------------------------------------
 
-    def generate_content(
+    async def generate_content(
         self,
         prompt: str,
         model_name: str,
@@ -164,7 +193,7 @@ class GeminiModelProvider(RegistryBackedProviderMixin, ModelProvider):
         if images and capabilities.supports_images:
             for image_path in images:
                 try:
-                    image_part = self._process_image(image_path)
+                    image_part = await asyncio.to_thread(self._process_image, image_path)
                     if image_part:
                         parts.append(image_part)
                 except Exception as e:
@@ -210,9 +239,9 @@ class GeminiModelProvider(RegistryBackedProviderMixin, ModelProvider):
         retry_delays = [1, 3, 5, 8]  # Progressive delays: 1s, 3s, 5s, 8s
         attempt_counter = {"value": 0}
 
-        def _attempt() -> ModelResponse:
+        async def _attempt() -> ModelResponse:
             attempt_counter["value"] += 1
-            response = self.client.models.generate_content(
+            response = await self.client.aio.models.generate_content(
                 model=resolved_model_name,
                 contents=contents,
                 config=generation_config,
@@ -300,7 +329,7 @@ class GeminiModelProvider(RegistryBackedProviderMixin, ModelProvider):
             )
 
         try:
-            return self._run_with_retries(
+            return await self._run_with_retries_async(
                 operation=_attempt,
                 max_attempts=max_retries,
                 delays=retry_delays,
