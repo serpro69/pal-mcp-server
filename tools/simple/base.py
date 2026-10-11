@@ -203,6 +203,9 @@ class SimpleTool(BaseTool):
         except AttributeError:
             return None
 
+    def validate_model_request(self, request) -> None:
+        """Validate model-dependent requirements before prompt preparation or generation."""
+
     def get_validated_temperature(self, request, model_context: Any) -> tuple[float, list[str]]:
         """
         Get temperature from request and validate it against model constraints.
@@ -323,6 +326,8 @@ class SimpleTool(BaseTool):
 
                 self._model_context = ModelContext(model_name)
                 logger.debug(f"{self.get_name()}: Created model context for {model_name}")
+
+            self.validate_model_request(request)
 
             # Get images if present
             images = self.get_request_images(request)
@@ -587,6 +592,10 @@ class SimpleTool(BaseTool):
             )
             raise ToolExecutionError(error_output.model_dump_json()) from e
 
+    def get_recordable_response(self, raw_text: str, formatted_response: str, request) -> str:
+        """Select conversation content separately from the client presentation."""
+        return raw_text if self.get_request_continuation_id(request) else formatted_response
+
     def _parse_response(self, raw_text: str, request, model_info: Optional[dict] = None):
         """
         Parse the raw response and format it using the hook method.
@@ -598,16 +607,19 @@ class SimpleTool(BaseTool):
 
         # Format the response using the hook method
         formatted_response = self.format_response(raw_text, request, model_info)
+        recordable_response = self.get_recordable_response(raw_text, formatted_response, request)
 
         # Handle conversation continuation like old base.py
         continuation_id = self.get_request_continuation_id(request)
         if continuation_id:
-            self._record_assistant_turn(continuation_id, raw_text, request, model_info)
+            self._record_assistant_turn(continuation_id, recordable_response, request, model_info)
 
         # Create continuation offer like old base.py
         continuation_data = self._create_continuation_offer(request, model_info)
         if continuation_data:
-            return self._create_continuation_offer_response(formatted_response, continuation_data, request, model_info)
+            return self._create_continuation_offer_response(
+                formatted_response, continuation_data, request, model_info, recordable_content=recordable_response
+            )
         else:
             # Build metadata with model and provider info for success response
             metadata = {}
@@ -685,7 +697,13 @@ class SimpleTool(BaseTool):
             return None
 
     def _create_continuation_offer_response(
-        self, content: str, continuation_data: dict, request, model_info: Optional[dict] = None
+        self,
+        content: str,
+        continuation_data: dict,
+        request,
+        model_info: Optional[dict] = None,
+        *,
+        recordable_content: Optional[str] = None,
     ):
         """Create response with continuation offer following old base.py pattern"""
         from tools.models import ContinuationOffer, ToolOutput
@@ -694,7 +712,7 @@ class SimpleTool(BaseTool):
             if not self.get_request_continuation_id(request):
                 self._record_assistant_turn(
                     continuation_data["continuation_id"],
-                    content,
+                    content if recordable_content is None else recordable_content,
                     request,
                     model_info,
                 )

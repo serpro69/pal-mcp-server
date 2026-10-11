@@ -33,7 +33,7 @@ CASSETTE_REPLAY_ID = "chat_codegen/gemini25_pro_calculator/mldev"
 @pytest.mark.asyncio
 @pytest.mark.no_mock_provider
 async def test_chat_codegen_saves_file(monkeypatch, tmp_path):
-    """Ensure Gemini 2.5 Pro responses create pal_generated.code when code is emitted."""
+    """Ensure Gemini responses create unique artifacts without overwriting existing files."""
 
     CASSETTE_PATH.parent.mkdir(parents=True, exist_ok=True)
 
@@ -51,6 +51,7 @@ async def test_chat_codegen_saves_file(monkeypatch, tmp_path):
     with monkeypatch.context() as m:
         m.setenv("GEMINI_API_KEY", gemini_key)
         m.setenv("DEFAULT_MODEL", "auto")
+        m.setenv("PAL_WORKSPACE_ROOT", str(tmp_path))
         m.setenv("GOOGLE_ALLOWED_MODELS", "gemini-2.5-pro")
         m.setenv("GOOGLE_GENAI_CLIENT_MODE", client_mode)
         m.setenv("GOOGLE_GENAI_REPLAYS_DIRECTORY", str(REPLAYS_ROOT))
@@ -102,7 +103,8 @@ async def test_chat_codegen_saves_file(monkeypatch, tmp_path):
     payload = json.loads(result[0].text)
     assert payload["status"] in {"success", "continuation_available"}
 
-    artifact_path = working_dir / "pal_generated.code"
+    (artifact_path,) = (working_dir / ".pal_artifacts").glob("*.code")
+    assert preexisting.read_text() == "stale contents"
     assert artifact_path.exists()
     saved = artifact_path.read_text()
     assert "<GENERATED-CODE>" in saved

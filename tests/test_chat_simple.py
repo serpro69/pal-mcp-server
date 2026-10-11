@@ -6,6 +6,8 @@ This module contains unit tests to ensure that the Chat tool
 """
 
 import json
+import os
+from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -13,6 +15,11 @@ import pytest
 
 from tools.chat import ChatRequest, ChatTool
 from tools.shared.exceptions import ToolExecutionError
+
+
+@pytest.fixture(autouse=True)
+def artifact_workspace(tmp_path, monkeypatch):
+    monkeypatch.setenv("PAL_WORKSPACE_ROOT", str(tmp_path))
 
 
 class TestChatTool:
@@ -133,7 +140,7 @@ class TestChatTool:
         assert "Evaluate this perspective" in formatted
 
     def test_format_response_multiple_generated_code_blocks(self, tmp_path):
-        """All generated-code blocks should be combined and saved to pal_generated.code."""
+        """The final generated-code block is saved to a unique artifact."""
         tool = ChatTool()
         tool._model_context = SimpleNamespace(capabilities=SimpleNamespace(allow_code_generation=True))
 
@@ -148,7 +155,7 @@ class TestChatTool:
 
         formatted = tool.format_response(response, request)
 
-        saved_path = tmp_path / "pal_generated.code"
+        (saved_path,) = (tmp_path / ".pal_artifacts").glob("*.code")
         saved_content = saved_path.read_text(encoding="utf-8")
 
         assert "print('world')" in saved_content
@@ -172,7 +179,7 @@ class TestChatTool:
 
         formatted = tool.format_response(response, request)
 
-        saved_path = tmp_path / "pal_generated.code"
+        (saved_path,) = (tmp_path / ".pal_artifacts").glob("*.code")
         saved_content = saved_path.read_text(encoding="utf-8")
 
         assert "print('only-once')" in saved_content
@@ -326,3 +333,156 @@ class TestChatRequestModel:
 
 if __name__ == "__main__":
     pytest.main([__file__])
+
+
+class TestChatArtifacts:
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("continuation", [False, True])
+    @pytest.mark.parametrize("target_kind", ["outside", "traversal", "sandbox_link", "root_link", "working_link"])
+    async def test_policy_rejected_before_generation(self, tmp_path, monkeypatch, continuation, target_kind):
+        root = tmp_path / "workspace"
+        root.mkdir()
+        outside = tmp_path / "outside"
+        outside.mkdir()
+        monkeypatch.setenv("PAL_WORKSPACE_ROOT", str(root))
+        working = root
+        if target_kind == "outside":
+            working = outside
+        elif target_kind == "traversal":
+            working = root / ".." / "workspace"
+        elif target_kind == "sandbox_link":
+            (root / ".pal_artifacts").symlink_to(outside, target_is_directory=True)
+        elif target_kind == "working_link":
+            working = root / "linked"
+            working.symlink_to(outside, target_is_directory=True)
+        else:
+            linked = tmp_path / "root-link"
+            linked.symlink_to(root, target_is_directory=True)
+            monkeypatch.setenv("PAL_WORKSPACE_ROOT", str(linked))
+        tool = ChatTool()
+        context = SimpleNamespace(capabilities=SimpleNamespace(allow_code_generation=True))
+        with patch.object(tool, "prepare_prompt") as prepare:
+            with pytest.raises(ToolExecutionError) as exc:
+                await tool.execute(
+                    {
+                        "prompt": "=== CONVERSATION HISTORY ===" if continuation else "generate",
+                        "working_directory_absolute_path": str(working),
+                        "continuation_id": "some-thread" if continuation else None,
+                        "_model_context": context,
+                    }
+                )
+        assert json.loads(exc.value.payload)["status"] == "error"
+        prepare.assert_not_called()
+        assert not list(outside.iterdir())
+
+    @pytest.mark.parametrize("existing_kind", ["file", "symlink", "dangling_symlink"])
+    def test_exclusive_destination_never_overwrites(self, tmp_path, monkeypatch, existing_kind):
+        sandbox = tmp_path / ".pal_artifacts"
+        sandbox.mkdir()
+        destination = sandbox / "pal_generated_collision.code"
+        original = tmp_path / "original"
+        if existing_kind != "dangling_symlink":
+            original.write_text("keep me")
+        if existing_kind == "file":
+            destination.write_text("keep me")
+        else:
+            destination.symlink_to(original)
+        monkeypatch.setattr("tools.chat.uuid4", lambda: SimpleNamespace(hex="collision"))
+        with pytest.raises(FileExistsError):
+            ChatTool()._persist_generated_code_block("replacement", str(tmp_path))
+        if existing_kind != "dangling_symlink":
+            assert original.read_text() == "keep me"
+            assert destination.read_text() == "keep me"
+        else:
+            assert destination.is_symlink()
+            assert not original.exists()
+
+    def test_concurrent_artifacts_in_nested_directory(self, tmp_path):
+        nested = tmp_path / "nested directory"
+        nested.mkdir()
+        (nested / "pal_generated.code").write_text("old artifact")
+        tool = ChatTool()
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            paths = list(
+                pool.map(lambda content: tool._persist_generated_code_block(content, str(nested)), ["one", "two"])
+            )
+        assert len(set(paths)) == 2
+        assert [path.read_text() for path in paths] == ["one\n", "two\n"]
+        assert all(path.parent == nested / ".pal_artifacts" for path in paths)
+        assert all(path.stat().st_mode & 0o777 == 0o600 for path in paths)
+        assert (nested / "pal_generated.code").read_text() == "old artifact"
+
+    def test_root_is_captured_at_construction(self, tmp_path, monkeypatch):
+        monkeypatch.delenv("PAL_WORKSPACE_ROOT")
+        monkeypatch.chdir(tmp_path)
+        tool = ChatTool()
+        other = tmp_path / "other"
+        other.mkdir()
+        monkeypatch.chdir(other)
+        monkeypatch.setenv("PAL_WORKSPACE_ROOT", str(other))
+        assert tool._persist_generated_code_block("code", str(tmp_path)).parent == tmp_path / ".pal_artifacts"
+
+    def test_read_paths_independent_of_artifact_root(self, tmp_path):
+        tool = ChatTool()
+        request = ChatRequest(prompt="explain", working_directory_absolute_path="/tmp", absolute_file_paths=[__file__])
+        assert tool._validate_file_paths(request) is None
+        tool._model_context = SimpleNamespace(capabilities=SimpleNamespace(allow_code_generation=False))
+        tool.validate_model_request(request)
+        assert not (tmp_path / ".pal_artifacts").exists()
+
+    def test_unsupported_platform_fails_explicitly(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(os, "supports_dir_fd", set())
+        with pytest.raises(OSError, match="unsupported on this platform"):
+            ChatTool()._persist_generated_code_block("code", str(tmp_path))
+
+    @pytest.mark.asyncio
+    async def test_write_failure_is_tool_error_without_inline_fallback(self, tmp_path):
+        from providers.gemini import GeminiModelProvider
+        from providers.shared import ModelResponse
+
+        tool = ChatTool()
+        provider = GeminiModelProvider(api_key="synthetic-test-key")
+        with (
+            patch("providers.registry.ModelProviderRegistry.get_provider_for_model", return_value=provider),
+            patch.object(tool, "_model_supports_code_generation", return_value=True),
+            patch.object(tool, "_persist_generated_code_block", side_effect=PermissionError("artifact write denied")),
+            patch(
+                "providers.gemini.GeminiModelProvider.generate_content",
+                return_value=ModelResponse(
+                    content="<GENERATED-CODE>proposal</GENERATED-CODE>",
+                    model_name="gemini-2.5-flash",
+                    provider="google",
+                ),
+            ),
+        ):
+            with pytest.raises(ToolExecutionError) as exc:
+                await tool.execute(
+                    {
+                        "prompt": "generate",
+                        "model": "gemini-2.5-flash",
+                        "working_directory_absolute_path": str(tmp_path),
+                    }
+                )
+        payload = json.loads(exc.value.payload)
+        assert payload["status"] == "error"
+        assert "artifact write denied" in payload["content"]
+        assert "<GENERATED-CODE>" not in payload["content"]
+        assert "AGENT'S TURN" not in payload["content"]
+
+    @pytest.mark.parametrize("continued", [False, True])
+    def test_history_keeps_raw_model_response(self, tmp_path, continued):
+        from utils.conversation_memory import create_thread, get_thread
+
+        tool = ChatTool()
+        tool._model_context = SimpleNamespace(capabilities=SimpleNamespace(allow_code_generation=True))
+        raw = "<GENERATED-CODE>raw model proposal</GENERATED-CODE>"
+        request = ChatRequest(
+            prompt="generate",
+            working_directory_absolute_path=str(tmp_path),
+            continuation_id=create_thread("chat", {}) if continued else None,
+        )
+        result = tool._parse_response(raw, request)
+        assert ".pal_artifacts" in result.content
+        thread = get_thread(result.continuation_offer.continuation_id)
+        replies = [turn.content for turn in thread.turns if turn.role == "assistant"]
+        assert replies == [raw]

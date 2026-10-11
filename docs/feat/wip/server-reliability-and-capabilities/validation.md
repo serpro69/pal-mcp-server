@@ -1,6 +1,6 @@
-# Validation evidence: Tasks 1–3
+# Validation evidence: Tasks 1–4
 
-Recorded 2026-10-11. This covers the first three maintenance tasks, not the
+Recorded 2026-10-11. This covers the completed maintenance tasks below, not the
 remaining roadmap or optional live-provider behavior.
 
 ## Task 1: MCP and Python compatibility
@@ -234,3 +234,39 @@ installation outside its venv; patching only the venv missed it. Remaining scan
 findings require the explicit dependency/release follow-ups above. License repair
 was substantive text restoration, not just formatting. No architecture, provider
 behavior or release-workflow changes were needed for Tasks 1–3.
+
+## Task 4: generated chat artifacts
+
+Recorded 2026-10-11. Chat captures `PAL_WORKSPACE_ROOT` at construction (default:
+startup cwd), validates artifact-capable requests before generation even for
+prebuilt continuation prompts, and creates unique private files under
+`.pal_artifacts`. Directory-descriptor/no-follow opens and exclusive file creation
+reject linked sandbox/destination entries without unlinking existing files.
+Unsupported platforms fail explicitly. Context-file reads keep their independent
+policy. Artifact history retains the raw reply on both initial and continued
+calls; ordinary chat history is unchanged pending Task 9.
+
+Changed chat, its small SimpleTool validation/recording hooks, chat unit/replay
+tests and temporary-workspace test configuration; updated chat/configuration docs
+and release notes. The local security hook blocks the environment template, so its
+planned environment example is documented in `docs/configuration.md` instead.
+No dependency pins or recorded request bodies changed.
+
+- Baseline quality: **913 passed**, 4 skipped, 16 deselected, 2 existing warnings.
+- Final `BLACK_NUM_WORKERS=1 ./code_quality_checks.sh` in the fresh-lock Python
+  3.10.12 environment: **933 passed**, 4 skipped, 16 deselected, 19 subtests passed.
+  Ruff, Black and isort passed. Black required execution outside the process
+  sandbox; no check was disabled. The same 2 pre-existing AsyncMock warnings remain.
+- Coverage includes traversal/outside roots, linked root/working/sandbox paths,
+  file/symlink/dangling-link collisions, concurrent distinct paths/content, nested
+  directories with spaces, private modes, frozen root configuration, independent
+  read paths, unsupported platforms, write errors without inline fallback, and
+  actual raw-reply storage on first/continued artifact calls. Existing Gemini
+  artifact replay and ordinary cross-provider continuation replay passed unchanged.
+- Integration script and quick simulator still stop during environment setup:
+  absent `.pal_venv` and simulator interpreter-path detection respectively. The
+  Task 1 live-validation follow-up remains open. No live API calls were recorded.
+
+Independent `kk:review-code:isolated`: **APPROVE**, no remaining findings. Review
+identified and verified the correction to initial artifact-reply storage; external
+PAL tools were unavailable. No systemic review findings needed indexing.

@@ -4,6 +4,11 @@
 
 ## Unreleased
 
+- Confine generated chat artifacts to `PAL_WORKSPACE_ROOT` (default: startup cwd),
+  using unique `.pal_artifacts` files instead of overwriting `pal_generated.code`.
+  Reject unsafe paths and unsupported secure-write platforms before generation;
+  report write failures as tool errors without inline generated-code fallback.
+
 - Require Python 3.10 or newer, matching the supported launchers and CI matrix.
   Python 3.9 is no longer advertised or selected by the Windows launcher.
 - Require MCP 1.30.0 or newer within the 1.x series for the latest maintenance

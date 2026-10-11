@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Implementation: [implementation.md](implementation.md)
 > Review resolutions: [review.md](review.md#revalidation-and-resolution)
-> Status: in-progress (Tasks 1–3 done; Tasks 4–42 pending)
+> Status: in-progress (Tasks 1–4 done; Tasks 5–42 pending)
 > Created: 2026-10-10
 > Not Doing: toolchain/release-process migration; MCP 2.x; wholesale catalogs; replacement of safety controls; file-annotation implementation; persistent continuation recovery; remote multi-user transport; automatic service activation
 
@@ -81,17 +81,24 @@ Locks unchanged; full quality: 913 passed. Isolated review approved with no find
 
 ## Task 4: Contain generated chat artifacts
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** —
 - **Size:** M
 - **Can run in parallel with:** Task 3, Task 5, Task 6, Task 8, Task 30
 - **Docs:** [Implementation slice](implementation.md#task-4); [design contract](design.md#d2-file-and-cli-boundaries)
 
-- [ ] 4.1 Validate operator PAL_WORKSPACE_ROOT and supplied working directory before generation; define cwd fallback in configuration docs.
-- [ ] 4.2 Create unique per-call artifacts inside a validated sandbox with exclusive/no-follow handling; reject symlink escapes at root/sandbox/file boundaries and surface policy/write failures without inline fallback instructions.
-- [ ] 4.3 Verify the acceptance cases in [Task 4](implementation.md#task-4) and record the result here.
+- [x] 4.1 Validate operator PAL_WORKSPACE_ROOT and supplied working directory before generation; define cwd fallback in configuration docs.
+- [x] 4.2 Create unique per-call artifacts inside a validated sandbox with exclusive/no-follow handling; reject symlink escapes at root/sandbox/file boundaries and surface policy/write failures without inline fallback instructions.
+- [x] 4.3 Verify the acceptance cases in [Task 4](implementation.md#task-4) and record the result here.
 
 **Scope / gate:** Keep read-only chat file access independent from the artifact write root. Validate the root, artifact directory and destination as separate boundaries; names must be unique per call.
+
+**Evidence:** [Task 4 validation](validation.md#task-4-generated-chat-artifacts),
+2026-10-11. Full quality: 933 passed; artifact boundary, concurrency, explicit-error
+and first/continued raw-history regressions passed. Isolated review approved after
+correcting initial-turn history (external PAL unavailable). Environment-template
+access was blocked; configuration example is in docs/configuration.md. Existing
+live setup gates remain open as recorded in validation.md.
 
 ## Task 5: Bound file reads and preserve the local deny policy
 
