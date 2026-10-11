@@ -627,7 +627,7 @@ class SecauditTool(WorkflowTool):
                 if severity not in response_data["security_audit_status"]["vulnerabilities_by_severity"]:
                     response_data["security_audit_status"]["vulnerabilities_by_severity"][severity] = 0
                 response_data["security_audit_status"]["vulnerabilities_by_severity"][severity] += 1
-            response_data["security_audit_status"]["audit_confidence"] = self.get_request_confidence(request)
+            response_data["security_audit_status"]["audit_confidence"] = self.get_caller_confidence(request)
 
         # Map complete_secaudit to complete_security_audit
         if f"complete_{tool_name}" in response_data:

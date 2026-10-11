@@ -300,47 +300,6 @@ class WorkflowTool(BaseTool, BaseWorkflowMixin):
 
         return "\n".join(context_parts)
 
-    def handle_completion_without_expert_analysis(
-        self, request, consolidated_findings, initial_description: str = None
-    ) -> dict[str, Any]:
-        """
-        Generic handler for completion when expert analysis is not needed.
-
-        This provides a standard response format for when the tool determines
-        that external expert analysis is not required. All workflow tools
-        can use this generic implementation or override for custom behavior.
-
-        Args:
-            request: The workflow request object
-            consolidated_findings: The consolidated findings from all work steps
-            initial_description: Optional initial description (defaults to request.step)
-
-        Returns:
-            Dictionary with completion response data
-        """
-        # Prepare work summary using inheritance hook
-        work_summary = self.prepare_work_summary()
-
-        return {
-            "status": self.get_completion_status(),
-            self.get_completion_data_key(): {
-                "initial_request": initial_description or request.step,
-                "steps_taken": len(consolidated_findings.findings),
-                "files_examined": list(consolidated_findings.files_checked),
-                "relevant_files": list(consolidated_findings.relevant_files),
-                "relevant_context": list(consolidated_findings.relevant_context),
-                "work_summary": work_summary,
-                "final_analysis": self.get_final_analysis_from_request(request),
-                "confidence_level": self.get_confidence_level(request),
-            },
-            "next_steps": self.get_completion_message(),
-            "skip_expert_analysis": True,
-            "expert_analysis": {
-                "status": self.get_skip_expert_analysis_status(),
-                "reason": self.get_skip_reason(),
-            },
-        }
-
     # Inheritance hooks for customization
 
     def prepare_work_summary(self) -> str:
@@ -358,7 +317,7 @@ class WorkflowTool(BaseTool, BaseWorkflowMixin):
 
     def get_completion_status(self) -> str:
         """Get the status to use when completing without expert analysis."""
-        return "high_confidence_completion"
+        return "local_work_complete"
 
     def get_completion_data_key(self) -> str:
         """Get the key name for completion data in the response."""
@@ -371,25 +330,17 @@ class WorkflowTool(BaseTool, BaseWorkflowMixin):
         except AttributeError:
             return None
 
-    def get_confidence_level(self, request) -> str:
+    def get_confidence_level(self, request) -> Optional[str]:
         """Get confidence level from request. Override for tool-specific logic."""
-        try:
-            return request.confidence or "high"
-        except AttributeError:
-            return "high"
+        return self.get_caller_confidence(request)
 
     def get_completion_message(self) -> str:
         """Get completion message. Override for tool-specific messaging."""
-        return (
-            f"{self.get_name().capitalize()} complete with high confidence. You have identified the exact "
-            "analysis and solution. MANDATORY: Present the user with the results "
-            "and proceed with implementing the solution without requiring further "
-            "consultation. Focus on the precise, actionable steps needed."
-        )
+        return f"Local {self.get_name()} complete. Present the caller's findings and proposed next steps."
 
     def get_skip_reason(self) -> str:
         """Get reason for skipping expert analysis. Override for tool-specific reasons."""
-        return f"{self.get_name()} completed with sufficient confidence"
+        return f"{self.get_name()} completed without external model analysis"
 
     def get_skip_expert_analysis_status(self) -> str:
         """Get status for skipped expert analysis. Override for tool-specific status."""

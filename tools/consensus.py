@@ -451,6 +451,8 @@ of the evidence, even when it strongly points in one direction.""",
         """Override execute_workflow to handle model consultations between steps."""
 
         # Store arguments
+        self._attempted_model_name = None
+        self._attempted_provider_name = None
         self._current_arguments = arguments
 
         # Validate request
@@ -615,6 +617,7 @@ of the evidence, even when it strongly points in one direction.""",
                 logger.warning(warning)
 
             # Call the model with validated temperature
+            self._record_provider_attempt(model_name, provider)
             response = provider.generate_content(
                 prompt=prompt,
                 model_name=model_name,
@@ -626,8 +629,6 @@ of the evidence, even when it strongly points in one direction.""",
             if invocation:
                 invocation.provider_failed = not bool(response.content)
                 invocation.reply_content = response.content or None
-                invocation.model_name = model_name
-                invocation.model_provider = provider.get_provider_type().value
 
             return {
                 "model": model_name,

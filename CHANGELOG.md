@@ -4,6 +4,11 @@
 
 ## Unreleased
 
+- Workflow model/provider metadata now identifies only attempted calls; local and
+  skipped steps return null provenance. Local completion uses `caller_findings`,
+  retaining `final_analysis` as a caller-data alias through PAL 1.x. Missing caller
+  confidence is reported as null. Failed attempts retain identity without a fake reply.
+
 - Serialize MCP invocations sharing a continuation ID through admission and reply
   persistence. Different conversations remain independent; cancelled/finished
   calls release their locks and unused reply capacity.

@@ -491,7 +491,7 @@ class TestGenTool(WorkflowTool):
             response_data["test_generation_status"]["test_scenarios_identified"] = len(
                 self.consolidated_findings.relevant_context
             )
-            response_data["test_generation_status"]["analysis_confidence"] = self.get_request_confidence(request)
+            response_data["test_generation_status"]["analysis_confidence"] = self.get_caller_confidence(request)
 
         # Map complete_testgen to complete_test_generation
         if f"complete_{tool_name}" in response_data:

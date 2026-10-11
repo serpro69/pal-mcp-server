@@ -204,15 +204,30 @@ def conversation_request(*, workflow=False):
                     tool_name=tool.get_name(),
                     required=True,
                 )
-            except ToolExecutionError:
-                raise
+            except ToolExecutionError as exc:
+                if not workflow:
+                    raise
+                try:
+                    payload = json.loads(exc.payload)
+                except json.JSONDecodeError:
+                    raise exc
+                if not isinstance(payload, dict):
+                    raise
+                metadata = payload.get("metadata") or {}
+                metadata.update(tool_name=tool.get_name(), model_used=None, provider_used=None)
+                payload["metadata"] = metadata
+                raise ToolExecutionError(json.dumps(payload)) from exc
             except (memory.ConversationMemoryError, ValueError) as exc:
                 status = f"{tool.get_name()}_failed" if workflow else "error"
                 payload = {
                     "status": status,
                     "content": str(exc),
                     "error": str(exc),
-                    "metadata": {"tool_name": tool.get_name(), "error_type": type(exc).__name__},
+                    "metadata": {
+                        "tool_name": tool.get_name(),
+                        "error_type": type(exc).__name__,
+                        **({"model_used": None, "provider_used": None} if workflow else {}),
+                    },
                 }
                 raise ToolExecutionError(json.dumps(payload)) from exc
             context = ConversationInvocation(tool, args, thread_id, is_new, raw)

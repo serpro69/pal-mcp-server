@@ -131,6 +131,28 @@ event loop as the MCP server. The coordinator is not a cross-process or thread
 lock, and must not be re-entered for the same ID. Newly created conversations have
 unique unpublished IDs and need no shared lock before their first result.
 
+Workflow `metadata.model_used` and `metadata.provider_used` identify an actual
+attempt in the current invocation. They are null on intermediate, provider-free,
+internal-only and skipped paths, even when a model is configured. Preparation
+errors before provider invocation also have null provenance; a failed provider
+attempt retains its identity. Successful replies keep that identity on the stored
+assistant turn. A failed attempt's identity is kept in `model_metadata.provider_attempt`
+on the saved input, without attributing the user message to a model or inventing a
+reply. Restoring a workflow never restores previous invocation provenance.
+
+Local completion payloads label echoed caller text as `caller_findings`.
+`final_analysis` remains an equal, deprecated compatibility alias through PAL 1.x,
+with `final_analysis_source: "caller"`; it does not contain external analysis.
+Consumers should migrate to `caller_findings`, and inspect `expert_analysis` when
+present for an external response or skip details. Expert failures use the top-level
+error status and content; non-null model/provider fields mean an attempt, not
+success. Response confidence
+fields are null when the caller supplied no confidence; internal workflow defaults
+still control guidance. Summaries label confidence only on steps that recorded an
+explicit caller value; older steps lacking that record omit the confidence label.
+Tool-specific completion keys and the optional
+`initial_description` completion-handler argument remain supported.
+
 1. **Create a request model** that inherits from `tools.shared.base_models.WorkflowRequest` (or a subclass) and add
    any tool-specific fields or validators. Examples: `CodeReviewRequest`, `ConsensusRequest`.
 2. **Override the workflow hooks** to steer the investigation. At minimum you must implement

@@ -334,7 +334,7 @@ class PlannerTool(WorkflowTool):
                 "relevant_context": len(self.consolidated_findings.relevant_context),
                 "issues_found": len(self.consolidated_findings.issues_found),
                 "images_collected": len(self.consolidated_findings.images),
-                "current_confidence": self.get_request_confidence(request),
+                "current_confidence": self.get_caller_confidence(request),
                 "step_history_length": current_step_count,  # Use work_history + current step
             },
             "metadata": {

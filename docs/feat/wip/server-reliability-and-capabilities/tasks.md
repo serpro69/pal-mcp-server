@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Implementation: [implementation.md](implementation.md)
 > Review resolutions: [review.md](review.md#revalidation-and-resolution)
-> Status: in-progress (Tasks 1–11 done; Tasks 12–42 pending)
+> Status: in-progress (Tasks 1–12 done; Tasks 13–42 pending)
 > Created: 2026-10-10
 > Not Doing: toolchain/release-process migration; MCP 2.x; wholesale catalogs; replacement of safety controls; file-annotation implementation; persistent continuation recovery; remote multi-user transport; automatic service activation
 
@@ -248,17 +248,23 @@ findings; external PAL unavailable. Existing live/setup release gates remain ope
 
 ## Task 12: Make workflow model provenance truthful
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 10
 - **Size:** M
 - **Can run in parallel with:** —
 - **Docs:** [Implementation slice](implementation.md#task-12); [design contract](design.md#d3-conversation-ownership-and-truthful-results)
 
-- [ ] 12.1 Track actual attempted model/provider calls in per-request state; local-only and intermediate responses report null rather than an inferred configured model.
-- [ ] 12.2 Change completion wording to distinguish caller_findings from external analysis, document compatibility for final_analysis consumers, and consolidate the duplicate completion handler only as part of this change.
-- [ ] 12.3 Verify the acceptance cases in [Task 12](implementation.md#task-12) and record the result here.
+- [x] 12.1 Track actual attempted model/provider calls in per-request state; local-only and intermediate responses report null rather than an inferred configured model.
+- [x] 12.2 Change completion wording to distinguish caller_findings from external analysis, document compatibility for final_analysis consumers, and consolidate the duplicate completion handler only as part of this change.
+- [x] 12.3 Verify the acceptance cases in [Task 12](implementation.md#task-12) and record the result here.
 
 **Scope / gate:** Do not invent confidence when the caller supplied none or delete unrelated dead code. Provider identity reflects an actual attempted call, not configured defaults.
+
+**Evidence:** [Task 12 validation](validation.md#task-12-truthful-workflow-provenance),
+2026-10-11. Full quality: **1,151 passed**; metadata/state/concurrency/ownership
+suites: **102 passed each** on Python 3.11 and 3.12. Isolated review approved
+after three P2 fixes for explicit confidence, validation metadata and summary
+confidence. External PAL unavailable; existing live/setup release gates remain open.
 
 ## Task 13: Report partial and failed consensus honestly
 
