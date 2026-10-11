@@ -118,8 +118,18 @@ workflow returns a provider error without a reply, its state is attached to the
 existing user turn without inventing an assistant message. Consensus restores its
 proposal, roster and responses, while participant prompts remain blinded from
 earlier verdicts and caller summaries. Direct sequential `execute` calls may reuse
-an object; concurrent direct callers must use separate instances. Same-conversation
-MCP serialization is added separately in Task 11.
+an object; concurrent direct callers must use separate instances. MCP calls with
+the same continuation ID serialize from model/history reconstruction through final
+reply persistence. Waiting or running cancellation releases the coordinator;
+different IDs run independently and idle locks are removed.
+
+Direct `execute` calls do not automatically acquire the MCP boundary's lock. For
+concurrent direct access to an existing conversation, use
+`async with coordinate_conversation(continuation_id)` from
+`utils.conversation_coordination` around the whole `execute` call. Use the same
+event loop as the MCP server. The coordinator is not a cross-process or thread
+lock, and must not be re-entered for the same ID. Newly created conversations have
+unique unpublished IDs and need no shared lock before their first result.
 
 1. **Create a request model** that inherits from `tools.shared.base_models.WorkflowRequest` (or a subclass) and add
    any tool-specific fields or validators. Examples: `CodeReviewRequest`, `ConsensusRequest`.

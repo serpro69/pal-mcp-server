@@ -1,7 +1,45 @@
-# Validation evidence: Tasks 1–10
+# Validation evidence: Tasks 1–11
 
 Recorded 2026-10-11. This covers the completed maintenance tasks below, not the
 remaining roadmap or optional live-provider behavior.
+
+## Task 11: conversation coordination
+
+Recorded 2026-10-11. `handle_call_tool` holds a per-continuation async critical
+section before model/history reconstruction, through pair admission, input save,
+tool execution and reply/state persistence. Different IDs use different locks.
+The registry counts holders and waiters, reclaims entries when the last reference
+leaves, and releases references on both running and waiting cancellation. No
+placeholder messages reserve capacity: the admission check under the lock provides
+the reservation, and failed/cancelled calls retain only their actual input.
+
+New conversation IDs are unique and unpublished until the first result, so they
+need no shared lock. Direct tool APIs do not acquire the MCP boundary's lock;
+`docs/adding_tools.md` documents explicit coordinator usage with separate tool
+instances on the same event loop. This remains a single-process/event-loop
+coordination contract; async provider migration is still pending.
+
+Verification:
+
+- `BLACK_NUM_WORKERS=1 ./code_quality_checks.sh` using locked Python 3.10.12:
+  **1,124 passed**, 4 skipped, 16 deselected, 19 subtests passed. Ruff/Black/isort
+  passed; two pre-existing AsyncMock warnings remain.
+- Seven new tests exercise same-ID ordered updates, last-pair competition,
+  different existing IDs at an await barrier, holder cancellation, execution
+  failure, waiter cancellation and reclamation across 100 IDs.
+- Concurrency/state/ownership suites on Python 3.11.13 and 3.12.11:
+  **71 passed each**.
+- Required integration and quick simulator entry points were attempted again;
+  both remain blocked by the documented environment/interpreter setup issues.
+  No live calls or recordings were changed.
+
+Isolated code review: **APPROVE**, no findings or systemic findings to index.
+External PAL reviewer unavailable.
+
+Reflection: lock references must include queued waiters, otherwise a cancelled
+waiter or a finishing holder could remove a lock still needed by another call.
+The critical section begins before model inheritance reads, preserving consistent
+selection as well as turn/state writes. No dependency pins changed.
 
 ## Task 10: workflow instance and configuration isolation
 

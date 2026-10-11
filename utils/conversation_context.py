@@ -1,6 +1,7 @@
 """Invocation-owned conversation admission, separate from untrusted request JSON.
 
-Capacity checks are sequential until the MCP coordinator is added in Task 11.
+The MCP boundary holds its conversation coordinator through this lifecycle.
+Direct callers must acquire that coordinator explicitly for same-thread concurrency.
 The context is reset on every exit, including cancellation and provider failure.
 """
 
@@ -220,7 +221,7 @@ def conversation_request(*, workflow=False):
                 return await execute(tool, args)
             except ToolExecutionError as exc:
                 # Report capacity consumed by real writes, without a fallible recovery
-                # read replacing the primary error. Concurrent admission is Task 11.
+                # read replacing the primary error. MCP holds the coordinator here.
                 try:
                     payload = json.loads(exc.payload)
                 except json.JSONDecodeError:

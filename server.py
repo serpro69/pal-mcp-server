@@ -691,6 +691,16 @@ async def handle_list_tools() -> list[Tool]:
 
 @server.call_tool()
 async def handle_call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
+    """Serialize continued MCP invocations before any conversation reads/writes."""
+    from utils.conversation_coordination import coordinate_conversation
+
+    thread_id = arguments.get("continuation_id")
+    # Invalid input remains the request model's responsibility, not a lock key.
+    async with coordinate_conversation(thread_id if isinstance(thread_id, str) else None):
+        return await _dispatch_tool(name, arguments)
+
+
+async def _dispatch_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
     """Resolve MCP model/file policy and dispatch through the shared invocation owner.
 
     Tool execute wrappers validate and persist raw input once, build the receiving
