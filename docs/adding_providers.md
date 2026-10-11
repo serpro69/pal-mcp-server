@@ -20,11 +20,12 @@ features ([details here](model_ranking.md)).
 
 ## Temporary async migration
 
-Simple-tool primary and empty-response recovery calls currently use
+Simple-tool primary/recovery, workflow expert and consensus consultation calls use
 `utils.provider_execution.invoke_provider`: coroutine methods are awaited and
 legacy synchronous methods run with `asyncio.to_thread`, carrying request context.
-Expert and consensus callers migrate in the next slice. Task 19 removes this
-adapter after all providers have native async generation and cleanup.
+Task 19 removes this adapter after all providers have native async generation and
+cleanup. Keep provider mocks consistent with their active sync/async method shape;
+coroutine mocks must assert awaited calls and return actual response objects.
 
 Providers are shared between requests. OpenAI-compatible/Azure and Gemini client
 initialization is guarded per provider, publishes only a fully constructed client,

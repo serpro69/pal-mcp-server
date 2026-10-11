@@ -4,6 +4,10 @@
 
 ## Unreleased
 
+- Expert analysis and consensus consultations now yield through the same temporary
+  provider adapter as chat, preserving participant errors and request provenance.
+  Cancellation propagates without being retried as a provider failure.
+
 - Chat generation and empty-response recovery now yield through a temporary
   sync/async adapter. Guard shared provider client initialization and preserve
   OpenAI/Azure direct routing and CA trust without changing process proxy variables.

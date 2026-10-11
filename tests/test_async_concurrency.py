@@ -179,3 +179,130 @@ async def test_chat_recovery_yields_and_preserves_failure_or_cancellation(
         assert await asyncio.to_thread(finished.wait, 5)
     thread = memory.get_thread(thread_id)
     assert [turn.role for turn in thread.turns] == (["user", "assistant"] if outcome == "success" else ["user"])
+
+
+@pytest.mark.parametrize("tool_name", ["thinkdeep", "consensus"])
+@pytest.mark.parametrize("native_async", [False, True])
+@pytest.mark.parametrize("outcome", ["success", "failure", "cancel"])
+async def test_workflow_provider_waits_yield_without_mixing_or_retrying_cancellation(
+    conversation_env, monkeypatch, tool_name, native_async, outcome
+):
+    loop = asyncio.get_running_loop()
+    entered = asyncio.Queue()
+    release = threading.Event()
+    release_async = asyncio.Event()
+    models = ["gemini-2.5-flash", "gpt-5"]
+    finished = {model: threading.Event() for model in models}
+    calls = []
+    thread_ids = [memory.create_thread(tool_name, {}) for _ in models]
+
+    def answer(self, kwargs):
+        model = kwargs["model_name"]
+        if outcome == "failure":
+            raise RuntimeError(f"failed {model}")
+        return ModelResponse(content=f"answer {model}", model_name=model, provider=self.get_provider_type())
+
+    def sync_generate(self, **kwargs):
+        model = kwargs["model_name"]
+        calls.append(model)
+        loop.call_soon_threadsafe(entered.put_nowait, model)
+        try:
+            assert release.wait(5)
+            return answer(self, kwargs)
+        finally:
+            finished[model].set()
+
+    async def async_generate(self, **kwargs):
+        model = kwargs["model_name"]
+        calls.append(model)
+        entered.put_nowait(model)
+        try:
+            await release_async.wait()
+            return answer(self, kwargs)
+        finally:
+            finished[model].set()
+
+    generate = async_generate if native_async else sync_generate
+    monkeypatch.setattr(GeminiModelProvider, "generate_content", generate)
+    monkeypatch.setattr(OpenAIModelProvider, "generate_content", generate)
+
+    async def invoke(model, thread_id):
+        result = await server.handle_call_tool(
+            tool_name,
+            {
+                "step": f"proposal {model}",
+                "findings": f"findings {model}",
+                "step_number": 1,
+                "total_steps": 1,
+                "next_step_required": False,
+                "model": model,
+                "continuation_id": thread_id,
+                **({"models": [{"model": model}]} if tool_name == "consensus" else {}),
+            },
+        )
+        return json.loads(result[0].text)
+
+    tasks = [asyncio.create_task(invoke(model, thread_id)) for model, thread_id in zip(models, thread_ids)]
+    try:
+        assert {await asyncio.wait_for(entered.get(), 2) for _ in models} == set(models)
+        assert all(not task.done() for task in tasks)
+        independent = await asyncio.wait_for(
+            server.handle_call_tool(
+                "planner",
+                {
+                    "step": "independent work",
+                    "step_number": 1,
+                    "total_steps": 2,
+                    "next_step_required": True,
+                },
+            ),
+            2,
+        )
+        assert independent
+        if outcome == "cancel":
+            for task in tasks:
+                task.cancel()
+            for task in tasks:
+                with pytest.raises(asyncio.CancelledError):
+                    await task
+            assert not coordination._entries
+        else:
+            release.set()
+            release_async.set()
+            results = await asyncio.wait_for(asyncio.gather(*tasks), 2)
+            for result, model, provider in zip(results, models, ("google", "openai")):
+                if tool_name == "consensus":
+                    summary = result["complete_consensus"]
+                    assert summary["status"] == ("complete" if outcome == "success" else "failed")
+                    assert summary["successful_models"] == (1 if outcome == "success" else 0)
+                    assert summary["failed_models"] == (0 if outcome == "success" else 1)
+                    assert summary["initial_prompt"] == f"proposal {model}"
+                    participant = result["model_response"]
+                    assert participant["model"] == model
+                    assert participant["verdict" if outcome == "success" else "error"] == (
+                        f"answer {model}" if outcome == "success" else f"failed {model}"
+                    )
+                else:
+                    assert result["metadata"]["model_used"] == model
+                    assert result["metadata"]["provider_used"] == provider
+                    if outcome == "success":
+                        assert result["expert_analysis"]["raw_analysis"] == f"answer {model}"
+                    else:
+                        assert result["status"] == "error"
+                        assert result["content"] == f"failed {model}"
+        assert sorted(calls) == sorted(models)
+    finally:
+        release.set()
+        release_async.set()
+        for task in tasks:
+            if not task.done():
+                task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+        for event in finished.values():
+            assert await asyncio.to_thread(event.wait, 5)
+    for thread_id, model in zip(thread_ids, models):
+        thread = memory.get_thread(thread_id)
+        assert [turn.role for turn in thread.turns] == (["user", "assistant"] if outcome == "success" else ["user"])
+        if outcome == "success":
+            assert thread.turns[-1].content == f"answer {model}"
+            assert thread.turns[-1].model_name == model

@@ -6,11 +6,18 @@ and the generation of properly encoded JSON responses.
 import json
 import os
 import unittest
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 
+import pytest
+
+from providers.gemini import GeminiModelProvider
+from providers.shared import ModelResponse
+from tests.request_capture import capture_providers
+from tests.test_conversation_storage_errors import FaultStorage
 from tools.analyze import AnalyzeTool
 from tools.codereview import CodeReviewTool
 from tools.debug import DebugIssueTool
+from utils import conversation_memory as memory
 
 
 class TestWorkflowToolsUTF8(unittest.IsolatedAsyncioTestCase):
@@ -58,216 +65,6 @@ class TestWorkflowToolsUTF8(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(parsed["findings"], test_response["findings"])
         self.assertEqual(len(parsed["issues_found"]), 1)
 
-    @patch("tools.shared.base_tool.BaseTool.get_model_provider")
-    @patch("utils.model_context.ModelContext")
-    async def test_analyze_tool_utf8_response(self, mock_model_context, mock_get_provider):
-        """Test that the analyze tool returns correct UTF-8 responses."""
-
-        # Mock ModelContext to bypass model validation
-        mock_context_instance = Mock()
-
-        # Mock token allocation for file processing
-        mock_token_allocation = Mock()
-        mock_token_allocation.file_tokens = 1000
-        mock_token_allocation.total_tokens = 2000
-        mock_context_instance.calculate_token_allocation.return_value = mock_token_allocation
-
-        mock_token_allocation.history_tokens = 1000
-        mock_token_allocation.content_tokens = 2000
-        mock_context_instance.estimate_tokens.side_effect = lambda text: len(text) // 4
-        mock_context_instance.model_name = "flash"
-
-        # Mock provider with more complete setup (same as codereview test)
-        mock_provider = Mock()
-        mock_provider.get_provider_type.return_value = Mock(value="test")
-        mock_provider.get_capabilities.return_value = Mock(supports_extended_thinking=False)
-        mock_provider.generate_content = AsyncMock(
-            return_value=Mock(
-                content=json.dumps(
-                    {
-                        "status": "analysis_complete",
-                        "raw_analysis": "Analysis completed successfully",
-                    },
-                    ensure_ascii=False,
-                ),
-                usage={},
-                model_name="flash",
-                metadata={},
-            )
-        )
-        # Use the same provider for both contexts
-        mock_get_provider.return_value = mock_provider
-        mock_context_instance.provider = mock_provider
-        mock_context_instance.capabilities = Mock(supports_extended_thinking=False)
-        mock_model_context.return_value = mock_context_instance
-
-        # Test the tool
-        analyze_tool = AnalyzeTool()
-        result = await analyze_tool.execute(
-            {
-                "step": "Analyze system architecture to identify issues",
-                "step_number": 1,
-                "total_steps": 1,
-                "next_step_required": False,
-                "findings": "Starting architectural analysis of Python code",
-                "relevant_files": ["/test/main.py"],
-                "model": "flash",
-            }
-        )
-
-        # Checks
-        self.assertIsNotNone(result)
-        self.assertEqual(len(result), 1)
-
-        # Parse the response - must be valid UTF-8 JSON
-        response_text = result[0].text
-        response_data = json.loads(response_text)
-
-        # Structure checks
-        self.assertIn("status", response_data)
-
-        # Check that the French instruction was added
-        # The mock provider's generate_content should be called
-        mock_provider.generate_content.assert_called()
-        # The call was successful, which means our fix worked
-
-    @patch("tools.shared.base_tool.BaseTool.get_model_provider")
-    async def test_codereview_tool_french_findings(self, mock_get_provider):
-        """Test that the codereview tool produces findings in French."""
-        # Mock with analysis in French
-        mock_provider = Mock()
-        mock_provider.get_provider_type.return_value = Mock(value="test")
-        mock_provider.get_capabilities.return_value = Mock(supports_extended_thinking=False)
-        mock_provider.generate_content = AsyncMock(
-            return_value=Mock(
-                content=json.dumps(
-                    {
-                        "status": "analysis_complete",
-                        "raw_analysis": """
-🔴 CRITIQUE: Aucun problème critique trouvé.
-
-🟠 ÉLEVÉ: Fichier example.py:42 - Fonction trop complexe
-→ Problème: La fonction process_data() contient trop de responsabilités
-→ Solution: Décomposer en fonctions plus petites et spécialisées
-
-🟡 MOYEN: Gestion d'erreurs insuffisante
-→ Problème: Plusieurs fonctions n'ont pas de gestion d'erreurs appropriée
-→ Solution: Ajouter des try-catch et validation des paramètres
-
-✅ Points positifs:
-• Code bien commenté et lisible
-• Nomenclature cohérente
-• Tests unitaires présents
-""",
-                    },
-                    ensure_ascii=False,
-                ),
-                usage={},
-                model_name="test-model",
-                metadata={},
-            )
-        )
-        mock_get_provider.return_value = mock_provider
-
-        # Test the tool
-        codereview_tool = CodeReviewTool()
-        result = await codereview_tool.execute(
-            {
-                "step": "Complete review of Python code",
-                "step_number": 1,
-                "total_steps": 1,
-                "next_step_required": False,
-                "findings": "Code review complete",
-                "relevant_files": ["/test/example.py"],
-                "model": "test-model",
-            }
-        )
-
-        # Checks
-        self.assertIsNotNone(result)
-        response_text = result[0].text
-        response_data = json.loads(response_text)
-
-        # Check UTF-8 characters in analysis
-        if "expert_analysis" in response_data:
-            analysis = response_data["expert_analysis"]["raw_analysis"]
-            # Check for French characters
-            self.assertIn("ÉLEVÉ", analysis)
-            self.assertIn("problème", analysis)
-            self.assertIn("spécialisées", analysis)
-            self.assertIn("appropriée", analysis)
-            self.assertIn("paramètres", analysis)
-            self.assertIn("présents", analysis)
-            # Check for emojis
-            self.assertIn("🔴", analysis)
-            self.assertIn("🟠", analysis)
-            self.assertIn("🟡", analysis)
-            self.assertIn("✅", analysis)
-
-    @patch("tools.shared.base_tool.BaseTool.get_model_provider")
-    async def test_debug_tool_french_error_analysis(self, mock_get_provider):
-        """Test that the debug tool analyzes errors in French."""
-        # Mock provider
-        mock_provider = Mock()
-        mock_provider.get_provider_type.return_value = Mock(value="test")
-        mock_provider.get_capabilities.return_value = Mock(supports_extended_thinking=False)
-        mock_provider.generate_content = AsyncMock(
-            return_value=Mock(
-                content=json.dumps(
-                    {
-                        "status": "pause_for_investigation",
-                        "step_number": 1,
-                        "total_steps": 2,
-                        "next_step_required": True,
-                        "findings": (
-                            "Erreur analysée: variable 'données' non définie. " "Cause probable: import manquant."
-                        ),
-                        "files_checked": ["/src/data_processor.py"],
-                        "relevant_files": ["/src/data_processor.py"],
-                        "hypothesis": ("Variable 'données' not defined - missing import"),
-                        "confidence": "medium",
-                        "investigation_status": "in_progress",
-                        "error_analysis": ("L'erreur concerne la variable 'données' qui " "n'est pas définie."),
-                    },
-                    ensure_ascii=False,
-                ),
-                usage={},
-                model_name="test-model",
-                metadata={},
-            )
-        )
-        mock_get_provider.return_value = mock_provider
-
-        # Test the debug tool
-        debug_tool = DebugIssueTool()
-        result = await debug_tool.execute(
-            {
-                "step": "Analyze NameError in data processing file",
-                "step_number": 1,
-                "total_steps": 1,
-                "next_step_required": False,
-                "findings": "Error detected during script execution",
-                "files_checked": ["/src/data_processor.py"],
-                "relevant_files": ["/src/data_processor.py"],
-                "hypothesis": ("Variable 'données' not defined - missing import"),
-                "confidence": "medium",
-                "model": "test-model",
-            }
-        )
-
-        # Checks
-        self.assertIsNotNone(result)
-        response_text = result[0].text
-        response_data = json.loads(response_text)
-
-        # Check response structure
-        self.assertIn("status", response_data)
-        self.assertIn("investigation_status", response_data)
-
-        # Check that UTF-8 characters are preserved
-        response_str = json.dumps(response_data, ensure_ascii=False)
-        self.assertIn("données", response_str)
-
     def test_utf8_emoji_preservation_in_workflow_responses(self):
         """Test that emojis are preserved in workflow tool responses."""
         # Mock workflow response with various emojis
@@ -313,6 +110,66 @@ class TestWorkflowToolsUTF8(unittest.IsolatedAsyncioTestCase):
         parsed = json.loads(json_str)
         self.assertEqual(parsed["severity_indicators"]["critical"], "🔴")
         self.assertEqual(parsed["progress"], "Analysis completed 🎉")
+
+
+@pytest.mark.parametrize("tool_class", [AnalyzeTool, CodeReviewTool, DebugIssueTool])
+@pytest.mark.parametrize("native_async", [False, True])
+@pytest.mark.parametrize("fails", [False, True])
+async def test_workflow_expert_unicode_result_and_error(monkeypatch, tmp_path, tool_class, native_async, fails):
+    storage = FaultStorage()
+    monkeypatch.setattr(memory, "get_storage", lambda: storage)
+    monkeypatch.setenv("LOCALE", "fr-FR")
+    capture_providers(monkeypatch)
+    model = "gemini-2.5-flash"
+    answer = (
+        "ÉLEVÉ: problème de données; fonctions spécialisées, validation appropriée, paramètres présents 🔴 🟠 🟡 ✅"
+    )
+    error = "Échec de l’analyse: données indisponibles ❌"
+    generate = (AsyncMock if native_async else Mock)(
+        return_value=ModelResponse(
+            content=json.dumps({"status": "analysis_complete", "raw_analysis": answer}, ensure_ascii=False),
+            model_name=model,
+            provider="google",
+        ),
+        side_effect=RuntimeError(error) if fails else None,
+    )
+    monkeypatch.setattr(GeminiModelProvider, "generate_content", generate)
+    source = tmp_path / "example.py"
+    source.write_text("données = 1\n", encoding="utf-8")
+    output = await tool_class().execute(
+        {
+            "step": "Analyser les données",
+            "findings": "Une validation est nécessaire",
+            "hypothesis": "Validation des paramètres insuffisante",
+            "confidence": "medium",
+            "step_number": 1,
+            "total_steps": 1,
+            "next_step_required": False,
+            "files_checked": [str(source)],
+            "relevant_files": [str(source)],
+            "model": model,
+        }
+    )
+    result = json.loads(output[0].text)
+    if native_async:
+        generate.assert_awaited_once()
+    else:
+        generate.assert_called_once()
+    sent = generate.call_args.kwargs
+    assert "fr-FR" in sent["system_prompt"] + sent["prompt"]
+    assert result["metadata"]["model_used"] == model
+    assert result["metadata"]["provider_used"] == "google"
+    thread = memory.get_thread(result["continuation_offer"]["continuation_id"])
+    if fails:
+        assert result["status"] == "error"
+        assert result["content"] == error
+        assert "expert_analysis" not in result
+        assert [turn.role for turn in thread.turns] == ["user"]
+    else:
+        assert result["expert_analysis"]["raw_analysis"] == answer
+        assert answer in output[0].text
+        assert [turn.role for turn in thread.turns] == ["user", "assistant"]
+        assert json.loads(thread.turns[-1].content)["raw_analysis"] == answer
 
 
 if __name__ == "__main__":
