@@ -15,6 +15,107 @@ Add a model when:
 Aliases are case-insensitive and the model name itself is always usable — you
 don't need to list it as an alias.
 
+## Audit and propose changes before editing
+
+The maintenance commands compare explicit snapshots and produce review artifacts.
+They do not activate models, edit the source registry, contact model providers,
+create PRs or schedule updates. Run them from the repository root in the existing
+Python environment. They add no dependencies or alternative task runner.
+
+```bash
+python -m scripts.audit_model_registry \
+  --registry conf/openai_models.json --provider openai \
+  --evidence /tmp/openai-evidence.json --models-dev /tmp/models-dev.json \
+  --as-of 2026-10-11 > /tmp/model-audit.json
+
+python -m scripts.generate_model_entries \
+  --registry conf/openai_models.json --provider openai \
+  --evidence /tmp/openai-evidence.json --as-of 2026-10-11 \
+  --output /tmp/openai-candidates.json > /tmp/model-proposal.json
+```
+
+`--models-dev` reads a frozen copy of the public `api.json` response. Alternatively,
+explicitly use `--fetch-models-dev` to fetch `https://models.dev/api.json` with a
+15-second network timeout. Inputs are limited to 16 MiB of actual bytes. Fetch,
+decode and schema failures produce an incomplete report. The provider mapping
+must exist; an unavailable/empty provider section is not a clean audit.
+
+The [models.dev API](https://github.com/anomalyco/models.dev#api) is a community
+catalog. Its provider mapping contains model IDs, `limit.context`, `limit.output`
+and optional `status` (`alpha`, `beta`, `deprecated`). Absence or a deprecated
+status raises a **review-needed** item; neither establishes provider retirement.
+Unknown status values require updating the reader. Release and update dates are
+not expiration dates. PAL and external canonical IDs are compared case-insensitively
+without stripping tags or interpreting invocation-only options.
+
+Provider evidence uses PAL's normalized snapshot format below, not the raw output
+of any particular vendor API. A maintainer must verify each fact against the named
+provider's current documentation or a complete endpoint response before producing
+this file. `source_url` and `observed_on` retain provenance; the command does not
+authenticate the URL or prove the maintainer's claims. Do not label a community
+catalog as provider evidence. Known models.dev URLs are rejected in this role.
+
+```json
+{
+  "schema_version": 1,
+  "provider": "openai",
+  "source_url": "https://provider.invalid/verified-model-documentation",
+  "observed_on": "2026-10-11",
+  "complete": true,
+  "models": [
+    {
+      "id": "example-model:tag",
+      "status": "active",
+      "capabilities": {
+        "context_window": 128000,
+        "max_output_tokens": 16000,
+        "supports_temperature": false,
+        "output_token_parameter": "max_completion_tokens"
+      }
+    }
+  ]
+}
+```
+
+This is a synthetic example, not a model recommendation or verified capability.
+The provider field uses PAL's provider identity. Snapshot status is `active`,
+`deprecated` or `retired`; optional `expires_on` is an ISO date supported by the
+provider evidence. A past/current expiration is confirmed expiration, while a
+future date is scheduled-expiration review work. An omitted model is review-needed
+even in a provider snapshot. Missing capacities leave a verification gap.
+`complete: false`, unknown fields, malformed dates, future observations, duplicate
+IDs/JSON keys and invalid capability types fail validation. The audit's clean
+result means no differences in the supplied observations, not a live certification.
+`--as-of` defaults to today's date; set it explicitly to reproduce a frozen audit.
+
+Audit JSON separates `confirmed_deprecations`, `capability_drift`, `review_needed`
+and `candidates`, including community-only unverified candidates. Exit codes are
+**0** for clean, **1** for review items and **2** for incomplete/invalid input.
+Both provider and secondary drift retain their source label. Schema validation
+reuses PAL's provider-specific parser, including unknown fields and alias collisions.
+When provider evidence supplies a field omitted from the handwritten entry, the
+audit reports `capability_not_declared` as verification work, separately from a
+changed capability. An inherited runtime default is not evidence of a change.
+
+Generation consumes only the provider evidence. It copies only declared capability
+fields into new entries with `enabled_by_default: false`; it never invents aliases,
+intelligence ranks, code-generation permission or endpoint controls. Positive
+context/output capacities are required and output cannot exceed context. Retired,
+expiring, incomplete-capacity and alias-conflicting candidates are recorded in
+`skipped`. Azure candidates remain skipped until an operator supplies deployment
+mapping; the generator cannot infer deployment names. Existing entries, aliases,
+scores and document metadata remain unchanged. Omitted fields still inherit PAL's
+runtime defaults, which are not verified evidence: review them before promotion.
+
+The proposal JSON includes provenance, candidate IDs, skipped reasons, the proposed
+registry and a unified `diff`. Ordering is deterministic; re-running against the
+proposal adds nothing and produces an empty diff. `--output` creates a **new** file
+exclusively and refuses an existing path, including the source registry. Generation
+exits 0 when it can produce a proposal (possibly empty with skipped candidates),
+and 2 on invalid input/output failure. Review the diff, verify remaining controls
+with provider wire tests and configured smoke checks, then deliberately copy any
+approved changes into the catalog. No scheduled auto-merge is part of this workflow.
+
 ## Step 1 — Add the JSON entry
 
 Edit the relevant `conf/<provider>_models.json`. Insert near other models in the
@@ -24,6 +125,7 @@ same family (top of family for newest). Schema fields are documented in the
 | Field | Notes |
 |-------|-------|
 | `model_name` | Canonical API identifier the provider expects |
+| `enabled_by_default` | Boolean; default true. False hides discovery and auto fallback until canonical allowlist/preference opt-in. Explicit calls still enforce policy. |
 | `aliases` | Short names users type. Don't list `model_name` itself |
 | `intelligence_score` | 1–20 human rating; primary signal for auto-mode ordering ([model_ranking.md](model_ranking.md)) |
 | `supports_extended_thinking` | Set true *only if* the API actually accepts a thinking budget for this model |

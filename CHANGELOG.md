@@ -4,6 +4,11 @@
 
 ## Unreleased
 
+- Add offline model drift auditing and deterministic hidden-candidate proposals.
+  Reports separate provider-evidenced deprecation from community review signals;
+  incomplete inputs fail visibly. Proposals preserve curated entries and include
+  a review diff, with no automatic catalog updates or service activation.
+
 - Model catalogs support `enabled_by_default` (default true) for discovery.
   Hidden entries remain explicitly callable under policy; canonical allowlist or
   preference entries opt them into discovery. Ordered `PREFERRED_MODELS` takes

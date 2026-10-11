@@ -3,6 +3,66 @@
 Recorded 2026-10-11. This covers the completed maintenance tasks below, not the
 remaining roadmap or optional live-provider behavior.
 
+## Task 27: Reviewable model audit and candidate generation
+
+Recorded 2026-10-11. Added Python module entry points
+`scripts.audit_model_registry` and `scripts.generate_model_entries`, sharing
+bounded JSON/provenance/schema validation in `scripts/model_catalog.py`.
+The audit compares canonical IDs against an operator-reviewed provider snapshot
+and a frozen or explicitly fetched models.dev `api.json`. Provider-evidenced
+deprecated/retired/expired entries are distinct from secondary absence/status
+review signals, capability drift and unverified candidates. Incomplete input or
+fetch failures return status `incomplete` and exit 2; review items exit 1.
+
+Generation emits only evidence-backed hidden candidates, preserves existing
+entries/aliases/ranks and returns a deterministic review diff. Incomplete-capacity,
+retired/expiring or alias-conflicting records are skipped explicitly. Azure needs
+operator deployment mapping and is recorded as skipped. Optional output creation
+is exclusive; source catalogs are never edited. Omitted fields inherit runtime
+defaults and require review before promotion. Snapshot provenance is a maintainer
+assertion with a URL/date, not automatic authentication of the external source.
+
+Changed three scripts, frozen synthetic fixtures and tests, `docs/adding_models.md`
+and release notes. No dependencies, production catalog entries, automated PRs or
+scheduled jobs changed. Normalized provider snapshots are the evidence boundary;
+provider-specific live catalog reconciliation remains Task 28.
+
+Verified contracts on 2026-10-11:
+
+- [models.dev API and data documentation](https://github.com/anomalyco/models.dev#api)
+  and its [API/type reference](https://github.com/anomalyco/models.dev/blob/dev/_autodocs/04-sdk-types.md),
+  obtained through Context7 and primary documentation: provider/model mappings,
+  `limit.context`, `limit.output`, optional `alpha`/`beta`/`deprecated` status.
+  Community omission/status does not establish provider retirement.
+- Python 3.10 [urllib request](https://docs.python.org/3.10/library/urllib.request.html),
+  [JSON](https://docs.python.org/3.10/library/json.html) and
+  [unified diff](https://docs.python.org/3.10/library/difflib.html) interfaces.
+  Fetches use the fixed public endpoint, 15-second timeout and 16 MiB read bound.
+
+Verification:
+
+- `BLACK_NUM_WORKERS=1 ./code_quality_checks.sh` in the locked Python 3.10
+  environment: **1,632 passed**, 4 skipped, 16 deselected, 19 subtests passed;
+  lint, formatting and import sorting passed outside the process sandbox.
+- Audit/generator, registry/schema, discovery and deny regressions:
+  **150 passed each** on Python 3.11/3.12. A first matrix invocation used a
+  nonexistent test filename (zero tests); the corrected runs above are the evidence.
+- Frozen tests cover deprecation versus omission, past/future expiration, unknown
+  fields/statuses, duplicate JSON IDs/aliases, alias cycles, malformed/partial
+  records, outage/timeout/interrupted HTTP, actual byte bounds, all seven provider
+  schemas, source preservation, idempotence and exclusive output behavior.
+- CLI fixture audit returns review-needed; generation proposes only synthetic
+  `new:for` as hidden, with explicit skip reasons and a diff. These fixtures are
+  not evidence about any real model. No live provider calls were made.
+- External PAL and live integration/simulator setup gates remain as recorded in
+  Task 25. The required task acceptance uses offline frozen evidence.
+
+Isolated review approved after classifying omitted capability declarations as
+verification work instead of drift against an inherited default. No systemic P0/P1
+findings to index for this task. Runtime schemas could be reused unchanged; the
+main implementation decision was to keep curated evidence separate from community
+signals and expose skips rather than invent missing capabilities.
+
 ## Task 26: Hidden catalog entries and ordered auto preferences
 
 Recorded 2026-10-11. `enabled_by_default` is a strictly validated boolean with

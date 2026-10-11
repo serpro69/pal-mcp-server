@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Implementation: [implementation.md](implementation.md)
 > Review resolutions: [review.md](review.md#revalidation-and-resolution)
-> Status: in-progress (Tasks 1–26 done; Tasks 27–42 pending)
+> Status: in-progress (Tasks 1–27 done; Tasks 28–42 pending)
 > Created: 2026-10-10
 > Not Doing: toolchain/release-process migration; MCP 2.x; wholesale catalogs; replacement of safety controls; file-annotation implementation; persistent continuation recovery; remote multi-user transport; automatic service activation
 
@@ -570,17 +570,23 @@ external-review/live/setup gates remain open; no catalog expansion.
 
 ## Task 27: Add reviewable model drift audit and candidate generation
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 26
 - **Size:** M
 - **Can run in parallel with:** —
 - **Docs:** [Implementation slice](implementation.md#task-27); [design contract](design.md#d5-providers-and-model-policy)
 
-- [ ] 27.1 Implement a model drift audit with frozen catalog fixtures, schema-field validation and separate confirmed-deprecation/review-needed results; include models.dev status handling.
-- [ ] 27.2 Generate only evidence-backed hidden candidates without aliases/ranks; preserve hand-maintained entries and expose a review diff. Use Python/Make entry points, not a new just toolchain.
-- [ ] 27.3 Verify the acceptance cases in [Task 27](implementation.md#task-27) and record the result here.
+- [x] 27.1 Implement a model drift audit with frozen catalog fixtures, schema-field validation and separate confirmed-deprecation/review-needed results; include models.dev status handling.
+- [x] 27.2 Generate only evidence-backed hidden candidates without aliases/ranks; preserve hand-maintained entries and expose a review diff. Use Python/Make entry points, not a new just toolchain.
+- [x] 27.3 Verify the acceptance cases in [Task 27](implementation.md#task-27) and record the result here.
 
 **Scope / gate:** Build audit and candidate-generation behavior from the specified contracts. No automatic PR creation, scheduling or merging.
+
+**Evidence:** [Task 27 validation](validation.md#task-27-reviewable-model-audit-and-candidate-generation),
+2026-10-11. Full quality **1,632 passed**; catalog/configuration/policy suites
+**150 passed each** on Python 3.11/3.12. Isolated review approved after separating
+omitted declarations from capability drift. Frozen synthetic fixtures verify
+audit/generator contracts; no production catalogs or live services changed.
 
 ## Task 28: Reconcile useful model catalog changes
 
