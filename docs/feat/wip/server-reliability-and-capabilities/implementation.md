@@ -4,6 +4,7 @@
 > Created: 2026-10-10
 > Design: [design.md](design.md)
 > Tracking: [tasks.md](tasks.md)
+> Review resolutions: [review.md](review.md#revalidation-and-resolution)
 
 ## Working rules and rollout
 
@@ -43,7 +44,8 @@ must assert observable behavior, not merely mirror helpers.
   five input-to-render paths. Annotation implementation remains separate work.
 - User-facing changes requiring release notes: artifact root/names, child cwd/env,
   model provenance fields, Python floor, logs path, unused schema fields, transcript
-  opt-in and optional service controls.
+  opt-in, effective output limits, turn-pair admission, full model-ID/legacy-option
+  parsing and optional service controls.
 - No task implicitly activates a service, uses paid APIs, creates an external PR,
   changes publishing credentials or commits the capy database.
 
@@ -184,11 +186,11 @@ unimplemented features done. Never relax an acceptance assertion to conceal a re
 
 **Files / responsibility:** utils/conversation_memory.py; server.py; tools/simple/base.py; tools/workflow/workflow_mixin.py; memory tests.
 
-**Implementation step:** Introduce typed storage/decode errors distinct from absent/expired/capped threads, preserving original causes. Fail required continuation reads/input writes before a provider call. Propagate post-response persistence failures as visible result warnings while retaining the generated response; audit create/get/add/chain callers and false return values.
+**Implementation step:** Introduce typed storage/decode errors distinct from absent/expired/capped threads, preserving original causes. Fail required continuation reads/input writes before a provider call. Propagate unexpected post-response persistence failures as visible result warnings while retaining the generated response; audit create/get/add/chain callers and false return values. Keep this slice at the existing storage/caller boundaries; Task 9 owns invocation-level pair admission together with single-owner input recording.
 
-**Step → verify:** Run conversation-memory and continuation tests covering missing, corrupt, read-fault and write-fault storage, turn cap, no provider invocation on input failure, and answer-plus-warning on final write failure.
+**Step → verify:** Run conversation-memory and continuation tests covering missing, corrupt, read-fault and write-fault storage, no provider invocation on input failure, and answer-plus-warning on final write failure. Verify that the storage API's existing exhausted-message-cap outcome is distinct from an outage. Pair-admission and cap-2 invocation-success tests belong to Task 9, followed by concurrent admission verification in Task 11.
 
-**Contract / gate:** Preserve genuine programming errors and exception causes. Only expected storage/decoding faults enter the typed memory-error path.
+**Contract / gate:** Preserve genuine programming errors and exception causes. Only expected storage/decoding faults enter the typed memory-error path. Do not add separate pair-admission checks at the legacy input writers; Task 9 first gives each invocation one input owner.
 
 <a id="task-9"></a>
 
@@ -200,11 +202,11 @@ unimplemented features done. Never relax an acceptance assertion to conceal a re
 
 **Files / responsibility:** server.py; tools/simple/base.py; tools/workflow/workflow_mixin.py; utils/context_builder.py and model_resolution.py (new if extracted); continuation tests.
 
-**Implementation step:** Give server-built history a trusted internal marker/context; separate it from caller-supplied arguments and retain a correct direct-tool path. Extract context/resolution helpers without changing explicit model semantics. Create thread/input before generation; record workflow step and raw assistant reply exactly once, including clink's first input. Re-read after adding the current turn before rendering its files.
+**Implementation step:** Give server-built history a trusted internal marker/context; separate it from caller-supplied arguments and retain a correct direct-tool path. Establish one input-persistence owner, then have that owner check for two free message slots exactly once before saving input or starting provider/CLI work. Record completed admission in trusted context so nested execution and provider retries do not repeat it; use Task 8's typed outcomes. Extract context/resolution helpers without changing explicit model semantics. Create thread/input before generation and record workflow step and raw reply exactly once, including clink's first input and actual local-only results with null provider provenance. Re-read after adding the current turn before rendering its files. Preserve the raw original consensus proposal independently of generic history; participant prompts must omit earlier verdicts and intervening summaries. Compute remaining_turns as free message slots after writes, and continuation wording as floor(free_slots / 2) complete exchanges.
 
-**Step → verify:** Add MCP-boundary tests for 4-turn growth, each user/reply appearing once, first-turn provider failure, raw versus artifact-formatted reply, workflow steps, current-turn file/directory attachment, prompt-file input, oversized original input and cross-model/cross-tool continuation.
+**Step → verify:** Add MCP-boundary tests for 4-turn growth, each user/reply appearing once, first-turn provider failure, raw versus artifact-formatted reply, workflow steps, current-turn file/directory attachment, prompt-file input, oversized original input and cross-model/cross-tool continuation. Through both MCP and direct-tool paths, cover cap-1 rejection before input append/work, cap-2 success with one input and one reply, odd caps including one, local-only replies, a previous saved-input/provider failure and a retry within an already admitted invocation. Caller JSON cannot bypass admission. Capture a second consensus participant request: the original proposal and explicit attachments must be present, with earlier-verdict and caller-summary sentinels absent even though storage retains them. Verify remaining-slot/exchange counts after success and failure, with no continuation invitation below two slots.
 
-**Contract / gate:** Re-record affected live cassettes only in an explicitly configured validation run; never edit recorded request bodies to manufacture a pass.
+**Contract / gate:** Pair admission ships with single-owner recording in this task; Task 11 later provides same-thread atomicity. Task 8 does not need Task 9's ownership mechanism to complete its storage-error slice. Re-record affected live cassettes only in an explicitly configured validation run; never edit recorded request bodies to manufacture a pass.
 
 <a id="task-10"></a>
 
@@ -216,9 +218,9 @@ unimplemented features done. Never relax an acceptance assertion to conceal a re
 
 **Files / responsibility:** server.py; tools/workflow/workflow_mixin.py; tools/workflow/base.py; tools/consensus.py; mechanical state declarations in workflow tools.
 
-**Implementation step:** Dispatch each invocation to a fresh tool while keeping schema prototypes; reset reused direct-call objects and restore work_history plus tool_state for the correct tool/thread. Declare/persist review_config, analysis_config, git_config, refactor_config, trace_config, stored_request_params and planner branches; implement consensus roster/responses explicitly.
+**Implementation step:** Dispatch each invocation to a fresh tool while keeping schema prototypes; reset reused direct-call objects and restore work_history plus tool_state for the correct tool/thread. Declare/persist review_config, analysis_config, git_config, refactor_config, trace_config, stored_request_params and planner branches; implement consensus original proposal, roster and responses explicitly, keeping stored audit history out of participant prompts.
 
-**Step → verify:** Run new workflow state/concurrency tests and existing planner, codereview, precommit, thinkdeep and consensus continuation suites. Interleave two requests at an await barrier and resume each on a newly constructed object; test older metadata without tool_state and every persisted configuration.
+**Step → verify:** Run new workflow state/concurrency tests and existing planner, codereview, precommit, thinkdeep and consensus continuation suites. Interleave two requests at an await barrier and resume each on a newly constructed object; test older metadata without tool_state and every persisted configuration. Repeat Task 9's consensus required/forbidden-content capture on newly constructed participant tool instances.
 
 **Contract / gate:** State declarations across workflow tools are mechanical; per-call construction and correct restoration are the substantive change. Preserve each declared configuration and planner/consensus state.
 
@@ -232,9 +234,9 @@ unimplemented features done. Never relax an acceptance assertion to conceal a re
 
 **Files / responsibility:** server.py; utils/conversation_coordination.py (new); tests/test_conversation_concurrency.py (new).
 
-**Implementation step:** Add a per-thread async critical section covering reconstruction through persistence, with bounded/ref-counted lock lifetime. Independent thread IDs do not share the same lock. Define cancellation and failed-call cleanup, and document that direct tool-object APIs do not acquire the MCP boundary's lock unless explicitly using the same coordinator.
+**Implementation step:** Add a per-thread async critical section covering capacity admission, reconstruction and result persistence, with bounded/ref-counted lock lifetime. Check Task 9's two-slot admission inside the coordinator so another same-ID call cannot consume the reply slot. Independent thread IDs do not share the same lock. Define cancellation and failed-call cleanup without placeholder replies, and document that direct tool-object APIs do not acquire the MCP boundary's lock unless explicitly using the same coordinator.
 
-**Step → verify:** Force two same-ID requests to overlap; verify ordered inputs, no lost assistant turn and consistent workflow state. Verify different IDs overlap, cancellation frees the lock, and idle lock entries are reclaimed.
+**Step → verify:** Force two same-ID requests to overlap; verify ordered inputs, no lost assistant turn and consistent workflow state. With only one input/reply pair available, exactly one request may run and the other must receive a limit result without saving input. Verify different IDs overlap, cancellation after input save leaves one real turn and frees the lock, unused reply capacity is released, and idle lock entries are reclaimed.
 
 **Contract / gate:** Complete same-thread coordination before enabling more provider concurrency. Do not hold one global lock while awaiting a model.
 
@@ -278,20 +280,20 @@ unimplemented features done. Never relax an acceptance assertion to conceal a re
 - **Depends on:** Task 10, Task 11
 - **Design:** [d4-async-provider-lifecycle](design.md#d4-async-provider-lifecycle)
 
-**Files / responsibility:** utils/provider_execution.py (temporary/new); tools/simple/base.py; tests/test_async_concurrency.py (new); chat/provider mocks.
+**Files / responsibility:** utils/provider_execution.py (temporary/new); tools/simple/base.py; providers/openai_compatible.py; providers/azure_openai.py; providers/gemini.py; tests/test_async_concurrency.py (new) and provider initialization tests. Verify DIAL's existing initialization lock/ownership without unrelated rewrites.
 
-**Implementation step:** Introduce a temporary internal invocation adapter that awaits coroutine providers and offloads legacy synchronous generation to asyncio.to_thread. Route simple-tool primary and recovery/retry calls through it; update only affected mocks to the actual synchronous or asynchronous contract.
+**Implementation step:** Before enabling offload, guard shared legacy-provider lazy initialization and audit generation-time mutable caches. Publish one initialized client per owner using short initialization locks; preserve DIAL's deployment-client protection. Replace OpenAI/Azure proxy-environment suppression, including fallback construction, with explicit transport configuration that preserves effective proxy/TLS behavior without process-global changes. Then introduce a temporary adapter that awaits coroutine providers and offloads legacy synchronous generation to asyncio.to_thread. Route simple-tool primary and recovery/retry calls through it; update only affected mocks to the active contract.
 
-**Step → verify:** With a delayed fake provider, prove chat permits a second coroutine to advance and concurrent replies keep their metadata. Run chat, retry, UTF-8 and continuation unit tests without new unawaited-coroutine warnings.
+**Step → verify:** Use actual provider methods with barrier-controlled fake SDK constructors/transports to prove concurrent cold starts retain one client per owner, failed initialization can be retried, and both calls complete. During construction and fallback, assert synthetic proxy/TLS environment values remain unchanged for another provider and a CLI child. Verify explicit transport policy, then use delayed generation to prove network waits overlap and replies keep their metadata. Run chat, retry, UTF-8 and continuation suites without new unawaited-coroutine warnings.
 
-**Contract / gate:** This adapter is removed in Task 19; cancelling an await of a worker thread does not guarantee cancellation of its network request.
+**Contract / gate:** The cold-start and environment checks must pass before routing calls through worker threads. Fresh tools and per-conversation locks do not protect provider singletons. Never serialize generation under an initialization lock. The adapter is removed in Task 19; cancellation of its await does not guarantee cancellation of the worker's network request. Preserve the explicit transport policy through Tasks 16–19.
 
 <a id="task-15"></a>
 
 ## Task 15: Make expert and consensus generation yield
 
 - **Size:** M
-- **Depends on:** Task 14
+- **Depends on:** Task 13, Task 14
 - **Design:** [d4-async-provider-lifecycle](design.md#d4-async-provider-lifecycle)
 
 **Files / responsibility:** tools/workflow/workflow_mixin.py; tools/consensus.py; workflow/consensus tests.
@@ -348,7 +350,7 @@ unimplemented features done. Never relax an acceptance assertion to conceal a re
 
 **Step → verify:** Run DIAL wire/header/routing tests and async-close tests in a live event loop; repeat close and cancellation, asserting the shared pool closes once and no background cleanup remains.
 
-**Contract / gate:** Await event hooks and close shared pools once. Wrappers must distinguish owned from borrowed transports, including cancellation and repeated shutdown.
+**Contract / gate:** Await event hooks and close shared pools once. Wrappers must distinguish owned from borrowed transports, including cancellation and repeated shutdown. Characterize DIAL payloads with and without temperature support, explicitly recording the existing output-limit omission as a baseline defect for Task 20, not a permanent compatibility requirement. Task 20 owns its correction and deployment-specific output-field verification.
 
 <a id="task-19"></a>
 
@@ -374,13 +376,15 @@ unimplemented features done. Never relax an acceptance assertion to conceal a re
 - **Depends on:** Task 19
 - **Design:** [d4-async-provider-lifecycle](design.md#d4-async-provider-lifecycle)
 
-**Files / responsibility:** tools/simple/base.py; tools/workflow/workflow_mixin.py; tools/consensus.py; providers/openai_compatible.py; wire-contract tests.
+**Files / responsibility:** utils/model_context.py for the shared request budget; tools/simple/base.py, tools/workflow/workflow_mixin.py and tools/consensus.py for budget propagation/admission; providers/openai_compatible.py and providers/dial.py for endpoint fields/usage; wire-contract tests covering all concrete providers, including Gemini and Azure overrides. Keep budget policy centralized and per-path forwarding mechanical; split before implementation if substantive changes exceed the working-rule size limit.
 
-**Implementation step:** Send each resolved model's effective output ceiling on primary, recovery, expert and consensus requests; distinguish unavailable metadata from an unlimited successful call. Use Responses max_output_tokens and the appropriate Chat Completions field; parse input/output totals using each endpoint's schema, preserving absent usage as unknown.
+**Implementation step:** First calculate effective output O as the minimum of the verified registry ceiling, the existing response reservation and any supplied positive caller limit; reserve and transmit the same O. Derive input capacity as context capacity minus O and check the full assembled request, including history, files, current input, system instructions, headers and conservative image/token overhead, before provider I/O. Rebuild with explicit omission markers or reject using the existing policy when it cannot fit. Apply the same budget to primary, recovery, expert and each consensus participant; recompute when model/payload changes, without charging blinded participants for excluded thread history. Use Responses max_output_tokens and the appropriate Chat Completions field; correct DIAL's separate builder so verified deployment output limits are independent of temperature support. If a deployment's limit field cannot be verified or represented, return an explicit capability/configuration error before I/O rather than omit O. Parse usage using each endpoint's schema, preserving absent fields as unknown. No new public limit parameter is introduced.
 
-**Step → verify:** Create tests/test_max_output_tokens_is_sent.py and add endpoint usage fixtures: all four paths reach the transport with correct fields; nonzero Responses input usage survives; malformed and absent usage do not invent counts.
+**Step → verify:** Create tests/test_max_output_tokens_is_sent.py and budget/endpoint usage fixtures: all four paths transmit exactly their response reservation in the correct field. Cover ceilings larger/smaller than the default reservation, lower caller limits, invalid/nonpositive metadata, near-full history, system/image overhead, model-changing retries and heterogeneous consensus models. A synthetic 400,000-token context/272,000-token output ceiling uses the default 80,000 reservation, not 272,000, and admits at most 320,000 estimated input tokens including overhead. Test boundary acceptance/rejection without depending on any vendor's oversize behavior. Nonzero Responses input usage survives; malformed and absent usage do not invent counts.
 
-**Contract / gate:** Keep OpenRouter store omission and custom unsupported-temperature behavior. Missing usage or output-limit metadata must remain distinguishable from a valid zero.
+**Provider wire matrix:** Separately use actual serializers with fake SDK transports for OpenAI Chat Completions/Responses, Azure deployment routing, OpenRouter's supported endpoint families, custom/xAI inherited paths, Gemini and DIAL deployments with/without temperature support (including O3/O4-mini fixtures). Assert the chosen O reaches the verified endpoint field and routing/authentication remain intact. Unsupported-field fixtures must fail before I/O. Four caller tests with one fake provider are not sufficient; a full model-by-caller product is unnecessary.
+
+**Contract / gate:** The total input/output budget invariant ships in Task 20; it cannot wait for Task 24. Keep OpenRouter store omission and custom unsupported-temperature behavior. Unknown usage differs from a valid zero; missing/invalid capacity must never become an unlimited request. Endpoint-specific overflow behavior and estimator uncertainty remain explicit.
 
 <a id="task-21"></a>
 
@@ -406,13 +410,13 @@ unimplemented features done. Never relax an acceptance assertion to conceal a re
 - **Depends on:** Task 19
 - **Design:** [d5-providers-and-model-policy](design.md#d5-providers-and-model-policy)
 
-**Files / responsibility:** providers/base.py; providers/registry.py; server.py; utils/model_restrictions.py; tools/listmodels.py; mechanical provider declarations.
+**Files / responsibility:** providers/registry.py and server.py for shared identity resolution, request parsing and factories; providers/custom.py for exact tag/alias routing; utils/model_restrictions.py; tools/listmodels.py; mechanical metadata declarations in providers/base.py and provider classes. Update tests/test_parse_model_option.py and add dispatcher-to-wire identity tests.
 
-**Implementation step:** Declare provider identity/env/placeholder/required/optional/restriction metadata and factories; derive configuration/help/listmodels/test isolation from that source. Apply allowlists to every provider, including CUSTOM and Azure; validate names through the provider's alias/routing behavior, keeping custom API keys optional.
+**Implementation step:** Declare provider identity/env/placeholder/required/optional/restriction metadata and factories; derive configuration/help/listmodels/test isolation from that source. Centralize request-to-wire identity, including server.parse_model_option and custom routing: resolve the complete canonical ID/alias using the full catalog and existing provider priority before considering legacy options or applying visibility/restrictions. Only an unresolved complete ID with a terminal for/against/neutral suffix and a resolvable preceding ID may become a legacy option. A known but hidden/denied full ID never falls back to option parsing; other unknown suffixes produce an error, not base-model substitution. Keep registered custom tags, DIAL :0 IDs and OpenRouter suffixes intact. Apply allowlists to the resolved provider/canonical identity for every provider, including CUSTOM and Azure, keeping custom API keys optional. Document exact-tag registration/explicit-alias migration for formerly stripped tags and retain separate legacy option values without inventing new tool behavior.
 
-**Step → verify:** Add provider-from-env, metadata and characterization tests; enumerate all registered classes and prove discovery and actual calls agree under aliases/canonical names and restrictions. Ensure secrets never appear in help/errors.
+**Step → verify:** Add provider-from-env, metadata and characterization tests; enumerate all registered classes and prove discovery and actual calls agree under aliases/canonical names and restrictions. Add MCP-dispatch captures proving registry identity, policy identity and wire model agree for registered custom tags, DIAL :0 IDs, OpenRouter suffixes, aliases, supported legacy options and whitespace/case handling. Verify a complete registered ID ending in :for wins over option parsing, including when denied; unknown tags must not call the base model. Update parser tests that currently expect arbitrary tag stripping. Ensure secrets never appear in help/errors.
 
-**Contract / gate:** Preserve intentional routing priority; add OpenCode Go separately in Task 36. Provider metadata drives discovery, restrictions, setup diagnostics and test isolation.
+**Contract / gate:** Preserve intentional routing priority; add OpenCode Go separately in Task 36. Provider metadata drives discovery, restrictions, setup diagnostics and test isolation. Request-to-wire identity is established here before Tasks 25/26 add deny/preference rules. Identity resolution uses the full catalog; eligibility is a later decision, not a reason to reinterpret the request. No new provider-prefix syntax is added to tool requests.
 
 <a id="task-23"></a>
 
@@ -440,9 +444,9 @@ unimplemented features done. Never relax an acceptance assertion to conceal a re
 
 **Files / responsibility:** utils/model_context.py; utils/file_utils.py; tools/shared/base_tool.py; tools/workflow/workflow_mixin.py; file-budget tests.
 
-**Implementation step:** Compute one effective file budget and pass remaining-history limits through gate and embedding. Report binding budget, largest files and overage while preserving directory/alias/dedup semantics. Track files actually embedded now and actually included from history separately; account for rendered headers and the pending per-file descriptions feature.
+**Implementation step:** Reuse Task 20's effective output reservation and total input capacity when computing one effective file budget; pass remaining-history limits through gate and embedding without recalculating an independent output allowance. Exclude history withheld from consensus participants and deduplicate only against content present in that participant's request. Report binding budget, largest files and overage while preserving directory/alias/dedup semantics. Track files actually embedded now and actually included from history separately; account for rendered headers and the pending per-file descriptions feature.
 
-**Step → verify:** Create tests/test_file_size_gate.py and tests/test_workflow_file_context_counts.py; compare gate/embed budgets for fresh/long-history requests and verify missing, denied, duplicated or truncated files never inflate history counts.
+**Step → verify:** Create tests/test_file_size_gate.py and tests/test_workflow_file_context_counts.py; compare gate/embed budgets for fresh/long-history requests and verify missing, denied, duplicated or truncated files never inflate history counts. Retain Task 20's total-request invariant and verify a blinded participant's attachments are neither omitted nor charged against generic history it never receives.
 
 **Contract / gate:** The file-annotation compatibility contract in design.md is a coordination dependency; implementing annotations is outside this roadmap.
 
@@ -456,9 +460,9 @@ unimplemented features done. Never relax an acceptance assertion to conceal a re
 
 **Files / responsibility:** utils/model_restrictions.py; providers/registry.py; tests/test_disabled_models.py (new); .env.example.
 
-**Implementation step:** Parse DISABLED_MODELS with recognized provider scopes while preserving colon-bearing local model IDs. Enforce canonical/alias-equivalent denies across explicit calls, discovery, summary and fallback after provider allowlists; warn on unknown configured entries without exposing secrets.
+**Implementation step:** Parse DISABLED_MODELS with recognized provider scopes while preserving colon-bearing model IDs. Remove at most a recognized provider prefix, then pass the complete remaining ID through Task 22's canonical/alias lookup without invocation-only legacy-option parsing. Enforce canonical/alias-equivalent denies across explicit calls, discovery, summary and fallback after provider allowlists; warn on unknown configured entries without exposing secrets.
 
-**Step → verify:** Run restrictions, alias-target, auto-mode and new disabled-model tests, including alias cycles/unknowns, scoped duplicate names and local model tags.
+**Step → verify:** Run restrictions, alias-target, auto-mode and new disabled-model tests, including alias cycles/unknowns, scoped duplicate names and local model tags. Extend Task 22's dispatcher captures with scoped/unscoped denies for tagged custom IDs and DIAL :0 IDs: denied calls do not reach a transport, aliases cannot bypass a deny, and allowed full IDs keep their suffix on the wire.
 
 **Contract / gate:** A canonical alias cannot bypass a deny. Parse provider scope only when the prefix is a recognized provider name.
 
@@ -472,9 +476,9 @@ unimplemented features done. Never relax an acceptance assertion to conceal a re
 
 **Files / responsibility:** providers/shared/model_capabilities.py; providers/registries/base.py; providers/base.py; providers/registry.py; utils/model_restrictions.py.
 
-**Implementation step:** Add enabled_by_default with a backward-compatible true default; hide disabled entries/aliases from discovery while permitting exact canonical calls that pass policy. Implement ordered PREFERRED_MODELS for auto/fallback only, canonical opt-in, deduplication and skipping unavailable/denied choices; preserve explicit/per-tool model selection.
+**Implementation step:** Add enabled_by_default with a backward-compatible true default; hide disabled entries/aliases from discovery while permitting exact canonical calls that pass policy. Implement ordered PREFERRED_MODELS for auto/fallback only using Task 22's complete canonical/alias identities, without invocation-only option parsing. Preserve colon-bearing IDs during canonical opt-in, deduplication and skipping unavailable/denied choices; preserve explicit/per-tool model selection.
 
-**Step → verify:** Run new enabled-by-default/preferred-model tests plus all auto/listing/alias tests. Verify missing fields preserve behavior, preference does not bypass a deny and a hidden canonical entry is not accidentally a security exemption.
+**Step → verify:** Run new enabled-by-default/preferred-model tests plus all auto/listing/alias tests. Verify missing fields preserve behavior, preference does not bypass a deny and a hidden canonical entry is not accidentally a security exemption. Repeat Task 22's identity captures for hidden tagged IDs and complete IDs ending in :for: visibility filtering must not trigger option reinterpretation, and preferences must preserve the canonical wire identity.
 
 **Contract / gate:** No catalog expansion lands until discovery enablement and restriction precedence work. Hidden is a discovery setting, not a security policy.
 
@@ -682,7 +686,7 @@ unimplemented features done. Never relax an acceptance assertion to conceal a re
 
 **Implementation step:** Verify optional cached-input/cache-write fields per actual provider endpoint and preserve unknown versus zero; carry each invocation's usage into transcript metadata without cumulative double-counting. Add offline captured-request completeness/prefix metrics and a report grouped by provider/model, with missing-field coverage. Establish a measured baseline after Task 9; report only results reproduced by this project's request-capture harness.
 
-**Step → verify:** Run usage fixtures with missing/zero/malformed fields and multi-step consensus; capture chat/file/workflow/consensus sequences through the actual dispatcher and assert every intended turn/file reaches the provider exactly once.
+**Step → verify:** Run usage fixtures with missing/zero/malformed fields and multi-step consensus. Capture requests through the actual dispatcher and assert the content required by each consumer's contract appears exactly once. For consensus, assert the original proposal, stance and explicit attachments reach each participant on fresh tool instances; sentinel verdicts, intervening summaries and generic thread history must not. Check complete, nonduplicated audit turns separately in storage. Intentional blinding must not be reported as a completeness failure.
 
 **Contract / gate:** Cost calculations require separately verified rates and denominators. No live calls or price claims are needed for the offline completeness gate.
 

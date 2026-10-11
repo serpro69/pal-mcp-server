@@ -140,8 +140,14 @@ memory-persistence warning; do not claim the reply was saved.
 
 Record the first input before generation, and each continuation input exactly once.
 Record workflow `step` inputs as user turns and raw model responses as assistant
-turns. Keep workflow state in metadata; never store agent-facing artifact instructions
-as the model reply. This also supports service session IDs from turn one.
+turns. Provider-free steps retain their actual local tool result as an assistant
+turn with null model/provider provenance. Keep workflow state in metadata; never
+store agent-facing artifact instructions as the model reply. Admit each conversation
+invocation only when both its input and reply fit the turn cap. This also supports
+service session IDs from turn one.
+Task 8 establishes typed storage/turn-limit outcomes; Task 9 adds pair admission
+with single-owner input recording; Task 11 makes that sequence atomic for concurrent
+calls. Do not enforce pair admission independently at each legacy input writer.
 
 Replace substring detection of server-built history with trusted internal request
 context. Both MCP dispatch and direct tool invocation must work. Re-read the thread
@@ -164,6 +170,10 @@ and intermediate workflow steps leave them null. Label echoed input as caller
 findings, not an external analysis. Provide a documented compatibility transition
 for consumers of final_analysis. Failed consensus participants are excluded from
 successful-response counts; partial and zero-success outcomes are explicit.
+Consensus participants remain blinded: each sees the original proposal, its own
+stance and explicitly supplied attachments, never earlier participant verdicts or
+intervening caller summaries. Complete audit history does not imply complete history
+in every participant's prompt.
 
 ## D4: async provider lifecycle
 
@@ -174,6 +184,12 @@ store behavior, image payloads and error translation.
 
 A temporary invocation adapter allows small vertical migrations: it awaits a native
 async generate_content or moves a legacy synchronous one to a worker thread.
+Before enabling that offload in Task 14, protect shared provider initialization and
+mutable caches used during generation. Replace OpenAI/Azure's process-wide proxy
+environment suppression with explicit transport configuration, retaining the
+effective proxy/TLS policy without modifying other requests' environment. Cold-start
+tests must exercise actual provider initialization with fake SDK transports; a
+delayed fake provider alone cannot establish thread safety.
 First wire chat, then expert/consensus paths. Convert the OpenAI family, Gemini and
 DIAL separately, then remove the adapter/fallback. This avoids requiring a large
 all-provider commit. A cancelled worker-thread call may keep running during this
@@ -186,9 +202,12 @@ logic. Do not combine it with provider metadata migration in the same task.
 Explicitly close shared DIAL pools once and avoid constructing unused clients during
 shutdown. Fire-and-forget atexit cleanup is not the success criterion.
 
-All simple, retry, expert and consensus requests send the registry's effective
-output ceiling using the endpoint's correct field. Normalize Responses usage
-separately from Chat Completions. Missing usage remains unknown, not an invented zero.
+All simple, retry, expert and consensus requests send an effective output limit
+bounded by the registry ceiling, the response reservation and any lower caller
+limit, using the endpoint's correct field. Task 20 establishes the matching input
+budget before these limits are sent; Task 24 reuses it for file admission/rendering.
+Normalize Responses usage separately from Chat Completions. Missing usage remains
+unknown, not an invented zero.
 Gemini generation/capability metadata selects thinking_level versus thinking_budget;
 clamp levels only to a verified per-model accepted set. Unknown capabilities require
 a diagnostic and explicit policy, not a silent ceiling bypass.
@@ -208,7 +227,8 @@ credentials. An intentionally empty optional registry remains a separate case.
 
 Apply the same policy to explicit calls, aliases, discovery, ranking and fallback:
 
-1. Resolve the requested provider/model identity.
+1. Resolve the complete requested provider/model identity before interpreting a
+   legacy option suffix. Exact canonical names and aliases, including colons, win.
 2. Enforce that provider's allowlist, if present.
 3. Apply global DISABLED_MODELS as a deny override, including canonical aliases and
    optional recognized provider prefixes. Colons in local model IDs remain valid.
@@ -367,14 +387,39 @@ design document. Task-specific acceptance checks are in implementation.md.
 ### Request ownership and error contract (Tasks 8–13)
 
 The MCP request boundary owns this sequence: validate inputs and resolve the
-conversation identity; acquire that thread's coordinator; load state; record the raw
-current input; rebuild history including current attachments; execute a fresh tool;
-persist the raw reply and workflow metadata; release the coordinator in `finally`.
+conversation identity; acquire that thread's coordinator; load state and check
+capacity for an input/reply pair; record the raw current input; rebuild the history
+appropriate to the receiving tool, including current attachments; execute a fresh
+tool; persist the raw reply and workflow metadata; release the coordinator in `finally`.
 The initial thread exists before the first provider request. A user input is recorded
 once even when its provider call fails; an absent reply is never synthesized.
 
-Trusted internal context records which boundary already handled history/input
-persistence. It is not a request-schema field and caller JSON cannot assert it.
+`MAX_CONVERSATION_TURNS` continues to count stored messages, not invocation pairs.
+For every invocation using conversation memory, require at least two free slots
+before saving its input or executing provider/CLI work. This also applies to local
+workflow steps, whose real tool result occupies the assistant slot with null
+provider provenance. Fewer than two slots gives a limit result without appending
+input or starting work; a cap of one therefore cannot admit a conversation call.
+With the Task 11 coordinator held through reply persistence, the admission check
+reserves capacity without placeholder turns. Failure/cancellation after input save
+consumes only that input's slot; unused capacity is released without a synthetic
+reply. Task 9 introduces this check once at the input-persistence owner, including
+the direct-tool path, after eliminating duplicate input writers. Its trusted request
+context records completed admission so nested tool execution and provider retries
+do not repeat the check. Task 8 only supplies typed storage/turn-limit outcomes;
+it does not independently introduce pair admission at the legacy writers. Between
+Tasks 9 and 11, apply the rule to sequential calls without claiming concurrent
+reservation. Unexpected post-answer storage failure still
+returns the answer plus a warning.
+
+Keep `remaining_turns` measured in free stored-message slots, computed after the
+actual writes. User-facing remaining-exchange counts are `floor(free_slots / 2)`;
+do not invite another invocation when fewer than two slots remain. MCP and direct
+tool paths use the same admission rule; direct-call concurrency still requires the
+coordinator as stated below.
+
+Trusted internal context records which boundary already handled admission and
+history/input persistence. It is not a request-schema field and caller JSON cannot assert it.
 Direct tool execution must supply its own correct ownership path, and may not
 claim MCP same-thread serialization unless it uses the coordinator. Reused direct
 tool objects reset invocation state before restoration.
@@ -390,7 +435,7 @@ uses defaults rather than another request's values.
 | --- | --- |
 | Unknown or expired continuation | Explicit continuation error; no model call |
 | Corrupt/unavailable required memory or failed input save | Typed storage error with original cause; no model call |
-| Turn cap reached | Explicit limit result, distinct from a storage outage |
+| Fewer than two free turn slots before invocation | Explicit limit result; no input append or provider/CLI work, distinct from a storage outage |
 | Provider failure after saved input | Provider error; keep the real input and do not invent an assistant turn |
 | Answer generated, final memory save fails | Return answer plus persistence warning; do not claim successful saving |
 | Transcript/progress side channel fails | Preserve the primary result and expose a diagnostic |
@@ -407,6 +452,16 @@ provider coverage where known, and per-participant errors. All-success is comple
 mixed results are partial, and zero-success is failed. Neither completion path may
 label partial/failed output as full or high-confidence consensus.
 
+The consensus prompt contract is narrower than its persisted history. Persist the
+raw original proposal separately from reconstructed history and restore it with
+the roster on each fresh tool instance. Each participant receives that proposal,
+its own stance/system instructions and the current call's explicit file/image
+attachments under the existing path policy. Do not inject prior verdicts, later
+`step`/`findings` summaries or generic conversation history, and do not deduplicate
+participant attachments against history it cannot see. Persist these excluded turns
+normally for the caller and later cross-tool use. Tasks 9, 10 and 39 must test both
+required content and forbidden-content sentinels in captured participant requests.
+
 ### Provider execution and model selection (Tasks 14–28)
 
 The final provider contract is an awaited `generate_content` plus awaited cleanup.
@@ -415,12 +470,49 @@ declares whether a transport is shared or borrowed. Shutdown closes each allocat
 transport once while its event loop is alive. Unused providers allocate nothing
 during cleanup.
 
-A request's output limit is bounded by the resolved model's verified ceiling and
-any lower caller limit. Missing capability information must produce an explicit
-diagnostic/policy outcome, never a silent unlimited call. Preserve image payloads,
-Azure deployment naming, DIAL auth/header handling, OpenRouter Responses `store`
-omission and model-specific temperature omission. Parse input/output/total usage
+During Tasks 14–18, registry-cached providers are shared across worker threads.
+Use per-provider synchronization for lazy client publication and shared mutable
+initialization state, preserving DIAL's deployment-client ownership/locking. Publish
+one successfully initialized client per owner; failed initialization must leave a
+retryable state. Never hold the initialization lock through a generation request.
+OpenAI/Azure transport construction, including fallback paths, must not temporarily
+edit process environment variables. Verify proxy/TLS behavior and concurrent CLI
+environment reads with synthetic values. Carry the explicit transport policy into
+the native async migrations; remove only guards made unnecessary by their final
+execution model.
+
+Task 20 computes one per-provider-request budget in `ModelContext`. Let `C` be the
+verified context capacity and `R` the response reservation selected by the existing
+allocation policy (40% of `C` below 300,000 tokens; 20% otherwise). Set effective
+output `O` to the minimum of `R`, the verified model output ceiling and any supplied
+positive caller output limit. Reserve exactly `O`, send exactly `O` on the wire,
+and derive input capacity as `C - O`. Invalid/nonpositive budgets or unknown required
+capabilities produce an explicit error/policy diagnostic before provider I/O.
+This does not introduce a new public output-limit parameter.
+
+History, files, current input, system instructions, rendered headers and estimated
+image tokens must all fit that input capacity, with a conservative estimation
+margin. Rebuild or reject over-budget context before provider I/O using the existing
+explicit omission/error policy; never claim estimator precision or assume that all
+endpoints reject oversized requests identically. Compute this budget separately for
+each consensus participant and recompute it if a retry changes model or payload.
+Task 20 owns the total-request invariant even before Task 24 unifies the finer file
+budget. Preserve image payloads, Azure deployment naming, DIAL auth/header handling,
+OpenRouter Responses `store` omission and model-specific temperature omission. Parse input/output/total usage
 from the selected endpoint; an absent field is unknown, not zero.
+
+Task 20 also owns output-limit serialization in DIAL's separate payload builder;
+changing only the shared OpenAI-compatible builder is insufficient. Select the
+verified output-limit field independently of temperature support, including DIAL
+deployments that omit temperature. Task 18 characterizes the old payload as a
+migration baseline, not a requirement to preserve its missing output limit forever.
+If a deployment's limit cannot be represented or verified, return an explicit
+capability/configuration error before provider I/O rather than omit the limit.
+Verify both dimensions: caller paths propagate `O`, and actual provider serializers
+emit it. Fake-transport cases cover OpenAI Chat Completions/Responses, Azure,
+OpenRouter's supported endpoint families, custom/xAI inherited paths, Gemini, and
+DIAL deployments with and without temperature support. These tests preserve each
+provider's routing/authentication and do not require a full model-by-caller product.
 
 For Gemini, select budget or level using verified capability metadata rather than
 assuming all models accept every SDK enum. Map PAL's ordered modes
@@ -435,11 +527,39 @@ Use them in server registration, model listing, setup help, restrictions and tes
 credential isolation. Preserve optional custom API keys and Azure/DIAL-specific
 configuration. Placeholder credentials must not activate providers.
 
-Selection and discovery share one normalized identity and policy implementation:
+Task 22 owns model identity from the MCP boundary through policy and wire dispatch,
+including `server.parse_model_option`, provider lookup and custom routing. Normalize
+outer whitespace, then try the complete identifier through registered canonical
+names/aliases in the existing provider priority order. Use the full catalog for
+identity lookup, before discovery visibility or allow/deny filtering; a hidden or
+denied complete ID must not be reinterpreted as a different model plus an option.
+Registered custom tags, DIAL IDs ending in `:0`, and registered OpenRouter suffixes
+remain part of the canonical model name sent to the provider.
+
+Only when the complete ID does not resolve may a terminal `:for`, `:against` or
+`:neutral` be interpreted as a legacy option, provided its complete preceding model
+ID resolves. Match those option keywords case-insensitively and trim surrounding
+option whitespace. Preserve the separate option value; do not add new stance
+semantics to tools that do not consume it. All other unresolved colon-bearing IDs
+produce an actionable unknown-model error; never strip an arbitrary tag to call a
+different base model. Operators using tags previously accepted through stripping
+must register the exact tagged model or an intentional explicit alias. This is a
+documented compatibility correction, with updated parser tests and release notes.
+
+Pass the resolved provider/canonical identity consistently to capability lookup,
+allowlists, denies, preferences and generation. Task 25's recognized provider prefix
+belongs to deny-entry syntax: remove at most that prefix, then resolve the entire
+remaining model ID through Task 22's canonical/alias lookup, without legacy-option
+parsing. Discovery entries and preferences likewise use canonical/alias identities,
+not the invocation-only option syntax. This adds no new provider-prefix syntax to
+tool requests. Selection and discovery share that identity and policy implementation:
 
 | Input/state | Required behavior |
 | --- | --- |
 | Explicit model or per-tool choice | Resolve that choice or report its error; preferences do not replace it |
+| Complete colon-bearing canonical ID or alias | Resolve before legacy options, retain the canonical suffix on the wire, and apply policy to that same identity |
+| Unresolved complete ID with terminal `:for`/`:against`/`:neutral` | Accept as a legacy option only if the complete preceding model ID resolves; policy rejection never triggers this fallback |
+| Other unresolved suffix | Explicit unknown-model error; never silently call the base model |
 | Provider allowlist | Validate through the provider's alias/routing rules, including custom/Azure models |
 | `DISABLED_MODELS` | Deny canonical identities and alias-equivalent names after allowlists; deny wins |
 | Scoped deny | Recognized provider prefix restricts scope; remaining colons belong to the model ID |
@@ -491,8 +611,11 @@ cross-continuation annotation persistence as a side effect. If a proposed histor
 layout would change that contract, record a coordinated design change before coding.
 
 Compute a single effective file allowance from the model's file/context capacity,
-reserved output and the remaining conversation budget. Pass it to both admission
-and rendering, including headers/annotations and expansion/deduplication overhead.
+Task 20's effective output reservation and the remaining conversation budget. Do
+not create another output reservation or count history withheld from a blinded
+consensus participant against that participant's input budget. Pass the allowance
+to both admission and rendering, including headers/annotations and
+expansion/deduplication overhead.
 Count a file in history only when its content is actually present in assembled
 history; distinguish new content, historical content, missing, denied and
 budget-omitted paths. Report binding limits, largest contributors and overage.
@@ -587,8 +710,12 @@ unavailable methods remain documented follow-up work.
 
 Capture requests through the real dispatcher using synthetic conversations covering
 chat, files, workflow steps, consensus, model changes and at least 12 continuation
-turns for layout/compaction experiments. First assert complete, nonduplicated turns,
-fresh attached file contents, instruction retention and truthful omission markers.
+turns for layout/compaction experiments. First assert complete, nonduplicated content
+for each consumer's input contract, fresh attached file contents, instruction
+retention and truthful omission markers. For consensus, assert the original proposal,
+stance and explicit attachments are present while prior verdicts, intervening
+summaries and generic thread history are absent; verify the complete history
+separately in storage. These intentional exclusions are not completeness failures.
 Investigate web-search guidance, newline handling, customization hooks and workflow
 history through captured requests before declaring additional defects.
 
