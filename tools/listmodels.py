@@ -11,12 +11,11 @@ from typing import Any, Optional
 
 from mcp.types import TextContent
 
-from providers.registries.custom import CustomEndpointModelRegistry
+from providers.configuration import provider_configurations
 from providers.registries.openrouter import OpenRouterModelRegistry
 from tools.models import ToolModelCategory, ToolOutput
 from tools.shared.base_models import ToolRequest
 from tools.shared.base_tool import BaseTool
-from utils.env import get_env
 
 logger = logging.getLogger(__name__)
 
@@ -97,12 +96,11 @@ class ListModelsTool(BaseTool):
                 restricted_models_by_provider.setdefault(provider_type, []).append(model_name)
 
         # Map provider types to friendly names and their models
+        configurations = provider_configurations()
         provider_info = {
-            ProviderType.GOOGLE: {"name": "Google Gemini", "env_key": "GEMINI_API_KEY"},
-            ProviderType.OPENAI: {"name": "OpenAI", "env_key": "OPENAI_API_KEY"},
-            ProviderType.AZURE: {"name": "Azure OpenAI", "env_key": "AZURE_OPENAI_API_KEY"},
-            ProviderType.XAI: {"name": "X.AI (Grok)", "env_key": "XAI_API_KEY"},
-            ProviderType.DIAL: {"name": "AI DIAL", "env_key": "DIAL_API_KEY"},
+            kind: {"name": config.label, "env_key": config.setup_hint()}
+            for kind, config in configurations.items()
+            if kind != ProviderType.OPENROUTER
         }
 
         def format_model_entry(provider, display_name: str) -> list[str]:
@@ -170,6 +168,8 @@ class ListModelsTool(BaseTool):
 
                     aliases = []
                     for model_name, capabilities in provider.get_capabilities_by_rank():
+                        if restricted_map.get(model_name) != provider_type:
+                            continue
                         try:
                             description = capabilities.description or "No description available"
                         except AttributeError:
@@ -193,7 +193,7 @@ class ListModelsTool(BaseTool):
                             output_lines.append("  - Supports structured code generation")
 
                         for alias in capabilities.aliases or []:
-                            if alias != model_name:
+                            if alias != model_name and restricted_map.get(alias) == provider_type:
                                 aliases.append(f"- `{alias}` → `{model_name}`")
 
                     if aliases:
@@ -205,8 +205,7 @@ class ListModelsTool(BaseTool):
             output_lines.append("")
 
         # Check OpenRouter
-        openrouter_key = get_env("OPENROUTER_API_KEY")
-        is_openrouter_configured = openrouter_key and openrouter_key != "your_openrouter_api_key_here"
+        is_openrouter_configured = configurations[ProviderType.OPENROUTER].is_configured()
 
         output_lines.append(f"## OpenRouter {'✅' if is_openrouter_configured else '❌'}")
 
@@ -270,6 +269,8 @@ class ListModelsTool(BaseTool):
                         providers_models: dict[str, list[tuple[int, str, Optional[Any]]]] = {}
 
                         for model_name in available_models:
+                            if restricted_map.get(model_name) != ProviderType.OPENROUTER:
+                                continue
                             config = registry.resolve(model_name)
                             provider_name = "other"
                             if config and "/" in config.model_name:
@@ -312,41 +313,6 @@ class ListModelsTool(BaseTool):
 
         output_lines.append("")
 
-        # Check Custom API
-        custom_url = get_env("CUSTOM_API_URL")
-
-        output_lines.append(f"## Custom/Local API {'✅' if custom_url else '❌'}")
-
-        if custom_url:
-            output_lines.append("**Status**: Configured and available")
-            output_lines.append(f"**Endpoint**: {custom_url}")
-            output_lines.append("**Description**: Local models via Ollama, vLLM, LM Studio, etc.")
-
-            try:
-                registry = CustomEndpointModelRegistry()
-                custom_models = []
-
-                for alias in registry.list_aliases():
-                    config = registry.resolve(alias)
-                    if config:
-                        custom_models.append((alias, config))
-
-                if custom_models:
-                    output_lines.append("\n**Custom Models**:")
-                    for alias, config in custom_models:
-                        context_str = f"{config.context_window // 1000}K" if config.context_window else "?"
-                        output_lines.append(f"- `{alias}` → `{config.model_name}` ({context_str} context)")
-                        if config.description:
-                            output_lines.append(f"  - {config.description}")
-
-            except Exception as e:
-                output_lines.append(f"**Error loading custom models**: {str(e)}")
-        else:
-            output_lines.append("**Status**: Not configured (set CUSTOM_API_URL)")
-            output_lines.append("**Example**: CUSTOM_API_URL=http://localhost:11434 (for Ollama)")
-
-        output_lines.append("")
-
         # Add summary
         output_lines.append("## Summary")
 
@@ -359,8 +325,6 @@ class ListModelsTool(BaseTool):
             ]
         )
         if is_openrouter_configured:
-            configured_count += 1
-        if custom_url:
             configured_count += 1
 
         output_lines.append(f"**Configured Providers**: {configured_count}")

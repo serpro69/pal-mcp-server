@@ -24,8 +24,8 @@ import logging
 from collections import defaultdict
 from typing import Optional
 
+from providers.configuration import provider_configurations
 from providers.shared import ProviderType
-from utils.env import get_env
 
 logger = logging.getLogger(__name__)
 
@@ -48,13 +48,7 @@ class ModelRestrictionService:
     """
 
     # Environment variable names
-    ENV_VARS = {
-        ProviderType.OPENAI: "OPENAI_ALLOWED_MODELS",
-        ProviderType.GOOGLE: "GOOGLE_ALLOWED_MODELS",
-        ProviderType.XAI: "XAI_ALLOWED_MODELS",
-        ProviderType.OPENROUTER: "OPENROUTER_ALLOWED_MODELS",
-        ProviderType.DIAL: "DIAL_ALLOWED_MODELS",
-    }
+    ENV_VARS = {kind: config.restriction_env for kind, config in provider_configurations().items()}
 
     def __init__(self):
         """Initialize the restriction service by loading from environment."""
@@ -65,7 +59,7 @@ class ModelRestrictionService:
     def _load_from_env(self) -> None:
         """Load restrictions from environment variables."""
         for provider_type, env_var in self.ENV_VARS.items():
-            env_value = get_env(env_var)
+            env_value = provider_configurations()[provider_type].allowed_models_value()
 
             if env_value is None or env_value == "":
                 # Not set or empty - no restrictions (allow all models)
@@ -172,7 +166,7 @@ class ModelRestrictionService:
 
                 if not normalized_resolved:
                     try:
-                        resolved = provider._resolve_model_name(allowed_entry)
+                        resolved = provider.resolve_model_identity(allowed_entry)
                     except Exception:  # pragma: no cover - resolution failures are treated as non-matches
                         continue
 

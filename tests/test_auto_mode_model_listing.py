@@ -139,7 +139,8 @@ def test_error_listing_respects_env_restrictions(monkeypatch, reset_registry):
     assert payload["status"] == "error"
 
     available_models = _extract_available_models(payload["content"])
-    assert set(available_models) == {"gemini-2.5-pro", "gpt-5.2", "gpt5nano", "openai/gpt-5-nano"}
+    # The native gpt5nano identity is denied; only the explicit OpenRouter ID is callable.
+    assert set(available_models) == {"gemini-2.5-pro", "gpt-5.2", "openai/gpt-5-nano"}
 
 
 @pytest.mark.no_mock_provider

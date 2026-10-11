@@ -125,6 +125,9 @@ class TestListModelsTool:
         env_vars = {"CUSTOM_API_URL": "http://localhost:11434", "DEFAULT_MODEL": "auto"}
 
         with patch.dict(os.environ, env_vars, clear=True):
+            from server import configure_providers
+
+            configure_providers()
             result = await tool.execute({})
 
             response = json.loads(result[0].text)
@@ -132,8 +135,7 @@ class TestListModelsTool:
 
             # Check Custom API shows as configured
             assert "Custom/Local API ✅" in content
-            assert "http://localhost:11434" in content
-            assert "Local models via Ollama" in content
+            assert "local-llama" in content
 
     @pytest.mark.asyncio
     async def test_output_includes_usage_tips(self, tool):

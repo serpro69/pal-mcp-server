@@ -85,6 +85,22 @@ def project_path(tmp_path):
     return test_dir
 
 
+@pytest.fixture
+def isolated_provider_environment(monkeypatch):
+    """Remove all declared provider configuration for offline setup/wire tests."""
+    from providers.configuration import provider_configurations
+    from utils import model_restrictions
+
+    for declaration in provider_configurations().values():
+        for name in declaration.environment_names():
+            monkeypatch.delenv(name, raising=False)
+    registry = ModelProviderRegistry()
+    monkeypatch.setattr(registry, "_providers", {})
+    monkeypatch.setattr(registry, "_initialized_providers", {})
+    monkeypatch.setattr(model_restrictions, "_restriction_service", None)
+    return registry
+
+
 def _set_dummy_keys_if_missing():
     """Set dummy API keys only when they are completely absent."""
     for var in ("GEMINI_API_KEY", "OPENAI_API_KEY", "XAI_API_KEY"):
@@ -182,12 +198,12 @@ def mock_provider_availability(request, monkeypatch):
 def clear_model_restriction_env(monkeypatch):
     """Ensure per-test isolation from user-defined model restriction env vars."""
 
+    from providers.configuration import provider_configurations
+
     restriction_vars = [
-        "OPENAI_ALLOWED_MODELS",
-        "GOOGLE_ALLOWED_MODELS",
-        "XAI_ALLOWED_MODELS",
-        "OPENROUTER_ALLOWED_MODELS",
-        "DIAL_ALLOWED_MODELS",
+        name
+        for declaration in provider_configurations().values()
+        for name in (declaration.restriction_env, *declaration.restriction_aliases)
     ]
 
     for var in restriction_vars:

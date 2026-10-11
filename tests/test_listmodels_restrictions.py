@@ -240,8 +240,11 @@ class TestListModelsRestrictions(unittest.TestCase):
 
     @patch.dict(os.environ, {"OPENROUTER_API_KEY": "test-key", "GEMINI_API_KEY": "gemini-test-key"}, clear=True)
     @patch("providers.registries.openrouter.OpenRouterModelRegistry")
+    @patch.object(ModelProviderRegistry, "get_available_models")
     @patch.object(ModelProviderRegistry, "get_provider")
-    def test_listmodels_shows_all_models_without_restrictions(self, mock_get_provider, mock_registry_class):
+    def test_listmodels_shows_all_models_without_restrictions(
+        self, mock_get_provider, mock_get_models, mock_registry_class
+    ):
         """Test that listmodels shows all models when no restrictions are set."""
         # Clear any cached restriction service to ensure it reads from patched environment
         import utils.model_restrictions
@@ -251,6 +254,7 @@ class TestListModelsRestrictions(unittest.TestCase):
         # Set up mock to return many models when no restrictions
         all_models = [f"provider{i // 10}/model-{i}" for i in range(50)]  # Simulate 50 models from different providers
         self.mock_openrouter.list_models.return_value = all_models
+        mock_get_models.return_value = dict.fromkeys(all_models, ProviderType.OPENROUTER)
 
         # Mock registry instance
         mock_registry = MagicMock()
@@ -292,7 +296,7 @@ class TestListModelsRestrictions(unittest.TestCase):
         for line in lines:
             if "OpenRouter" in line and "✅" in line:
                 openrouter_section_found = True
-            elif "Custom/Local API" in line:
+            elif openrouter_section_found and line.startswith("## "):
                 # End of OpenRouter section
                 break
             elif openrouter_section_found and line.strip().startswith("- ") and "`" in line:

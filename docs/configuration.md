@@ -22,7 +22,9 @@ OPENAI_API_KEY=your-openai-key
 
 ### API Keys (At least one required)
 
-**Important:** Use EITHER OpenRouter OR native APIs, not both! Having both creates ambiguity about which provider serves each model.
+Providers can coexist. Complete registered names and aliases resolve in this
+priority order: Gemini, OpenAI, Azure, X.AI, DIAL, Custom, OpenRouter. Policy is
+applied to that identity; a disallowed match does not fall through to another provider.
 
 **Option 1: Native APIs (Recommended for direct access)**
 ```env
@@ -60,6 +62,30 @@ CUSTOM_MODEL_NAME=llama3.2                          # Default model
 - Example: `http://localhost:11434/v1` for Ollama
 
 ### Model Configuration
+
+Model names are matched as complete identifiers, ignoring outer whitespace and
+case. Colons in registered names are preserved, including custom tags, DIAL `:0`
+deployments and OpenRouter suffixes. To migrate an invocation that previously
+relied on automatic tag stripping, register its exact tagged name in the provider
+catalog, or add an explicit alias to the intended model. Unknown tags now fail
+before a provider call.
+
+Only an unresolved full name ending in `:for`, `:against` or `:neutral` can be
+treated as a legacy option, and the preceding complete model name must resolve.
+A registered name ending in `:for` wins even when restrictions disallow it.
+Options remain separate metadata; they do not add stance behavior to other tools.
+Provider prefixes are not an additional invocation syntax.
+
+Allowlists use each provider's canonical names or aliases: `GOOGLE_ALLOWED_MODELS`,
+`OPENAI_ALLOWED_MODELS`, `AZURE_ALLOWED_MODELS`, `XAI_ALLOWED_MODELS`,
+`DIAL_ALLOWED_MODELS`, `CUSTOM_ALLOWED_MODELS`, and `OPENROUTER_ALLOWED_MODELS`.
+Custom endpoints still require `CUSTOM_API_URL` and may omit `CUSTOM_API_KEY`.
+Azure requires both `AZURE_OPENAI_API_KEY` and `AZURE_OPENAI_ENDPOINT`, plus a
+configured deployment. Placeholder keys do not activate providers. Setup diagnostics
+show setting names, not credential values or endpoint URLs.
+`AZURE_OPENAI_ALLOWED_MODELS` remains a compatibility alias with precedence over
+`AZURE_ALLOWED_MODELS`. Azure rejects a deployment ID that collides with another
+model's canonical name, alias or deployment; choose unambiguous deployment names.
 
 **Default Model Selection:**
 ```env

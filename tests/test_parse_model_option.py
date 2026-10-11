@@ -1,79 +1,57 @@
-"""Tests for parse_model_option function."""
+"""Complete registry names take precedence over legacy stance parsing."""
 
+import json
+
+import pytest
+
+from providers.custom import CustomProvider
+from providers.registries.custom import CustomEndpointModelRegistry
+from providers.registry import ModelProviderRegistry
+from providers.shared import ProviderType
 from server import parse_model_option
 
 
-class TestParseModelOption:
-    """Test cases for model option parsing."""
+@pytest.fixture
+def tagged_catalog(monkeypatch, tmp_path, isolated_provider_environment):
+    path = tmp_path / "models.json"
+    path.write_text(
+        json.dumps(
+            {
+                "models": [
+                    {"model_name": name, "aliases": aliases, "context_window": 100000, "max_output_tokens": 8000}
+                    for name, aliases in [
+                        ("local", []),
+                        ("local:latest", ["tagged"]),
+                        ("local:for", ["stance-name"]),
+                        ("vendor/model:free", []),
+                        ("deployment:0", []),
+                    ]
+                ]
+            }
+        )
+    )
+    monkeypatch.setattr(CustomProvider, "_registry", CustomEndpointModelRegistry(str(path)))
+    monkeypatch.setenv("CUSTOM_API_URL", "http://localhost:11434/v1")
+    ModelProviderRegistry.register_provider(ProviderType.CUSTOM, CustomProvider)
 
-    def test_openrouter_free_suffix_preserved(self):
-        """Test that OpenRouter :free suffix is preserved as part of model name."""
-        model, option = parse_model_option("openai/gpt-3.5-turbo:free")
-        assert model == "openai/gpt-3.5-turbo:free"
-        assert option is None
 
-    def test_openrouter_beta_suffix_preserved(self):
-        """Test that OpenRouter :beta suffix is preserved as part of model name."""
-        model, option = parse_model_option("anthropic/claude-opus-4.1:beta")
-        assert model == "anthropic/claude-opus-4.1:beta"
-        assert option is None
+@pytest.mark.parametrize("name", ["local:latest", "local:for", "vendor/model:free", "deployment:0", "tagged"])
+def test_complete_names_win(tagged_catalog, name):
+    assert parse_model_option(f"  {name}  ") == (name, None)
 
-    def test_openrouter_preview_suffix_preserved(self):
-        """Test that OpenRouter :preview suffix is preserved as part of model name."""
-        model, option = parse_model_option("google/gemini-pro:preview")
-        assert model == "google/gemini-pro:preview"
-        assert option is None
 
-    def test_ollama_tag_parsed_as_option(self):
-        """Test that Ollama tags are parsed as options."""
-        model, option = parse_model_option("llama3.2:latest")
-        assert model == "llama3.2"
-        assert option == "latest"
+@pytest.mark.parametrize("option", ["for", "AGAINST", " Neutral "])
+def test_only_known_legacy_options(tagged_catalog, option):
+    assert parse_model_option(f" local:latest : {option} ") == ("local:latest", option.strip().lower())
 
-    def test_consensus_stance_parsed_as_option(self):
-        """Test that consensus stances are parsed as options."""
-        model, option = parse_model_option("o3:for")
-        assert model == "o3"
-        assert option == "for"
 
-        model, option = parse_model_option("gemini-2.5-pro:against")
-        assert model == "gemini-2.5-pro"
-        assert option == "against"
+@pytest.mark.parametrize("name", ["local:unknown", "missing:for", "local:latest:unknown", "http://localhost:8080"])
+def test_unregistered_colons_are_errors(tagged_catalog, name):
+    with pytest.raises(ValueError, match="Register the exact tagged model"):
+        parse_model_option(name)
 
-    def test_openrouter_unknown_suffix_parsed_as_option(self):
-        """Test that unknown suffixes on OpenRouter models are parsed as options."""
-        model, option = parse_model_option("openai/gpt-4:custom-tag")
-        assert model == "openai/gpt-4"
-        assert option == "custom-tag"
 
-    def test_plain_model_name(self):
-        """Test plain model names without colons."""
-        model, option = parse_model_option("gpt-4")
-        assert model == "gpt-4"
-        assert option is None
-
-    def test_url_not_parsed(self):
-        """Test that URLs are not parsed for options."""
-        model, option = parse_model_option("http://localhost:8080")
-        assert model == "http://localhost:8080"
-        assert option is None
-
-    def test_whitespace_handling(self):
-        """Test that whitespace is properly stripped."""
-        model, option = parse_model_option("  openai/gpt-3.5-turbo:free  ")
-        assert model == "openai/gpt-3.5-turbo:free"
-        assert option is None
-
-        model, option = parse_model_option("  llama3.2 : latest  ")
-        assert model == "llama3.2"
-        assert option == "latest"
-
-    def test_case_insensitive_suffix_matching(self):
-        """Test that OpenRouter suffix matching is case-insensitive."""
-        model, option = parse_model_option("openai/gpt-3.5-turbo:FREE")
-        assert model == "openai/gpt-3.5-turbo:FREE"  # Original case preserved
-        assert option is None
-
-        model, option = parse_model_option("openai/gpt-3.5-turbo:Free")
-        assert model == "openai/gpt-3.5-turbo:Free"  # Original case preserved
-        assert option is None
+def test_policy_does_not_reinterpret_known_stance_name(tagged_catalog, monkeypatch):
+    monkeypatch.setenv("CUSTOM_ALLOWED_MODELS", "local")
+    assert parse_model_option("local:for") == ("local:for", None)
+    assert ModelProviderRegistry.get_provider_for_model("local:for") is None

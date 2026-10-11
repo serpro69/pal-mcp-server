@@ -4,6 +4,7 @@ import logging
 
 from utils.env import get_env
 
+from .configuration import ProviderConfiguration
 from .openai_compatible import OpenAICompatibleProvider
 from .registries.openrouter import OpenRouterModelRegistry
 from .shared import (
@@ -30,6 +31,15 @@ class OpenRouterProvider(OpenAICompatibleProvider):
           execution so OpenRouter endpoints behave like standard OpenAI-style
           APIs.
     """
+
+    CONFIGURATION = ProviderConfiguration(
+        ProviderType.OPENROUTER,
+        "OpenRouter",
+        "OPENROUTER_API_KEY",
+        "OPENROUTER_ALLOWED_MODELS",
+        placeholders=("your_openrouter_api_key_here",),
+        optional_env=("OPENROUTER_MODELS_CONFIG_PATH", "OPENROUTER_REFERER", "OPENROUTER_TITLE"),
+    )
 
     FRIENDLY_NAME = "OpenRouter"
 
@@ -164,7 +174,9 @@ class OpenRouterProvider(OpenAICompatibleProvider):
 
         # When restrictions are in place, don't include aliases to avoid confusion
         # Only return the canonical model names that are actually allowed
-        actual_include_aliases = include_aliases and not respect_restrictions
+        actual_include_aliases = include_aliases and not (
+            restriction_service and restriction_service.has_restrictions(self.get_provider_type())
+        )
 
         return ModelCapabilities.collect_model_names(
             allowed_configs,
