@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Implementation: [implementation.md](implementation.md)
 > Review resolutions: [review.md](review.md#revalidation-and-resolution)
-> Status: in-progress (Tasks 1–17 done; Tasks 18–42 pending)
+> Status: in-progress (Tasks 1–18 done; Tasks 19–42 pending)
 > Created: 2026-10-10
 > Not Doing: toolchain/release-process migration; MCP 2.x; wholesale catalogs; replacement of safety controls; file-annotation implementation; persistent continuation recovery; remote multi-user transport; automatic service activation
 
@@ -379,17 +379,23 @@ live/setup release gates remain open.
 
 ## Task 18: Migrate DIAL generation and shared transport ownership
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 16
 - **Size:** M
 - **Can run in parallel with:** —
 - **Docs:** [Implementation slice](implementation.md#task-18); [design contract](design.md#d4-async-provider-lifecycle)
 
-- [ ] 18.1 Move deployment-specific calls and event hooks to async forms while retaining DIAL auth/header stripping, URL mapping and shared connection-pool ownership.
-- [ ] 18.2 Close deployment wrappers/shared clients without double-closing, leaking coroutines or constructing extra clients.
-- [ ] 18.3 Verify the acceptance cases in [Task 18](implementation.md#task-18) and record the result here.
+- [x] 18.1 Move deployment-specific calls and event hooks to async forms while retaining DIAL auth/header stripping, URL mapping and shared connection-pool ownership.
+- [x] 18.2 Close deployment wrappers/shared clients without double-closing, leaking coroutines or constructing extra clients.
+- [x] 18.3 Verify the acceptance cases in [Task 18](implementation.md#task-18) and record the result here.
 
 **Scope / gate:** Await event hooks and close shared pools once. Wrappers must distinguish owned from borrowed transports, including cancellation and repeated shutdown. Characterize DIAL payloads with/without temperature support; record the existing output-limit omission as a baseline defect that Task 20 must correct, not a permanent compatibility requirement.
+
+**Evidence:** [Task 18 validation](validation.md#task-18-native-dial-generation-and-shared-transport-ownership),
+2026-10-11. Full quality: **1,238 passed** without warnings; provider/concurrency/
+image suites **124 passed each** on Python 3.11/3.12. Isolated review approved
+with no findings; external PAL unavailable. Live/setup gates remain open; Task 20
+retains the explicitly characterized O3/O4-mini output-limit defect.
 
 ## Task 19: Finish the async contract and deterministic shutdown
 

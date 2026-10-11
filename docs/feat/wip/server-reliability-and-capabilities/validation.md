@@ -3,6 +3,61 @@
 Recorded 2026-10-11. This covers the completed maintenance tasks below, not the
 remaining roadmap or optional live-provider behavior.
 
+## Task 18: native DIAL generation and shared transport ownership
+
+Recorded 2026-10-11. DIAL now uses native `AsyncOpenAI` deployment wrappers with
+one lazily allocated `httpx.AsyncClient` pool. The provider owns that pool; SDK
+wrappers borrow it and are discarded without closing the shared transport per
+wrapper. No superclass client is constructed. Async request hooks remove the
+SDK Authorization header and retain DIAL's Api-Key authentication. Deployment
+URLs, api-version queries, proxy/TLS defaults, timeouts and pool limits are preserved.
+Generation, retries and local image preparation yield.
+
+`aclose()` rejects future deployment allocation, owns a single shielded cleanup
+task and joins it before propagating caller cancellation. Repeated/concurrent
+shutdown closes the pool once, including repeated cancellation. Cleanup has a
+10-second deadline; failures remain visible on subsequent close calls and never
+become a false success. HTTPX marks its client closed before awaiting its transport,
+so blindly restarting an interrupted SDK close could leave the transport unclosed.
+The retained task avoids that cancellation hole and leaves no background cleanup
+when `aclose()` returns. Unused shutdown allocates neither pool nor task.
+
+Dependency verification: retained **openai 2.41.0**, **httpx 0.28.1**. Inspected
+locked AsyncOpenAI close and HTTPX hook/close implementations; Context7's
+version-matched [HTTPX async docs](https://github.com/encode/httpx/blob/0.28.1/docs/async.md)
+and [event hooks](https://github.com/encode/httpx/blob/0.28.1/docs/advanced/event-hooks.md)
+confirm awaited hooks and explicit `aclose()`. SDK wrappers close supplied clients
+unconditionally, which is why the owning provider closes the shared pool directly.
+No new dependencies, catalogs or provider metadata.
+
+Verification:
+
+- Captured the synchronous pre-migration SDK requests for O3, O4-mini and
+  Sonnet 4.1, including inline images; the async wire tests preserve exact payloads,
+  routing, API version/auth headers, response metadata and usage.
+- **Known baseline defect assigned to Task 20:** O3/O4-mini omit output limits
+  alongside temperature; Sonnet sends `max_tokens`. Task 18's characterization
+  records this defect and explicitly requires Task 20 to update those assertions
+  when it adds independently verified output fields. This is not a permanent
+  compatibility requirement.
+- `BLACK_NUM_WORKERS=1 ./code_quality_checks.sh`, locked Python 3.10.12:
+  **1,238 passed**, 4 skipped, 16 deselected, 19 subtests passed; no warnings.
+  Ruff/Black/isort passed.
+- Focused provider/concurrency/image matrix on Python 3.11.13 and 3.12.11
+  with RuntimeWarnings as errors: **124 passed each**.
+- Tests prove concurrent cold calls share one pool and one wrapper per deployment,
+  initialization failures remain retryable, cancelled requests reach the transport,
+  transient/permanent errors retain DIAL's retry/error contract, and repeated/
+  concurrent/cancelled close joins exactly one actual HTTPX transport cleanup.
+  Shared cleanup failure stays visible; unused cleanup creates nothing.
+- Integration and quick simulator entry points were attempted and retain their
+  existing environment prerequisites. No live service was activated. Task 19 still
+  owns server lifecycle wiring and removal of the temporary adapter/legacy retry.
+
+Independent isolated review: **APPROVE**, no findings. No systemic P0/P1 findings
+needed indexing. External PAL reviewer unavailable. Live DIAL behavior and cleanup
+deadline expiry were not independently exercised.
+
 ## Task 17: native Gemini generation and cleanup
 
 Recorded 2026-10-11. Gemini now awaits `client.aio.models.generate_content` and
