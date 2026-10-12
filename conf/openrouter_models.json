@@ -179,7 +179,7 @@
       "aliases": [
         "sonnet4.5"
       ],
-      "context_window": 200000,
+      "context_window": 1000000,
       "max_output_tokens": 64000,
       "supports_extended_thinking": true,
       "supports_json_mode": true,
@@ -195,7 +195,7 @@
         "opus4.1"
       ],
       "context_window": 200000,
-      "max_output_tokens": 64000,
+      "max_output_tokens": 32000,
       "supports_extended_thinking": true,
       "supports_json_mode": true,
       "supports_function_calling": true,
@@ -279,7 +279,7 @@
         "gemini-flash"
       ],
       "context_window": 1048576,
-      "max_output_tokens": 65536,
+      "max_output_tokens": 65535,
       "supports_extended_thinking": true,
       "supports_json_mode": true,
       "supports_function_calling": true,
@@ -331,7 +331,7 @@
         "r1",
         "deepseek-thinking"
       ],
-      "context_window": 65536,
+      "context_window": 163840,
       "max_output_tokens": 32768,
       "supports_extended_thinking": true,
       "supports_json_mode": true,
@@ -471,7 +471,7 @@
         "gpt5pro"
       ],
       "context_window": 400000,
-      "max_output_tokens": 272000,
+      "max_output_tokens": 128000,
       "supports_extended_thinking": true,
       "supports_json_mode": true,
       "supports_function_calling": true,

@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Implementation: [implementation.md](implementation.md)
 > Review resolutions: [review.md](review.md#revalidation-and-resolution)
-> Status: in-progress (Tasks 1–27 done; Tasks 28–42 pending)
+> Status: in-progress (Tasks 1–28 done; Tasks 29–42 pending)
 > Created: 2026-10-10
 > Not Doing: toolchain/release-process migration; MCP 2.x; wholesale catalogs; replacement of safety controls; file-annotation implementation; persistent continuation recovery; remote multi-user transport; automatic service activation
 
@@ -590,17 +590,24 @@ audit/generator contracts; no production catalogs or live services changed.
 
 ## Task 28: Reconcile useful model catalog changes
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 21, Task 27
 - **Size:** M
 - **Can run in parallel with:** —
 - **Docs:** [Implementation slice](implementation.md#task-28); [design contract](design.md#d5-providers-and-model-policy)
 
-- [ ] 28.1 Build a canonical-name comparison against current provider catalogs, preserving local Codex/Claude/Gemini additions and aliases. Record evidence for each addition, retirement and capability change.
-- [ ] 28.2 Promote only verified useful candidates; leave exploratory entries hidden. Update category fallback constants only when their named models or policy require it.
-- [ ] 28.3 Verify the acceptance cases in [Task 28](implementation.md#task-28) and record the result here.
+- [x] 28.1 Build a canonical-name comparison against current provider catalogs, preserving local Codex/Claude/Gemini additions and aliases. Record evidence for each addition, retirement and capability change.
+- [x] 28.2 Promote only verified useful candidates; leave exploratory entries hidden. Update category fallback constants only when their named models or policy require it.
+- [x] 28.3 Verify the acceptance cases in [Task 28](implementation.md#task-28) and record the result here.
 
 **Scope / gate:** Native provider evidence outranks a community-catalog omission. Preserve existing canonical entries and aliases unless a verified correction requires a change.
+
+**Evidence:** [Task 28 validation](validation.md#task-28-evidence-backed-catalog-reconciliation),
+2026-10-12. Full quality **1,649 passed**; focused minimum-version matrix
+**41 passed** on Python 3.10.19. Isolated review approved after correcting
+Responses image serialization. [Catalog evidence and follow-ups](catalog-reconciliation.md)
+retain all IDs/aliases and unresolved candidates; no default promotion. External
+PAL rejected its key; live integration/simulator setup gates remain open.
 
 ## Task 29: Report request-scoped progress over MCP 1.x
 

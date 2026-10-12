@@ -38,7 +38,8 @@ class TestWorkflowFileEmbedding:
             fd, path = tempfile.mkstemp(suffix=f"_test_{i}.py")
             with os.fdopen(fd, "w") as f:
                 f.write(f"# Test file {i}\nprint('hello world {i}')\n")
-            self.test_files.append(path)
+            # Renderers use canonical paths, including macOS /tmp -> /private/tmp.
+            self.test_files.append(os.path.realpath(path))
 
     def teardown_method(self):
         """Clean up test files"""

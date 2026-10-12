@@ -130,6 +130,7 @@
     },
     {
       "model_name": "gemini-3-pro-preview",
+      "enabled_by_default": false,
       "thinking_parameter": "thinking_level",
       "supported_thinking_levels": ["low", "high"],
       "friendly_name": "Gemini Pro 3.0 Preview",
@@ -245,6 +246,7 @@
     },
     {
       "model_name": "gemini-2.0-flash",
+      "enabled_by_default": false,
       "friendly_name": "Gemini (Flash 2.0)",
       "aliases": [
         "flash-2.0",
@@ -287,6 +289,7 @@
     },
     {
       "model_name": "gemini-2.0-flash-lite",
+      "enabled_by_default": false,
       "friendly_name": "Gemini (Flash Lite 2.0)",
       "aliases": [
         "flash-lite-2.0"

@@ -26,6 +26,23 @@
   },
   "models": [
     {
+      "model_name": "gpt-6.1-sol",
+      "enabled_by_default": false,
+      "friendly_name": "OpenAI (GPT-6.1 Sol)",
+      "description": "Reasoning and coding via Responses; opt-in candidate pending a configured live smoke test.",
+      "context_window": 1050000,
+      "max_output_tokens": 128000,
+      "output_token_parameter": "max_output_tokens",
+      "use_openai_response_api": true,
+      "default_reasoning_effort": "medium",
+      "supports_extended_thinking": true,
+      "supports_streaming": true,
+      "supports_function_calling": true,
+      "supports_json_mode": true,
+      "supports_images": true,
+      "supports_temperature": false
+    },
+    {
       "model_name": "gpt-5",
       "output_token_parameter": "max_completion_tokens",
       "friendly_name": "OpenAI (GPT-5)",

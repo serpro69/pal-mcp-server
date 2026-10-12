@@ -4,6 +4,13 @@
 
 ## Unreleased
 
+- Reconcile verified OpenRouter token capacities and hide three shut-down native
+  Gemini entries from discovery without removing IDs or aliases. Add GPT-6.1 Sol
+  as an opt-in hidden Responses candidate. Preserve curated defaults and record
+  unresolved native/aggregator drift in the feature's catalog evidence.
+  Responses requests now serialize attached images as image parts instead of
+  nesting them in a text field; image data is redacted from request logs.
+
 - Add offline model drift auditing and deterministic hidden-candidate proposals.
   Reports separate provider-evidenced deprecation from community review signals;
   incomplete inputs fail visibly. Proposals preserve curated entries and include

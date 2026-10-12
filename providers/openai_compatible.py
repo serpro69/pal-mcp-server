@@ -325,6 +325,8 @@ class OpenAICompatibleProvider(ModelProvider):
             for msg in sanitized.get("input", []):
                 if isinstance(msg, dict) and "content" in msg:
                     for content_item in msg.get("content", []):
+                        if isinstance(content_item, dict) and content_item.get("type") == "input_image":
+                            content_item["image_url"] = "[redacted image]"
                         if isinstance(content_item, dict) and "text" in content_item:
                             # Truncate long text and add ellipsis
                             text = content_item["text"]
@@ -388,7 +390,25 @@ class OpenAICompatibleProvider(ModelProvider):
                 # Instead of prefixing with "System:", we'll include the system content naturally
                 input_messages.append({"role": "user", "content": [{"type": "input_text", "text": content}]})
             elif role == "user":
-                input_messages.append({"role": "user", "content": [{"type": "input_text", "text": content}]})
+                if isinstance(content, str):
+                    parts = [{"type": "input_text", "text": content}]
+                else:
+                    parts = []
+                    for part in content:
+                        if part["type"] == "text":
+                            parts.append({"type": "input_text", "text": part["text"]})
+                        elif part["type"] == "image_url":
+                            image = part["image_url"]
+                            parts.append(
+                                {
+                                    "type": "input_image",
+                                    "image_url": image["url"],
+                                    "detail": image.get("detail", "auto"),
+                                }
+                            )
+                        else:
+                            raise ValueError(f"Unsupported Responses input part: {part['type']}")
+                input_messages.append({"role": "user", "content": parts})
             elif role == "assistant":
                 input_messages.append({"role": "assistant", "content": [{"type": "output_text", "text": content}]})
 
