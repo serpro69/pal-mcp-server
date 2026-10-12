@@ -468,6 +468,9 @@ DISABLED_TOOLS=
 - [Tools Reference](docs/tools/) - All tools with examples
 - [Advanced Usage](docs/advanced-usage.md) - Power user features
 - [Configuration](docs/configuration.md) - Environment variables, restrictions
+- [Architecture](docs/architecture.md) - Request isolation, async providers and memory ownership
+- [Logging and transcripts](docs/logging.md) - State paths and opt-in conversation audit resources
+- [Reliability verification](docs/feat/wip/server-reliability-and-capabilities/final-verification.md) - Tested scope and remaining release gates
 - [Adding Providers](docs/adding_providers.md) - Provider-specific setup (OpenAI, Azure, custom gateways)
 - [Model Ranking Guide](docs/model_ranking.md) - How intelligence scores drive auto-mode suggestions
 

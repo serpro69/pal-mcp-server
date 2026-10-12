@@ -1,6 +1,6 @@
 # Design: server reliability and capabilities
 
-> Status: implementation in progress; see tasks.md for completed scope
+> Status: implementation/offline verification complete; see final-verification.md for open release gates
 > Created: 2026-10-10
 > Scope: reliability, provider execution, model policy, diagnostics and optional integrations
 > Implementation: [implementation.md](implementation.md)
@@ -26,10 +26,13 @@ and pairs every slice with acceptance checks. [tasks.md](tasks.md) records statu
 dependencies and unresolved gates. Together these three documents contain the
 requirements needed to implement the roadmap as a self-contained feature plan.
 
-## Existing system and boundaries
+## Original system and preserved boundaries
 
-`server.py` registers tool instances, resolves models and rebuilds conversation
-context. It currently dispatches into the same `TOOLS[name]` instance for every call.
+The following describes the pre-implementation baseline. The final
+[architecture](../../../architecture.md) describes the resulting system.
+
+`server.py` registered tool instances, resolved models and rebuilt conversation
+context. It dispatched into the same `TOOLS[name]` instance for every call.
 Simple tools, workflow tools and consensus eventually invoke synchronous provider
 methods from async handlers. Workflow state and some response metadata live on tool
 instances. `utils/storage_backend.py` stores threads in process memory with TTL;
@@ -322,8 +325,10 @@ Use explicit plan approval by default; AUTO_CREATE_PR is an explicit caller choi
 Its annotations must describe mutations accurately. Keys, HTTP failures and session
 state transitions get dedicated tests. Do not retry session creation automatically
 without a verified idempotency mechanism.
-Archive/unarchive remain unverified capabilities; implement them only after official
-API validation and dedicated state-transition contract tests.
+Task 38 verified archive/unarchive against official discovery revision 20261008
+and implemented dedicated state-transition wire tests. The separate `archived`
+flag does not imply cancellation. Live lifecycle validation remains gated on a
+designated repository/session; see the resolved Task 38 contract in implementation.md.
 
 ## D10: prompt-cache work is measurement-led
 
@@ -770,7 +775,8 @@ answer-quality improvement.
 ## Deferred decisions and reversibility
 
 Tasks 36 and 38 retain explicit gates for unsupported OpenCode protocols and
-undocumented Jules actions. Task 41 records the gate for explicit/strict-prefix
+live Jules lifecycle validation. Jules archive/unarchive now have verified offline
+contracts. Task 41 records the gate for explicit/strict-prefix
 caching. These are deferred work, not silently discarded features.
 Keep each feature independently reviewable and record its verification evidence. Optional transcripts/services
 can be disabled by configuration; state-format additions are backward-readable.

@@ -12,6 +12,7 @@ from tests.mock_helpers import create_mock_provider
 from tools.analyze import AnalyzeTool
 from tools.debug import DebugIssueTool
 from tools.models import FilesNeededRequest, ToolOutput
+from tools.shared.exceptions import ToolExecutionError
 
 
 class TestDynamicContextRequests:
@@ -26,7 +27,7 @@ class TestDynamicContextRequests:
         return DebugIssueTool()
 
     @pytest.mark.asyncio
-    @patch("tools.shared.base_tool.BaseTool.get_model_provider")
+    @patch("providers.registry.ModelProviderRegistry.get_provider_for_model")
     async def test_clarification_request_parsing(self, mock_get_provider, analyze_tool):
         """Test that tools correctly parse clarification requests"""
         # Mock model to return a clarification request
@@ -61,6 +62,9 @@ class TestDynamicContextRequests:
 
         # Parse the response - analyze tool now uses workflow architecture
         response_data = json.loads(result[0].text)
+        mock_provider.generate_content.assert_awaited_once()
+        assert response_data["status"] == "files_required_to_continue"
+        assert json.loads(response_data["content"]) == json.loads(clarification_json)
         # Workflow tools may handle provider errors differently than simple tools
         # They might return error, expert analysis, or clarification requests
         assert response_data["status"] in ["calling_expert_analysis", "error", "files_required_to_continue"]
@@ -80,7 +84,7 @@ class TestDynamicContextRequests:
         assert response_data["step_number"] == 1
 
     @pytest.mark.asyncio
-    @patch("tools.shared.base_tool.BaseTool.get_model_provider")
+    @patch("providers.registry.ModelProviderRegistry.get_provider_for_model")
     @patch("utils.conversation_memory.create_thread", return_value="debug-test-uuid")
     @patch("utils.conversation_memory.add_turn")
     async def test_normal_response_not_parsed_as_clarification(
@@ -115,7 +119,7 @@ class TestDynamicContextRequests:
         assert "required_actions" in response_data
 
     @pytest.mark.asyncio
-    @patch("tools.shared.base_tool.BaseTool.get_model_provider")
+    @patch("providers.registry.ModelProviderRegistry.get_provider_for_model")
     async def test_malformed_clarification_request_treated_as_normal(self, mock_get_provider, analyze_tool):
         """Test that malformed JSON clarification requests are treated as normal responses"""
         malformed_json = '{"status": "files_required_to_continue", "prompt": "Missing closing brace"'
@@ -142,6 +146,9 @@ class TestDynamicContextRequests:
 
         # Should be treated as normal response due to JSON parse error
         response_data = json.loads(result[0].text)
+        mock_provider.generate_content.assert_awaited_once()
+        assert response_data["status"] == "calling_expert_analysis"
+        assert response_data["expert_analysis"]["raw_analysis"] == malformed_json
         # Workflow tools may handle provider errors differently than simple tools
         # They might return error, expert analysis, or clarification requests
         assert response_data["status"] in ["calling_expert_analysis", "error", "files_required_to_continue"]
@@ -155,7 +162,7 @@ class TestDynamicContextRequests:
                 assert "files_required_to_continue" in analysis_content or malformed_json in str(response_data)
 
     @pytest.mark.asyncio
-    @patch("tools.shared.base_tool.BaseTool.get_model_provider")
+    @patch("providers.registry.ModelProviderRegistry.get_provider_for_model")
     async def test_clarification_with_suggested_action(self, mock_get_provider, analyze_tool):
         """Test clarification request with suggested next action"""
         import importlib
@@ -214,6 +221,9 @@ class TestDynamicContextRequests:
             assert len(result) == 1
 
             response_data = json.loads(result[0].text)
+            mock_provider.generate_content.assert_awaited_once()
+            assert response_data["status"] == "files_required_to_continue"
+            assert json.loads(response_data["content"]) == json.loads(clarification_json)
 
             # Workflow tools should either promote clarification status or handle it in expert analysis
             if response_data["status"] == "files_required_to_continue":
@@ -303,42 +313,30 @@ class TestDynamicContextRequests:
         assert request.suggested_next_action["tool"] == "analyze"
 
     @pytest.mark.asyncio
-    @patch("tools.shared.base_tool.BaseTool.get_model_provider")
+    @patch("providers.registry.ModelProviderRegistry.get_provider_for_model")
     async def test_error_response_format(self, mock_get_provider, analyze_tool):
         """Test error response format"""
-        mock_get_provider.side_effect = Exception("API connection failed")
+        mock_provider = create_mock_provider()
+        mock_provider.generate_content.side_effect = RuntimeError("API connection failed")
+        mock_get_provider.return_value = mock_provider
 
-        result = await analyze_tool.execute(
-            {
-                "step": "Analyze this",
-                "step_number": 1,
-                "total_steps": 1,
-                "next_step_required": False,
-                "findings": "Initial analysis",
-                "relevant_files": ["/absolute/path/test.py"],
-            }
-        )
-
-        assert len(result) == 1
-
-        response_data = json.loads(result[0].text)
-        # Workflow tools may handle provider errors differently than simple tools
-        # They might return error, complete analysis, or even clarification requests
-        assert response_data["status"] in ["error", "calling_expert_analysis", "files_required_to_continue"]
-
-        # If expert analysis was attempted, it may succeed or fail
-        if response_data["status"] == "calling_expert_analysis" and "expert_analysis" in response_data:
-            expert_analysis = response_data["expert_analysis"]
-            # Could be an error or a successful analysis that requests clarification
-            analysis_status = expert_analysis.get("status", "")
-            assert (
-                analysis_status in ["analysis_error", "analysis_complete"]
-                or "error" in expert_analysis
-                or "files_required_to_continue" in str(expert_analysis)
+        with pytest.raises(ToolExecutionError, match="API connection failed") as failure:
+            await analyze_tool.execute(
+                {
+                    "step": "Analyze this",
+                    "step_number": 1,
+                    "total_steps": 1,
+                    "next_step_required": False,
+                    "findings": "Initial analysis",
+                    "relevant_files": ["/absolute/path/test.py"],
+                }
             )
-        elif response_data["status"] == "error":
-            assert "content" in response_data
-            assert response_data["content_type"] == "text"
+
+        response_data = json.loads(failure.value.payload)
+        mock_provider.generate_content.assert_awaited_once()
+        assert response_data["status"] == "error"
+        assert response_data["content"] == "API connection failed"
+        assert response_data["content_type"] == "text"
 
 
 class TestCollaborationWorkflow:
@@ -352,7 +350,7 @@ class TestCollaborationWorkflow:
         ModelProviderRegistry._instance = None
 
     @pytest.mark.asyncio
-    @patch("tools.shared.base_tool.BaseTool.get_model_provider")
+    @patch("providers.registry.ModelProviderRegistry.get_provider_for_model")
     @patch("tools.workflow.workflow_mixin.BaseWorkflowMixin._call_expert_analysis")
     async def test_dependency_analysis_triggers_clarification(self, mock_expert_analysis, mock_get_provider):
         """Test that asking about dependencies without package files triggers clarification"""
@@ -418,7 +416,7 @@ class TestCollaborationWorkflow:
             assert "step_number" in response
 
     @pytest.mark.asyncio
-    @patch("tools.shared.base_tool.BaseTool.get_model_provider")
+    @patch("providers.registry.ModelProviderRegistry.get_provider_for_model")
     @patch("tools.workflow.workflow_mixin.BaseWorkflowMixin._call_expert_analysis")
     async def test_multi_step_collaboration(self, mock_expert_analysis, mock_get_provider):
         """Test a multi-step collaboration workflow"""

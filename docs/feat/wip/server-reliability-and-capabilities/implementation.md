@@ -1,10 +1,10 @@
 # Implementation: server reliability and capabilities
 
-> Status: implementation in progress; see tasks.md for completed scope
+> Status: implementation/offline verification complete; see final-verification.md for open release gates
 > Created: 2026-10-10
 > Design: [design.md](design.md)
 > Tracking: [tasks.md](tasks.md)
-> Review resolutions: [review.md](review.md#revalidation-and-resolution)
+> Final verification: [evidence and review resolutions](final-verification.md)
 
 ## Working rules and rollout
 

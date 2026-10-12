@@ -1,7 +1,8 @@
 # Validation evidence: server reliability and capabilities
 
-Recorded 2026-10-11–12. This covers the completed maintenance tasks below, not the
-remaining roadmap or optional live-provider behavior.
+Recorded 2026-10-11–12. Entries below retain their task-time evidence and limits.
+[Task 42 final verification](final-verification.md) is the current consolidated
+acceptance and release-gate record, including the later actionable-fix batch.
 
 ## Task 30: Portable state and log paths
 

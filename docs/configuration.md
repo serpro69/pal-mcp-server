@@ -24,10 +24,24 @@ OPENAI_API_KEY=your-openai-key
 
 ## Complete Configuration Reference
 
-### Required Configuration
+### Runtime and workspace
 
-**Workspace Root:**
+PAL requires Python >=3.10 and retains MCP 1.x. The test matrix covers Python
+3.10–3.12. Provider credentials are needed only for the corresponding model calls.
+
 ```env
+# Optional: defaults to the server's startup working directory.
+# Choose an existing absolute directory for generated chat artifacts.
+PAL_WORKSPACE_ROOT=/absolute/path/to/project
+
+# Optional persistent diagnostics; conversation memory remains process-local.
+PAL_STATE_DIR=/absolute/path/to/pal-state
+PAL_TRANSCRIPTS=false
+```
+
+The launcher may start in the PAL installation rather than your project. See the
+[artifact write contract](#chat-artifact-write-root) and
+[transcript permissions/retention](logging.md#private-conversation-transcripts).
 
 ### API Keys (required for model calls)
 
@@ -84,7 +98,7 @@ OPENROUTER_API_KEY=your_openrouter_api_key_here
 # For Ollama, vLLM, LM Studio, etc.
 CUSTOM_API_URL=http://localhost:11434/v1  # Ollama example
 CUSTOM_API_KEY=                                      # Empty for Ollama
-CUSTOM_MODEL_NAME=llama3.2                          # Default model
+DEFAULT_MODEL=llama3.2                              # Registered model or alias
 ```
 
 **Local Model Connection:**
@@ -124,7 +138,8 @@ Provider prefixes are not an additional invocation syntax.
 
 Allowlists use each provider's canonical names or aliases: `GOOGLE_ALLOWED_MODELS`,
 `OPENAI_ALLOWED_MODELS`, `AZURE_ALLOWED_MODELS`, `XAI_ALLOWED_MODELS`,
-`DIAL_ALLOWED_MODELS`, `CUSTOM_ALLOWED_MODELS`, and `OPENROUTER_ALLOWED_MODELS`.
+`DIAL_ALLOWED_MODELS`, `CUSTOM_ALLOWED_MODELS`, `OPENCODE_GO_ALLOWED_MODELS`,
+and `OPENROUTER_ALLOWED_MODELS`.
 Custom endpoints still require `CUSTOM_API_URL` and may omit `CUSTOM_API_KEY`.
 Azure requires both `AZURE_OPENAI_API_KEY` and `AZURE_OPENAI_ENDPOINT`, plus a
 configured deployment. Placeholder keys do not activate providers. Setup diagnostics
@@ -146,20 +161,16 @@ DEFAULT_MODEL=auto  # Claude picks best model for each task (recommended)
   - `conf/openrouter_models.json` – OpenRouter catalogue (`OPENROUTER_MODELS_CONFIG_PATH`)
   - `conf/dial_models.json` – DIAL aggregation catalogue (`DIAL_MODELS_CONFIG_PATH`)
   - `conf/custom_models.json` – Custom/OpenAI-compatible endpoints (`CUSTOM_MODELS_CONFIG_PATH`)
+  - `conf/azure_models.json` – Azure deployment configuration (`AZURE_MODELS_CONFIG_PATH`)
+  - `conf/opencode_go_models.json` – Optional OpenCode Go (`OPENCODE_GO_MODELS_CONFIG_PATH`)
 
   Each JSON file documents the allowed fields via its `_README` block and controls model aliases, capability limits, and feature flags (including `allow_code_generation`). Edit these files (or point the matching `*_MODELS_CONFIG_PATH` variable to your own copy) when you want to adjust context windows, enable JSON mode, enable structured code generation, or expose additional aliases without touching Python code.
 
-  The shipped defaults cover:
-
-  | Provider | Canonical Models | Notable Aliases |
-  |----------|-----------------|-----------------|
-  | OpenAI | `gpt-5.2`, `gpt-5.1-codex`, `gpt-5.1-codex-mini`, `gpt-5`, `gpt-5.2-pro`, `gpt-5-mini`, `gpt-5-nano`, `gpt-5-codex`, `gpt-4.1`, `o3`, `o3-mini`, `o3-pro`, `o4-mini` | `gpt5.2`, `gpt-5.2`, `5.2`, `gpt5.1-codex`, `codex-5.1`, `codex-mini`, `gpt5`, `gpt5pro`, `mini`, `nano`, `codex`, `o3mini`, `o3pro`, `o4mini` |
-  | Gemini | `gemini-2.5-pro`, `gemini-2.5-flash`, `gemini-2.0-flash`, `gemini-2.0-flash-lite` | `pro`, `gemini-pro`, `flash`, `flash-2.0`, `flashlite` |
-  | X.AI | `grok-4`, `grok-4.1-fast` | `grok`, `grok4`, `grok-4.1-fast-reasoning` |
-  | OpenRouter | See `conf/openrouter_models.json` for the continually evolving catalogue | e.g., `opus`, `sonnet`, `flash`, `pro`, `mistral` |
-  | Custom | User-managed entries such as `llama3.2` | Define your own aliases per entry |
-
-  Latest OpenAI entries (`gpt-5.2`, `gpt-5.1-codex`, `gpt-5.1-codex-mini`, `gpt-5.2-pro`) expose 400K-token contexts with large outputs, reasoning-token support, and multimodal inputs. `gpt-5.1-codex` and `gpt-5.2-pro` are Responses-only with streaming disabled, while the base `gpt-5.2` and Codex mini support streaming along with full code-generation flags. Update your manifests if you run custom deployments so these capability bits stay accurate.
+  The shipped manifests are the source of truth for canonical names, aliases,
+  context/output limits, endpoint families and discovery defaults. Run `listmodels`
+  to see what your configured providers and policies actually expose. An entry in
+  a catalog is not a live-availability guarantee; see the dated
+  [catalog audit and unresolved candidates](feat/wip/server-reliability-and-capabilities/catalog-reconciliation.md).
 
   > **Tip:** Copy the JSON file you need, customise it, and point the corresponding `*_MODELS_CONFIG_PATH` environment variable to your version. This lets you enable or disable capabilities (JSON mode, function calling, temperature support, code generation) without editing Python.
 
@@ -223,18 +234,14 @@ The `allow_code_generation` capability enables models to generate complete, prod
 
 **Default Thinking Mode for ThinkDeep:**
 ```env
-# Only applies to models supporting extended thinking (e.g., Gemini 3.0 Pro)
-# Starting with Gemini 3.0 Pro, `thinking level` should stick to `high`
-
+# Applies to models with verified thinking capability metadata.
 DEFAULT_THINKING_MODE_THINKDEEP=high
-
-# Available modes and token consumption:
-#   minimal: 128 tokens   - Quick analysis, fastest response
-#   low:     2,048 tokens - Light reasoning tasks  
-#   medium:  8,192 tokens - Balanced reasoning
-#   high:    16,384 tokens - Complex analysis (recommended for thinkdeep)
-#   max:     32,768 tokens - Maximum reasoning depth
+# Available modes: minimal, low, medium, high, max.
+# Actual budget or level depends on the selected model.
 ```
+
+See [Gemini thinking controls](#gemini-thinking-controls) for the verified
+budget/level mapping; these mode names do not promise fixed token consumption.
 
 ### Model Usage Restrictions
 
@@ -278,8 +285,8 @@ DISABLED_MODELS=gemini-2.5-pro
 DISABLED_MODELS=custom:llama3.2:latest,dial:deployment:0,openrouter:opus
 ```
 
-Recognized scopes are `google`, `openai`, `azure`, `xai`, `dial`, `custom` and
-`openrouter`. Only the first recognized prefix is removed. Unscoped names are
+Recognized scopes are `google`, `openai`, `azure`, `xai`, `dial`, `custom`,
+`opencode-go` and `openrouter`. Only the first recognized prefix is removed. Unscoped names are
 resolved independently in every configured provider's full catalog; scoped names
 affect only that provider. Canonical names and aliases deny the same identity.
 These settings never interpret invocation-only `:for`/`:against`/`:neutral`
@@ -302,15 +309,17 @@ GOOGLE_ALLOWED_MODELS=flash,pro
 # X.AI GROK model restrictions
 XAI_ALLOWED_MODELS=grok-4,grok-4.1-fast-reasoning
 
-# OpenRouter model restrictions (affects models via custom provider)
+# OpenRouter model restrictions
 OPENROUTER_ALLOWED_MODELS=opus,sonnet,mistral
 ```
 
 **Supported Model Names:** The names/aliases listed in the JSON manifests above are the authoritative source. Keep in mind:
 
-- Aliases are case-insensitive and defined per entry (for example, `mini` maps to `gpt-5-mini` by default, while `flash` maps to `gemini-2.5-flash`).
+- Aliases are case-insensitive and defined per catalog entry; inspect the configured manifest or `listmodels` instead of assuming a fixed target.
 - When you override the manifest files you can add or remove aliases as needed; restriction policies (`*_ALLOWED_MODELS`) automatically pick up those changes.
-- Models omitted from a manifest fall back to generic capability detection (where supported) and may have limited feature metadata.
+- Generic fallback metadata, where supported for discovery, does not authorize
+  generation with unverified capacities. Register exact model identities and
+  verified context/output limits before calling them.
 
 **Example Configurations:**
 ```env
@@ -356,6 +365,11 @@ CONVERSATION_TIMEOUT_HOURS=5
 MAX_CONVERSATION_TURNS=20
 ```
 
+The cap counts stored messages, not exchanges. Each invocation needs two free
+slots before saving input or starting work. Failed generation retains its real
+input without inventing a reply. Threads expire or disappear on server restart;
+transcripts do not restore them. See [memory and failure semantics](context-revival.md).
+
 **Logging Configuration:**
 ```env
 # Logging level: DEBUG, INFO, WARNING, ERROR
@@ -395,7 +409,6 @@ CONVERSATION_TIMEOUT_HOURS=3
 DEFAULT_MODEL=llama3.2
 CUSTOM_API_URL=http://localhost:11434/v1
 CUSTOM_API_KEY=
-CUSTOM_MODEL_NAME=llama3.2
 LOG_LEVEL=DEBUG
 ```
 
@@ -505,7 +518,8 @@ Models without thinking support omit the control.
 
 Invalid modes, empty/malformed level lists and unverified controls fail before
 provider I/O. The retained experimental Gemini 2.0 Flash entry has no verified
-current budget/level contract and now fails explicitly; its retirement and the
-broader catalog audit remain Task 28. No model entries or aliases are removed by
-this change. Capability validation and fake-transport tests do not establish live
+current budget/level contract and fails explicitly. The completed
+[catalog audit](feat/wip/server-reliability-and-capabilities/catalog-reconciliation.md)
+retains legacy IDs and aliases while hiding confirmed retired entries from default
+discovery. Capability validation and fake-transport tests do not establish live
 availability of legacy models.

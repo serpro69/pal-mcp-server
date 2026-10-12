@@ -202,8 +202,9 @@ async def test_assembled_system_overflow_never_calls_provider(monkeypatch, tmp_p
         assert parsed["complete_consensus"]["status"] == "failed"
         assert "input budget" in parsed["model_response"]["error"]
     elif tool == "thinkdeep":
-        result = await server.handle_call_tool(tool, args)
-        parsed = json.loads(result[0].text)
+        with pytest.raises(ToolExecutionError) as failure:
+            await server.handle_call_tool(tool, args)
+        parsed = json.loads(failure.value.payload)
         assert parsed["status"] == "error"
         assert "input budget" in parsed["content"]
         assert parsed["metadata"]["model_used"] is None

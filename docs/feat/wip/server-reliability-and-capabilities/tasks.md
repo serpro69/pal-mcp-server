@@ -2,8 +2,8 @@
 
 > Design: [design.md](design.md)
 > Implementation: [implementation.md](implementation.md)
-> Review resolutions: [review.md](review.md#revalidation-and-resolution)
-> Status: in-progress (Tasks 1–41 done; Task 42 pending; OpenCode Go/Jules live gates open)
+> Final verification: [evidence and review resolutions](final-verification.md)
+> Status: done (Tasks 1–42 implementation/offline verification complete; explicit release gates remain open)
 > Created: 2026-10-10
 > Not Doing: toolchain/release-process migration; MCP 2.x; wholesale catalogs; replacement of safety controls; file-annotation implementation; persistent continuation recovery; remote multi-user transport; automatic service activation
 
@@ -834,7 +834,7 @@ remain release-gated on a designated repository/session; no service mutations ra
 - **Can run in parallel with:** —
 - **Docs:** [Implementation slice](implementation.md#task-39); [design contract](design.md#d10-prompt-cache-work-is-measurement-led)
 
-- [x] 39.1 Verify optional cached-input/cache-write fields per actual provider endpoint and preserve unknown versus zero; carry each invocation's usage into transcript metadata without cumulative double-counting.
+- [x] 39.1 Verify optional cached-input/cache-write fields per actual provider endpoint and preserve unknown versus zero; carry saved assistant invocations' usage into transcript metadata without cumulative double-counting. Final review found missing failed-call usage; [R1](final-verification.md#r1-preserve-known-usage-without-an-assistant-reply) retains the outstanding full-accounting gate.
 - [x] 39.2 Add offline captured-request completeness/prefix metrics and a report grouped by provider/model, with missing-field coverage. Assert completeness per consumer: consensus receives its original proposal/stance/explicit attachments, never earlier verdicts or intervening summaries. Check full audit history separately and preserve those exclusions on fresh tool instances. Establish a measured baseline after Task 9; report only results reproduced by this project's request-capture harness.
 - [x] 39.3 Verify the acceptance cases in [Task 39](implementation.md#task-39) and record the result here.
 
@@ -906,18 +906,29 @@ findings. Live cost/quality and provider-explicit caching remain gated.
 
 ## Task 42: Verify the improved system and complete its documentation
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 1, Task 2, Task 3, Task 4, Task 5, Task 6, Task 7, Task 8, Task 9, Task 10, Task 11, Task 12, Task 13, Task 14, Task 15, Task 16, Task 17, Task 18, Task 19, Task 20, Task 21, Task 22, Task 23, Task 24, Task 25, Task 26, Task 27, Task 28, Task 29, Task 30, Task 31, Task 32, Task 33, Task 34, Task 35, Task 36, Task 37, Task 38, Task 39, Task 40, Task 41
 - **Size:** S
 - **Can run in parallel with:** —
 - **Docs:** [Implementation slice](implementation.md#task-42); [design contract](design.md#outcome-and-scope)
 
-- [ ] 42.1 Run kk:test over all implemented tasks: lock-based full unit matrix, required local integrations and relevant simulator paths. Mark unavailable optional live service checks explicitly and keep associated release gates open.
-- [ ] 42.2 Run kk:document, kk:review-code with Python, and kk:review-spec against this design/implementation/task set. Record and resolve findings or persist actionable deferred items before declaring the affected phase ready.
-- [ ] 42.3 Update architecture and configuration docs from the final implementation, preserving project identity and repository instructions; link final verification evidence and close each actual task checkbox.
-- [ ] 42.4 Verify the acceptance cases in [Task 42](implementation.md#task-42) and record the result here.
+- [x] 42.1 Run kk:test over all implemented tasks: lock-based full unit matrix, required local integrations and relevant simulator paths. Mark unavailable optional live service checks explicitly and keep associated release gates open.
+- [x] 42.2 Run kk:document, kk:review-code with Python, and kk:review-spec against this design/implementation/task set. Record and resolve findings or persist actionable deferred items before declaring the affected phase ready.
+- [x] 42.3 Update architecture and configuration docs from the final implementation, preserving project identity and repository instructions; link final verification evidence and close each actual task checkbox.
+- [x] 42.4 Verify the acceptance cases in [Task 42](implementation.md#task-42) and record the result here.
 
 **Scope / gate:** Design drafting is not independent implementation review. Committing, publishing and external messaging are separate actions; never commit .capy/knowledge.db.
+
+**Evidence:** [Final verification and review resolutions](final-verification.md),
+2026-10-12. Fresh-lock Python 3.10/3.11/3.12: **2,024 passed each**; final full
+quality passed; strict stdio **3/3 each**. Both locks reproduce unchanged.
+Read-only installed-wheel MCP checks and rebuilt non-root container checks pass.
+Independent review fixed workflow error/empty-reply handling, structured budget
+errors and an Azure invalid-identity edge; final code/spec reviews retain only the
+P2 failed-call usage gap durably deferred as R1. Architecture, configuration,
+testing and memory docs are reconciled. The scan retains **164 Debian findings**;
+live/cassette, native Windows, complete usage accounting and environment-template
+gates remain explicit. Task completion is not unrestricted release clearance.
 
 ## Dependency Graph
 
@@ -971,6 +982,10 @@ T01–T41 --> T42 (final verification)
 
 ## Deferred work register
 
+The [Task 42 release gate register](final-verification.md#open-release-gates-and-follow-ups)
+is the current consolidated status. Historical task evidence above retains its
+original counts and limitations; it is superseded where that register says so.
+
 - **Python floor:** the proposed correction is >=3.10. If an actual 3.9 consumer
   exists, Task 1 must record a supported dependency strategy before release;
   changing metadata alone cannot make incompatible dependencies work.
@@ -983,18 +998,19 @@ T01–T41 --> T42 (final verification)
   repository/session; next step: authorize that target and verify reported state
   and archival visibility. Offline tests do not establish live service behavior.
 - **Explicit provider caches / strict-prefix layout:** wait for Tasks 39–41's
-  live benefit evidence. Offline Tasks 39–41 are complete; Task 41 retains the
+  live benefit evidence. Offline capture/layout scopes are complete, with full
+  failed-call accounting separately open in R1; Task 41 retains the
   current layout. Next step: the [recorded follow-ups](../../../adr/0001-retain-conversation-history-layout.md),
   including a provider-specific API, pricing and quality assessment before
   separately bounded implementation tasks.
 - **Live cassette/service validation:** after request formatting or optional-service
   implementation, re-record or smoke-test only against explicitly configured targets.
   Missing credentials keep that release gate open; do not fabricate recordings.
-- **Prompt-preservation investigations:** web-search guidance, literal newline
-  escapes in codereview, thinkdeep customization and workflow-history retention
-  need reproduction through Task 39's request-capture harness before being classified
-  as defects. These are investigation cases, not approved unrelated fixes. For each
-  reproduced defect, record the failing scenario and create a separate bounded task.
-  Task 39 reproduced three issues; [Tasks C1–C3](capture-followups.md) record exact
-  scenarios, affected sites and next steps. Core workflow history and consensus
-  blinding passed. Task 42 must resolve or explicitly release-triage those findings.
+- **Prompt-preservation investigations — resolved:** Task 39 reproduced three
+  issues; [Tasks C1–C3](capture-followups.md) record their fixes and the
+  [actionable batch](actionable-fixes.md) retains capture/test evidence. Core
+  workflow history and consensus blinding passed. These are not open release gates.
+- **Failed-call usage accounting:** [Task 42 R1](final-verification.md#r1-preserve-known-usage-without-an-assistant-reply)
+  records a P2 gap for known returned usage when no assistant reply is persisted.
+  Implement independent usage events and deduplicated reporting before claiming
+  complete invocation accounting.

@@ -208,7 +208,7 @@ class ThinkDeepTool(WorkflowTool):
 
         # Add thinking_complete field for final steps (test expects this)
         if not request.next_step_required:
-            response_data["thinking_complete"] = True
+            response_data["thinking_complete"] = response_data.get("status") != "error"
 
             # Add complete_thinking summary (test expects this)
             response_data.setdefault("complete_thinking", {}).update(

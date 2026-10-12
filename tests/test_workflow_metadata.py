@@ -109,7 +109,9 @@ async def test_context_failure_before_provider_has_null_provenance(captures, mon
         raise ValueError("preparation failed")
 
     monkeypatch.setattr(ThinkDeepTool, "prepare_expert_analysis_context", fail)
-    result = await invoke(ThinkDeepTool(), arguments())
+    with pytest.raises(ToolExecutionError) as failure:
+        await invoke(ThinkDeepTool(), arguments())
+    result = json.loads(failure.value.payload)
     assert not captures
     assert result["status"] == "error"
     assert "preparation failed" in result["content"]
@@ -125,7 +127,9 @@ async def test_attempted_provider_error_is_recorded_without_synthetic_reply(capt
         raise RuntimeError("provider failed")
 
     monkeypatch.setattr(GeminiModelProvider, "generate_content", fail)
-    result = await invoke(ThinkDeepTool(), arguments(), through_server=True)
+    with pytest.raises(ToolExecutionError) as failure:
+        await invoke(ThinkDeepTool(), arguments(), through_server=True)
+    result = json.loads(failure.value.payload)
     assert attempted == ["gemini-2.5-flash"]
     assert result["status"] == "error"
     assert_provenance(result, "gemini-2.5-flash", "google")

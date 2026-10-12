@@ -25,9 +25,13 @@ turns separately. CLI continuations preserve earlier file/image references and
 use a provider-independent limit of 20,000 estimated history tokens. The current
 input is kept outside history truncation, so older files or turns cannot displace it.
 
-These guarantees currently cover sequential calls. Same-thread concurrency
-coordination and fresh workflow instances are tracked separately in Tasks 10–11
-of the reliability plan; direct calls do not acquire a conversation lock.
+MCP calls use fresh tool instances and serialize updates to the same continuation
+ID through reply persistence. Different conversations remain concurrent, and
+cancellation releases the coordinator. Workflow configuration is restored from
+metadata scoped to the owning tool; older metadata uses defaults. Direct Python
+calls do not acquire this lock automatically: concurrent callers must use
+`coordinate_conversation` explicitly and a separate tool instance per invocation.
+See [request ownership](architecture.md#request-and-conversation-ownership).
 
 ## Memory failures
 
@@ -45,23 +49,19 @@ can catch the exceptions in `utils.conversation_errors`; storage/decode exceptio
 retain their original cause. `add_turn(required=True)` also distinguishes a missing
 thread from a full message cap, while the default retains `False` for those cases.
 
-## **The Most Profound Feature: Context Revival After Reset**
-
-**This powerful feature cannot be highlighted enough**: The PAL MCP Server implements a simple continuation system that seemingly transcends Claude's context limitations. 
-
 ## How Context Revival Works
 
-The conversation memory system (`utils/conversation_memory.py`) implements a sophisticated architecture that bridges the gap between Claude's stateless
-nature and true persistent AI collaboration (within limits, of course):
+The client can resume a PAL thread after its own context is compacted, provided
+the same server process is still running and the thread has not expired.
 
-### The Architecture Behind the Magic
+### Reconstructing a request
 
-1. **Persistent Thread Storage**: Every conversation creates a UUID-based thread stored in memory
-2. **Cross-Tool Continuation**: Any tool can pick up where another left off using the same `Continuation ID`, like an email thread identifier
-3. **Context Reconstruction**: When Claude's context resets, past conversations persist in the MCP's memory
-4. **History Retrieval**: When you prompt Claude to `continue` with another model, the MCP server rebuilds the entire conversation history, including file references
-5. **Full Context Transfer**: The complete conversation context gets passed to the other model (O3, Gemini, etc.) with awareness of what was previously discussed
-6. **Context Revival**: Upon returning the response to Claude, the other model effectively "reminds" Claude of the entire conversation, re-igniting Claude's understanding
+1. Memory-backed tools create a UUID thread in the server process.
+2. Compatible tools reuse its `continuation_id` to load stored turns and file references.
+3. PAL reconstructs history within the receiving model's budget and tool contract.
+4. Files are re-read, older turns may be omitted with markers, and consensus
+   participants remain blinded to prior verdicts.
+5. The receiving model can use the supplied context to help the client resume work.
 
 ### The Dual Prioritization Strategy
 
@@ -109,47 +109,31 @@ Claude: "I'll analyze your requirements and design a comprehensive RAG architect
 You: "Continue our RAG system discussion with O3 - I want to focus on the real-time inference optimization we talked about"
 
 → Claude re-uses the last continuation identifier it received, _only_ poses the new prompt (since PAL is supposed to know what was being talked about) thus saving on tokens trying to re-prompt Claude
-→ O3 receives the FULL conversation history from PAL
-→ O3 sees the complete context: "Claude was designing a RAG system, comparing vector databases, and analyzing embedding strategies for customer support..."
+→ PAL supplies the retained history and files that fit O3's request budget
+→ O3 can see the included context: "Claude was designing a RAG system, comparing vector databases, and analyzing embedding strategies for customer support..."
 → O3 continues: "Building on our previous vector database analysis, for real-time inference optimization, I recommend implementing semantic caching with embedding similarity thresholds..."
-→ O3's response re-ignites Claude's understanding of the entire conversation
+→ O3's response helps Claude resume the discussion
 
 Claude: "Ah yes, excellent plan! Based on O3's optimization insights and our earlier vector database comparison, let me implement the semantic caching layer..."
 
-**The Magic**: Even though Claude's context was completely reset, the conversation flows seamlessly because O3 had access to the entire conversation history and could "remind" Claude of everything that was discussed.
+This example assumes the PAL process and thread survived the client's reset.
+Inspect omission markers and provide missing details when context was truncated.
 
-## Why This Changes Everything
-
-**Before PAL MCP**: Claude's context resets meant losing entire conversation threads. 
-Complex multi-step analyses were fragmented and had to restart from scratch. You most likely need to re-prompt Claude or to make it re-read some previously
-saved document / `CLAUDE.md` etc - no need. PAL remembers.
-
-**With PAL MCP**: Claude can orchestrate multi-hour, multi-tool workflows where:
-- **O3** handles logical analysis and debugging
-- **Gemini Pro** performs deep architectural reviews  
-- **Flash** provides quick formatting and style checks
-- **Claude** coordinates everything while maintaining full context
-
-**The breakthrough**: Even when Claude's context resets, the conversation continues seamlessly because other models can "remind" Claude of the complete conversation history stored in memory.
+Use durable project documents for decisions that must survive a restart or TTL
+expiry. Optional transcripts provide an audit view, but cannot be used as a
+continuation recovery backend.
 
 ## Configuration
 
 The system is highly configurable:
 
 ```env
-# Maximum conversation turns (default: 20)
-MAX_CONVERSATION_TURNS=20
+# Maximum stored messages (default: 50; each successful exchange uses two)
+MAX_CONVERSATION_TURNS=50
 
 # Thread expiration in hours (default: 3) 
 CONVERSATION_TIMEOUT_HOURS=3
 ```
 
-## The Result: True AI Orchestration
-
-This isn't just multi-model access—it's **true AI orchestration** where:
-- Conversations persist beyond context limits
-- Models can build on each other's work across sessions
-- Claude can coordinate complex multi-step workflows
-- Context is never truly lost, just temporarily unavailable to Claude
-
-**This is the closest thing to giving Claude permanent memory for complex development tasks.**
+See [architecture](architecture.md) for ownership and cleanup, and
+[logging/transcripts](logging.md) for persistent audit limits.

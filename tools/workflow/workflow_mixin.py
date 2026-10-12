@@ -761,6 +761,9 @@ class BaseWorkflowMixin(ABC):
             if continuation_id:
                 self.store_conversation_turn(continuation_id, response_data, request)
 
+            if response_data.get("status") == "error":
+                raise ToolExecutionError(json.dumps(response_data, indent=2, ensure_ascii=False))
+
             return [TextContent(type="text", text=json.dumps(response_data, indent=2, ensure_ascii=False))]
 
         except ToolExecutionError:
@@ -1327,9 +1330,13 @@ class BaseWorkflowMixin(ABC):
                     response_data["next_steps"] = expert_analysis.get(
                         "next_steps", "Continue based on expert analysis."
                     )
-            elif isinstance(expert_analysis, dict) and expert_analysis.get("status") == "analysis_error":
+            elif isinstance(expert_analysis, dict) and expert_analysis.get("status") in {
+                "analysis_error",
+                "empty_response",
+            }:
                 # Expert analysis failed - promote error status
                 response_data["status"] = "error"
+                response_data[f"{self.get_name()}_complete"] = False
                 response_data["content"] = expert_analysis.get("error", "Expert analysis failed")
                 response_data["content_type"] = "text"
                 del response_data["expert_analysis"]
@@ -1550,11 +1557,12 @@ class BaseWorkflowMixin(ABC):
                 )
                 operation.usage = model_response.usage
                 record_provider_usage(self, provider, model_name, model_response)
+            has_content = bool(model_response.content and model_response.content.strip())
             if invocation:
-                invocation.provider_failed = not bool(model_response.content)
-                invocation.reply_content = model_response.content or None
+                invocation.provider_failed = not has_content
+                invocation.reply_content = model_response.content if has_content else None
 
-            if model_response.content:
+            if has_content:
                 content = model_response.content.strip()
 
                 # Try to extract JSON from markdown code blocks if present
@@ -1585,6 +1593,8 @@ class BaseWorkflowMixin(ABC):
             else:
                 return {"error": "No response from model", "status": "empty_response"}
 
+        except ToolExecutionError:
+            raise
         except Exception as e:
             logger.error(f"Error calling expert analysis: {e}", exc_info=True)
             return {"error": str(e), "status": "analysis_error"}

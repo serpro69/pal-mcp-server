@@ -1,0 +1,36 @@
+{
+  "recorded": "2026-10-12",
+  "image_id": "sha256:b6f3ca3da0847dd0dea79b14704b8ee74005c6c45a0a2d5693a5a4b5368aa567",
+  "trivy": {
+    "Version": "0.70.0"
+  },
+  "raw_report_sha256": "ee73c1477579288fc46edb46702fcf40a30c53cd877ddc953217ac3a9160934c",
+  "previous_finding_register": "container-scan-actionable-fixes.json",
+  "findings_identical_to_register": true,
+  "compared_fields": [
+    "VulnerabilityID",
+    "PkgName",
+    "InstalledVersion",
+    "FixedVersion",
+    "Severity",
+    "Status",
+    "PrimaryURL"
+  ],
+  "results": [
+    {
+      "target": "pal-mcp-server:task42-20261012 (debian 13.7)",
+      "type": "debian",
+      "counts": {
+        "LOW": 61,
+        "HIGH": 44,
+        "MEDIUM": 58,
+        "UNKNOWN": 1
+      }
+    },
+    {
+      "target": "Python",
+      "type": "python-pkg",
+      "counts": {}
+    }
+  ]
+}

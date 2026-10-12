@@ -7,7 +7,7 @@ explicitly excludes unrelated prompt fixes from that slice. No runtime prompt
 changes were made to conceal the measurements. They are separate from Tasks 40–41.
 All three are now fixed in the user-authorized actionable follow-up batch;
 [verification and remaining limits](actionable-fixes.md) are recorded separately
-from Task 42, which remains pending.
+from [Task 42 final verification](final-verification.md).
 
 ## Task C1: Restore chat web-search guidance once
 

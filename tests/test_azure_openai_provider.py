@@ -75,6 +75,18 @@ async def test_generate_content_uses_deployment_mapping(dummy_azure_client):
     assert provider.validate_model_name("prod-gpt4o")
 
 
+async def test_unknown_model_fails_before_azure_client_creation(dummy_azure_client):
+    provider = AzureOpenAIProvider(
+        api_key="key",
+        azure_endpoint="https://example.openai.azure.com/",
+        deployments={"gpt-4o": {"deployment": "prod-gpt4o", "context_window": 128000, "max_output_tokens": 16384}},
+    )
+
+    with pytest.raises(ValueError, match="not configured for Azure OpenAI"):
+        await provider.generate_content("hello", "unknown")
+    assert not dummy_azure_client
+
+
 async def test_generate_content_accepts_deployment_alias(dummy_azure_client):
     provider = AzureOpenAIProvider(
         api_key="key",

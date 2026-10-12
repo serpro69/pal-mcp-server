@@ -409,19 +409,19 @@ class TestRuntimeModelSelection:
         with patch("config.DEFAULT_MODEL", "pro"):  # DEFAULT_MODEL is a real model
             with patch("config.IS_AUTO_MODE", False):  # Not in auto mode
                 tool = ThinkDeepTool()
-                result = await tool.execute(
-                    {
-                        "step": "test",
-                        "step_number": 1,
-                        "total_steps": 1,
-                        "next_step_required": False,
-                        "findings": "test",
-                        "model": "auto",
-                    }
-                )
+                with pytest.raises(ToolExecutionError) as failure:
+                    await tool.execute(
+                        {
+                            "step": "test",
+                            "step_number": 1,
+                            "total_steps": 1,
+                            "next_step_required": False,
+                            "findings": "test",
+                            "model": "auto",
+                        }
+                    )
 
-                assert len(result) == 1
-                assert "Model 'auto' is not available" in result[0].text
+                assert "Model 'auto' is not available" in failure.value.payload
 
     @pytest.mark.asyncio
     async def test_unavailable_model_in_request(self):
@@ -502,22 +502,22 @@ class TestUnavailableModelFallback:
                     mock_get_provider.return_value = None
 
                     tool = ThinkDeepTool()
-                    result = await tool.execute(
-                        {
-                            "step": "test",
-                            "step_number": 1,
-                            "total_steps": 1,
-                            "next_step_required": False,
-                            "findings": "test",
-                        }
-                    )  # No model specified
+                    with pytest.raises(ToolExecutionError) as failure:
+                        await tool.execute(
+                            {
+                                "step": "test",
+                                "step_number": 1,
+                                "total_steps": 1,
+                                "next_step_required": False,
+                                "findings": "test",
+                            }
+                        )  # No model specified
 
                     # Should get model error since fallback model is also unavailable
-                    assert len(result) == 1
                     # Workflow tools try fallbacks and report when the fallback model is not available
-                    assert "is not available" in result[0].text
+                    assert "is not available" in failure.value.payload
                     # Should list available models in the error
-                    assert "Available models:" in result[0].text
+                    assert "Available models:" in failure.value.payload
 
     @pytest.mark.asyncio
     async def test_available_default_model_no_fallback(self):
