@@ -2,6 +2,10 @@
 
 This guide covers all configuration options for the PAL MCP Server. The server is configured through environment variables defined in your `.env` file.
 
+Isolated launchers can set `PAL_SKIP_DOTENV=true` in the process environment to
+skip reading/loading dotenv entirely, including its force-override setting. This
+switch is intentionally process-only and is used by the strict simulator CI tier.
+
 State/log placement uses `PAL_STATE_DIR`, then `XDG_STATE_HOME/pal`, then the
 per-user fallback. `PAL_LOG_DIR` overrides logs only. All explicit paths must be
 absolute after home expansion. See [logging and migration](logging.md) for

@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Implementation: [implementation.md](implementation.md)
 > Review resolutions: [review.md](review.md#revalidation-and-resolution)
-> Status: in-progress (Tasks 1–34 done; Tasks 35–42 pending)
+> Status: in-progress (Tasks 1–35 done; Tasks 36–42 pending)
 > Created: 2026-10-10
 > Not Doing: toolchain/release-process migration; MCP 2.x; wholesale catalogs; replacement of safety controls; file-annotation implementation; persistent continuation recovery; remote multi-user transport; automatic service activation
 
@@ -746,17 +746,22 @@ paired with Task 35; live reasoning checks remain unavailable.
 
 ## Task 35: Add a strict stub simulator tier to local CI
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 34, Task 22
 - **Size:** M
 - **Can run in parallel with:** —
 - **Docs:** [Implementation slice](implementation.md#task-35); [design contract](design.md#d8-simulator-and-test-reliability)
 
-- [ ] 35.1 Serve only the required local OpenAI-compatible routes with strict model/message/stream checks and deterministic content; bind loopback and choose test-safe ports.
-- [ ] 35.2 Run the provider-agnostic tier on PR/main push in the existing workflow, isolating all provider credentials and cleaning up subprocesses. Keep optional local-model/live tiers separate.
-- [ ] 35.3 Verify the acceptance cases in [Task 35](implementation.md#task-35) and record the result here.
+- [x] 35.1 Serve only the required local OpenAI-compatible routes with strict model/message/stream checks and deterministic content; bind loopback and choose test-safe ports.
+- [x] 35.2 Run the provider-agnostic tier on PR/main push in the existing workflow, isolating all provider credentials and cleaning up subprocesses. Keep optional local-model/live tiers separate.
+- [x] 35.3 Verify the acceptance cases in [Task 35](implementation.md#task-35) and record the result here.
 
 **Scope / gate:** Extend this repository's existing CI. The stub verifies integration contracts, not model reasoning quality.
+
+**Evidence:** [Task 35 validation](validation.md#task-35-strict-local-simulator-ci).
+Exact CI command: 3/3 stdio scenarios pass; stub contracts: 28 passed; Python3.10
+focused: 51 passed; full quality: 1,823 passed. All MCP children reaped; forced
+dotenv isolation and strict rejection regressions pass. Isolated review approved.
 
 ## Task 36: Add a verified optional OpenCode Go provider
 

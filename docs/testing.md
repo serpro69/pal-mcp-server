@@ -41,6 +41,20 @@ CUSTOM_API_URL=http://localhost:11434/v1 SIMULATOR_MODEL=local-llama \
   python communication_simulator_test.py --ci
 ```
 
+For the deterministic tier, run `python -m simulator_tests.stub_provider`. It
+binds an ephemeral IPv4 loopback port, supplies only `pal-stub` through a separate
+catalog, and runs all three `--ci` scenarios. Provider metadata supplies the full
+credential/configuration isolation list; the process-only `PAL_SKIP_DOTENV=true`
+switch prevents even a forced-override dotenv file from restoring external
+credentials. State/log files are temporary. No default local model changes.
+
+The stub accepts only `/v1/models` and non-streaming `/v1/chat/completions`, with
+strict model, message and output-limit validation. Any rejected request or selected
+scenario failure fails the run. The server thread, request workers and each MCP
+child are closed before exit. This tier runs on PRs and pushes to `main` in the
+existing Python matrix. It validates integration contracts; local-model and paid
+reasoning/routing tests remain separate, explicitly configured runs.
+
 Simulator tests replicate real-world Claude CLI interactions with the standalone MCP server. Unlike unit tests that test isolated functions, simulator tests validate the complete end-to-end flow including:
 - Actual MCP protocol communication
 - Standalone server interactions

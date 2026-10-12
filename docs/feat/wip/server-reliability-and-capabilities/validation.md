@@ -1762,3 +1762,37 @@ and fails provider-dependent checks as expected; it is not live-provider evidenc
 
 Final isolated local review: **APPROVE**, no remaining findings. Systemic dispatch/
 portal lifecycle lessons indexed as kk:review-findings; capy database excluded.
+
+## Task 35: Strict local simulator CI
+
+2026-10-12. Added a loopback-only ephemeral-port HTTP fixture, a separate
+conf/stub_models.json catalog and a credential-isolated entry point:
+`python -m simulator_tests.stub_provider`. Existing CI now runs this command on
+PRs and main pushes for Python 3.10–3.12. No dependency versions changed.
+
+The fixture rejects unknown routes/models, unsupported fields, non-text or malformed
+messages, streaming, invalid output/temperature controls, duplicate JSON keys and
+malformed/oversized bodies. It emits deterministic Chat Completions only. Isolation
+uses every provider metadata declaration plus process-only PAL_SKIP_DOTENV=true,
+which prevents a forced-override dotenv from reactivating credentials or routing.
+The configured custom endpoint, catalog, stub key, model, workspace and temporary
+state/log paths are controlled by the harness; the user's local model is untouched.
+
+The exact CI command passes **3/3** provider-agnostic scenarios through real stdio
+servers and the local HTTP endpoint. Tests assert all three spawned MCP processes
+have exited, the listener/server thread close, and selected failures return nonzero.
+The sandbox initially denied loopback binds; tests passed with the authorized
+socket permission. This also completes Task 34's local endpoint contract check.
+It provides no evidence about model reasoning quality or optional paid services.
+Legacy live integration environment prerequisites remain unchanged.
+
+Independent review found that PAL_MCP_FORCE_ENV_OVERRIDE is read from the dotenv
+file itself, so setting it false in a child environment was insufficient. The new
+process-only opt-out is checked before any dotenv read and has a dedicated
+forced-override regression. External PAL review remains unavailable (invalid key).
+
+Final quality: **1,823 passed**, 16 skipped, 16 deselected, 19 subtests; Python
+3.10 simulator/configuration suite: **51 passed**. Stub contract suite: **28 passed**.
+An unsupported-method probe fails the CI gate even when all three scenarios pass;
+huge numeric temperature inputs are rejected without overflow. Final isolated local
+review approved after these fixes; dotenv-isolation lesson indexed separately.

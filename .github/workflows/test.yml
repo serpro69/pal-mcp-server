@@ -3,6 +3,8 @@ name: Tests
 on:
   pull_request:
     branches: [main]
+  push:
+    branches: [main]
 
 jobs:
   test:
@@ -34,6 +36,10 @@ jobs:
           # Ensure no API key is accidentally used in CI
           GEMINI_API_KEY: ""
           OPENAI_API_KEY: ""
+
+      - name: Run strict local simulator contracts
+        timeout-minutes: 5
+        run: python -m simulator_tests.stub_provider
 
   lint:
     runs-on: ubuntu-latest

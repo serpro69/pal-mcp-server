@@ -4,6 +4,9 @@
 
 ## Unreleased
 
+- Run a strict, credential-isolated loopback simulator tier in CI on PRs and main
+  pushes. It verifies MCP continuation and HTTP contracts without external APIs.
+
 - Keep one MCP stdio session per simulator scenario, preserving continuation state
   and closing the server on failure. Add provider-agnostic `--ci` selection and
   `SIMULATOR_MODEL`; selected failures now retain summaries and fail the run.
