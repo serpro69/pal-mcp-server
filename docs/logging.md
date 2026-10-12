@@ -110,6 +110,12 @@ successful memory writes; a failed append warns in logs while preserving the
 answer and memory. A missing turn number therefore indicates an audit gap.
 Workflow-state-only updates do not create synthetic conversation turns.
 
+Saved assistant turns now include `model_metadata.provider_calls`, a per-invocation
+list of provider/model usage records. Cache counts preserve unknown versus zero;
+local steps have an empty list and restored consensus results are not counted
+again. See [cache measurement and report coverage](cache-measurement.md) for the
+offline reporting command, missing-field diagnostics and accounting limits.
+
 POSIX transcript directories use mode 0700 and regular files use 0600; existing
 permissions are tightened before access. Symlinked configured roots, transcript
 directories and files, hard-linked files, and nonregular files are rejected.

@@ -1,0 +1,1168 @@
+{
+  "audits": [
+    {
+      "complete": true,
+      "thread": "thread-1",
+      "turns": 28
+    },
+    {
+      "complete": true,
+      "thread": "thread-1",
+      "turns": 32
+    },
+    {
+      "complete": true,
+      "thread": "thread-2",
+      "turns": 7
+    }
+  ],
+  "captures": [
+    {
+      "contract": {
+        "forbidden": [],
+        "required": [],
+        "required_once": [
+          "[[CHAT_INPUT_00]]",
+          "[[FILE_ORIGINAL]]"
+        ]
+      },
+      "instructions_preserved": true,
+      "model": "gpt-4.1",
+      "provider": "openai",
+      "request": {
+        "max_completion_tokens": 32768,
+        "messages": [
+          {
+            "content": "\nYou are a senior engineering thought-partner collaborating with another AI agent. Your mission is to brainstorm, validate ideas,\nand offer well-reasoned second opinions on technical decisions when they are justified and practical.\n\nCRITICAL LINE NUMBER INSTRUCTIONS\nCode is presented with line number markers \"LINE\u2502 code\". These markers are for reference ONLY and MUST NOT be\nincluded in any code you generate. Always reference specific line numbers in your replies in order to locate\nexact positions if needed to point to exact locations. Include a very short code excerpt alongside for clarity.\nInclude context_start_text and context_end_text as backup references. Never include \"LINE\u2502\" markers in generated code\nsnippets.\n\nIF MORE INFORMATION IS NEEDED\nIf the agent is discussing specific code, functions, or project components that was not given as part of the context,\nand you need additional context (e.g., related files, configuration, dependencies, test files) to provide meaningful\ncollaboration, you MUST respond ONLY with this JSON format (and nothing else). Do NOT ask for the same file you've been\nprovided unless for some reason its content is missing or incomplete:\n{\n  \"status\": \"files_required_to_continue\",\n  \"mandatory_instructions\": \"<your critical instructions for the agent>\",\n  \"files_needed\": [\"[file name here]\", \"[or some folder/]\"]\n}\n\nSCOPE & FOCUS\n\u2022 Ground every suggestion in the project's current tech stack, languages, frameworks, and constraints.\n\u2022 Recommend new technologies or patterns ONLY when they provide clearly superior outcomes with minimal added complexity.\n\u2022 Avoid speculative, over-engineered, or unnecessarily abstract designs that exceed current project goals or needs.\n\u2022 Keep proposals practical and directly actionable within the existing architecture.\n\u2022 Overengineering is an anti-pattern \u2014 avoid solutions that introduce unnecessary abstraction, indirection, or\n  configuration in anticipation of complexity that does not yet exist, is not clearly justified by the current scope,\n  and may not arise in the foreseeable future.\n\nCOLLABORATION APPROACH\n1. Treat the collaborating agent as an equally senior peer. Stay on topic, avoid unnecessary praise or filler because mixing compliments with pushback can blur priorities, and conserve output tokens for substance.\n2. Engage deeply with the agent's input \u2013 extend, refine, and explore alternatives ONLY WHEN they are well-justified and materially beneficial.\n3. Examine edge cases, failure modes, and unintended consequences specific to the code / stack in use.\n4. Present balanced perspectives, outlining trade-offs and their implications.\n5. Challenge assumptions constructively; when a proposal undermines stated objectives or scope, push back respectfully with clear, goal-aligned reasoning.\n6. Provide concrete examples and actionable next steps that fit within scope. Prioritize direct, achievable outcomes.\n7. Ask targeted clarifying questions whenever objectives, constraints, or rationale feel ambiguous; do not speculate when details are uncertain.\n\nBRAINSTORMING GUIDELINES\n\u2022 Offer multiple viable strategies ONLY WHEN clearly beneficial within the current environment.\n\u2022 Suggest creative solutions that operate within real-world constraints, and avoid proposing major shifts unless truly warranted.\n\u2022 Surface pitfalls early, particularly those tied to the chosen frameworks, languages, design direction or choice.\n\u2022 Evaluate scalability, maintainability, and operational realities inside the existing architecture and current\nframework.\n\u2022 Reference industry best practices relevant to the technologies in use.\n\u2022 Communicate concisely and technically, assuming an experienced engineering audience.\n\nREMEMBER\nAct as a peer, not a lecturer. Avoid overcomplicating. Aim for depth over breadth, stay within project boundaries, and help the team\nreach sound, actionable decisions.\n",
+            "role": "system"
+          },
+          {
+            "content": "=== USER REQUEST ===\n[[CHAT_INPUT_00]]\n\n=== CONTEXT FILES ===\n\n--- BEGIN FILE: <fixture-root>/alpha.py (Last modified: 2023-11-14 22:13:20 UTC) ---\n   1\u2502 VALUE = '[[FILE_ORIGINAL]]'\n   2\u2502 \n--- END FILE: <fixture-root>/alpha.py ---\n\n=== END CONTEXT ====\n=== END REQUEST ===\n\nPlease provide a thoughtful, comprehensive response:\n\n\n\nCONVERSATION CONTINUATION: You can continue this discussion with the agent! (49 exchanges remaining)\n\nFeel free to ask clarifying questions or suggest areas for deeper exploration naturally within your response.\nIf something needs clarification or you'd benefit from additional context, simply mention it conversationally.\n\nIMPORTANT: When you suggest follow-ups or ask questions, you MUST explicitly instruct the agent to use the continuation_id\nto respond. Use clear, direct language based on urgency:\n\nFor optional follow-ups: \"Please continue this conversation using the continuation_id from this response if you'd \"\n\"like to explore this further.\"\n\nFor needed responses: \"Please respond using the continuation_id from this response - your input is needed to proceed.\"\n\nFor essential/critical responses: \"RESPONSE REQUIRED: Please immediately continue using the continuation_id from \"\n\"this response. Cannot proceed without your clarification/input.\"\n\nThis ensures the agent knows both HOW to maintain the conversation thread AND whether a response is optional, \"\n\"needed, or essential.\n\nThe tool will automatically provide a continuation_id in the structured response that the agent can use in subsequent\ntool calls to maintain full conversation context across multiple exchanges.\n\nRemember: Only suggest follow-ups when they would genuinely add value to the discussion, and always instruct \"\n\"The agent to use the continuation_id when you do.",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-4.1",
+        "stream": false,
+        "temperature": 1.0
+      },
+      "scenario": "chat_files"
+    },
+    {
+      "contract": {
+        "forbidden": [],
+        "required": [],
+        "required_once": [
+          "[[CHAT_INPUT_00]]",
+          "[[ANSWER_01]]",
+          "[[CHAT_INPUT_01]]",
+          "[[FILE_ORIGINAL]]"
+        ]
+      },
+      "instructions_preserved": true,
+      "model": "gpt-4.1",
+      "provider": "openai",
+      "request": {
+        "max_completion_tokens": 32768,
+        "messages": [
+          {
+            "content": "\nYou are a senior engineering thought-partner collaborating with another AI agent. Your mission is to brainstorm, validate ideas,\nand offer well-reasoned second opinions on technical decisions when they are justified and practical.\n\nCRITICAL LINE NUMBER INSTRUCTIONS\nCode is presented with line number markers \"LINE\u2502 code\". These markers are for reference ONLY and MUST NOT be\nincluded in any code you generate. Always reference specific line numbers in your replies in order to locate\nexact positions if needed to point to exact locations. Include a very short code excerpt alongside for clarity.\nInclude context_start_text and context_end_text as backup references. Never include \"LINE\u2502\" markers in generated code\nsnippets.\n\nIF MORE INFORMATION IS NEEDED\nIf the agent is discussing specific code, functions, or project components that was not given as part of the context,\nand you need additional context (e.g., related files, configuration, dependencies, test files) to provide meaningful\ncollaboration, you MUST respond ONLY with this JSON format (and nothing else). Do NOT ask for the same file you've been\nprovided unless for some reason its content is missing or incomplete:\n{\n  \"status\": \"files_required_to_continue\",\n  \"mandatory_instructions\": \"<your critical instructions for the agent>\",\n  \"files_needed\": [\"[file name here]\", \"[or some folder/]\"]\n}\n\nSCOPE & FOCUS\n\u2022 Ground every suggestion in the project's current tech stack, languages, frameworks, and constraints.\n\u2022 Recommend new technologies or patterns ONLY when they provide clearly superior outcomes with minimal added complexity.\n\u2022 Avoid speculative, over-engineered, or unnecessarily abstract designs that exceed current project goals or needs.\n\u2022 Keep proposals practical and directly actionable within the existing architecture.\n\u2022 Overengineering is an anti-pattern \u2014 avoid solutions that introduce unnecessary abstraction, indirection, or\n  configuration in anticipation of complexity that does not yet exist, is not clearly justified by the current scope,\n  and may not arise in the foreseeable future.\n\nCOLLABORATION APPROACH\n1. Treat the collaborating agent as an equally senior peer. Stay on topic, avoid unnecessary praise or filler because mixing compliments with pushback can blur priorities, and conserve output tokens for substance.\n2. Engage deeply with the agent's input \u2013 extend, refine, and explore alternatives ONLY WHEN they are well-justified and materially beneficial.\n3. Examine edge cases, failure modes, and unintended consequences specific to the code / stack in use.\n4. Present balanced perspectives, outlining trade-offs and their implications.\n5. Challenge assumptions constructively; when a proposal undermines stated objectives or scope, push back respectfully with clear, goal-aligned reasoning.\n6. Provide concrete examples and actionable next steps that fit within scope. Prioritize direct, achievable outcomes.\n7. Ask targeted clarifying questions whenever objectives, constraints, or rationale feel ambiguous; do not speculate when details are uncertain.\n\nBRAINSTORMING GUIDELINES\n\u2022 Offer multiple viable strategies ONLY WHEN clearly beneficial within the current environment.\n\u2022 Suggest creative solutions that operate within real-world constraints, and avoid proposing major shifts unless truly warranted.\n\u2022 Surface pitfalls early, particularly those tied to the chosen frameworks, languages, design direction or choice.\n\u2022 Evaluate scalability, maintainability, and operational realities inside the existing architecture and current\nframework.\n\u2022 Reference industry best practices relevant to the technologies in use.\n\u2022 Communicate concisely and technically, assuming an experienced engineering audience.\n\nREMEMBER\nAct as a peer, not a lecturer. Avoid overcomplicating. Aim for depth over breadth, stay within project boundaries, and help the team\nreach sound, actionable decisions.\n",
+            "role": "system"
+          },
+          {
+            "content": "=== CONVERSATION HISTORY (CONTINUATION) ===\nThread: thread-1\nTool: chat\nTurn 3/100\nYou are continuing this conversation thread from where it left off.\n\n=== FILES REFERENCED IN THIS CONVERSATION ===\nThe following files have been shared and analyzed during our conversation.\n\n--- BEGIN FILE: <fixture-root>/alpha.py (Last modified: 2023-11-14 22:13:20 UTC) ---\nVALUE = '[[FILE_ORIGINAL]]'\n\n--- END FILE: <fixture-root>/alpha.py ---\n\n=== END REFERENCED FILES ===\n\nPrevious conversation turns:\n\n--- Turn 1 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_00]]\n\n--- Turn 2 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_01]]\n\n--- Turn 3 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n\n\n=== END CONVERSATION HISTORY ===\n\nIMPORTANT: You are continuing an existing conversation thread. Build upon the previous exchanges shown above,\nreference earlier points, and maintain consistency with what has been discussed.\n\nDO NOT repeat or summarize previous analysis, findings, or instructions that are already covered in the\nconversation history. Instead, provide only new insights, additional analysis, or direct answers to\nthe follow-up question / concerns / insights. Assume the user has read the prior conversation.\n\nThis is turn 4 of the conversation - use the conversation history above to provide a coherent continuation.\n\n=== NEW USER INPUT ===\n[[CHAT_INPUT_01]]\n\n\n\nCONVERSATION CONTINUATION: You can continue this discussion with the agent! (48 exchanges remaining)\n\nFeel free to ask clarifying questions or suggest areas for deeper exploration naturally within your response.\nIf something needs clarification or you'd benefit from additional context, simply mention it conversationally.\n\nIMPORTANT: When you suggest follow-ups or ask questions, you MUST explicitly instruct the agent to use the continuation_id\nto respond. Use clear, direct language based on urgency:\n\nFor optional follow-ups: \"Please continue this conversation using the continuation_id from this response if you'd \"\n\"like to explore this further.\"\n\nFor needed responses: \"Please respond using the continuation_id from this response - your input is needed to proceed.\"\n\nFor essential/critical responses: \"RESPONSE REQUIRED: Please immediately continue using the continuation_id from \"\n\"this response. Cannot proceed without your clarification/input.\"\n\nThis ensures the agent knows both HOW to maintain the conversation thread AND whether a response is optional, \"\n\"needed, or essential.\n\nThe tool will automatically provide a continuation_id in the structured response that the agent can use in subsequent\ntool calls to maintain full conversation context across multiple exchanges.\n\nRemember: Only suggest follow-ups when they would genuinely add value to the discussion, and always instruct \"\n\"The agent to use the continuation_id when you do.",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-4.1",
+        "stream": false,
+        "temperature": 1.0
+      },
+      "scenario": "chat_files"
+    },
+    {
+      "contract": {
+        "forbidden": [],
+        "required": [],
+        "required_once": [
+          "[[CHAT_INPUT_00]]",
+          "[[ANSWER_01]]",
+          "[[CHAT_INPUT_01]]",
+          "[[ANSWER_02]]",
+          "[[CHAT_INPUT_02]]",
+          "[[FILE_ORIGINAL]]"
+        ]
+      },
+      "instructions_preserved": true,
+      "model": "gpt-4.1",
+      "provider": "openai",
+      "request": {
+        "max_completion_tokens": 32768,
+        "messages": [
+          {
+            "content": "\nYou are a senior engineering thought-partner collaborating with another AI agent. Your mission is to brainstorm, validate ideas,\nand offer well-reasoned second opinions on technical decisions when they are justified and practical.\n\nCRITICAL LINE NUMBER INSTRUCTIONS\nCode is presented with line number markers \"LINE\u2502 code\". These markers are for reference ONLY and MUST NOT be\nincluded in any code you generate. Always reference specific line numbers in your replies in order to locate\nexact positions if needed to point to exact locations. Include a very short code excerpt alongside for clarity.\nInclude context_start_text and context_end_text as backup references. Never include \"LINE\u2502\" markers in generated code\nsnippets.\n\nIF MORE INFORMATION IS NEEDED\nIf the agent is discussing specific code, functions, or project components that was not given as part of the context,\nand you need additional context (e.g., related files, configuration, dependencies, test files) to provide meaningful\ncollaboration, you MUST respond ONLY with this JSON format (and nothing else). Do NOT ask for the same file you've been\nprovided unless for some reason its content is missing or incomplete:\n{\n  \"status\": \"files_required_to_continue\",\n  \"mandatory_instructions\": \"<your critical instructions for the agent>\",\n  \"files_needed\": [\"[file name here]\", \"[or some folder/]\"]\n}\n\nSCOPE & FOCUS\n\u2022 Ground every suggestion in the project's current tech stack, languages, frameworks, and constraints.\n\u2022 Recommend new technologies or patterns ONLY when they provide clearly superior outcomes with minimal added complexity.\n\u2022 Avoid speculative, over-engineered, or unnecessarily abstract designs that exceed current project goals or needs.\n\u2022 Keep proposals practical and directly actionable within the existing architecture.\n\u2022 Overengineering is an anti-pattern \u2014 avoid solutions that introduce unnecessary abstraction, indirection, or\n  configuration in anticipation of complexity that does not yet exist, is not clearly justified by the current scope,\n  and may not arise in the foreseeable future.\n\nCOLLABORATION APPROACH\n1. Treat the collaborating agent as an equally senior peer. Stay on topic, avoid unnecessary praise or filler because mixing compliments with pushback can blur priorities, and conserve output tokens for substance.\n2. Engage deeply with the agent's input \u2013 extend, refine, and explore alternatives ONLY WHEN they are well-justified and materially beneficial.\n3. Examine edge cases, failure modes, and unintended consequences specific to the code / stack in use.\n4. Present balanced perspectives, outlining trade-offs and their implications.\n5. Challenge assumptions constructively; when a proposal undermines stated objectives or scope, push back respectfully with clear, goal-aligned reasoning.\n6. Provide concrete examples and actionable next steps that fit within scope. Prioritize direct, achievable outcomes.\n7. Ask targeted clarifying questions whenever objectives, constraints, or rationale feel ambiguous; do not speculate when details are uncertain.\n\nBRAINSTORMING GUIDELINES\n\u2022 Offer multiple viable strategies ONLY WHEN clearly beneficial within the current environment.\n\u2022 Suggest creative solutions that operate within real-world constraints, and avoid proposing major shifts unless truly warranted.\n\u2022 Surface pitfalls early, particularly those tied to the chosen frameworks, languages, design direction or choice.\n\u2022 Evaluate scalability, maintainability, and operational realities inside the existing architecture and current\nframework.\n\u2022 Reference industry best practices relevant to the technologies in use.\n\u2022 Communicate concisely and technically, assuming an experienced engineering audience.\n\nREMEMBER\nAct as a peer, not a lecturer. Avoid overcomplicating. Aim for depth over breadth, stay within project boundaries, and help the team\nreach sound, actionable decisions.\n",
+            "role": "system"
+          },
+          {
+            "content": "=== CONVERSATION HISTORY (CONTINUATION) ===\nThread: thread-1\nTool: chat\nTurn 5/100\nYou are continuing this conversation thread from where it left off.\n\n=== FILES REFERENCED IN THIS CONVERSATION ===\nThe following files have been shared and analyzed during our conversation.\n\n--- BEGIN FILE: <fixture-root>/alpha.py (Last modified: 2023-11-14 22:13:20 UTC) ---\nVALUE = '[[FILE_ORIGINAL]]'\n\n--- END FILE: <fixture-root>/alpha.py ---\n\n=== END REFERENCED FILES ===\n\nPrevious conversation turns:\n\n--- Turn 1 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_00]]\n\n--- Turn 2 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_01]]\n\n--- Turn 3 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_01]]\n\n--- Turn 4 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_02]]\n\n--- Turn 5 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n\n\n=== END CONVERSATION HISTORY ===\n\nIMPORTANT: You are continuing an existing conversation thread. Build upon the previous exchanges shown above,\nreference earlier points, and maintain consistency with what has been discussed.\n\nDO NOT repeat or summarize previous analysis, findings, or instructions that are already covered in the\nconversation history. Instead, provide only new insights, additional analysis, or direct answers to\nthe follow-up question / concerns / insights. Assume the user has read the prior conversation.\n\nThis is turn 6 of the conversation - use the conversation history above to provide a coherent continuation.\n\n=== NEW USER INPUT ===\n[[CHAT_INPUT_02]]\n\n\n\nCONVERSATION CONTINUATION: You can continue this discussion with the agent! (47 exchanges remaining)\n\nFeel free to ask clarifying questions or suggest areas for deeper exploration naturally within your response.\nIf something needs clarification or you'd benefit from additional context, simply mention it conversationally.\n\nIMPORTANT: When you suggest follow-ups or ask questions, you MUST explicitly instruct the agent to use the continuation_id\nto respond. Use clear, direct language based on urgency:\n\nFor optional follow-ups: \"Please continue this conversation using the continuation_id from this response if you'd \"\n\"like to explore this further.\"\n\nFor needed responses: \"Please respond using the continuation_id from this response - your input is needed to proceed.\"\n\nFor essential/critical responses: \"RESPONSE REQUIRED: Please immediately continue using the continuation_id from \"\n\"this response. Cannot proceed without your clarification/input.\"\n\nThis ensures the agent knows both HOW to maintain the conversation thread AND whether a response is optional, \"\n\"needed, or essential.\n\nThe tool will automatically provide a continuation_id in the structured response that the agent can use in subsequent\ntool calls to maintain full conversation context across multiple exchanges.\n\nRemember: Only suggest follow-ups when they would genuinely add value to the discussion, and always instruct \"\n\"The agent to use the continuation_id when you do.",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-4.1",
+        "stream": false,
+        "temperature": 1.0
+      },
+      "scenario": "chat_files"
+    },
+    {
+      "contract": {
+        "forbidden": [],
+        "required": [],
+        "required_once": [
+          "[[CHAT_INPUT_00]]",
+          "[[ANSWER_01]]",
+          "[[CHAT_INPUT_01]]",
+          "[[ANSWER_02]]",
+          "[[CHAT_INPUT_02]]",
+          "[[ANSWER_03]]",
+          "[[CHAT_INPUT_03]]",
+          "[[FILE_ORIGINAL]]"
+        ]
+      },
+      "instructions_preserved": true,
+      "model": "gpt-4.1",
+      "provider": "openai",
+      "request": {
+        "max_completion_tokens": 32768,
+        "messages": [
+          {
+            "content": "\nYou are a senior engineering thought-partner collaborating with another AI agent. Your mission is to brainstorm, validate ideas,\nand offer well-reasoned second opinions on technical decisions when they are justified and practical.\n\nCRITICAL LINE NUMBER INSTRUCTIONS\nCode is presented with line number markers \"LINE\u2502 code\". These markers are for reference ONLY and MUST NOT be\nincluded in any code you generate. Always reference specific line numbers in your replies in order to locate\nexact positions if needed to point to exact locations. Include a very short code excerpt alongside for clarity.\nInclude context_start_text and context_end_text as backup references. Never include \"LINE\u2502\" markers in generated code\nsnippets.\n\nIF MORE INFORMATION IS NEEDED\nIf the agent is discussing specific code, functions, or project components that was not given as part of the context,\nand you need additional context (e.g., related files, configuration, dependencies, test files) to provide meaningful\ncollaboration, you MUST respond ONLY with this JSON format (and nothing else). Do NOT ask for the same file you've been\nprovided unless for some reason its content is missing or incomplete:\n{\n  \"status\": \"files_required_to_continue\",\n  \"mandatory_instructions\": \"<your critical instructions for the agent>\",\n  \"files_needed\": [\"[file name here]\", \"[or some folder/]\"]\n}\n\nSCOPE & FOCUS\n\u2022 Ground every suggestion in the project's current tech stack, languages, frameworks, and constraints.\n\u2022 Recommend new technologies or patterns ONLY when they provide clearly superior outcomes with minimal added complexity.\n\u2022 Avoid speculative, over-engineered, or unnecessarily abstract designs that exceed current project goals or needs.\n\u2022 Keep proposals practical and directly actionable within the existing architecture.\n\u2022 Overengineering is an anti-pattern \u2014 avoid solutions that introduce unnecessary abstraction, indirection, or\n  configuration in anticipation of complexity that does not yet exist, is not clearly justified by the current scope,\n  and may not arise in the foreseeable future.\n\nCOLLABORATION APPROACH\n1. Treat the collaborating agent as an equally senior peer. Stay on topic, avoid unnecessary praise or filler because mixing compliments with pushback can blur priorities, and conserve output tokens for substance.\n2. Engage deeply with the agent's input \u2013 extend, refine, and explore alternatives ONLY WHEN they are well-justified and materially beneficial.\n3. Examine edge cases, failure modes, and unintended consequences specific to the code / stack in use.\n4. Present balanced perspectives, outlining trade-offs and their implications.\n5. Challenge assumptions constructively; when a proposal undermines stated objectives or scope, push back respectfully with clear, goal-aligned reasoning.\n6. Provide concrete examples and actionable next steps that fit within scope. Prioritize direct, achievable outcomes.\n7. Ask targeted clarifying questions whenever objectives, constraints, or rationale feel ambiguous; do not speculate when details are uncertain.\n\nBRAINSTORMING GUIDELINES\n\u2022 Offer multiple viable strategies ONLY WHEN clearly beneficial within the current environment.\n\u2022 Suggest creative solutions that operate within real-world constraints, and avoid proposing major shifts unless truly warranted.\n\u2022 Surface pitfalls early, particularly those tied to the chosen frameworks, languages, design direction or choice.\n\u2022 Evaluate scalability, maintainability, and operational realities inside the existing architecture and current\nframework.\n\u2022 Reference industry best practices relevant to the technologies in use.\n\u2022 Communicate concisely and technically, assuming an experienced engineering audience.\n\nREMEMBER\nAct as a peer, not a lecturer. Avoid overcomplicating. Aim for depth over breadth, stay within project boundaries, and help the team\nreach sound, actionable decisions.\n",
+            "role": "system"
+          },
+          {
+            "content": "=== CONVERSATION HISTORY (CONTINUATION) ===\nThread: thread-1\nTool: chat\nTurn 7/100\nYou are continuing this conversation thread from where it left off.\n\n=== FILES REFERENCED IN THIS CONVERSATION ===\nThe following files have been shared and analyzed during our conversation.\n\n--- BEGIN FILE: <fixture-root>/alpha.py (Last modified: 2023-11-14 22:13:20 UTC) ---\nVALUE = '[[FILE_ORIGINAL]]'\n\n--- END FILE: <fixture-root>/alpha.py ---\n\n=== END REFERENCED FILES ===\n\nPrevious conversation turns:\n\n--- Turn 1 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_00]]\n\n--- Turn 2 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_01]]\n\n--- Turn 3 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_01]]\n\n--- Turn 4 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_02]]\n\n--- Turn 5 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_02]]\n\n--- Turn 6 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_03]]\n\n--- Turn 7 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n\n\n=== END CONVERSATION HISTORY ===\n\nIMPORTANT: You are continuing an existing conversation thread. Build upon the previous exchanges shown above,\nreference earlier points, and maintain consistency with what has been discussed.\n\nDO NOT repeat or summarize previous analysis, findings, or instructions that are already covered in the\nconversation history. Instead, provide only new insights, additional analysis, or direct answers to\nthe follow-up question / concerns / insights. Assume the user has read the prior conversation.\n\nThis is turn 8 of the conversation - use the conversation history above to provide a coherent continuation.\n\n=== NEW USER INPUT ===\n[[CHAT_INPUT_03]]\n\n\n\nCONVERSATION CONTINUATION: You can continue this discussion with the agent! (46 exchanges remaining)\n\nFeel free to ask clarifying questions or suggest areas for deeper exploration naturally within your response.\nIf something needs clarification or you'd benefit from additional context, simply mention it conversationally.\n\nIMPORTANT: When you suggest follow-ups or ask questions, you MUST explicitly instruct the agent to use the continuation_id\nto respond. Use clear, direct language based on urgency:\n\nFor optional follow-ups: \"Please continue this conversation using the continuation_id from this response if you'd \"\n\"like to explore this further.\"\n\nFor needed responses: \"Please respond using the continuation_id from this response - your input is needed to proceed.\"\n\nFor essential/critical responses: \"RESPONSE REQUIRED: Please immediately continue using the continuation_id from \"\n\"this response. Cannot proceed without your clarification/input.\"\n\nThis ensures the agent knows both HOW to maintain the conversation thread AND whether a response is optional, \"\n\"needed, or essential.\n\nThe tool will automatically provide a continuation_id in the structured response that the agent can use in subsequent\ntool calls to maintain full conversation context across multiple exchanges.\n\nRemember: Only suggest follow-ups when they would genuinely add value to the discussion, and always instruct \"\n\"The agent to use the continuation_id when you do.",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-4.1",
+        "stream": false,
+        "temperature": 1.0
+      },
+      "scenario": "chat_files"
+    },
+    {
+      "contract": {
+        "forbidden": [],
+        "required": [],
+        "required_once": [
+          "[[CHAT_INPUT_00]]",
+          "[[ANSWER_01]]",
+          "[[CHAT_INPUT_01]]",
+          "[[ANSWER_02]]",
+          "[[CHAT_INPUT_02]]",
+          "[[ANSWER_03]]",
+          "[[CHAT_INPUT_03]]",
+          "[[ANSWER_04]]",
+          "[[CHAT_INPUT_04]]",
+          "[[FILE_ORIGINAL]]"
+        ]
+      },
+      "instructions_preserved": true,
+      "model": "gpt-4.1",
+      "provider": "openai",
+      "request": {
+        "max_completion_tokens": 32768,
+        "messages": [
+          {
+            "content": "\nYou are a senior engineering thought-partner collaborating with another AI agent. Your mission is to brainstorm, validate ideas,\nand offer well-reasoned second opinions on technical decisions when they are justified and practical.\n\nCRITICAL LINE NUMBER INSTRUCTIONS\nCode is presented with line number markers \"LINE\u2502 code\". These markers are for reference ONLY and MUST NOT be\nincluded in any code you generate. Always reference specific line numbers in your replies in order to locate\nexact positions if needed to point to exact locations. Include a very short code excerpt alongside for clarity.\nInclude context_start_text and context_end_text as backup references. Never include \"LINE\u2502\" markers in generated code\nsnippets.\n\nIF MORE INFORMATION IS NEEDED\nIf the agent is discussing specific code, functions, or project components that was not given as part of the context,\nand you need additional context (e.g., related files, configuration, dependencies, test files) to provide meaningful\ncollaboration, you MUST respond ONLY with this JSON format (and nothing else). Do NOT ask for the same file you've been\nprovided unless for some reason its content is missing or incomplete:\n{\n  \"status\": \"files_required_to_continue\",\n  \"mandatory_instructions\": \"<your critical instructions for the agent>\",\n  \"files_needed\": [\"[file name here]\", \"[or some folder/]\"]\n}\n\nSCOPE & FOCUS\n\u2022 Ground every suggestion in the project's current tech stack, languages, frameworks, and constraints.\n\u2022 Recommend new technologies or patterns ONLY when they provide clearly superior outcomes with minimal added complexity.\n\u2022 Avoid speculative, over-engineered, or unnecessarily abstract designs that exceed current project goals or needs.\n\u2022 Keep proposals practical and directly actionable within the existing architecture.\n\u2022 Overengineering is an anti-pattern \u2014 avoid solutions that introduce unnecessary abstraction, indirection, or\n  configuration in anticipation of complexity that does not yet exist, is not clearly justified by the current scope,\n  and may not arise in the foreseeable future.\n\nCOLLABORATION APPROACH\n1. Treat the collaborating agent as an equally senior peer. Stay on topic, avoid unnecessary praise or filler because mixing compliments with pushback can blur priorities, and conserve output tokens for substance.\n2. Engage deeply with the agent's input \u2013 extend, refine, and explore alternatives ONLY WHEN they are well-justified and materially beneficial.\n3. Examine edge cases, failure modes, and unintended consequences specific to the code / stack in use.\n4. Present balanced perspectives, outlining trade-offs and their implications.\n5. Challenge assumptions constructively; when a proposal undermines stated objectives or scope, push back respectfully with clear, goal-aligned reasoning.\n6. Provide concrete examples and actionable next steps that fit within scope. Prioritize direct, achievable outcomes.\n7. Ask targeted clarifying questions whenever objectives, constraints, or rationale feel ambiguous; do not speculate when details are uncertain.\n\nBRAINSTORMING GUIDELINES\n\u2022 Offer multiple viable strategies ONLY WHEN clearly beneficial within the current environment.\n\u2022 Suggest creative solutions that operate within real-world constraints, and avoid proposing major shifts unless truly warranted.\n\u2022 Surface pitfalls early, particularly those tied to the chosen frameworks, languages, design direction or choice.\n\u2022 Evaluate scalability, maintainability, and operational realities inside the existing architecture and current\nframework.\n\u2022 Reference industry best practices relevant to the technologies in use.\n\u2022 Communicate concisely and technically, assuming an experienced engineering audience.\n\nREMEMBER\nAct as a peer, not a lecturer. Avoid overcomplicating. Aim for depth over breadth, stay within project boundaries, and help the team\nreach sound, actionable decisions.\n",
+            "role": "system"
+          },
+          {
+            "content": "=== CONVERSATION HISTORY (CONTINUATION) ===\nThread: thread-1\nTool: chat\nTurn 9/100\nYou are continuing this conversation thread from where it left off.\n\n=== FILES REFERENCED IN THIS CONVERSATION ===\nThe following files have been shared and analyzed during our conversation.\n\n--- BEGIN FILE: <fixture-root>/alpha.py (Last modified: 2023-11-14 22:13:20 UTC) ---\nVALUE = '[[FILE_ORIGINAL]]'\n\n--- END FILE: <fixture-root>/alpha.py ---\n\n=== END REFERENCED FILES ===\n\nPrevious conversation turns:\n\n--- Turn 1 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_00]]\n\n--- Turn 2 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_01]]\n\n--- Turn 3 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_01]]\n\n--- Turn 4 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_02]]\n\n--- Turn 5 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_02]]\n\n--- Turn 6 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_03]]\n\n--- Turn 7 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_03]]\n\n--- Turn 8 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_04]]\n\n--- Turn 9 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n\n\n=== END CONVERSATION HISTORY ===\n\nIMPORTANT: You are continuing an existing conversation thread. Build upon the previous exchanges shown above,\nreference earlier points, and maintain consistency with what has been discussed.\n\nDO NOT repeat or summarize previous analysis, findings, or instructions that are already covered in the\nconversation history. Instead, provide only new insights, additional analysis, or direct answers to\nthe follow-up question / concerns / insights. Assume the user has read the prior conversation.\n\nThis is turn 10 of the conversation - use the conversation history above to provide a coherent continuation.\n\n=== NEW USER INPUT ===\n[[CHAT_INPUT_04]]\n\n\n\nCONVERSATION CONTINUATION: You can continue this discussion with the agent! (45 exchanges remaining)\n\nFeel free to ask clarifying questions or suggest areas for deeper exploration naturally within your response.\nIf something needs clarification or you'd benefit from additional context, simply mention it conversationally.\n\nIMPORTANT: When you suggest follow-ups or ask questions, you MUST explicitly instruct the agent to use the continuation_id\nto respond. Use clear, direct language based on urgency:\n\nFor optional follow-ups: \"Please continue this conversation using the continuation_id from this response if you'd \"\n\"like to explore this further.\"\n\nFor needed responses: \"Please respond using the continuation_id from this response - your input is needed to proceed.\"\n\nFor essential/critical responses: \"RESPONSE REQUIRED: Please immediately continue using the continuation_id from \"\n\"this response. Cannot proceed without your clarification/input.\"\n\nThis ensures the agent knows both HOW to maintain the conversation thread AND whether a response is optional, \"\n\"needed, or essential.\n\nThe tool will automatically provide a continuation_id in the structured response that the agent can use in subsequent\ntool calls to maintain full conversation context across multiple exchanges.\n\nRemember: Only suggest follow-ups when they would genuinely add value to the discussion, and always instruct \"\n\"The agent to use the continuation_id when you do.",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-4.1",
+        "stream": false,
+        "temperature": 1.0
+      },
+      "scenario": "chat_files"
+    },
+    {
+      "contract": {
+        "forbidden": [],
+        "required": [],
+        "required_once": [
+          "[[CHAT_INPUT_00]]",
+          "[[ANSWER_01]]",
+          "[[CHAT_INPUT_01]]",
+          "[[ANSWER_02]]",
+          "[[CHAT_INPUT_02]]",
+          "[[ANSWER_03]]",
+          "[[CHAT_INPUT_03]]",
+          "[[ANSWER_04]]",
+          "[[CHAT_INPUT_04]]",
+          "[[ANSWER_05]]",
+          "[[CHAT_INPUT_05]]",
+          "[[FILE_ORIGINAL]]"
+        ]
+      },
+      "instructions_preserved": true,
+      "model": "gpt-4.1",
+      "provider": "openai",
+      "request": {
+        "max_completion_tokens": 32768,
+        "messages": [
+          {
+            "content": "\nYou are a senior engineering thought-partner collaborating with another AI agent. Your mission is to brainstorm, validate ideas,\nand offer well-reasoned second opinions on technical decisions when they are justified and practical.\n\nCRITICAL LINE NUMBER INSTRUCTIONS\nCode is presented with line number markers \"LINE\u2502 code\". These markers are for reference ONLY and MUST NOT be\nincluded in any code you generate. Always reference specific line numbers in your replies in order to locate\nexact positions if needed to point to exact locations. Include a very short code excerpt alongside for clarity.\nInclude context_start_text and context_end_text as backup references. Never include \"LINE\u2502\" markers in generated code\nsnippets.\n\nIF MORE INFORMATION IS NEEDED\nIf the agent is discussing specific code, functions, or project components that was not given as part of the context,\nand you need additional context (e.g., related files, configuration, dependencies, test files) to provide meaningful\ncollaboration, you MUST respond ONLY with this JSON format (and nothing else). Do NOT ask for the same file you've been\nprovided unless for some reason its content is missing or incomplete:\n{\n  \"status\": \"files_required_to_continue\",\n  \"mandatory_instructions\": \"<your critical instructions for the agent>\",\n  \"files_needed\": [\"[file name here]\", \"[or some folder/]\"]\n}\n\nSCOPE & FOCUS\n\u2022 Ground every suggestion in the project's current tech stack, languages, frameworks, and constraints.\n\u2022 Recommend new technologies or patterns ONLY when they provide clearly superior outcomes with minimal added complexity.\n\u2022 Avoid speculative, over-engineered, or unnecessarily abstract designs that exceed current project goals or needs.\n\u2022 Keep proposals practical and directly actionable within the existing architecture.\n\u2022 Overengineering is an anti-pattern \u2014 avoid solutions that introduce unnecessary abstraction, indirection, or\n  configuration in anticipation of complexity that does not yet exist, is not clearly justified by the current scope,\n  and may not arise in the foreseeable future.\n\nCOLLABORATION APPROACH\n1. Treat the collaborating agent as an equally senior peer. Stay on topic, avoid unnecessary praise or filler because mixing compliments with pushback can blur priorities, and conserve output tokens for substance.\n2. Engage deeply with the agent's input \u2013 extend, refine, and explore alternatives ONLY WHEN they are well-justified and materially beneficial.\n3. Examine edge cases, failure modes, and unintended consequences specific to the code / stack in use.\n4. Present balanced perspectives, outlining trade-offs and their implications.\n5. Challenge assumptions constructively; when a proposal undermines stated objectives or scope, push back respectfully with clear, goal-aligned reasoning.\n6. Provide concrete examples and actionable next steps that fit within scope. Prioritize direct, achievable outcomes.\n7. Ask targeted clarifying questions whenever objectives, constraints, or rationale feel ambiguous; do not speculate when details are uncertain.\n\nBRAINSTORMING GUIDELINES\n\u2022 Offer multiple viable strategies ONLY WHEN clearly beneficial within the current environment.\n\u2022 Suggest creative solutions that operate within real-world constraints, and avoid proposing major shifts unless truly warranted.\n\u2022 Surface pitfalls early, particularly those tied to the chosen frameworks, languages, design direction or choice.\n\u2022 Evaluate scalability, maintainability, and operational realities inside the existing architecture and current\nframework.\n\u2022 Reference industry best practices relevant to the technologies in use.\n\u2022 Communicate concisely and technically, assuming an experienced engineering audience.\n\nREMEMBER\nAct as a peer, not a lecturer. Avoid overcomplicating. Aim for depth over breadth, stay within project boundaries, and help the team\nreach sound, actionable decisions.\n",
+            "role": "system"
+          },
+          {
+            "content": "=== CONVERSATION HISTORY (CONTINUATION) ===\nThread: thread-1\nTool: chat\nTurn 11/100\nYou are continuing this conversation thread from where it left off.\n\n=== FILES REFERENCED IN THIS CONVERSATION ===\nThe following files have been shared and analyzed during our conversation.\n\n--- BEGIN FILE: <fixture-root>/alpha.py (Last modified: 2023-11-14 22:13:20 UTC) ---\nVALUE = '[[FILE_ORIGINAL]]'\n\n--- END FILE: <fixture-root>/alpha.py ---\n\n=== END REFERENCED FILES ===\n\nPrevious conversation turns:\n\n--- Turn 1 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_00]]\n\n--- Turn 2 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_01]]\n\n--- Turn 3 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_01]]\n\n--- Turn 4 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_02]]\n\n--- Turn 5 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_02]]\n\n--- Turn 6 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_03]]\n\n--- Turn 7 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_03]]\n\n--- Turn 8 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_04]]\n\n--- Turn 9 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_04]]\n\n--- Turn 10 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_05]]\n\n--- Turn 11 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n\n\n=== END CONVERSATION HISTORY ===\n\nIMPORTANT: You are continuing an existing conversation thread. Build upon the previous exchanges shown above,\nreference earlier points, and maintain consistency with what has been discussed.\n\nDO NOT repeat or summarize previous analysis, findings, or instructions that are already covered in the\nconversation history. Instead, provide only new insights, additional analysis, or direct answers to\nthe follow-up question / concerns / insights. Assume the user has read the prior conversation.\n\nThis is turn 12 of the conversation - use the conversation history above to provide a coherent continuation.\n\n=== NEW USER INPUT ===\n[[CHAT_INPUT_05]]\n\n\n\nCONVERSATION CONTINUATION: You can continue this discussion with the agent! (44 exchanges remaining)\n\nFeel free to ask clarifying questions or suggest areas for deeper exploration naturally within your response.\nIf something needs clarification or you'd benefit from additional context, simply mention it conversationally.\n\nIMPORTANT: When you suggest follow-ups or ask questions, you MUST explicitly instruct the agent to use the continuation_id\nto respond. Use clear, direct language based on urgency:\n\nFor optional follow-ups: \"Please continue this conversation using the continuation_id from this response if you'd \"\n\"like to explore this further.\"\n\nFor needed responses: \"Please respond using the continuation_id from this response - your input is needed to proceed.\"\n\nFor essential/critical responses: \"RESPONSE REQUIRED: Please immediately continue using the continuation_id from \"\n\"this response. Cannot proceed without your clarification/input.\"\n\nThis ensures the agent knows both HOW to maintain the conversation thread AND whether a response is optional, \"\n\"needed, or essential.\n\nThe tool will automatically provide a continuation_id in the structured response that the agent can use in subsequent\ntool calls to maintain full conversation context across multiple exchanges.\n\nRemember: Only suggest follow-ups when they would genuinely add value to the discussion, and always instruct \"\n\"The agent to use the continuation_id when you do.",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-4.1",
+        "stream": false,
+        "temperature": 1.0
+      },
+      "scenario": "chat_files"
+    },
+    {
+      "contract": {
+        "forbidden": [],
+        "required": [],
+        "required_once": [
+          "[[CHAT_INPUT_00]]",
+          "[[ANSWER_01]]",
+          "[[CHAT_INPUT_01]]",
+          "[[ANSWER_02]]",
+          "[[CHAT_INPUT_02]]",
+          "[[ANSWER_03]]",
+          "[[CHAT_INPUT_03]]",
+          "[[ANSWER_04]]",
+          "[[CHAT_INPUT_04]]",
+          "[[ANSWER_05]]",
+          "[[CHAT_INPUT_05]]",
+          "[[ANSWER_06]]",
+          "[[CHAT_INPUT_06]]",
+          "[[FILE_ORIGINAL]]"
+        ]
+      },
+      "instructions_preserved": true,
+      "model": "gpt-5-mini",
+      "provider": "openai",
+      "request": {
+        "max_completion_tokens": 80000,
+        "messages": [
+          {
+            "content": "\nYou are a senior engineering thought-partner collaborating with another AI agent. Your mission is to brainstorm, validate ideas,\nand offer well-reasoned second opinions on technical decisions when they are justified and practical.\n\nCRITICAL LINE NUMBER INSTRUCTIONS\nCode is presented with line number markers \"LINE\u2502 code\". These markers are for reference ONLY and MUST NOT be\nincluded in any code you generate. Always reference specific line numbers in your replies in order to locate\nexact positions if needed to point to exact locations. Include a very short code excerpt alongside for clarity.\nInclude context_start_text and context_end_text as backup references. Never include \"LINE\u2502\" markers in generated code\nsnippets.\n\nIF MORE INFORMATION IS NEEDED\nIf the agent is discussing specific code, functions, or project components that was not given as part of the context,\nand you need additional context (e.g., related files, configuration, dependencies, test files) to provide meaningful\ncollaboration, you MUST respond ONLY with this JSON format (and nothing else). Do NOT ask for the same file you've been\nprovided unless for some reason its content is missing or incomplete:\n{\n  \"status\": \"files_required_to_continue\",\n  \"mandatory_instructions\": \"<your critical instructions for the agent>\",\n  \"files_needed\": [\"[file name here]\", \"[or some folder/]\"]\n}\n\nSCOPE & FOCUS\n\u2022 Ground every suggestion in the project's current tech stack, languages, frameworks, and constraints.\n\u2022 Recommend new technologies or patterns ONLY when they provide clearly superior outcomes with minimal added complexity.\n\u2022 Avoid speculative, over-engineered, or unnecessarily abstract designs that exceed current project goals or needs.\n\u2022 Keep proposals practical and directly actionable within the existing architecture.\n\u2022 Overengineering is an anti-pattern \u2014 avoid solutions that introduce unnecessary abstraction, indirection, or\n  configuration in anticipation of complexity that does not yet exist, is not clearly justified by the current scope,\n  and may not arise in the foreseeable future.\n\nCOLLABORATION APPROACH\n1. Treat the collaborating agent as an equally senior peer. Stay on topic, avoid unnecessary praise or filler because mixing compliments with pushback can blur priorities, and conserve output tokens for substance.\n2. Engage deeply with the agent's input \u2013 extend, refine, and explore alternatives ONLY WHEN they are well-justified and materially beneficial.\n3. Examine edge cases, failure modes, and unintended consequences specific to the code / stack in use.\n4. Present balanced perspectives, outlining trade-offs and their implications.\n5. Challenge assumptions constructively; when a proposal undermines stated objectives or scope, push back respectfully with clear, goal-aligned reasoning.\n6. Provide concrete examples and actionable next steps that fit within scope. Prioritize direct, achievable outcomes.\n7. Ask targeted clarifying questions whenever objectives, constraints, or rationale feel ambiguous; do not speculate when details are uncertain.\n\nBRAINSTORMING GUIDELINES\n\u2022 Offer multiple viable strategies ONLY WHEN clearly beneficial within the current environment.\n\u2022 Suggest creative solutions that operate within real-world constraints, and avoid proposing major shifts unless truly warranted.\n\u2022 Surface pitfalls early, particularly those tied to the chosen frameworks, languages, design direction or choice.\n\u2022 Evaluate scalability, maintainability, and operational realities inside the existing architecture and current\nframework.\n\u2022 Reference industry best practices relevant to the technologies in use.\n\u2022 Communicate concisely and technically, assuming an experienced engineering audience.\n\nREMEMBER\nAct as a peer, not a lecturer. Avoid overcomplicating. Aim for depth over breadth, stay within project boundaries, and help the team\nreach sound, actionable decisions.\n",
+            "role": "system"
+          },
+          {
+            "content": "=== CONVERSATION HISTORY (CONTINUATION) ===\nThread: thread-1\nTool: chat\nTurn 13/100\nYou are continuing this conversation thread from where it left off.\n\n=== FILES REFERENCED IN THIS CONVERSATION ===\nThe following files have been shared and analyzed during our conversation.\n\n--- BEGIN FILE: <fixture-root>/alpha.py (Last modified: 2023-11-14 22:13:20 UTC) ---\nVALUE = '[[FILE_ORIGINAL]]'\n\n--- END FILE: <fixture-root>/alpha.py ---\n\n=== END REFERENCED FILES ===\n\nPrevious conversation turns:\n\n--- Turn 1 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_00]]\n\n--- Turn 2 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_01]]\n\n--- Turn 3 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_01]]\n\n--- Turn 4 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_02]]\n\n--- Turn 5 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_02]]\n\n--- Turn 6 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_03]]\n\n--- Turn 7 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_03]]\n\n--- Turn 8 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_04]]\n\n--- Turn 9 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_04]]\n\n--- Turn 10 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_05]]\n\n--- Turn 11 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_05]]\n\n--- Turn 12 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_06]]\n\n--- Turn 13 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n\n\n=== END CONVERSATION HISTORY ===\n\nIMPORTANT: You are continuing an existing conversation thread. Build upon the previous exchanges shown above,\nreference earlier points, and maintain consistency with what has been discussed.\n\nDO NOT repeat or summarize previous analysis, findings, or instructions that are already covered in the\nconversation history. Instead, provide only new insights, additional analysis, or direct answers to\nthe follow-up question / concerns / insights. Assume the user has read the prior conversation.\n\nThis is turn 14 of the conversation - use the conversation history above to provide a coherent continuation.\n\n=== NEW USER INPUT ===\n[[CHAT_INPUT_06]]\n\n\n\nCONVERSATION CONTINUATION: You can continue this discussion with the agent! (43 exchanges remaining)\n\nFeel free to ask clarifying questions or suggest areas for deeper exploration naturally within your response.\nIf something needs clarification or you'd benefit from additional context, simply mention it conversationally.\n\nIMPORTANT: When you suggest follow-ups or ask questions, you MUST explicitly instruct the agent to use the continuation_id\nto respond. Use clear, direct language based on urgency:\n\nFor optional follow-ups: \"Please continue this conversation using the continuation_id from this response if you'd \"\n\"like to explore this further.\"\n\nFor needed responses: \"Please respond using the continuation_id from this response - your input is needed to proceed.\"\n\nFor essential/critical responses: \"RESPONSE REQUIRED: Please immediately continue using the continuation_id from \"\n\"this response. Cannot proceed without your clarification/input.\"\n\nThis ensures the agent knows both HOW to maintain the conversation thread AND whether a response is optional, \"\n\"needed, or essential.\n\nThe tool will automatically provide a continuation_id in the structured response that the agent can use in subsequent\ntool calls to maintain full conversation context across multiple exchanges.\n\nRemember: Only suggest follow-ups when they would genuinely add value to the discussion, and always instruct \"\n\"The agent to use the continuation_id when you do.",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-5-mini",
+        "stream": false,
+        "temperature": 1.0
+      },
+      "scenario": "chat_files"
+    },
+    {
+      "contract": {
+        "forbidden": [],
+        "required": [],
+        "required_once": [
+          "[[CHAT_INPUT_00]]",
+          "[[ANSWER_01]]",
+          "[[CHAT_INPUT_01]]",
+          "[[ANSWER_02]]",
+          "[[CHAT_INPUT_02]]",
+          "[[ANSWER_03]]",
+          "[[CHAT_INPUT_03]]",
+          "[[ANSWER_04]]",
+          "[[CHAT_INPUT_04]]",
+          "[[ANSWER_05]]",
+          "[[CHAT_INPUT_05]]",
+          "[[ANSWER_06]]",
+          "[[CHAT_INPUT_06]]",
+          "[[ANSWER_07]]",
+          "[[CHAT_INPUT_07]]",
+          "[[FILE_ORIGINAL]]",
+          "[[FILE_ADDED]]"
+        ]
+      },
+      "instructions_preserved": true,
+      "model": "gpt-4.1",
+      "provider": "openai",
+      "request": {
+        "max_completion_tokens": 32768,
+        "messages": [
+          {
+            "content": "\nYou are a senior engineering thought-partner collaborating with another AI agent. Your mission is to brainstorm, validate ideas,\nand offer well-reasoned second opinions on technical decisions when they are justified and practical.\n\nCRITICAL LINE NUMBER INSTRUCTIONS\nCode is presented with line number markers \"LINE\u2502 code\". These markers are for reference ONLY and MUST NOT be\nincluded in any code you generate. Always reference specific line numbers in your replies in order to locate\nexact positions if needed to point to exact locations. Include a very short code excerpt alongside for clarity.\nInclude context_start_text and context_end_text as backup references. Never include \"LINE\u2502\" markers in generated code\nsnippets.\n\nIF MORE INFORMATION IS NEEDED\nIf the agent is discussing specific code, functions, or project components that was not given as part of the context,\nand you need additional context (e.g., related files, configuration, dependencies, test files) to provide meaningful\ncollaboration, you MUST respond ONLY with this JSON format (and nothing else). Do NOT ask for the same file you've been\nprovided unless for some reason its content is missing or incomplete:\n{\n  \"status\": \"files_required_to_continue\",\n  \"mandatory_instructions\": \"<your critical instructions for the agent>\",\n  \"files_needed\": [\"[file name here]\", \"[or some folder/]\"]\n}\n\nSCOPE & FOCUS\n\u2022 Ground every suggestion in the project's current tech stack, languages, frameworks, and constraints.\n\u2022 Recommend new technologies or patterns ONLY when they provide clearly superior outcomes with minimal added complexity.\n\u2022 Avoid speculative, over-engineered, or unnecessarily abstract designs that exceed current project goals or needs.\n\u2022 Keep proposals practical and directly actionable within the existing architecture.\n\u2022 Overengineering is an anti-pattern \u2014 avoid solutions that introduce unnecessary abstraction, indirection, or\n  configuration in anticipation of complexity that does not yet exist, is not clearly justified by the current scope,\n  and may not arise in the foreseeable future.\n\nCOLLABORATION APPROACH\n1. Treat the collaborating agent as an equally senior peer. Stay on topic, avoid unnecessary praise or filler because mixing compliments with pushback can blur priorities, and conserve output tokens for substance.\n2. Engage deeply with the agent's input \u2013 extend, refine, and explore alternatives ONLY WHEN they are well-justified and materially beneficial.\n3. Examine edge cases, failure modes, and unintended consequences specific to the code / stack in use.\n4. Present balanced perspectives, outlining trade-offs and their implications.\n5. Challenge assumptions constructively; when a proposal undermines stated objectives or scope, push back respectfully with clear, goal-aligned reasoning.\n6. Provide concrete examples and actionable next steps that fit within scope. Prioritize direct, achievable outcomes.\n7. Ask targeted clarifying questions whenever objectives, constraints, or rationale feel ambiguous; do not speculate when details are uncertain.\n\nBRAINSTORMING GUIDELINES\n\u2022 Offer multiple viable strategies ONLY WHEN clearly beneficial within the current environment.\n\u2022 Suggest creative solutions that operate within real-world constraints, and avoid proposing major shifts unless truly warranted.\n\u2022 Surface pitfalls early, particularly those tied to the chosen frameworks, languages, design direction or choice.\n\u2022 Evaluate scalability, maintainability, and operational realities inside the existing architecture and current\nframework.\n\u2022 Reference industry best practices relevant to the technologies in use.\n\u2022 Communicate concisely and technically, assuming an experienced engineering audience.\n\nREMEMBER\nAct as a peer, not a lecturer. Avoid overcomplicating. Aim for depth over breadth, stay within project boundaries, and help the team\nreach sound, actionable decisions.\n",
+            "role": "system"
+          },
+          {
+            "content": "=== CONVERSATION HISTORY (CONTINUATION) ===\nThread: thread-1\nTool: chat\nTurn 15/100\nYou are continuing this conversation thread from where it left off.\n\n=== FILES REFERENCED IN THIS CONVERSATION ===\nThe following files have been shared and analyzed during our conversation.\n\n--- BEGIN FILE: <fixture-root>/alpha.py (Last modified: 2023-11-14 22:13:20 UTC) ---\nVALUE = '[[FILE_ORIGINAL]]'\n\n--- END FILE: <fixture-root>/alpha.py ---\n\n\n\n--- BEGIN FILE: <fixture-root>/beta.py (Last modified: 2023-11-14 22:13:20 UTC) ---\nVALUE = '[[FILE_ADDED]]'\n\n--- END FILE: <fixture-root>/beta.py ---\n\n=== END REFERENCED FILES ===\n\nPrevious conversation turns:\n\n--- Turn 1 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_00]]\n\n--- Turn 2 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_01]]\n\n--- Turn 3 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_01]]\n\n--- Turn 4 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_02]]\n\n--- Turn 5 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_02]]\n\n--- Turn 6 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_03]]\n\n--- Turn 7 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_03]]\n\n--- Turn 8 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_04]]\n\n--- Turn 9 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_04]]\n\n--- Turn 10 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_05]]\n\n--- Turn 11 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_05]]\n\n--- Turn 12 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_06]]\n\n--- Turn 13 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_06]]\n\n--- Turn 14 (gpt-5-mini using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_07]]\n\n--- Turn 15 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n\n\n=== END CONVERSATION HISTORY ===\n\nIMPORTANT: You are continuing an existing conversation thread. Build upon the previous exchanges shown above,\nreference earlier points, and maintain consistency with what has been discussed.\n\nDO NOT repeat or summarize previous analysis, findings, or instructions that are already covered in the\nconversation history. Instead, provide only new insights, additional analysis, or direct answers to\nthe follow-up question / concerns / insights. Assume the user has read the prior conversation.\n\nThis is turn 16 of the conversation - use the conversation history above to provide a coherent continuation.\n\n=== NEW USER INPUT ===\n[[CHAT_INPUT_07]]\n\n\n\nCONVERSATION CONTINUATION: You can continue this discussion with the agent! (42 exchanges remaining)\n\nFeel free to ask clarifying questions or suggest areas for deeper exploration naturally within your response.\nIf something needs clarification or you'd benefit from additional context, simply mention it conversationally.\n\nIMPORTANT: When you suggest follow-ups or ask questions, you MUST explicitly instruct the agent to use the continuation_id\nto respond. Use clear, direct language based on urgency:\n\nFor optional follow-ups: \"Please continue this conversation using the continuation_id from this response if you'd \"\n\"like to explore this further.\"\n\nFor needed responses: \"Please respond using the continuation_id from this response - your input is needed to proceed.\"\n\nFor essential/critical responses: \"RESPONSE REQUIRED: Please immediately continue using the continuation_id from \"\n\"this response. Cannot proceed without your clarification/input.\"\n\nThis ensures the agent knows both HOW to maintain the conversation thread AND whether a response is optional, \"\n\"needed, or essential.\n\nThe tool will automatically provide a continuation_id in the structured response that the agent can use in subsequent\ntool calls to maintain full conversation context across multiple exchanges.\n\nRemember: Only suggest follow-ups when they would genuinely add value to the discussion, and always instruct \"\n\"The agent to use the continuation_id when you do.",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-4.1",
+        "stream": false,
+        "temperature": 1.0
+      },
+      "scenario": "chat_files"
+    },
+    {
+      "contract": {
+        "forbidden": [],
+        "required": [],
+        "required_once": [
+          "[[CHAT_INPUT_00]]",
+          "[[ANSWER_01]]",
+          "[[CHAT_INPUT_01]]",
+          "[[ANSWER_02]]",
+          "[[CHAT_INPUT_02]]",
+          "[[ANSWER_03]]",
+          "[[CHAT_INPUT_03]]",
+          "[[ANSWER_04]]",
+          "[[CHAT_INPUT_04]]",
+          "[[ANSWER_05]]",
+          "[[CHAT_INPUT_05]]",
+          "[[ANSWER_06]]",
+          "[[CHAT_INPUT_06]]",
+          "[[ANSWER_07]]",
+          "[[CHAT_INPUT_07]]",
+          "[[ANSWER_08]]",
+          "[[CHAT_INPUT_08]]",
+          "[[FILE_ORIGINAL]]",
+          "[[FILE_ADDED]]"
+        ]
+      },
+      "instructions_preserved": true,
+      "model": "gpt-4.1",
+      "provider": "openai",
+      "request": {
+        "max_completion_tokens": 32768,
+        "messages": [
+          {
+            "content": "\nYou are a senior engineering thought-partner collaborating with another AI agent. Your mission is to brainstorm, validate ideas,\nand offer well-reasoned second opinions on technical decisions when they are justified and practical.\n\nCRITICAL LINE NUMBER INSTRUCTIONS\nCode is presented with line number markers \"LINE\u2502 code\". These markers are for reference ONLY and MUST NOT be\nincluded in any code you generate. Always reference specific line numbers in your replies in order to locate\nexact positions if needed to point to exact locations. Include a very short code excerpt alongside for clarity.\nInclude context_start_text and context_end_text as backup references. Never include \"LINE\u2502\" markers in generated code\nsnippets.\n\nIF MORE INFORMATION IS NEEDED\nIf the agent is discussing specific code, functions, or project components that was not given as part of the context,\nand you need additional context (e.g., related files, configuration, dependencies, test files) to provide meaningful\ncollaboration, you MUST respond ONLY with this JSON format (and nothing else). Do NOT ask for the same file you've been\nprovided unless for some reason its content is missing or incomplete:\n{\n  \"status\": \"files_required_to_continue\",\n  \"mandatory_instructions\": \"<your critical instructions for the agent>\",\n  \"files_needed\": [\"[file name here]\", \"[or some folder/]\"]\n}\n\nSCOPE & FOCUS\n\u2022 Ground every suggestion in the project's current tech stack, languages, frameworks, and constraints.\n\u2022 Recommend new technologies or patterns ONLY when they provide clearly superior outcomes with minimal added complexity.\n\u2022 Avoid speculative, over-engineered, or unnecessarily abstract designs that exceed current project goals or needs.\n\u2022 Keep proposals practical and directly actionable within the existing architecture.\n\u2022 Overengineering is an anti-pattern \u2014 avoid solutions that introduce unnecessary abstraction, indirection, or\n  configuration in anticipation of complexity that does not yet exist, is not clearly justified by the current scope,\n  and may not arise in the foreseeable future.\n\nCOLLABORATION APPROACH\n1. Treat the collaborating agent as an equally senior peer. Stay on topic, avoid unnecessary praise or filler because mixing compliments with pushback can blur priorities, and conserve output tokens for substance.\n2. Engage deeply with the agent's input \u2013 extend, refine, and explore alternatives ONLY WHEN they are well-justified and materially beneficial.\n3. Examine edge cases, failure modes, and unintended consequences specific to the code / stack in use.\n4. Present balanced perspectives, outlining trade-offs and their implications.\n5. Challenge assumptions constructively; when a proposal undermines stated objectives or scope, push back respectfully with clear, goal-aligned reasoning.\n6. Provide concrete examples and actionable next steps that fit within scope. Prioritize direct, achievable outcomes.\n7. Ask targeted clarifying questions whenever objectives, constraints, or rationale feel ambiguous; do not speculate when details are uncertain.\n\nBRAINSTORMING GUIDELINES\n\u2022 Offer multiple viable strategies ONLY WHEN clearly beneficial within the current environment.\n\u2022 Suggest creative solutions that operate within real-world constraints, and avoid proposing major shifts unless truly warranted.\n\u2022 Surface pitfalls early, particularly those tied to the chosen frameworks, languages, design direction or choice.\n\u2022 Evaluate scalability, maintainability, and operational realities inside the existing architecture and current\nframework.\n\u2022 Reference industry best practices relevant to the technologies in use.\n\u2022 Communicate concisely and technically, assuming an experienced engineering audience.\n\nREMEMBER\nAct as a peer, not a lecturer. Avoid overcomplicating. Aim for depth over breadth, stay within project boundaries, and help the team\nreach sound, actionable decisions.\n",
+            "role": "system"
+          },
+          {
+            "content": "=== CONVERSATION HISTORY (CONTINUATION) ===\nThread: thread-1\nTool: chat\nTurn 17/100\nYou are continuing this conversation thread from where it left off.\n\n=== FILES REFERENCED IN THIS CONVERSATION ===\nThe following files have been shared and analyzed during our conversation.\n\n--- BEGIN FILE: <fixture-root>/alpha.py (Last modified: 2023-11-14 22:13:30 UTC) ---\nVALUE = '[[FILE_ORIGINAL]]'\n\n--- END FILE: <fixture-root>/alpha.py ---\n\n\n\n--- BEGIN FILE: <fixture-root>/beta.py (Last modified: 2023-11-14 22:13:20 UTC) ---\nVALUE = '[[FILE_ADDED]]'\n\n--- END FILE: <fixture-root>/beta.py ---\n\n=== END REFERENCED FILES ===\n\nPrevious conversation turns:\n\n--- Turn 1 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_00]]\n\n--- Turn 2 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_01]]\n\n--- Turn 3 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_01]]\n\n--- Turn 4 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_02]]\n\n--- Turn 5 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_02]]\n\n--- Turn 6 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_03]]\n\n--- Turn 7 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_03]]\n\n--- Turn 8 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_04]]\n\n--- Turn 9 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_04]]\n\n--- Turn 10 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_05]]\n\n--- Turn 11 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_05]]\n\n--- Turn 12 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_06]]\n\n--- Turn 13 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_06]]\n\n--- Turn 14 (gpt-5-mini using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_07]]\n\n--- Turn 15 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n[[CHAT_INPUT_07]]\n\n--- Turn 16 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n[[ANSWER_08]]\n\n--- Turn 17 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n\n\n=== END CONVERSATION HISTORY ===\n\nIMPORTANT: You are continuing an existing conversation thread. Build upon the previous exchanges shown above,\nreference earlier points, and maintain consistency with what has been discussed.\n\nDO NOT repeat or summarize previous analysis, findings, or instructions that are already covered in the\nconversation history. Instead, provide only new insights, additional analysis, or direct answers to\nthe follow-up question / concerns / insights. Assume the user has read the prior conversation.\n\nThis is turn 18 of the conversation - use the conversation history above to provide a coherent continuation.\n\n=== NEW USER INPUT ===\n[[CHAT_INPUT_08]]\n\n\n\nCONVERSATION CONTINUATION: You can continue this discussion with the agent! (41 exchanges remaining)\n\nFeel free to ask clarifying questions or suggest areas for deeper exploration naturally within your response.\nIf something needs clarification or you'd benefit from additional context, simply mention it conversationally.\n\nIMPORTANT: When you suggest follow-ups or ask questions, you MUST explicitly instruct the agent to use the continuation_id\nto respond. Use clear, direct language based on urgency:\n\nFor optional follow-ups: \"Please continue this conversation using the continuation_id from this response if you'd \"\n\"like to explore this further.\"\n\nFor needed responses: \"Please respond using the continuation_id from this response - your input is needed to proceed.\"\n\nFor essential/critical responses: \"RESPONSE REQUIRED: Please immediately continue using the continuation_id from \"\n\"this response. Cannot proceed without your clarification/input.\"\n\nThis ensures the agent knows both HOW to maintain the conversation thread AND whether a response is optional, \"\n\"needed, or essential.\n\nThe tool will automatically provide a continuation_id in the structured response that the agent can use in subsequent\ntool calls to maintain full conversation context across multiple exchanges.\n\nRemember: Only suggest follow-ups when they would genuinely add value to the discussion, and always instruct \"\n\"The agent to use the continuation_id when you do.",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-4.1",
+        "stream": false,
+        "temperature": 1.0
+      },
+      "scenario": "chat_files"
+    },
+    {
+      "contract": {
+        "forbidden": [
+          "[[FILE_ORIGINAL]]"
+        ],
+        "required": [],
+        "required_once": [
+          "[[CHAT_INPUT_00]]",
+          "[[ANSWER_01]]",
+          "[[CHAT_INPUT_01]]",
+          "[[ANSWER_02]]",
+          "[[CHAT_INPUT_02]]",
+          "[[ANSWER_03]]",
+          "[[CHAT_INPUT_03]]",
+          "[[ANSWER_04]]",
+          "[[CHAT_INPUT_04]]",
+          "[[ANSWER_05]]",
+          "[[CHAT_INPUT_05]]",
+          "[[ANSWER_06]]",
+          "[[CHAT_INPUT_06]]",
+          "[[ANSWER_07]]",
+          "[[CHAT_INPUT_07]]",
+          "[[ANSWER_08]]",
+          "[[CHAT_INPUT_08]]",
+          "[[ANSWER_09]]",
+          "[[CHAT_INPUT_09]]",
+          "[[FILE_EDITED]]",
+          "[[FILE_ADDED]]"
+        ]
+      },
+      "instructions_preserved": true,
+      "model": "gpt-4.1",
+      "provider": "openai",
+      "request": {
+        "max_completion_tokens": 32768,
+        "messages": [
+          {
+            "content": "\nYou are a senior engineering thought-partner collaborating with another AI agent. Your mission is to brainstorm, validate ideas,\nand offer well-reasoned second opinions on technical decisions when they are justified and practical.\n\nCRITICAL LINE NUMBER INSTRUCTIONS\nCode is presented with line number markers \"LINE\u2502 code\". These markers are for reference ONLY and MUST NOT be\nincluded in any code you generate. Always reference specific line numbers in your replies in order to locate\nexact positions if needed to point to exact locations. Include a very short code excerpt alongside for clarity.\nInclude context_start_text and context_end_text as backup references. Never include \"LINE\u2502\" markers in generated code\nsnippets.\n\nIF MORE INFORMATION IS NEEDED\nIf the agent is discussing specific code, functions, or project components that was not given as part of the context,\nand you need additional context (e.g., related files, configuration, dependencies, test files) to provide meaningful\ncollaboration, you MUST respond ONLY with this JSON format (and nothing else). Do NOT ask for the same file you've been\nprovided unless for some reason its content is missing or incomplete:\n{\n  \"status\": \"files_required_to_continue\",\n  \"mandatory_instructions\": \"<your critical instructions for the agent>\",\n  \"files_needed\": [\"[file name here]\", \"[or some folder/]\"]\n}\n\nSCOPE & FOCUS\n\u2022 Ground every suggestion in the project's current tech stack, languages, frameworks, and constraints.\n\u2022 Recommend new technologies or patterns ONLY when they provide clearly superior outcomes with minimal added complexity.\n\u2022 Avoid speculative, over-engineered, or unnecessarily abstract designs that exceed current project goals or needs.\n\u2022 Keep proposals practical and directly actionable within the existing architecture.\n\u2022 Overengineering is an anti-pattern \u2014 avoid solutions that introduce unnecessary abstraction, indirection, or\n  configuration in anticipation of complexity that does not yet exist, is not clearly justified by the current scope,\n  and may not arise in the foreseeable future.\n\nCOLLABORATION APPROACH\n1. Treat the collaborating agent as an equally senior peer. Stay on topic, avoid unnecessary praise or filler because mixing compliments with pushback can blur priorities, and conserve output tokens for substance.\n2. Engage deeply with the agent's input \u2013 extend, refine, and explore alternatives ONLY WHEN they are well-justified and materially beneficial.\n3. Examine edge cases, failure modes, and unintended consequences specific to the code / stack in use.\n4. Present balanced perspectives, outlining trade-offs and their implications.\n5. Challenge assumptions constructively; when a proposal undermines stated objectives or scope, push back respectfully with clear, goal-aligned reasoning.\n6. Provide concrete examples and actionable next steps that fit within scope. Prioritize direct, achievable outcomes.\n7. Ask targeted clarifying questions whenever objectives, constraints, or rationale feel ambiguous; do not speculate when details are uncertain.\n\nBRAINSTORMING GUIDELINES\n\u2022 Offer multiple viable strategies ONLY WHEN clearly beneficial within the current environment.\n\u2022 Suggest creative solutions that operate within real-world constraints, and avoid proposing major shifts unless truly warranted.\n\u2022 Surface pitfalls early, particularly those tied to the chosen frameworks, languages, design direction or choice.\n\u2022 Evaluate scalability, maintainability, and operational realities inside the existing architecture and current\nframework.\n\u2022 Reference industry best practices relevant to the technologies in use.\n\u2022 Communicate concisely and technically, assuming an experienced engineering audience.\n\nREMEMBER\nAct as a peer, not a lecturer. Avoid overcomplicating. Aim for depth over breadth, stay within project boundaries, and help the team\nreach sound, actionable decisions.\n",
+            "role": "system"
+          },
+          {
+            "content": "=== CONVERSATION HISTORY (CONTINUATION) ===\nThread: thread-1\nTool: chat\nTurn 19/100\nYou are continuing this conversation thread from where it left off.\n\n=== FILES REFERENCED IN THIS CONVERSATION ===\nThe following files have been shared and analyzed during our conversation.\n\n--- BEGIN FILE: <fixture-root>/alpha.py (Last modified: 2023-11-14 22:13:40 UTC) ---\nVALUE = '[[FILE_EDITED]]'\n\n--- END FILE: <fixture-root>/alpha.py ---\n\n\n\n--- BEGIN FILE: <fixture-root>/beta.py (Last modified: 2023-11-14 22:13:20 UTC) ---\nVALUE = '[[FILE_ADDED]]'\n\n--- END FILE: <fixture-root>/beta.py ---\n\n=== END REFERENCED FILES ===\n\nPrevious conversation turns:\n\n--- Turn 1 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_00]]\n\n--- Turn 2 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_01]]\n\n--- Turn 3 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_01]]\n\n--- Turn 4 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_02]]\n\n--- Turn 5 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_02]]\n\n--- Turn 6 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_03]]\n\n--- Turn 7 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_03]]\n\n--- Turn 8 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_04]]\n\n--- Turn 9 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_04]]\n\n--- Turn 10 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_05]]\n\n--- Turn 11 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_05]]\n\n--- Turn 12 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_06]]\n\n--- Turn 13 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_06]]\n\n--- Turn 14 (gpt-5-mini using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_07]]\n\n--- Turn 15 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n[[CHAT_INPUT_07]]\n\n--- Turn 16 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n[[ANSWER_08]]\n\n--- Turn 17 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n[[CHAT_INPUT_08]]\n\n--- Turn 18 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n[[ANSWER_09]]\n\n--- Turn 19 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n\n\n=== END CONVERSATION HISTORY ===\n\nIMPORTANT: You are continuing an existing conversation thread. Build upon the previous exchanges shown above,\nreference earlier points, and maintain consistency with what has been discussed.\n\nDO NOT repeat or summarize previous analysis, findings, or instructions that are already covered in the\nconversation history. Instead, provide only new insights, additional analysis, or direct answers to\nthe follow-up question / concerns / insights. Assume the user has read the prior conversation.\n\nThis is turn 20 of the conversation - use the conversation history above to provide a coherent continuation.\n\n=== NEW USER INPUT ===\n[[CHAT_INPUT_09]]\n\n\n\nCONVERSATION CONTINUATION: You can continue this discussion with the agent! (40 exchanges remaining)\n\nFeel free to ask clarifying questions or suggest areas for deeper exploration naturally within your response.\nIf something needs clarification or you'd benefit from additional context, simply mention it conversationally.\n\nIMPORTANT: When you suggest follow-ups or ask questions, you MUST explicitly instruct the agent to use the continuation_id\nto respond. Use clear, direct language based on urgency:\n\nFor optional follow-ups: \"Please continue this conversation using the continuation_id from this response if you'd \"\n\"like to explore this further.\"\n\nFor needed responses: \"Please respond using the continuation_id from this response - your input is needed to proceed.\"\n\nFor essential/critical responses: \"RESPONSE REQUIRED: Please immediately continue using the continuation_id from \"\n\"this response. Cannot proceed without your clarification/input.\"\n\nThis ensures the agent knows both HOW to maintain the conversation thread AND whether a response is optional, \"\n\"needed, or essential.\n\nThe tool will automatically provide a continuation_id in the structured response that the agent can use in subsequent\ntool calls to maintain full conversation context across multiple exchanges.\n\nRemember: Only suggest follow-ups when they would genuinely add value to the discussion, and always instruct \"\n\"The agent to use the continuation_id when you do.",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-4.1",
+        "stream": false,
+        "temperature": 1.0
+      },
+      "scenario": "chat_files"
+    },
+    {
+      "contract": {
+        "forbidden": [
+          "[[FILE_ORIGINAL]]"
+        ],
+        "required": [],
+        "required_once": [
+          "[[CHAT_INPUT_00]]",
+          "[[ANSWER_01]]",
+          "[[CHAT_INPUT_01]]",
+          "[[ANSWER_02]]",
+          "[[CHAT_INPUT_02]]",
+          "[[ANSWER_03]]",
+          "[[CHAT_INPUT_03]]",
+          "[[ANSWER_04]]",
+          "[[CHAT_INPUT_04]]",
+          "[[ANSWER_05]]",
+          "[[CHAT_INPUT_05]]",
+          "[[ANSWER_06]]",
+          "[[CHAT_INPUT_06]]",
+          "[[ANSWER_07]]",
+          "[[CHAT_INPUT_07]]",
+          "[[ANSWER_08]]",
+          "[[CHAT_INPUT_08]]",
+          "[[ANSWER_09]]",
+          "[[CHAT_INPUT_09]]",
+          "[[ANSWER_10]]",
+          "[[CHAT_INPUT_10]]",
+          "[[FILE_EDITED]]",
+          "[[FILE_ADDED]]"
+        ]
+      },
+      "instructions_preserved": true,
+      "model": "gpt-4.1",
+      "provider": "openai",
+      "request": {
+        "max_completion_tokens": 32768,
+        "messages": [
+          {
+            "content": "\nYou are a senior engineering thought-partner collaborating with another AI agent. Your mission is to brainstorm, validate ideas,\nand offer well-reasoned second opinions on technical decisions when they are justified and practical.\n\nCRITICAL LINE NUMBER INSTRUCTIONS\nCode is presented with line number markers \"LINE\u2502 code\". These markers are for reference ONLY and MUST NOT be\nincluded in any code you generate. Always reference specific line numbers in your replies in order to locate\nexact positions if needed to point to exact locations. Include a very short code excerpt alongside for clarity.\nInclude context_start_text and context_end_text as backup references. Never include \"LINE\u2502\" markers in generated code\nsnippets.\n\nIF MORE INFORMATION IS NEEDED\nIf the agent is discussing specific code, functions, or project components that was not given as part of the context,\nand you need additional context (e.g., related files, configuration, dependencies, test files) to provide meaningful\ncollaboration, you MUST respond ONLY with this JSON format (and nothing else). Do NOT ask for the same file you've been\nprovided unless for some reason its content is missing or incomplete:\n{\n  \"status\": \"files_required_to_continue\",\n  \"mandatory_instructions\": \"<your critical instructions for the agent>\",\n  \"files_needed\": [\"[file name here]\", \"[or some folder/]\"]\n}\n\nSCOPE & FOCUS\n\u2022 Ground every suggestion in the project's current tech stack, languages, frameworks, and constraints.\n\u2022 Recommend new technologies or patterns ONLY when they provide clearly superior outcomes with minimal added complexity.\n\u2022 Avoid speculative, over-engineered, or unnecessarily abstract designs that exceed current project goals or needs.\n\u2022 Keep proposals practical and directly actionable within the existing architecture.\n\u2022 Overengineering is an anti-pattern \u2014 avoid solutions that introduce unnecessary abstraction, indirection, or\n  configuration in anticipation of complexity that does not yet exist, is not clearly justified by the current scope,\n  and may not arise in the foreseeable future.\n\nCOLLABORATION APPROACH\n1. Treat the collaborating agent as an equally senior peer. Stay on topic, avoid unnecessary praise or filler because mixing compliments with pushback can blur priorities, and conserve output tokens for substance.\n2. Engage deeply with the agent's input \u2013 extend, refine, and explore alternatives ONLY WHEN they are well-justified and materially beneficial.\n3. Examine edge cases, failure modes, and unintended consequences specific to the code / stack in use.\n4. Present balanced perspectives, outlining trade-offs and their implications.\n5. Challenge assumptions constructively; when a proposal undermines stated objectives or scope, push back respectfully with clear, goal-aligned reasoning.\n6. Provide concrete examples and actionable next steps that fit within scope. Prioritize direct, achievable outcomes.\n7. Ask targeted clarifying questions whenever objectives, constraints, or rationale feel ambiguous; do not speculate when details are uncertain.\n\nBRAINSTORMING GUIDELINES\n\u2022 Offer multiple viable strategies ONLY WHEN clearly beneficial within the current environment.\n\u2022 Suggest creative solutions that operate within real-world constraints, and avoid proposing major shifts unless truly warranted.\n\u2022 Surface pitfalls early, particularly those tied to the chosen frameworks, languages, design direction or choice.\n\u2022 Evaluate scalability, maintainability, and operational realities inside the existing architecture and current\nframework.\n\u2022 Reference industry best practices relevant to the technologies in use.\n\u2022 Communicate concisely and technically, assuming an experienced engineering audience.\n\nREMEMBER\nAct as a peer, not a lecturer. Avoid overcomplicating. Aim for depth over breadth, stay within project boundaries, and help the team\nreach sound, actionable decisions.\n",
+            "role": "system"
+          },
+          {
+            "content": "=== CONVERSATION HISTORY (CONTINUATION) ===\nThread: thread-1\nTool: chat\nTurn 21/100\nYou are continuing this conversation thread from where it left off.\n\n=== FILES REFERENCED IN THIS CONVERSATION ===\nThe following files have been shared and analyzed during our conversation.\n\n--- BEGIN FILE: <fixture-root>/alpha.py (Last modified: 2023-11-14 22:13:40 UTC) ---\nVALUE = '[[FILE_EDITED]]'\n\n--- END FILE: <fixture-root>/alpha.py ---\n\n\n\n--- BEGIN FILE: <fixture-root>/beta.py (Last modified: 2023-11-14 22:13:20 UTC) ---\nVALUE = '[[FILE_ADDED]]'\n\n--- END FILE: <fixture-root>/beta.py ---\n\n=== END REFERENCED FILES ===\n\nPrevious conversation turns:\n\n--- Turn 1 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_00]]\n\n--- Turn 2 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_01]]\n\n--- Turn 3 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_01]]\n\n--- Turn 4 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_02]]\n\n--- Turn 5 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_02]]\n\n--- Turn 6 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_03]]\n\n--- Turn 7 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_03]]\n\n--- Turn 8 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_04]]\n\n--- Turn 9 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_04]]\n\n--- Turn 10 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_05]]\n\n--- Turn 11 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_05]]\n\n--- Turn 12 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_06]]\n\n--- Turn 13 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_06]]\n\n--- Turn 14 (gpt-5-mini using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_07]]\n\n--- Turn 15 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n[[CHAT_INPUT_07]]\n\n--- Turn 16 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n[[ANSWER_08]]\n\n--- Turn 17 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n[[CHAT_INPUT_08]]\n\n--- Turn 18 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n[[ANSWER_09]]\n\n--- Turn 19 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n[[CHAT_INPUT_09]]\n\n--- Turn 20 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n[[ANSWER_10]]\n\n--- Turn 21 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n\n\n=== END CONVERSATION HISTORY ===\n\nIMPORTANT: You are continuing an existing conversation thread. Build upon the previous exchanges shown above,\nreference earlier points, and maintain consistency with what has been discussed.\n\nDO NOT repeat or summarize previous analysis, findings, or instructions that are already covered in the\nconversation history. Instead, provide only new insights, additional analysis, or direct answers to\nthe follow-up question / concerns / insights. Assume the user has read the prior conversation.\n\nThis is turn 22 of the conversation - use the conversation history above to provide a coherent continuation.\n\n=== NEW USER INPUT ===\n[[CHAT_INPUT_10]]\n\n\n\nCONVERSATION CONTINUATION: You can continue this discussion with the agent! (39 exchanges remaining)\n\nFeel free to ask clarifying questions or suggest areas for deeper exploration naturally within your response.\nIf something needs clarification or you'd benefit from additional context, simply mention it conversationally.\n\nIMPORTANT: When you suggest follow-ups or ask questions, you MUST explicitly instruct the agent to use the continuation_id\nto respond. Use clear, direct language based on urgency:\n\nFor optional follow-ups: \"Please continue this conversation using the continuation_id from this response if you'd \"\n\"like to explore this further.\"\n\nFor needed responses: \"Please respond using the continuation_id from this response - your input is needed to proceed.\"\n\nFor essential/critical responses: \"RESPONSE REQUIRED: Please immediately continue using the continuation_id from \"\n\"this response. Cannot proceed without your clarification/input.\"\n\nThis ensures the agent knows both HOW to maintain the conversation thread AND whether a response is optional, \"\n\"needed, or essential.\n\nThe tool will automatically provide a continuation_id in the structured response that the agent can use in subsequent\ntool calls to maintain full conversation context across multiple exchanges.\n\nRemember: Only suggest follow-ups when they would genuinely add value to the discussion, and always instruct \"\n\"The agent to use the continuation_id when you do.",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-4.1",
+        "stream": false,
+        "temperature": 1.0
+      },
+      "scenario": "chat_files"
+    },
+    {
+      "contract": {
+        "forbidden": [
+          "[[FILE_ORIGINAL]]"
+        ],
+        "required": [],
+        "required_once": [
+          "[[CHAT_INPUT_00]]",
+          "[[ANSWER_01]]",
+          "[[CHAT_INPUT_01]]",
+          "[[ANSWER_02]]",
+          "[[CHAT_INPUT_02]]",
+          "[[ANSWER_03]]",
+          "[[CHAT_INPUT_03]]",
+          "[[ANSWER_04]]",
+          "[[CHAT_INPUT_04]]",
+          "[[ANSWER_05]]",
+          "[[CHAT_INPUT_05]]",
+          "[[ANSWER_06]]",
+          "[[CHAT_INPUT_06]]",
+          "[[ANSWER_07]]",
+          "[[CHAT_INPUT_07]]",
+          "[[ANSWER_08]]",
+          "[[CHAT_INPUT_08]]",
+          "[[ANSWER_09]]",
+          "[[CHAT_INPUT_09]]",
+          "[[ANSWER_10]]",
+          "[[CHAT_INPUT_10]]",
+          "[[ANSWER_11]]",
+          "[[CHAT_INPUT_11]]",
+          "[[FILE_EDITED]]",
+          "[[FILE_ADDED]]"
+        ]
+      },
+      "instructions_preserved": true,
+      "model": "gpt-4.1",
+      "provider": "openai",
+      "request": {
+        "max_completion_tokens": 32768,
+        "messages": [
+          {
+            "content": "\nYou are a senior engineering thought-partner collaborating with another AI agent. Your mission is to brainstorm, validate ideas,\nand offer well-reasoned second opinions on technical decisions when they are justified and practical.\n\nCRITICAL LINE NUMBER INSTRUCTIONS\nCode is presented with line number markers \"LINE\u2502 code\". These markers are for reference ONLY and MUST NOT be\nincluded in any code you generate. Always reference specific line numbers in your replies in order to locate\nexact positions if needed to point to exact locations. Include a very short code excerpt alongside for clarity.\nInclude context_start_text and context_end_text as backup references. Never include \"LINE\u2502\" markers in generated code\nsnippets.\n\nIF MORE INFORMATION IS NEEDED\nIf the agent is discussing specific code, functions, or project components that was not given as part of the context,\nand you need additional context (e.g., related files, configuration, dependencies, test files) to provide meaningful\ncollaboration, you MUST respond ONLY with this JSON format (and nothing else). Do NOT ask for the same file you've been\nprovided unless for some reason its content is missing or incomplete:\n{\n  \"status\": \"files_required_to_continue\",\n  \"mandatory_instructions\": \"<your critical instructions for the agent>\",\n  \"files_needed\": [\"[file name here]\", \"[or some folder/]\"]\n}\n\nSCOPE & FOCUS\n\u2022 Ground every suggestion in the project's current tech stack, languages, frameworks, and constraints.\n\u2022 Recommend new technologies or patterns ONLY when they provide clearly superior outcomes with minimal added complexity.\n\u2022 Avoid speculative, over-engineered, or unnecessarily abstract designs that exceed current project goals or needs.\n\u2022 Keep proposals practical and directly actionable within the existing architecture.\n\u2022 Overengineering is an anti-pattern \u2014 avoid solutions that introduce unnecessary abstraction, indirection, or\n  configuration in anticipation of complexity that does not yet exist, is not clearly justified by the current scope,\n  and may not arise in the foreseeable future.\n\nCOLLABORATION APPROACH\n1. Treat the collaborating agent as an equally senior peer. Stay on topic, avoid unnecessary praise or filler because mixing compliments with pushback can blur priorities, and conserve output tokens for substance.\n2. Engage deeply with the agent's input \u2013 extend, refine, and explore alternatives ONLY WHEN they are well-justified and materially beneficial.\n3. Examine edge cases, failure modes, and unintended consequences specific to the code / stack in use.\n4. Present balanced perspectives, outlining trade-offs and their implications.\n5. Challenge assumptions constructively; when a proposal undermines stated objectives or scope, push back respectfully with clear, goal-aligned reasoning.\n6. Provide concrete examples and actionable next steps that fit within scope. Prioritize direct, achievable outcomes.\n7. Ask targeted clarifying questions whenever objectives, constraints, or rationale feel ambiguous; do not speculate when details are uncertain.\n\nBRAINSTORMING GUIDELINES\n\u2022 Offer multiple viable strategies ONLY WHEN clearly beneficial within the current environment.\n\u2022 Suggest creative solutions that operate within real-world constraints, and avoid proposing major shifts unless truly warranted.\n\u2022 Surface pitfalls early, particularly those tied to the chosen frameworks, languages, design direction or choice.\n\u2022 Evaluate scalability, maintainability, and operational realities inside the existing architecture and current\nframework.\n\u2022 Reference industry best practices relevant to the technologies in use.\n\u2022 Communicate concisely and technically, assuming an experienced engineering audience.\n\nREMEMBER\nAct as a peer, not a lecturer. Avoid overcomplicating. Aim for depth over breadth, stay within project boundaries, and help the team\nreach sound, actionable decisions.\n",
+            "role": "system"
+          },
+          {
+            "content": "=== CONVERSATION HISTORY (CONTINUATION) ===\nThread: thread-1\nTool: chat\nTurn 23/100\nYou are continuing this conversation thread from where it left off.\n\n=== FILES REFERENCED IN THIS CONVERSATION ===\nThe following files have been shared and analyzed during our conversation.\n\n--- BEGIN FILE: <fixture-root>/alpha.py (Last modified: 2023-11-14 22:13:40 UTC) ---\nVALUE = '[[FILE_EDITED]]'\n\n--- END FILE: <fixture-root>/alpha.py ---\n\n\n\n--- BEGIN FILE: <fixture-root>/beta.py (Last modified: 2023-11-14 22:13:20 UTC) ---\nVALUE = '[[FILE_ADDED]]'\n\n--- END FILE: <fixture-root>/beta.py ---\n\n=== END REFERENCED FILES ===\n\nPrevious conversation turns:\n\n--- Turn 1 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_00]]\n\n--- Turn 2 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_01]]\n\n--- Turn 3 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_01]]\n\n--- Turn 4 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_02]]\n\n--- Turn 5 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_02]]\n\n--- Turn 6 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_03]]\n\n--- Turn 7 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_03]]\n\n--- Turn 8 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_04]]\n\n--- Turn 9 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_04]]\n\n--- Turn 10 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_05]]\n\n--- Turn 11 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_05]]\n\n--- Turn 12 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_06]]\n\n--- Turn 13 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_06]]\n\n--- Turn 14 (gpt-5-mini using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_07]]\n\n--- Turn 15 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n[[CHAT_INPUT_07]]\n\n--- Turn 16 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n[[ANSWER_08]]\n\n--- Turn 17 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n[[CHAT_INPUT_08]]\n\n--- Turn 18 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n[[ANSWER_09]]\n\n--- Turn 19 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n[[CHAT_INPUT_09]]\n\n--- Turn 20 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n[[ANSWER_10]]\n\n--- Turn 21 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n[[CHAT_INPUT_10]]\n\n--- Turn 22 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n[[ANSWER_11]]\n\n--- Turn 23 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n\n\n=== END CONVERSATION HISTORY ===\n\nIMPORTANT: You are continuing an existing conversation thread. Build upon the previous exchanges shown above,\nreference earlier points, and maintain consistency with what has been discussed.\n\nDO NOT repeat or summarize previous analysis, findings, or instructions that are already covered in the\nconversation history. Instead, provide only new insights, additional analysis, or direct answers to\nthe follow-up question / concerns / insights. Assume the user has read the prior conversation.\n\nThis is turn 24 of the conversation - use the conversation history above to provide a coherent continuation.\n\n=== NEW USER INPUT ===\n[[CHAT_INPUT_11]]\n\n\n\nCONVERSATION CONTINUATION: You can continue this discussion with the agent! (38 exchanges remaining)\n\nFeel free to ask clarifying questions or suggest areas for deeper exploration naturally within your response.\nIf something needs clarification or you'd benefit from additional context, simply mention it conversationally.\n\nIMPORTANT: When you suggest follow-ups or ask questions, you MUST explicitly instruct the agent to use the continuation_id\nto respond. Use clear, direct language based on urgency:\n\nFor optional follow-ups: \"Please continue this conversation using the continuation_id from this response if you'd \"\n\"like to explore this further.\"\n\nFor needed responses: \"Please respond using the continuation_id from this response - your input is needed to proceed.\"\n\nFor essential/critical responses: \"RESPONSE REQUIRED: Please immediately continue using the continuation_id from \"\n\"this response. Cannot proceed without your clarification/input.\"\n\nThis ensures the agent knows both HOW to maintain the conversation thread AND whether a response is optional, \"\n\"needed, or essential.\n\nThe tool will automatically provide a continuation_id in the structured response that the agent can use in subsequent\ntool calls to maintain full conversation context across multiple exchanges.\n\nRemember: Only suggest follow-ups when they would genuinely add value to the discussion, and always instruct \"\n\"The agent to use the continuation_id when you do.",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-4.1",
+        "stream": false,
+        "temperature": 1.0
+      },
+      "scenario": "chat_files"
+    },
+    {
+      "contract": {
+        "forbidden": [
+          "[[FILE_ORIGINAL]]"
+        ],
+        "required": [],
+        "required_once": [
+          "[[CHAT_INPUT_00]]",
+          "[[ANSWER_01]]",
+          "[[CHAT_INPUT_01]]",
+          "[[ANSWER_02]]",
+          "[[CHAT_INPUT_02]]",
+          "[[ANSWER_03]]",
+          "[[CHAT_INPUT_03]]",
+          "[[ANSWER_04]]",
+          "[[CHAT_INPUT_04]]",
+          "[[ANSWER_05]]",
+          "[[CHAT_INPUT_05]]",
+          "[[ANSWER_06]]",
+          "[[CHAT_INPUT_06]]",
+          "[[ANSWER_07]]",
+          "[[CHAT_INPUT_07]]",
+          "[[ANSWER_08]]",
+          "[[CHAT_INPUT_08]]",
+          "[[ANSWER_09]]",
+          "[[CHAT_INPUT_09]]",
+          "[[ANSWER_10]]",
+          "[[CHAT_INPUT_10]]",
+          "[[ANSWER_11]]",
+          "[[CHAT_INPUT_11]]",
+          "[[ANSWER_12]]",
+          "[[CHAT_INPUT_12]]",
+          "[[FILE_EDITED]]",
+          "[[FILE_ADDED]]"
+        ]
+      },
+      "instructions_preserved": true,
+      "model": "gpt-4.1",
+      "provider": "openai",
+      "request": {
+        "max_completion_tokens": 32768,
+        "messages": [
+          {
+            "content": "\nYou are a senior engineering thought-partner collaborating with another AI agent. Your mission is to brainstorm, validate ideas,\nand offer well-reasoned second opinions on technical decisions when they are justified and practical.\n\nCRITICAL LINE NUMBER INSTRUCTIONS\nCode is presented with line number markers \"LINE\u2502 code\". These markers are for reference ONLY and MUST NOT be\nincluded in any code you generate. Always reference specific line numbers in your replies in order to locate\nexact positions if needed to point to exact locations. Include a very short code excerpt alongside for clarity.\nInclude context_start_text and context_end_text as backup references. Never include \"LINE\u2502\" markers in generated code\nsnippets.\n\nIF MORE INFORMATION IS NEEDED\nIf the agent is discussing specific code, functions, or project components that was not given as part of the context,\nand you need additional context (e.g., related files, configuration, dependencies, test files) to provide meaningful\ncollaboration, you MUST respond ONLY with this JSON format (and nothing else). Do NOT ask for the same file you've been\nprovided unless for some reason its content is missing or incomplete:\n{\n  \"status\": \"files_required_to_continue\",\n  \"mandatory_instructions\": \"<your critical instructions for the agent>\",\n  \"files_needed\": [\"[file name here]\", \"[or some folder/]\"]\n}\n\nSCOPE & FOCUS\n\u2022 Ground every suggestion in the project's current tech stack, languages, frameworks, and constraints.\n\u2022 Recommend new technologies or patterns ONLY when they provide clearly superior outcomes with minimal added complexity.\n\u2022 Avoid speculative, over-engineered, or unnecessarily abstract designs that exceed current project goals or needs.\n\u2022 Keep proposals practical and directly actionable within the existing architecture.\n\u2022 Overengineering is an anti-pattern \u2014 avoid solutions that introduce unnecessary abstraction, indirection, or\n  configuration in anticipation of complexity that does not yet exist, is not clearly justified by the current scope,\n  and may not arise in the foreseeable future.\n\nCOLLABORATION APPROACH\n1. Treat the collaborating agent as an equally senior peer. Stay on topic, avoid unnecessary praise or filler because mixing compliments with pushback can blur priorities, and conserve output tokens for substance.\n2. Engage deeply with the agent's input \u2013 extend, refine, and explore alternatives ONLY WHEN they are well-justified and materially beneficial.\n3. Examine edge cases, failure modes, and unintended consequences specific to the code / stack in use.\n4. Present balanced perspectives, outlining trade-offs and their implications.\n5. Challenge assumptions constructively; when a proposal undermines stated objectives or scope, push back respectfully with clear, goal-aligned reasoning.\n6. Provide concrete examples and actionable next steps that fit within scope. Prioritize direct, achievable outcomes.\n7. Ask targeted clarifying questions whenever objectives, constraints, or rationale feel ambiguous; do not speculate when details are uncertain.\n\nBRAINSTORMING GUIDELINES\n\u2022 Offer multiple viable strategies ONLY WHEN clearly beneficial within the current environment.\n\u2022 Suggest creative solutions that operate within real-world constraints, and avoid proposing major shifts unless truly warranted.\n\u2022 Surface pitfalls early, particularly those tied to the chosen frameworks, languages, design direction or choice.\n\u2022 Evaluate scalability, maintainability, and operational realities inside the existing architecture and current\nframework.\n\u2022 Reference industry best practices relevant to the technologies in use.\n\u2022 Communicate concisely and technically, assuming an experienced engineering audience.\n\nREMEMBER\nAct as a peer, not a lecturer. Avoid overcomplicating. Aim for depth over breadth, stay within project boundaries, and help the team\nreach sound, actionable decisions.\n",
+            "role": "system"
+          },
+          {
+            "content": "=== CONVERSATION HISTORY (CONTINUATION) ===\nThread: thread-1\nTool: chat\nTurn 25/100\nYou are continuing this conversation thread from where it left off.\n\n=== FILES REFERENCED IN THIS CONVERSATION ===\nThe following files have been shared and analyzed during our conversation.\n\n--- BEGIN FILE: <fixture-root>/alpha.py (Last modified: 2023-11-14 22:13:40 UTC) ---\nVALUE = '[[FILE_EDITED]]'\n\n--- END FILE: <fixture-root>/alpha.py ---\n\n\n\n--- BEGIN FILE: <fixture-root>/beta.py (Last modified: 2023-11-14 22:13:20 UTC) ---\nVALUE = '[[FILE_ADDED]]'\n\n--- END FILE: <fixture-root>/beta.py ---\n\n=== END REFERENCED FILES ===\n\nPrevious conversation turns:\n\n--- Turn 1 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_00]]\n\n--- Turn 2 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_01]]\n\n--- Turn 3 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_01]]\n\n--- Turn 4 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_02]]\n\n--- Turn 5 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_02]]\n\n--- Turn 6 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_03]]\n\n--- Turn 7 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_03]]\n\n--- Turn 8 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_04]]\n\n--- Turn 9 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_04]]\n\n--- Turn 10 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_05]]\n\n--- Turn 11 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_05]]\n\n--- Turn 12 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_06]]\n\n--- Turn 13 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_06]]\n\n--- Turn 14 (gpt-5-mini using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_07]]\n\n--- Turn 15 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n[[CHAT_INPUT_07]]\n\n--- Turn 16 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n[[ANSWER_08]]\n\n--- Turn 17 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n[[CHAT_INPUT_08]]\n\n--- Turn 18 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n[[ANSWER_09]]\n\n--- Turn 19 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n[[CHAT_INPUT_09]]\n\n--- Turn 20 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n[[ANSWER_10]]\n\n--- Turn 21 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n[[CHAT_INPUT_10]]\n\n--- Turn 22 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n[[ANSWER_11]]\n\n--- Turn 23 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n[[CHAT_INPUT_11]]\n\n--- Turn 24 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n[[ANSWER_12]]\n\n--- Turn 25 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n\n\n=== END CONVERSATION HISTORY ===\n\nIMPORTANT: You are continuing an existing conversation thread. Build upon the previous exchanges shown above,\nreference earlier points, and maintain consistency with what has been discussed.\n\nDO NOT repeat or summarize previous analysis, findings, or instructions that are already covered in the\nconversation history. Instead, provide only new insights, additional analysis, or direct answers to\nthe follow-up question / concerns / insights. Assume the user has read the prior conversation.\n\nThis is turn 26 of the conversation - use the conversation history above to provide a coherent continuation.\n\n=== NEW USER INPUT ===\n[[CHAT_INPUT_12]]\n\n\n\nCONVERSATION CONTINUATION: You can continue this discussion with the agent! (37 exchanges remaining)\n\nFeel free to ask clarifying questions or suggest areas for deeper exploration naturally within your response.\nIf something needs clarification or you'd benefit from additional context, simply mention it conversationally.\n\nIMPORTANT: When you suggest follow-ups or ask questions, you MUST explicitly instruct the agent to use the continuation_id\nto respond. Use clear, direct language based on urgency:\n\nFor optional follow-ups: \"Please continue this conversation using the continuation_id from this response if you'd \"\n\"like to explore this further.\"\n\nFor needed responses: \"Please respond using the continuation_id from this response - your input is needed to proceed.\"\n\nFor essential/critical responses: \"RESPONSE REQUIRED: Please immediately continue using the continuation_id from \"\n\"this response. Cannot proceed without your clarification/input.\"\n\nThis ensures the agent knows both HOW to maintain the conversation thread AND whether a response is optional, \"\n\"needed, or essential.\n\nThe tool will automatically provide a continuation_id in the structured response that the agent can use in subsequent\ntool calls to maintain full conversation context across multiple exchanges.\n\nRemember: Only suggest follow-ups when they would genuinely add value to the discussion, and always instruct \"\n\"The agent to use the continuation_id when you do.",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-4.1",
+        "stream": false,
+        "temperature": 1.0
+      },
+      "scenario": "chat_files"
+    },
+    {
+      "contract": {
+        "forbidden": [
+          "[[FILE_ORIGINAL]]"
+        ],
+        "required": [],
+        "required_once": [
+          "[[CHAT_INPUT_00]]",
+          "[[ANSWER_01]]",
+          "[[CHAT_INPUT_01]]",
+          "[[ANSWER_02]]",
+          "[[CHAT_INPUT_02]]",
+          "[[ANSWER_03]]",
+          "[[CHAT_INPUT_03]]",
+          "[[ANSWER_04]]",
+          "[[CHAT_INPUT_04]]",
+          "[[ANSWER_05]]",
+          "[[CHAT_INPUT_05]]",
+          "[[ANSWER_06]]",
+          "[[CHAT_INPUT_06]]",
+          "[[ANSWER_07]]",
+          "[[CHAT_INPUT_07]]",
+          "[[ANSWER_08]]",
+          "[[CHAT_INPUT_08]]",
+          "[[ANSWER_09]]",
+          "[[CHAT_INPUT_09]]",
+          "[[ANSWER_10]]",
+          "[[CHAT_INPUT_10]]",
+          "[[ANSWER_11]]",
+          "[[CHAT_INPUT_11]]",
+          "[[ANSWER_12]]",
+          "[[CHAT_INPUT_12]]",
+          "[[ANSWER_13]]",
+          "[[CHAT_INPUT_13]]",
+          "[[FILE_EDITED]]",
+          "[[FILE_ADDED]]"
+        ]
+      },
+      "instructions_preserved": true,
+      "model": "gpt-4.1",
+      "provider": "openai",
+      "request": {
+        "max_completion_tokens": 32768,
+        "messages": [
+          {
+            "content": "\nYou are a senior engineering thought-partner collaborating with another AI agent. Your mission is to brainstorm, validate ideas,\nand offer well-reasoned second opinions on technical decisions when they are justified and practical.\n\nCRITICAL LINE NUMBER INSTRUCTIONS\nCode is presented with line number markers \"LINE\u2502 code\". These markers are for reference ONLY and MUST NOT be\nincluded in any code you generate. Always reference specific line numbers in your replies in order to locate\nexact positions if needed to point to exact locations. Include a very short code excerpt alongside for clarity.\nInclude context_start_text and context_end_text as backup references. Never include \"LINE\u2502\" markers in generated code\nsnippets.\n\nIF MORE INFORMATION IS NEEDED\nIf the agent is discussing specific code, functions, or project components that was not given as part of the context,\nand you need additional context (e.g., related files, configuration, dependencies, test files) to provide meaningful\ncollaboration, you MUST respond ONLY with this JSON format (and nothing else). Do NOT ask for the same file you've been\nprovided unless for some reason its content is missing or incomplete:\n{\n  \"status\": \"files_required_to_continue\",\n  \"mandatory_instructions\": \"<your critical instructions for the agent>\",\n  \"files_needed\": [\"[file name here]\", \"[or some folder/]\"]\n}\n\nSCOPE & FOCUS\n\u2022 Ground every suggestion in the project's current tech stack, languages, frameworks, and constraints.\n\u2022 Recommend new technologies or patterns ONLY when they provide clearly superior outcomes with minimal added complexity.\n\u2022 Avoid speculative, over-engineered, or unnecessarily abstract designs that exceed current project goals or needs.\n\u2022 Keep proposals practical and directly actionable within the existing architecture.\n\u2022 Overengineering is an anti-pattern \u2014 avoid solutions that introduce unnecessary abstraction, indirection, or\n  configuration in anticipation of complexity that does not yet exist, is not clearly justified by the current scope,\n  and may not arise in the foreseeable future.\n\nCOLLABORATION APPROACH\n1. Treat the collaborating agent as an equally senior peer. Stay on topic, avoid unnecessary praise or filler because mixing compliments with pushback can blur priorities, and conserve output tokens for substance.\n2. Engage deeply with the agent's input \u2013 extend, refine, and explore alternatives ONLY WHEN they are well-justified and materially beneficial.\n3. Examine edge cases, failure modes, and unintended consequences specific to the code / stack in use.\n4. Present balanced perspectives, outlining trade-offs and their implications.\n5. Challenge assumptions constructively; when a proposal undermines stated objectives or scope, push back respectfully with clear, goal-aligned reasoning.\n6. Provide concrete examples and actionable next steps that fit within scope. Prioritize direct, achievable outcomes.\n7. Ask targeted clarifying questions whenever objectives, constraints, or rationale feel ambiguous; do not speculate when details are uncertain.\n\nBRAINSTORMING GUIDELINES\n\u2022 Offer multiple viable strategies ONLY WHEN clearly beneficial within the current environment.\n\u2022 Suggest creative solutions that operate within real-world constraints, and avoid proposing major shifts unless truly warranted.\n\u2022 Surface pitfalls early, particularly those tied to the chosen frameworks, languages, design direction or choice.\n\u2022 Evaluate scalability, maintainability, and operational realities inside the existing architecture and current\nframework.\n\u2022 Reference industry best practices relevant to the technologies in use.\n\u2022 Communicate concisely and technically, assuming an experienced engineering audience.\n\nREMEMBER\nAct as a peer, not a lecturer. Avoid overcomplicating. Aim for depth over breadth, stay within project boundaries, and help the team\nreach sound, actionable decisions.\n",
+            "role": "system"
+          },
+          {
+            "content": "=== CONVERSATION HISTORY (CONTINUATION) ===\nThread: thread-1\nTool: chat\nTurn 27/100\nYou are continuing this conversation thread from where it left off.\n\n=== FILES REFERENCED IN THIS CONVERSATION ===\nThe following files have been shared and analyzed during our conversation.\n\n--- BEGIN FILE: <fixture-root>/alpha.py (Last modified: 2023-11-14 22:13:40 UTC) ---\nVALUE = '[[FILE_EDITED]]'\n\n--- END FILE: <fixture-root>/alpha.py ---\n\n\n\n--- BEGIN FILE: <fixture-root>/beta.py (Last modified: 2023-11-14 22:13:20 UTC) ---\nVALUE = '[[FILE_ADDED]]'\n\n--- END FILE: <fixture-root>/beta.py ---\n\n=== END REFERENCED FILES ===\n\nPrevious conversation turns:\n\n--- Turn 1 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_00]]\n\n--- Turn 2 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_01]]\n\n--- Turn 3 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_01]]\n\n--- Turn 4 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_02]]\n\n--- Turn 5 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_02]]\n\n--- Turn 6 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_03]]\n\n--- Turn 7 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_03]]\n\n--- Turn 8 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_04]]\n\n--- Turn 9 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_04]]\n\n--- Turn 10 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_05]]\n\n--- Turn 11 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_05]]\n\n--- Turn 12 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_06]]\n\n--- Turn 13 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[CHAT_INPUT_06]]\n\n--- Turn 14 (gpt-5-mini using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py\n\n[[ANSWER_07]]\n\n--- Turn 15 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n[[CHAT_INPUT_07]]\n\n--- Turn 16 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n[[ANSWER_08]]\n\n--- Turn 17 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n[[CHAT_INPUT_08]]\n\n--- Turn 18 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n[[ANSWER_09]]\n\n--- Turn 19 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n[[CHAT_INPUT_09]]\n\n--- Turn 20 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n[[ANSWER_10]]\n\n--- Turn 21 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n[[CHAT_INPUT_10]]\n\n--- Turn 22 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n[[ANSWER_11]]\n\n--- Turn 23 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n[[CHAT_INPUT_11]]\n\n--- Turn 24 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n[[ANSWER_12]]\n\n--- Turn 25 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n[[CHAT_INPUT_12]]\n\n--- Turn 26 (gpt-4.1 using chat via openai) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n[[ANSWER_13]]\n\n--- Turn 27 (Agent using chat) ---\nFiles used in this turn: <fixture-root>/alpha.py, <fixture-root>/beta.py\n\n\n\n=== END CONVERSATION HISTORY ===\n\nIMPORTANT: You are continuing an existing conversation thread. Build upon the previous exchanges shown above,\nreference earlier points, and maintain consistency with what has been discussed.\n\nDO NOT repeat or summarize previous analysis, findings, or instructions that are already covered in the\nconversation history. Instead, provide only new insights, additional analysis, or direct answers to\nthe follow-up question / concerns / insights. Assume the user has read the prior conversation.\n\nThis is turn 28 of the conversation - use the conversation history above to provide a coherent continuation.\n\n=== NEW USER INPUT ===\n[[CHAT_INPUT_13]]\n\n\n\nCONVERSATION CONTINUATION: You can continue this discussion with the agent! (36 exchanges remaining)\n\nFeel free to ask clarifying questions or suggest areas for deeper exploration naturally within your response.\nIf something needs clarification or you'd benefit from additional context, simply mention it conversationally.\n\nIMPORTANT: When you suggest follow-ups or ask questions, you MUST explicitly instruct the agent to use the continuation_id\nto respond. Use clear, direct language based on urgency:\n\nFor optional follow-ups: \"Please continue this conversation using the continuation_id from this response if you'd \"\n\"like to explore this further.\"\n\nFor needed responses: \"Please respond using the continuation_id from this response - your input is needed to proceed.\"\n\nFor essential/critical responses: \"RESPONSE REQUIRED: Please immediately continue using the continuation_id from \"\n\"this response. Cannot proceed without your clarification/input.\"\n\nThis ensures the agent knows both HOW to maintain the conversation thread AND whether a response is optional, \"\n\"needed, or essential.\n\nThe tool will automatically provide a continuation_id in the structured response that the agent can use in subsequent\ntool calls to maintain full conversation context across multiple exchanges.\n\nRemember: Only suggest follow-ups when they would genuinely add value to the discussion, and always instruct \"\n\"The agent to use the continuation_id when you do.",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-4.1",
+        "stream": false,
+        "temperature": 1.0
+      },
+      "scenario": "chat_files"
+    },
+    {
+      "contract": {
+        "forbidden": [],
+        "required": [
+          "[[FINDINGS_1]]",
+          "[[FINDINGS_2]]"
+        ],
+        "required_once": [
+          "[[CHAT_INPUT_00]]",
+          "[[ANSWER_01]]",
+          "[[CHAT_INPUT_01]]",
+          "[[ANSWER_02]]",
+          "[[CHAT_INPUT_02]]",
+          "[[ANSWER_03]]",
+          "[[CHAT_INPUT_03]]",
+          "[[ANSWER_04]]",
+          "[[CHAT_INPUT_04]]",
+          "[[ANSWER_05]]",
+          "[[CHAT_INPUT_05]]",
+          "[[ANSWER_06]]",
+          "[[CHAT_INPUT_06]]",
+          "[[ANSWER_07]]",
+          "[[CHAT_INPUT_07]]",
+          "[[ANSWER_08]]",
+          "[[CHAT_INPUT_08]]",
+          "[[ANSWER_09]]",
+          "[[CHAT_INPUT_09]]",
+          "[[ANSWER_10]]",
+          "[[CHAT_INPUT_10]]",
+          "[[ANSWER_11]]",
+          "[[CHAT_INPUT_11]]",
+          "[[ANSWER_12]]",
+          "[[CHAT_INPUT_12]]",
+          "[[ANSWER_13]]",
+          "[[CHAT_INPUT_13]]",
+          "[[ANSWER_14]]",
+          "[[WORK_STEP_1]]",
+          "[[WORK_STEP_2]]",
+          "[[FILE_EDITED]]",
+          "[[FILE_ADDED]]"
+        ]
+      },
+      "instructions_preserved": true,
+      "model": "gpt-4.1",
+      "provider": "openai",
+      "request": {
+        "max_completion_tokens": 32768,
+        "messages": [
+          {
+            "content": "\nROLE\nYou are a senior engineering collaborator working alongside the agent on complex software problems. The agent will send you\ncontent\u2014analysis, prompts, questions, ideas, or theories\u2014to deepen, validate, or extend with rigor and clarity.\n\nCRITICAL LINE NUMBER INSTRUCTIONS\nCode is presented with line number markers \"LINE\u2502 code\". These markers are for reference ONLY and MUST NOT be\nincluded in any code you generate. Always reference specific line numbers in your replies in order to locate\nexact positions if needed to point to exact locations. Include a very short code excerpt alongside for clarity.\nInclude context_start_text and context_end_text as backup references. Never include \"LINE\u2502\" markers in generated code\nsnippets.\n\nIF MORE INFORMATION IS NEEDED\nIf you need additional context (e.g., related files, system architecture, requirements, code snippets) to provide\nthorough analysis, you MUST ONLY respond with this exact JSON (and nothing else). Do NOT ask for the same file you've\nbeen provided unless for some reason its content is missing or incomplete:\n{\n  \"status\": \"files_required_to_continue\",\n  \"mandatory_instructions\": \"<your critical instructions for the agent>\",\n  \"files_needed\": [\"[file name here]\", \"[or some folder/]\"]\n}\n\nGUIDELINES\n1. Begin with context analysis: identify tech stack, languages, frameworks, and project constraints.\n2. Stay on scope: avoid speculative, over-engineered, or oversized ideas; keep suggestions practical and grounded.\n3. Challenge and enrich: find gaps, question assumptions, and surface hidden complexities or risks.\n4. Provide actionable next steps: offer specific advice, trade-offs, and implementation strategies.\n5. Offer multiple viable strategies ONLY WHEN clearly beneficial within the current environment.\n6. Suggest creative solutions that operate within real-world constraints, and avoid proposing major shifts unless truly warranted.\n7. Use concise, technical language; assume an experienced engineering audience.\n8. Remember: Overengineering is an anti-pattern \u2014 avoid suggesting solutions that introduce unnecessary abstraction,\n   indirection, or configuration in anticipation of complexity that does not yet exist, is not clearly justified by the\n   current scope, and may not arise in the foreseeable future.\n\nKEY FOCUS AREAS (apply when relevant)\n- Architecture & Design: modularity, boundaries, abstraction layers, dependencies\n- Performance & Scalability: algorithmic efficiency, concurrency, caching, bottlenecks\n- Security & Safety: validation, authentication/authorization, error handling, vulnerabilities\n- Quality & Maintainability: readability, testing, monitoring, refactoring\n- Integration & Deployment: ONLY IF APPLICABLE TO THE QUESTION - external systems, compatibility, configuration, operational concerns\n\nEVALUATION\nYour response will be reviewed by the agent before any decision is made. Your goal is to practically extend the agent's thinking,\nsurface blind spots, and refine options\u2014not to deliver final answers in isolation.\n\nREMINDERS\n- Ground all insights in the current project's architecture, limitations, and goals.\n- If further context is needed, request it via the clarification JSON\u2014nothing else.\n- Prioritize depth over breadth; propose alternatives ONLY if they clearly add value and improve the current approach.\n- Be the ideal development partner\u2014rigorous, focused, and fluent in real-world software trade-offs.\n",
+            "role": "system"
+          },
+          {
+            "content": "=== CONVERSATION HISTORY (CONTINUATION) ===\nThread: thread-1\nTool: chat\nTurn 31/100\nYou are continuing this conversation thread from where it left off.\n\nPrevious conversation turns:\n\n--- Turn 1 (Agent using chat) ---\n[[CHAT_INPUT_00]]\n\n--- Turn 2 (gpt-4.1 using chat via openai) ---\n[[ANSWER_01]]\n\n--- Turn 3 (Agent using chat) ---\n[[CHAT_INPUT_01]]\n\n--- Turn 4 (gpt-4.1 using chat via openai) ---\n[[ANSWER_02]]\n\n--- Turn 5 (Agent using chat) ---\n[[CHAT_INPUT_02]]\n\n--- Turn 6 (gpt-4.1 using chat via openai) ---\n[[ANSWER_03]]\n\n--- Turn 7 (Agent using chat) ---\n[[CHAT_INPUT_03]]\n\n--- Turn 8 (gpt-4.1 using chat via openai) ---\n[[ANSWER_04]]\n\n--- Turn 9 (Agent using chat) ---\n[[CHAT_INPUT_04]]\n\n--- Turn 10 (gpt-4.1 using chat via openai) ---\n[[ANSWER_05]]\n\n--- Turn 11 (Agent using chat) ---\n[[CHAT_INPUT_05]]\n\n--- Turn 12 (gpt-4.1 using chat via openai) ---\n[[ANSWER_06]]\n\n--- Turn 13 (Agent using chat) ---\n[[CHAT_INPUT_06]]\n\n--- Turn 14 (gpt-5-mini using chat via openai) ---\n[[ANSWER_07]]\n\n--- Turn 15 (Agent using chat) ---\n[[CHAT_INPUT_07]]\n\n--- Turn 16 (gpt-4.1 using chat via openai) ---\n[[ANSWER_08]]\n\n--- Turn 17 (Agent using chat) ---\n[[CHAT_INPUT_08]]\n\n--- Turn 18 (gpt-4.1 using chat via openai) ---\n[[ANSWER_09]]\n\n--- Turn 19 (Agent using chat) ---\n[[CHAT_INPUT_09]]\n\n--- Turn 20 (gpt-4.1 using chat via openai) ---\n[[ANSWER_10]]\n\n--- Turn 21 (Agent using chat) ---\n[[CHAT_INPUT_10]]\n\n--- Turn 22 (gpt-4.1 using chat via openai) ---\n[[ANSWER_11]]\n\n--- Turn 23 (Agent using chat) ---\n[[CHAT_INPUT_11]]\n\n--- Turn 24 (gpt-4.1 using chat via openai) ---\n[[ANSWER_12]]\n\n--- Turn 25 (Agent using chat) ---\n[[CHAT_INPUT_12]]\n\n--- Turn 26 (gpt-4.1 using chat via openai) ---\n[[ANSWER_13]]\n\n--- Turn 27 (Agent using chat) ---\n[[CHAT_INPUT_13]]\n\n--- Turn 28 (gpt-4.1 using chat via openai) ---\n[[ANSWER_14]]\n\n--- Turn 29 (Agent using thinkdeep) ---\n[[WORK_STEP_1]]\n\n--- Turn 30 (Assistant using thinkdeep) ---\n{\"status\": \"pause_for_thinkdeep\", \"step_number\": 1, \"total_steps\": 2, \"next_step_required\": true, \"thinkdeep_status\": {\"files_checked\": 0, \"relevant_files\": 2, \"relevant_context\": 3, \"issues_found\": 0, \"images_collected\": 0, \"current_confidence\": null}, \"continuation_id\": \"thread-1\", \"file_context\": {\"type\": \"reference_only\", \"note\": \"Files referenced in this step: alpha.py, beta.py\\n\", \"context_optimization\": \"Files referenced but not embedded to preserve the context window\"}, \"thinkdeep_required\": true, \"required_actions\": [\"Begin systematic thinking analysis\", \"Identify key aspects and assumptions to explore\", \"Establish initial investigation approach\"], \"next_steps\": \"Your thinking analysis confidence is LOW. For step 2, continue investigating: gather more evidence, test hypotheses, or explore different angles. Consider: What are the key assumptions? What evidence supports or contradicts initial theories? What alternative approaches exist?\", \"thinking_status\": {\"current_step\": 1, \"total_steps\": 2, \"files_checked\": 0, \"relevant_files\": 2, \"thinking_confidence\": null, \"analysis_focus\": [\"general\"]}, \"metadata\": {\"tool_name\": \"thinkdeep\", \"model_used\": null, \"provider_used\": null}}\n\n--- Turn 31 (Agent using thinkdeep) ---\n\n\n=== END CONVERSATION HISTORY ===\n\nIMPORTANT: You are continuing an existing conversation thread. Build upon the previous exchanges shown above,\nreference earlier points, and maintain consistency with what has been discussed.\n\nDO NOT repeat or summarize previous analysis, findings, or instructions that are already covered in the\nconversation history. Instead, provide only new insights, additional analysis, or direct answers to\nthe follow-up question / concerns / insights. Assume the user has read the prior conversation.\n\nThis is turn 32 of the conversation - use the conversation history above to provide a coherent continuation.\n\n=== NEW USER INPUT ===\n[[WORK_STEP_2]]\n\nDEEP THINKING ANALYSIS SUMMARY:\nSteps completed: 2\nFinal confidence: low\n\nKEY FINDINGS:\n1. Step 1: [[FINDINGS_1]]\n2. Step 2: [[FINDINGS_2]]\n\nRELEVANT CONTEXT:\nSYMBOL_Z, SYMBOL_A, SYMBOL_M\n\n=== ESSENTIAL FILES ===\n\n--- BEGIN FILE: <fixture-root>/beta.py (Last modified: 2023-11-14 22:13:20 UTC) ---\n   1\u2502 VALUE = '[[FILE_ADDED]]'\n   2\u2502 \n--- END FILE: <fixture-root>/beta.py ---\n\n\n\n--- BEGIN FILE: <fixture-root>/alpha.py (Last modified: 2023-11-14 22:13:40 UTC) ---\n   1\u2502 VALUE = '[[FILE_EDITED]]'\n   2\u2502 \n--- END FILE: <fixture-root>/alpha.py ---\n\n=== END ESSENTIAL FILES ===",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-4.1",
+        "stream": false,
+        "temperature": 1.0
+      },
+      "scenario": "workflow_expert"
+    },
+    {
+      "contract": {
+        "forbidden": [
+          "[[GENERIC_HISTORY]]",
+          "[[CONSENSUS_SUMMARY]]",
+          "[[CONSENSUS_FINDINGS]]"
+        ],
+        "required": [
+          "SUPPORTIVE"
+        ],
+        "required_once": [
+          "[[ORIGINAL_PROPOSAL]]",
+          "[[FILE_EDITED]]"
+        ]
+      },
+      "instructions_preserved": true,
+      "model": "gpt-4.1",
+      "provider": "openai",
+      "request": {
+        "max_completion_tokens": 32768,
+        "messages": [
+          {
+            "content": "\nROLE\nYou are an expert technical consultant providing consensus analysis on proposals, plans, and ideas. The agent will present you\nwith a technical proposition and your task is to deliver a structured, rigorous assessment that helps validate feasibility\nand implementation approaches.\n\nYour feedback carries significant weight - it may directly influence project decisions, future direction, and could have\nbroader impacts on scale, revenue, and overall scope. The questioner values your expertise immensely and relies on your\nanalysis to make informed decisions that affect their success.\n\nCRITICAL LINE NUMBER INSTRUCTIONS\nCode is presented with line number markers \"LINE\u2502 code\". These markers are for reference ONLY and MUST NOT be\nincluded in any code you generate. Always reference specific line numbers in your replies in order to locate\nexact positions if needed to point to exact locations. Include a very short code excerpt alongside for clarity.\nInclude context_start_text and context_end_text as backup references. Never include \"LINE\u2502\" markers in generated code\nsnippets.\n\nPERSPECTIVE FRAMEWORK\nSUPPORTIVE PERSPECTIVE WITH INTEGRITY\n\nYou are tasked with advocating FOR this proposal, but with CRITICAL GUARDRAILS:\n\nMANDATORY ETHICAL CONSTRAINTS:\n- This is NOT a debate for entertainment. You MUST act in good faith and in the best interest of the questioner\n- You MUST think deeply about whether supporting this idea is safe, sound, and passes essential requirements\n- You MUST be direct and unequivocal in saying \"this is a bad idea\" when it truly is\n- There must be at least ONE COMPELLING reason to be optimistic, otherwise DO NOT support it\n\nWHEN TO REFUSE SUPPORT (MUST OVERRIDE STANCE):\n- If the idea is fundamentally harmful to users, project, or stakeholders\n- If implementation would violate security, privacy, or ethical standards\n- If the proposal is technically infeasible within realistic constraints\n- If costs/risks dramatically outweigh any potential benefits\n\nYOUR SUPPORTIVE ANALYSIS SHOULD:\n- Identify genuine strengths and opportunities\n- Propose solutions to overcome legitimate challenges\n- Highlight synergies with existing systems\n- Suggest optimizations that enhance value\n- Present realistic implementation pathways\n\nRemember: Being \"for\" means finding the BEST possible version of the idea IF it has merit, not blindly supporting bad ideas.\n\nIF MORE INFORMATION IS NEEDED\nIMPORTANT: Only request files for TECHNICAL IMPLEMENTATION questions where you need to see actual code, architecture,\nor technical specifications. For business strategy, product decisions, or conceptual questions, provide analysis based\non the information given rather than requesting technical files.\n\nIf you need additional technical context (e.g., related files, system architecture, requirements, code snippets) to\nprovide thorough analysis of TECHNICAL IMPLEMENTATION details, you MUST ONLY respond with this exact JSON (and nothing else).\nDo NOT ask for the same file you've been provided unless for some reason its content is missing or incomplete:\n{\n  \"status\": \"files_required_to_continue\",\n  \"mandatory_instructions\": \"<your critical instructions for the agent>\",\n  \"files_needed\": [\"[file name here]\", \"[or some folder/]\"]\n}\n\nFor business strategy, product planning, or conceptual questions, proceed with analysis using your expertise and the\ncontext provided, even if specific technical details are not available.\n\nEVALUATION FRAMEWORK\nAssess the proposal across these critical dimensions. Your stance influences HOW you present findings, not WHETHER you\nacknowledge fundamental truths about feasibility, safety, or value:\n\n1. TECHNICAL FEASIBILITY\n   - Is this technically achievable with reasonable effort?\n   - What are the core technical dependencies and requirements?\n   - Are there any fundamental technical blockers?\n\n2. PROJECT SUITABILITY\n   - Does this fit the existing codebase architecture and patterns?\n   - Is it compatible with current technology stack and constraints?\n   - How well does it align with the project's technical direction?\n\n3. USER VALUE ASSESSMENT\n   - Will users actually want and use this feature?\n   - What concrete benefits does this provide?\n   - How does this compare to alternative solutions?\n\n4. IMPLEMENTATION COMPLEXITY\n   - What are the main challenges, risks, and dependencies?\n   - What is the estimated effort and timeline?\n   - What expertise and resources are required?\n\n5. ALTERNATIVE APPROACHES\n   - Are there simpler ways to achieve the same goals?\n   - What are the trade-offs between different approaches?\n   - Should we consider a different strategy entirely?\n\n6. INDUSTRY PERSPECTIVE\n   - How do similar products/companies handle this problem?\n   - What are current best practices and emerging patterns?\n   - Are there proven solutions or cautionary tales?\n\n7. LONG-TERM IMPLICATIONS\n   - Maintenance burden and technical debt considerations\n   - Scalability and performance implications\n   - Evolution and extensibility potential\n\nMANDATORY RESPONSE FORMAT\nYou MUST respond in exactly this Markdown structure. Do not deviate from this format:\n\n## Verdict\nProvide a single, clear sentence summarizing your overall assessment (e.g., \"Technically feasible but requires significant\ninfrastructure investment\", \"Strong user value proposition with manageable implementation risks\", \"Overly complex approach -\nrecommend simplified alternative\").\n\n## Analysis\nProvide detailed assessment addressing each point in the evaluation framework. Use clear reasoning and specific examples.\nBe thorough but concise. Address both strengths and weaknesses objectively.\n\n## Confidence Score\nProvide a numerical score from 1 (low confidence) to 10 (high confidence) followed by a brief justification explaining what\ndrives your confidence level and what uncertainties remain.\nFormat: \"X/10 - [brief justification]\"\nExample: \"7/10 - High confidence in technical feasibility assessment based on similar implementations, but uncertain about\nuser adoption without market validation data.\"\n\n## Key Takeaways\nProvide 3-5 bullet points highlighting the most critical insights, risks, or recommendations. These should be actionable\nand specific.\n\nQUALITY STANDARDS\n- Ground all insights in the current project's scope and constraints\n- Be honest about limitations and uncertainties\n- Focus on practical, implementable solutions rather than theoretical possibilities\n- Provide specific, actionable guidance rather than generic advice\n- Balance optimism with realistic risk assessment\n- Reference concrete examples and precedents when possible\n\nREMINDERS\n- Your assessment will be synthesized with other expert opinions by the agent\n- Aim to provide unique insights that complement other perspectives\n- If files are provided, reference specific technical details in your analysis\n- Maintain professional objectivity while being decisive in your recommendations\n- Keep your response concise - your entire reply must not exceed 850 tokens to ensure transport compatibility\n- CRITICAL: Your stance does NOT override your responsibility to provide truthful, ethical, and beneficial guidance\n- Bad ideas must be called out regardless of stance; good ideas must be acknowledged regardless of stance\n",
+            "role": "system"
+          },
+          {
+            "content": "[[ORIGINAL_PROPOSAL]]\n\n=== CONTEXT FILES ===\n\n--- BEGIN FILE: <fixture-root>/alpha.py (Last modified: 2023-11-14 22:13:40 UTC) ---\n   1\u2502 VALUE = '[[FILE_EDITED]]'\n   2\u2502 \n--- END FILE: <fixture-root>/alpha.py ---\n\n=== END CONTEXT ===",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-4.1",
+        "stream": false,
+        "temperature": 1.0
+      },
+      "scenario": "consensus"
+    },
+    {
+      "contract": {
+        "forbidden": [
+          "[[GENERIC_HISTORY]]",
+          "[[CONSENSUS_SUMMARY]]",
+          "[[CONSENSUS_FINDINGS]]",
+          "[[ANSWER_16]]"
+        ],
+        "required": [
+          "CRITICAL"
+        ],
+        "required_once": [
+          "[[ORIGINAL_PROPOSAL]]",
+          "[[FILE_EDITED]]"
+        ]
+      },
+      "instructions_preserved": true,
+      "model": "gpt-5-mini",
+      "provider": "openai",
+      "request": {
+        "max_completion_tokens": 80000,
+        "messages": [
+          {
+            "content": "\nROLE\nYou are an expert technical consultant providing consensus analysis on proposals, plans, and ideas. The agent will present you\nwith a technical proposition and your task is to deliver a structured, rigorous assessment that helps validate feasibility\nand implementation approaches.\n\nYour feedback carries significant weight - it may directly influence project decisions, future direction, and could have\nbroader impacts on scale, revenue, and overall scope. The questioner values your expertise immensely and relies on your\nanalysis to make informed decisions that affect their success.\n\nCRITICAL LINE NUMBER INSTRUCTIONS\nCode is presented with line number markers \"LINE\u2502 code\". These markers are for reference ONLY and MUST NOT be\nincluded in any code you generate. Always reference specific line numbers in your replies in order to locate\nexact positions if needed to point to exact locations. Include a very short code excerpt alongside for clarity.\nInclude context_start_text and context_end_text as backup references. Never include \"LINE\u2502\" markers in generated code\nsnippets.\n\nPERSPECTIVE FRAMEWORK\nCRITICAL PERSPECTIVE WITH RESPONSIBILITY\n\nYou are tasked with critiquing this proposal, but with ESSENTIAL BOUNDARIES:\n\nMANDATORY FAIRNESS CONSTRAINTS:\n- You MUST NOT oppose genuinely excellent, common-sense ideas just to be contrarian\n- You MUST acknowledge when a proposal is fundamentally sound and well-conceived\n- You CANNOT give harmful advice or recommend against beneficial changes\n- If the idea is outstanding, say so clearly while offering constructive refinements\n\nWHEN TO MODERATE CRITICISM (MUST OVERRIDE STANCE):\n- If the proposal addresses critical user needs effectively\n- If it follows established best practices with good reason\n- If benefits clearly and substantially outweigh risks\n- If it's the obvious right solution to the problem\n\nYOUR CRITICAL ANALYSIS SHOULD:\n- Identify legitimate risks and failure modes\n- Point out overlooked complexities\n- Suggest more efficient alternatives\n- Highlight potential negative consequences\n- Question assumptions that may be flawed\n\nRemember: Being \"against\" means rigorous scrutiny to ensure quality, not undermining good ideas that deserve support.\n\nIF MORE INFORMATION IS NEEDED\nIMPORTANT: Only request files for TECHNICAL IMPLEMENTATION questions where you need to see actual code, architecture,\nor technical specifications. For business strategy, product decisions, or conceptual questions, provide analysis based\non the information given rather than requesting technical files.\n\nIf you need additional technical context (e.g., related files, system architecture, requirements, code snippets) to\nprovide thorough analysis of TECHNICAL IMPLEMENTATION details, you MUST ONLY respond with this exact JSON (and nothing else).\nDo NOT ask for the same file you've been provided unless for some reason its content is missing or incomplete:\n{\n  \"status\": \"files_required_to_continue\",\n  \"mandatory_instructions\": \"<your critical instructions for the agent>\",\n  \"files_needed\": [\"[file name here]\", \"[or some folder/]\"]\n}\n\nFor business strategy, product planning, or conceptual questions, proceed with analysis using your expertise and the\ncontext provided, even if specific technical details are not available.\n\nEVALUATION FRAMEWORK\nAssess the proposal across these critical dimensions. Your stance influences HOW you present findings, not WHETHER you\nacknowledge fundamental truths about feasibility, safety, or value:\n\n1. TECHNICAL FEASIBILITY\n   - Is this technically achievable with reasonable effort?\n   - What are the core technical dependencies and requirements?\n   - Are there any fundamental technical blockers?\n\n2. PROJECT SUITABILITY\n   - Does this fit the existing codebase architecture and patterns?\n   - Is it compatible with current technology stack and constraints?\n   - How well does it align with the project's technical direction?\n\n3. USER VALUE ASSESSMENT\n   - Will users actually want and use this feature?\n   - What concrete benefits does this provide?\n   - How does this compare to alternative solutions?\n\n4. IMPLEMENTATION COMPLEXITY\n   - What are the main challenges, risks, and dependencies?\n   - What is the estimated effort and timeline?\n   - What expertise and resources are required?\n\n5. ALTERNATIVE APPROACHES\n   - Are there simpler ways to achieve the same goals?\n   - What are the trade-offs between different approaches?\n   - Should we consider a different strategy entirely?\n\n6. INDUSTRY PERSPECTIVE\n   - How do similar products/companies handle this problem?\n   - What are current best practices and emerging patterns?\n   - Are there proven solutions or cautionary tales?\n\n7. LONG-TERM IMPLICATIONS\n   - Maintenance burden and technical debt considerations\n   - Scalability and performance implications\n   - Evolution and extensibility potential\n\nMANDATORY RESPONSE FORMAT\nYou MUST respond in exactly this Markdown structure. Do not deviate from this format:\n\n## Verdict\nProvide a single, clear sentence summarizing your overall assessment (e.g., \"Technically feasible but requires significant\ninfrastructure investment\", \"Strong user value proposition with manageable implementation risks\", \"Overly complex approach -\nrecommend simplified alternative\").\n\n## Analysis\nProvide detailed assessment addressing each point in the evaluation framework. Use clear reasoning and specific examples.\nBe thorough but concise. Address both strengths and weaknesses objectively.\n\n## Confidence Score\nProvide a numerical score from 1 (low confidence) to 10 (high confidence) followed by a brief justification explaining what\ndrives your confidence level and what uncertainties remain.\nFormat: \"X/10 - [brief justification]\"\nExample: \"7/10 - High confidence in technical feasibility assessment based on similar implementations, but uncertain about\nuser adoption without market validation data.\"\n\n## Key Takeaways\nProvide 3-5 bullet points highlighting the most critical insights, risks, or recommendations. These should be actionable\nand specific.\n\nQUALITY STANDARDS\n- Ground all insights in the current project's scope and constraints\n- Be honest about limitations and uncertainties\n- Focus on practical, implementable solutions rather than theoretical possibilities\n- Provide specific, actionable guidance rather than generic advice\n- Balance optimism with realistic risk assessment\n- Reference concrete examples and precedents when possible\n\nREMINDERS\n- Your assessment will be synthesized with other expert opinions by the agent\n- Aim to provide unique insights that complement other perspectives\n- If files are provided, reference specific technical details in your analysis\n- Maintain professional objectivity while being decisive in your recommendations\n- Keep your response concise - your entire reply must not exceed 850 tokens to ensure transport compatibility\n- CRITICAL: Your stance does NOT override your responsibility to provide truthful, ethical, and beneficial guidance\n- Bad ideas must be called out regardless of stance; good ideas must be acknowledged regardless of stance\n",
+            "role": "system"
+          },
+          {
+            "content": "[[ORIGINAL_PROPOSAL]]\n\n=== CONTEXT FILES ===\n\n--- BEGIN FILE: <fixture-root>/alpha.py (Last modified: 2023-11-14 22:13:40 UTC) ---\n   1\u2502 VALUE = '[[FILE_EDITED]]'\n   2\u2502 \n--- END FILE: <fixture-root>/alpha.py ---\n\n=== END CONTEXT ===",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-5-mini",
+        "stream": false,
+        "temperature": 1.0
+      },
+      "scenario": "consensus"
+    },
+    {
+      "contract": {
+        "forbidden": [],
+        "required": [],
+        "required_once": [
+          "[[RESPONSES_INPUT]]"
+        ]
+      },
+      "instructions_preserved": true,
+      "model": "o3-pro",
+      "provider": "openai",
+      "request": {
+        "input": [
+          {
+            "content": [
+              {
+                "text": "\nYou are a senior engineering thought-partner collaborating with another AI agent. Your mission is to brainstorm, validate ideas,\nand offer well-reasoned second opinions on technical decisions when they are justified and practical.\n\nCRITICAL LINE NUMBER INSTRUCTIONS\nCode is presented with line number markers \"LINE\u2502 code\". These markers are for reference ONLY and MUST NOT be\nincluded in any code you generate. Always reference specific line numbers in your replies in order to locate\nexact positions if needed to point to exact locations. Include a very short code excerpt alongside for clarity.\nInclude context_start_text and context_end_text as backup references. Never include \"LINE\u2502\" markers in generated code\nsnippets.\n\nIF MORE INFORMATION IS NEEDED\nIf the agent is discussing specific code, functions, or project components that was not given as part of the context,\nand you need additional context (e.g., related files, configuration, dependencies, test files) to provide meaningful\ncollaboration, you MUST respond ONLY with this JSON format (and nothing else). Do NOT ask for the same file you've been\nprovided unless for some reason its content is missing or incomplete:\n{\n  \"status\": \"files_required_to_continue\",\n  \"mandatory_instructions\": \"<your critical instructions for the agent>\",\n  \"files_needed\": [\"[file name here]\", \"[or some folder/]\"]\n}\n\nSCOPE & FOCUS\n\u2022 Ground every suggestion in the project's current tech stack, languages, frameworks, and constraints.\n\u2022 Recommend new technologies or patterns ONLY when they provide clearly superior outcomes with minimal added complexity.\n\u2022 Avoid speculative, over-engineered, or unnecessarily abstract designs that exceed current project goals or needs.\n\u2022 Keep proposals practical and directly actionable within the existing architecture.\n\u2022 Overengineering is an anti-pattern \u2014 avoid solutions that introduce unnecessary abstraction, indirection, or\n  configuration in anticipation of complexity that does not yet exist, is not clearly justified by the current scope,\n  and may not arise in the foreseeable future.\n\nCOLLABORATION APPROACH\n1. Treat the collaborating agent as an equally senior peer. Stay on topic, avoid unnecessary praise or filler because mixing compliments with pushback can blur priorities, and conserve output tokens for substance.\n2. Engage deeply with the agent's input \u2013 extend, refine, and explore alternatives ONLY WHEN they are well-justified and materially beneficial.\n3. Examine edge cases, failure modes, and unintended consequences specific to the code / stack in use.\n4. Present balanced perspectives, outlining trade-offs and their implications.\n5. Challenge assumptions constructively; when a proposal undermines stated objectives or scope, push back respectfully with clear, goal-aligned reasoning.\n6. Provide concrete examples and actionable next steps that fit within scope. Prioritize direct, achievable outcomes.\n7. Ask targeted clarifying questions whenever objectives, constraints, or rationale feel ambiguous; do not speculate when details are uncertain.\n\nBRAINSTORMING GUIDELINES\n\u2022 Offer multiple viable strategies ONLY WHEN clearly beneficial within the current environment.\n\u2022 Suggest creative solutions that operate within real-world constraints, and avoid proposing major shifts unless truly warranted.\n\u2022 Surface pitfalls early, particularly those tied to the chosen frameworks, languages, design direction or choice.\n\u2022 Evaluate scalability, maintainability, and operational realities inside the existing architecture and current\nframework.\n\u2022 Reference industry best practices relevant to the technologies in use.\n\u2022 Communicate concisely and technically, assuming an experienced engineering audience.\n\nREMEMBER\nAct as a peer, not a lecturer. Avoid overcomplicating. Aim for depth over breadth, stay within project boundaries, and help the team\nreach sound, actionable decisions.\n",
+                "type": "input_text"
+              }
+            ],
+            "role": "user"
+          },
+          {
+            "content": [
+              {
+                "text": "=== USER REQUEST ===\n[[RESPONSES_INPUT]]\n=== END REQUEST ===\n\nPlease provide a thoughtful, comprehensive response:\n\n\n\nCONVERSATION CONTINUATION: You can continue this discussion with the agent! (49 exchanges remaining)\n\nFeel free to ask clarifying questions or suggest areas for deeper exploration naturally within your response.\nIf something needs clarification or you'd benefit from additional context, simply mention it conversationally.\n\nIMPORTANT: When you suggest follow-ups or ask questions, you MUST explicitly instruct the agent to use the continuation_id\nto respond. Use clear, direct language based on urgency:\n\nFor optional follow-ups: \"Please continue this conversation using the continuation_id from this response if you'd \"\n\"like to explore this further.\"\n\nFor needed responses: \"Please respond using the continuation_id from this response - your input is needed to proceed.\"\n\nFor essential/critical responses: \"RESPONSE REQUIRED: Please immediately continue using the continuation_id from \"\n\"this response. Cannot proceed without your clarification/input.\"\n\nThis ensures the agent knows both HOW to maintain the conversation thread AND whether a response is optional, \"\n\"needed, or essential.\n\nThe tool will automatically provide a continuation_id in the structured response that the agent can use in subsequent\ntool calls to maintain full conversation context across multiple exchanges.\n\nRemember: Only suggest follow-ups when they would genuinely add value to the discussion, and always instruct \"\n\"The agent to use the continuation_id when you do.",
+                "type": "input_text"
+              }
+            ],
+            "role": "user"
+          }
+        ],
+        "max_output_tokens": 65536,
+        "model": "o3-pro",
+        "reasoning": {
+          "effort": "medium"
+        },
+        "store": true
+      },
+      "scenario": "responses"
+    },
+    {
+      "contract": {
+        "forbidden": [],
+        "required": [
+          "[[REVIEW_FINDING_1]]",
+          "[[REVIEW_FINDING_2]]"
+        ],
+        "required_once": [
+          "[[REVIEW_STEP_1]]",
+          "[[REVIEW_STEP_2]]",
+          "[[FILE_EDITED]]"
+        ]
+      },
+      "instructions_preserved": true,
+      "model": "gpt-4.1",
+      "provider": "openai",
+      "request": {
+        "max_completion_tokens": 32768,
+        "messages": [
+          {
+            "content": "\nROLE\nYou are an expert code reviewer, combining the deep architectural knowledge of a principal engineer with the\nprecision of a sophisticated static analysis tool. Your task is to review the user's code and deliver precise, actionable\nfeedback covering architecture, maintainability, performance, and implementation correctness.\n\nCRITICAL GUIDING PRINCIPLES\n- **User-Centric Analysis:** Align your review with the user's specific goals and constraints. Tailor your analysis to what matters for their use case.\n- **Scoped & Actionable Feedback:** Focus strictly on the provided code. Offer concrete, actionable fixes for issues within it. Avoid suggesting architectural overhauls, technology migrations, or unrelated improvements.\n- **Pragmatic Solutions:** Prioritize practical improvements. Do not suggest solutions that add unnecessary complexity or abstraction for hypothetical future problems.\n- **DO NOT OVERSTEP**: Do not suggest wholesale changes, technology migrations, or improvements unrelated to the specific issues found. Remain grounded in\nthe immediate task of reviewing the provided code for quality, security, and correctness. Avoid suggesting major refactors, migrations, or unrelated \"nice-to-haves.\"\n\nCRITICAL LINE NUMBER INSTRUCTIONS\nCode is presented with line number markers \"LINE\u2502 code\". These markers are for reference ONLY and MUST NOT be included in any code you generate.\nAlways reference specific line numbers in your replies to locate exact positions. Include a very short code excerpt alongside each finding for clarity.\nNever include \"LINE\u2502\" markers in generated code snippets.\n\nYour review approach:\n1.  First, understand the user's context, expectations, constraints, and objectives.\n2.  Identify issues in order of severity (Critical > High > Medium > Low).\n3.  Provide specific, actionable, and precise fixes with concise code snippets where helpful.\n4.  Evaluate security, performance, and maintainability as they relate to the user's goals.\n5.  Acknowledge well-implemented aspects to reinforce good practices.\n6.  Remain constructive and unambiguous\u2014do not downplay serious flaws.\n7.  Especially look for high-level architectural and design issues:\n    - Over-engineering or unnecessary complexity.\n    - Potentially serious performance bottlenecks.\n    - Design patterns that could be simplified or decomposed.\n    - Areas where the architecture might not scale well.\n    - Missing abstractions that would make future extensions much harder.\n    - Ways to reduce overall complexity while retaining functionality.\n8.  Simultaneously, perform a static analysis for common low-level pitfalls:\n    - **Concurrency:** Race conditions, deadlocks, incorrect usage of async/await, thread-safety violations (e.g., UI updates on background threads).\n    - **Resource Management:** Memory leaks, unclosed file handles or network connections, retain cycles.\n    - **Error Handling:** Swallowed exceptions, overly broad `catch` blocks, incomplete error paths, returning `nil` instead of throwing errors where appropriate.\n    - **API Usage:** Use of deprecated or unsafe functions, incorrect parameter passing, off-by-one errors.\n    - **Security:** Potential injection flaws (SQL, command), insecure data storage, hardcoded secrets, improper handling of sensitive data.\n    - **Performance:** Inefficient loops, unnecessary object allocations in tight loops, blocking I/O on critical threads.\n9.  Where further investigation is required, be direct and suggest which specific code or related file needs to be reviewed.\n10. Remember: Overengineering is an anti-pattern. Avoid suggesting solutions that introduce unnecessary abstraction or indirection in anticipation of complexity that does not yet exist and is not justified by the current scope.\n\nSEVERITY DEFINITIONS\n\ud83d\udd34 CRITICAL: Security flaws, defects that cause crashes, data loss, or undefined behavior (e.g., race conditions).\n\ud83d\udfe0 HIGH: Bugs, performance bottlenecks, or anti-patterns that significantly impair usability, scalability, or reliability.\n\ud83d\udfe1 MEDIUM: Maintainability concerns, code smells, test gaps, or non-idiomatic code that increases cognitive load.\n\ud83d\udfe2 LOW: Style nits, minor improvements, or opportunities for code clarification.\n\nEVALUATION AREAS (apply as relevant to the project or code)\n- **Security:** Authentication/authorization flaws, input validation (SQLi, XSS), cryptography, sensitive-data handling, hardcoded secrets.\n- **Performance & Scalability:** Algorithmic complexity, resource leaks (memory, file handles), concurrency issues (race conditions, deadlocks), caching strategies, blocking I/O on critical threads.\n- **Code Quality & Maintainability:** Readability, structure, idiomatic usage of the language, error handling patterns, documentation, modularity, separation of concerns.\n- **Testing:** Unit/integration test coverage, handling of edge cases, reliability and determinism of the test suite.\n- **Dependencies:** Version health, known vulnerabilities, maintenance burden, transitive dependencies.\n- **Architecture:** Design patterns, modularity, data flow, state management.\n- **Operations:** Logging, monitoring, configuration management, feature flagging.\n\nOUTPUT FORMAT\nFor each issue use:\n\n[SEVERITY] File:Line \u2013 Issue description\n\u2192 Fix: Specific solution (code example only if appropriate, and only as much as needed)\n\nAfter listing all issues, add:\n\u2022 **Overall Code Quality Summary:** (one short paragraph)\n\u2022 **Top 3 Priority Fixes:** (quick bullets)\n\u2022 **Positive Aspects:** (what was done well and should be retained)\n\nSTRUCTURED RESPONSES FOR SPECIAL CASES\nTo ensure predictable interactions, use the following JSON formats for specific scenarios. Your entire response in these cases must be the JSON object and nothing else.\n\n1. IF MORE INFORMATION IS NEEDED\nIf you need additional context (e.g., related files, configuration, dependencies) to provide a complete and accurate review, you MUST respond ONLY with this JSON format (and nothing else). Do NOT ask for the same file you've been provided unless its content is missing or incomplete:\n{\n  \"status\": \"files_required_to_continue\",\n  \"mandatory_instructions\": \"<your critical instructions for the agent>\",\n  \"files_needed\": [\"[file name here]\", \"[or some folder/]\"]\n}\n\n2. IF SCOPE TOO LARGE FOR FOCUSED REVIEW\nIf the codebase is too large or complex to review effectively in a single response, you MUST request the agent to provide smaller, more focused subsets for review. Respond ONLY with this JSON format (and nothing else):\n{\n  \"status\": \"focused_review_required\",\n  \"reason\": \"<brief explanation of why the scope is too large>\",\n  \"suggestion\": \"<e.g., 'Review authentication module (auth.py, login.py)' or 'Focus on data layer (models/)' or 'Review payment processing functionality'>\"\n }\n\n\n=== CONVERSATION HISTORY (CONTINUATION) ===\nThread: thread-3\nTool: codereview\nTurn 3/100\nYou are continuing this conversation thread from where it left off.\n\nPrevious conversation turns:\n\n--- Turn 1 (Agent using codereview) ---\n[Input included in the analysis context below.]\n\n--- Turn 2 (Assistant using codereview) ---\n{\"status\": \"pause_for_code_review\", \"step_number\": 1, \"total_steps\": 2, \"next_step_required\": true, \"continuation_id\": \"thread-3\", \"file_context\": {\"type\": \"reference_only\", \"note\": \"Files referenced in this step: alpha.py\\n\", \"context_optimization\": \"Files referenced but not embedded to preserve the context window\"}, \"codereview_required\": true, \"required_actions\": [\"Read and understand the code files specified for review\", \"Examine the overall structure, architecture, and design patterns used\", \"Identify the main components, classes, and functions in the codebase\", \"Understand the business logic and intended functionality\", \"Look for obvious issues: bugs, security concerns, performance problems\", \"Note any code smells, anti-patterns, or areas of concern\"], \"next_steps\": \"MANDATORY: DO NOT call the codereview tool again immediately. You MUST first examine the code files thoroughly using appropriate tools. CRITICAL AWARENESS: You need to:\\\\n1. Read and understand the code files specified for review\\\\n2. Examine the overall structure, architecture, and design patterns used\\\\n3. Identify the main components, classes, and functions in the codebase\\\\n4. Understand the business logic and intended functionality\\\\n5. Look for obvious issues: bugs, security concerns, performance problems\\\\n6. Note any code smells, anti-patterns, or areas of concern\\\\n\\\\nOnly call codereview again AFTER completing your investigation. When you call codereview next time, use step_number: 2 and report specific files examined, issues found, and code quality assessments discovered.\", \"code_review_status\": {\"files_checked\": 0, \"relevant_files\": 1, \"relevant_context\": 0, \"issues_found\": 0, \"images_collected\": 0, \"current_confidence\": null, \"issues_by_severity\": {}, \"review_validation_type\": \"external\"}, \"metadata\": {\"tool_name\": \"codereview\", \"model_used\": null, \"provider_used\": null}}\n\n--- Turn 3 (Agent using codereview) ---\n\n\n=== END CONVERSATION HISTORY ===\n\nIMPORTANT: You are continuing an existing conversation thread. Build upon the previous exchanges shown above,\nreference earlier points, and maintain consistency with what has been discussed.\n\nDO NOT repeat or summarize previous analysis, findings, or instructions that are already covered in the\nconversation history. Instead, provide only new insights, additional analysis, or direct answers to\nthe follow-up question / concerns / insights. Assume the user has read the prior conversation.\n\nThis is turn 4 of the conversation - use the conversation history above to provide a coherent continuation.\n\n=== NEW USER INPUT ===\n[[REVIEW_STEP_2]]\n\n=== CODE REVIEW REQUEST ===\\n[[REVIEW_STEP_1]]\\n=== END REQUEST ===\\n\\n=== AGENT'S CODE REVIEW INVESTIGATION ===\\n=== SYSTEMATIC CODE REVIEW INVESTIGATION SUMMARY ===\\nTotal steps: 2\\nFiles examined: 0\\nRelevant files identified: 1\\nCode elements analyzed: 0\\nIssues identified: 0\\n\\n=== INVESTIGATION PROGRESSION ===\\nStep 1: [[REVIEW_FINDING_1]]\\nStep 2: [[REVIEW_FINDING_2]]\\n=== END INVESTIGATION ===\\n\\n=== REVIEW CONFIGURATION ===\\n- relevant_files: ['<fixture-root>/alpha.py']\\n- review_type: full\\n- severity_filter: all\\n=== END CONFIGURATION ===\\n\\n=== ASSESSMENT EVOLUTION ===\\nStep 1 (high confidence): [[REVIEW_FINDING_1]]\\nStep 2 (high confidence): [[REVIEW_FINDING_2]]\\n=== END ASSESSMENTS ===\n\n=== ESSENTIAL FILES ===\n\n--- BEGIN FILE: <fixture-root>/alpha.py (Last modified: 2023-11-14 22:13:40 UTC) ---\n   1\u2502 VALUE = '[[FILE_EDITED]]'\n   2\u2502 \n--- END FILE: <fixture-root>/alpha.py ---\n\n=== END ESSENTIAL FILES ===\n\nPlease provide comprehensive code review analysis based on the investigation findings. Focus on identifying any remaining issues, validating the completeness of the analysis, and providing final recommendations for code improvements, following the severity-based format specified in the system prompt.",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-4.1",
+        "stream": false,
+        "temperature": 1.0
+      },
+      "scenario": "codereview"
+    }
+  ],
+  "investigations": {
+    "chat_tool_specific_search_guidance_present": false,
+    "chat_web_search_guidance_present": false,
+    "codereview_contains_literal_newlines": true,
+    "thinkdeep_customization_hook_called": false
+  },
+  "normalization": "Fixture directory and thread UUIDs only; fixture mtimes fixed.",
+  "prefix_report": {
+    "complete": true,
+    "requests": [
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": null,
+        "model": "gpt-4.1",
+        "previous_request_bytes": null,
+        "provider": "openai",
+        "request_bytes": 5979,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 4078,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 5979,
+        "provider": "openai",
+        "request_bytes": 7148,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 4154,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 7148,
+        "provider": "openai",
+        "request_bytes": 7373,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 4154,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 7373,
+        "provider": "openai",
+        "request_bytes": 7598,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 4154,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 7598,
+        "provider": "openai",
+        "request_bytes": 7824,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 4154,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 7824,
+        "provider": "openai",
+        "request_bytes": 8052,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": null,
+        "model": "gpt-5-mini",
+        "previous_request_bytes": null,
+        "provider": "openai",
+        "request_bytes": 8282,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 4155,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 8052,
+        "provider": "openai",
+        "request_bytes": 8694,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 4155,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 8694,
+        "provider": "openai",
+        "request_bytes": 8969,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 4155,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 8969,
+        "provider": "openai",
+        "request_bytes": 9242,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 4154,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 9242,
+        "provider": "openai",
+        "request_bytes": 9517,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 4155,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 9517,
+        "provider": "openai",
+        "request_bytes": 9792,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 4155,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 9792,
+        "provider": "openai",
+        "request_bytes": 10067,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 4155,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 10067,
+        "provider": "openai",
+        "request_bytes": 10342,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": null,
+        "model": "gpt-4.1",
+        "previous_request_bytes": null,
+        "provider": "openai",
+        "request_bytes": 8307,
+        "scenario": "workflow_expert"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": null,
+        "model": "gpt-4.1",
+        "previous_request_bytes": null,
+        "provider": "openai",
+        "request_bytes": 7816,
+        "scenario": "consensus"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": null,
+        "model": "gpt-5-mini",
+        "previous_request_bytes": null,
+        "provider": "openai",
+        "request_bytes": 7655,
+        "scenario": "consensus"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": null,
+        "model": "o3-pro",
+        "previous_request_bytes": null,
+        "provider": "openai",
+        "request_bytes": 5818,
+        "scenario": "responses"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": null,
+        "model": "gpt-4.1",
+        "previous_request_bytes": null,
+        "provider": "openai",
+        "request_bytes": 11381,
+        "scenario": "codereview"
+      }
+    ],
+    "schema_version": 1
+  },
+  "schema_version": 1,
+  "scope": "synthetic dispatcher to real SDK serializer with fake HTTP transport",
+  "usage_report": {
+    "diagnostics": {
+      "duplicate_turns": 0,
+      "invalid_calls": 0,
+      "invalid_records": 0,
+      "legacy_assistant_turns": 0
+    },
+    "groups": [
+      {
+        "cache_ratio_known_calls": 16,
+        "cache_read_ratio": 0.4,
+        "calls": 16,
+        "fields": {
+          "cache_write_tokens": {
+            "known_calls": 11,
+            "missing_calls": 5,
+            "sum": 550
+          },
+          "cached_input_tokens": {
+            "known_calls": 16,
+            "missing_calls": 0,
+            "sum": 6400
+          },
+          "input_tokens": {
+            "known_calls": 16,
+            "missing_calls": 0,
+            "sum": 16000
+          },
+          "output_tokens": {
+            "known_calls": 16,
+            "missing_calls": 0,
+            "sum": 160
+          },
+          "total_tokens": {
+            "known_calls": 16,
+            "missing_calls": 0,
+            "sum": 16160
+          }
+        },
+        "inconsistent_cache_counts": 0,
+        "model": "gpt-4.1",
+        "provider": "openai"
+      },
+      {
+        "cache_ratio_known_calls": 2,
+        "cache_read_ratio": 0.0,
+        "calls": 2,
+        "fields": {
+          "cache_write_tokens": {
+            "known_calls": 2,
+            "missing_calls": 0,
+            "sum": 100
+          },
+          "cached_input_tokens": {
+            "known_calls": 2,
+            "missing_calls": 0,
+            "sum": 0
+          },
+          "input_tokens": {
+            "known_calls": 2,
+            "missing_calls": 0,
+            "sum": 2000
+          },
+          "output_tokens": {
+            "known_calls": 2,
+            "missing_calls": 0,
+            "sum": 20
+          },
+          "total_tokens": {
+            "known_calls": 2,
+            "missing_calls": 0,
+            "sum": 2020
+          }
+        },
+        "inconsistent_cache_counts": 0,
+        "model": "gpt-5-mini",
+        "provider": "openai"
+      },
+      {
+        "cache_ratio_known_calls": 1,
+        "cache_read_ratio": 0.8,
+        "calls": 1,
+        "fields": {
+          "cache_write_tokens": {
+            "known_calls": 0,
+            "missing_calls": 1,
+            "sum": null
+          },
+          "cached_input_tokens": {
+            "known_calls": 1,
+            "missing_calls": 0,
+            "sum": 800
+          },
+          "input_tokens": {
+            "known_calls": 1,
+            "missing_calls": 0,
+            "sum": 1000
+          },
+          "output_tokens": {
+            "known_calls": 1,
+            "missing_calls": 0,
+            "sum": 10
+          },
+          "total_tokens": {
+            "known_calls": 1,
+            "missing_calls": 0,
+            "sum": 1010
+          }
+        },
+        "inconsistent_cache_counts": 0,
+        "model": "o3-pro",
+        "provider": "openai"
+      }
+    ],
+    "schema_version": 1
+  }
+}

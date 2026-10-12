@@ -25,6 +25,7 @@ from utils.conversation_context import (
     current_invocation,
     invocation_attachments,
     invocation_history,
+    record_provider_usage,
 )
 from utils.conversation_memory import ConversationMemoryError, memory_persistence_warning
 from utils.model_context import get_request_budget
@@ -423,6 +424,7 @@ class SimpleTool(BaseTool):
                     images=images if images else None,
                 )
                 operation.usage = model_response.usage
+                record_provider_usage(self, provider, self._current_model_name, model_response)
 
             logger.info(f"Received response from {provider.get_provider_type().value} API for {self.get_name()}")
 
@@ -489,6 +491,7 @@ class SimpleTool(BaseTool):
                                     images=images if images else None,
                                 )
                                 operation.usage = retry_response.usage
+                                record_provider_usage(self, provider, self._current_model_name, retry_response)
 
                             if retry_response.content:
                                 # Successful retry - use the retry response
@@ -722,6 +725,9 @@ class SimpleTool(BaseTool):
             model_response = model_info.get("model_response")
             if model_response:
                 model_metadata = {"usage": model_response.usage, "metadata": model_response.metadata}
+
+        if invocation:
+            model_metadata = {**(model_metadata or {}), "provider_calls": invocation.provider_calls}
 
         add_turn(
             continuation_id,

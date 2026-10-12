@@ -1,0 +1,353 @@
+{
+  "complete": true,
+  "cross_run": {
+    "comparisons": [
+      {
+        "after_sha256": "937fd5647251090df7e77f887fa1bbf4639ff699877a3c6b39aa328459b7b4d5",
+        "before_sha256": "937fd5647251090df7e77f887fa1bbf4639ff699877a3c6b39aa328459b7b4d5",
+        "identical": true,
+        "lcp_bytes": 5979,
+        "request": 1,
+        "scenario": "chat_files"
+      },
+      {
+        "after_sha256": "be0f0f00cc7b4750950a23d06271e1c01256a53151b4a9bf033320b1279120ef",
+        "before_sha256": "be0f0f00cc7b4750950a23d06271e1c01256a53151b4a9bf033320b1279120ef",
+        "identical": true,
+        "lcp_bytes": 7148,
+        "request": 2,
+        "scenario": "chat_files"
+      },
+      {
+        "after_sha256": "03d1c9e905a15e05da876e5e714eeeb410e3d5b9ba028c941da936310dbe665e",
+        "before_sha256": "03d1c9e905a15e05da876e5e714eeeb410e3d5b9ba028c941da936310dbe665e",
+        "identical": true,
+        "lcp_bytes": 7373,
+        "request": 3,
+        "scenario": "chat_files"
+      },
+      {
+        "after_sha256": "f1c28f0609d01cb0bab40a9d71bab8b416ed98b69d886e27086b305c3a4aa61a",
+        "before_sha256": "f1c28f0609d01cb0bab40a9d71bab8b416ed98b69d886e27086b305c3a4aa61a",
+        "identical": true,
+        "lcp_bytes": 7598,
+        "request": 4,
+        "scenario": "chat_files"
+      },
+      {
+        "after_sha256": "58906ee374e6ddcbf1f3ed86c588933f33a00875b5448e338c0413f89293efe1",
+        "before_sha256": "58906ee374e6ddcbf1f3ed86c588933f33a00875b5448e338c0413f89293efe1",
+        "identical": true,
+        "lcp_bytes": 7824,
+        "request": 5,
+        "scenario": "chat_files"
+      },
+      {
+        "after_sha256": "5c1ffe1717ee233a38f0a7b608559a8979bf4d4b38554f1a25b5784093551397",
+        "before_sha256": "5c1ffe1717ee233a38f0a7b608559a8979bf4d4b38554f1a25b5784093551397",
+        "identical": true,
+        "lcp_bytes": 8052,
+        "request": 6,
+        "scenario": "chat_files"
+      },
+      {
+        "after_sha256": "3e4ad96be856748d9626e05e8d4690b8b71889ecdc37e7839e09f6b07c1a2f08",
+        "before_sha256": "3e4ad96be856748d9626e05e8d4690b8b71889ecdc37e7839e09f6b07c1a2f08",
+        "identical": true,
+        "lcp_bytes": 8282,
+        "request": 7,
+        "scenario": "chat_files"
+      },
+      {
+        "after_sha256": "0751c19224b57629aedf8c7cbf2e9af29cf2ba6b32ac50075c5fae92b3b53947",
+        "before_sha256": "0751c19224b57629aedf8c7cbf2e9af29cf2ba6b32ac50075c5fae92b3b53947",
+        "identical": true,
+        "lcp_bytes": 8694,
+        "request": 8,
+        "scenario": "chat_files"
+      },
+      {
+        "after_sha256": "0c6f4fb130b80ececc3fd8ac1aca819cd3f8f35f03763c24d31bd8670ec4ab00",
+        "before_sha256": "0c6f4fb130b80ececc3fd8ac1aca819cd3f8f35f03763c24d31bd8670ec4ab00",
+        "identical": true,
+        "lcp_bytes": 8969,
+        "request": 9,
+        "scenario": "chat_files"
+      },
+      {
+        "after_sha256": "05cdd275ad458805a7b9240520dcb9c261f784b71c9db469aeeadd6d9d74ed86",
+        "before_sha256": "05cdd275ad458805a7b9240520dcb9c261f784b71c9db469aeeadd6d9d74ed86",
+        "identical": true,
+        "lcp_bytes": 9242,
+        "request": 10,
+        "scenario": "chat_files"
+      },
+      {
+        "after_sha256": "cd0c1ffb421ea41c4d93fd830ec6bbe82c4245a9513ec671e6e1e3b8b052fa33",
+        "before_sha256": "cd0c1ffb421ea41c4d93fd830ec6bbe82c4245a9513ec671e6e1e3b8b052fa33",
+        "identical": true,
+        "lcp_bytes": 9517,
+        "request": 11,
+        "scenario": "chat_files"
+      },
+      {
+        "after_sha256": "2fa7f0cd36e788a0d3a86aca95bbf938754a78d501e4acc65a4b80a1bf11713e",
+        "before_sha256": "2fa7f0cd36e788a0d3a86aca95bbf938754a78d501e4acc65a4b80a1bf11713e",
+        "identical": true,
+        "lcp_bytes": 9792,
+        "request": 12,
+        "scenario": "chat_files"
+      },
+      {
+        "after_sha256": "85e359f54808b1d7b4e7b3fa9f936b7e204c380d2ce6acac0a5a8ddd46ec9db6",
+        "before_sha256": "85e359f54808b1d7b4e7b3fa9f936b7e204c380d2ce6acac0a5a8ddd46ec9db6",
+        "identical": true,
+        "lcp_bytes": 10067,
+        "request": 13,
+        "scenario": "chat_files"
+      },
+      {
+        "after_sha256": "e786bde450623dcd3757354d43a7dd7cc1a18ace00c79f509cdfc4991032d09b",
+        "before_sha256": "e786bde450623dcd3757354d43a7dd7cc1a18ace00c79f509cdfc4991032d09b",
+        "identical": true,
+        "lcp_bytes": 10342,
+        "request": 14,
+        "scenario": "chat_files"
+      },
+      {
+        "after_sha256": "f5a271882616f65df92d573e9ea6ce071a151fd1f53ea433bcd90f0ffe6d5dd4",
+        "before_sha256": "e53a4eae8739ac7d981ddeab18cac2fbdd3094c7d123518633d46a20e3322c64",
+        "identical": false,
+        "lcp_bytes": 7806,
+        "request": 15,
+        "scenario": "workflow_expert"
+      },
+      {
+        "after_sha256": "c3b7630b41de3f58c7d0c64cad243830f7087036b6c867353cee9b8d79416372",
+        "before_sha256": "c3b7630b41de3f58c7d0c64cad243830f7087036b6c867353cee9b8d79416372",
+        "identical": true,
+        "lcp_bytes": 7816,
+        "request": 16,
+        "scenario": "consensus"
+      },
+      {
+        "after_sha256": "8d66746518420d62de633f60758abbb1e9407160873abc7800abde3d247f2c13",
+        "before_sha256": "8d66746518420d62de633f60758abbb1e9407160873abc7800abde3d247f2c13",
+        "identical": true,
+        "lcp_bytes": 7655,
+        "request": 17,
+        "scenario": "consensus"
+      },
+      {
+        "after_sha256": "d74e40ec0d3e11cb2112bab8b0434def4c2d08783972e619e41ee60d0619c81c",
+        "before_sha256": "d74e40ec0d3e11cb2112bab8b0434def4c2d08783972e619e41ee60d0619c81c",
+        "identical": true,
+        "lcp_bytes": 5818,
+        "request": 18,
+        "scenario": "responses"
+      },
+      {
+        "after_sha256": "7ec06e2c84ff87661d0c8ee5871e77b4dc3537689e61e38633382f5873b94ef4",
+        "before_sha256": "7ec06e2c84ff87661d0c8ee5871e77b4dc3537689e61e38633382f5873b94ef4",
+        "identical": true,
+        "lcp_bytes": 11381,
+        "request": 19,
+        "scenario": "codereview"
+      }
+    ],
+    "complete": true
+  },
+  "requests": [
+    {
+      "complete": true,
+      "failures": [],
+      "lcp_bytes": null,
+      "model": "gpt-4.1",
+      "previous_request_bytes": null,
+      "provider": "openai",
+      "request_bytes": 5979,
+      "scenario": "chat_files"
+    },
+    {
+      "complete": true,
+      "failures": [],
+      "lcp_bytes": 4078,
+      "model": "gpt-4.1",
+      "previous_request_bytes": 5979,
+      "provider": "openai",
+      "request_bytes": 7148,
+      "scenario": "chat_files"
+    },
+    {
+      "complete": true,
+      "failures": [],
+      "lcp_bytes": 4154,
+      "model": "gpt-4.1",
+      "previous_request_bytes": 7148,
+      "provider": "openai",
+      "request_bytes": 7373,
+      "scenario": "chat_files"
+    },
+    {
+      "complete": true,
+      "failures": [],
+      "lcp_bytes": 4154,
+      "model": "gpt-4.1",
+      "previous_request_bytes": 7373,
+      "provider": "openai",
+      "request_bytes": 7598,
+      "scenario": "chat_files"
+    },
+    {
+      "complete": true,
+      "failures": [],
+      "lcp_bytes": 4154,
+      "model": "gpt-4.1",
+      "previous_request_bytes": 7598,
+      "provider": "openai",
+      "request_bytes": 7824,
+      "scenario": "chat_files"
+    },
+    {
+      "complete": true,
+      "failures": [],
+      "lcp_bytes": 4154,
+      "model": "gpt-4.1",
+      "previous_request_bytes": 7824,
+      "provider": "openai",
+      "request_bytes": 8052,
+      "scenario": "chat_files"
+    },
+    {
+      "complete": true,
+      "failures": [],
+      "lcp_bytes": null,
+      "model": "gpt-5-mini",
+      "previous_request_bytes": null,
+      "provider": "openai",
+      "request_bytes": 8282,
+      "scenario": "chat_files"
+    },
+    {
+      "complete": true,
+      "failures": [],
+      "lcp_bytes": 4155,
+      "model": "gpt-4.1",
+      "previous_request_bytes": 8052,
+      "provider": "openai",
+      "request_bytes": 8694,
+      "scenario": "chat_files"
+    },
+    {
+      "complete": true,
+      "failures": [],
+      "lcp_bytes": 4155,
+      "model": "gpt-4.1",
+      "previous_request_bytes": 8694,
+      "provider": "openai",
+      "request_bytes": 8969,
+      "scenario": "chat_files"
+    },
+    {
+      "complete": true,
+      "failures": [],
+      "lcp_bytes": 4155,
+      "model": "gpt-4.1",
+      "previous_request_bytes": 8969,
+      "provider": "openai",
+      "request_bytes": 9242,
+      "scenario": "chat_files"
+    },
+    {
+      "complete": true,
+      "failures": [],
+      "lcp_bytes": 4154,
+      "model": "gpt-4.1",
+      "previous_request_bytes": 9242,
+      "provider": "openai",
+      "request_bytes": 9517,
+      "scenario": "chat_files"
+    },
+    {
+      "complete": true,
+      "failures": [],
+      "lcp_bytes": 4155,
+      "model": "gpt-4.1",
+      "previous_request_bytes": 9517,
+      "provider": "openai",
+      "request_bytes": 9792,
+      "scenario": "chat_files"
+    },
+    {
+      "complete": true,
+      "failures": [],
+      "lcp_bytes": 4155,
+      "model": "gpt-4.1",
+      "previous_request_bytes": 9792,
+      "provider": "openai",
+      "request_bytes": 10067,
+      "scenario": "chat_files"
+    },
+    {
+      "complete": true,
+      "failures": [],
+      "lcp_bytes": 4155,
+      "model": "gpt-4.1",
+      "previous_request_bytes": 10067,
+      "provider": "openai",
+      "request_bytes": 10342,
+      "scenario": "chat_files"
+    },
+    {
+      "complete": true,
+      "failures": [],
+      "lcp_bytes": null,
+      "model": "gpt-4.1",
+      "previous_request_bytes": null,
+      "provider": "openai",
+      "request_bytes": 8307,
+      "scenario": "workflow_expert"
+    },
+    {
+      "complete": true,
+      "failures": [],
+      "lcp_bytes": null,
+      "model": "gpt-4.1",
+      "previous_request_bytes": null,
+      "provider": "openai",
+      "request_bytes": 7816,
+      "scenario": "consensus"
+    },
+    {
+      "complete": true,
+      "failures": [],
+      "lcp_bytes": null,
+      "model": "gpt-5-mini",
+      "previous_request_bytes": null,
+      "provider": "openai",
+      "request_bytes": 7655,
+      "scenario": "consensus"
+    },
+    {
+      "complete": true,
+      "failures": [],
+      "lcp_bytes": null,
+      "model": "o3-pro",
+      "previous_request_bytes": null,
+      "provider": "openai",
+      "request_bytes": 5818,
+      "scenario": "responses"
+    },
+    {
+      "complete": true,
+      "failures": [],
+      "lcp_bytes": null,
+      "model": "gpt-4.1",
+      "previous_request_bytes": null,
+      "provider": "openai",
+      "request_bytes": 11381,
+      "scenario": "codereview"
+    }
+  ],
+  "schema_version": 1
+}

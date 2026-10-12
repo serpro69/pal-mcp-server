@@ -1917,3 +1917,75 @@ cancellation. External PAL remains unavailable after Task 37's invalid-key failu
 
 Strict credential-isolated stdio simulator: **3/3 passed**, all children reaped.
 Independent isolated code review: **APPROVE**, no findings and none to index.
+
+## Task 39: Cache usage and request-completeness baseline
+
+Implemented on 2026-10-12. Shared OpenAI-compatible parsing now retains optional
+cached-input/cache-write fields from the selected endpoint's details object;
+Gemini retains its cached-content count. Missing/invalid values remain unknown.
+Removed the unsupported Responses top-level-count fallback that invented zero
+input/total usage, replacing its implementation-mirroring test with an actual
+parser assertion. SDKs and locks are unchanged: OpenAI **2.41.0**, GenAI **2.8.0**.
+Current official field evidence and mapping are in [cache measurement](../../../cache-measurement.md).
+
+The invocation context records each returned provider call separately and adds
+that list to saved assistant metadata. Primary, recovery, expert and consensus
+callers use the same helper. Restored workflow history and final local consensus
+synthesis contribute no new provider calls. Progress includes optional cache
+fields. Reports group actual saved calls by provider/model and preserve field
+coverage, distinguish missing from zero, and use paired input/cache denominators.
+They are diagnostics over saved replies, not complete billing records; absent
+transcripts/cancelled calls without saved replies remain an explicit coverage limit.
+
+### Reproduced evidence
+
+- [Synthetic wire captures, audit checks and usage report](cache-capture-baseline.json):
+  **19 actual dispatcher/SDK requests**, with only HTTP mocked; **14 chat calls**
+  including 13 continuations, file addition/touch/edit and a model switch,
+  multi-step/cross-tool workflow, two blinded consensus participants on fresh tool
+  instances, Responses and codereview. All declared exact-once/forbidden-content
+  checks and full applicable system-instruction checks pass. Independent stored
+  audit turn sequences pass at 28, 32 and 7 turns.
+- Synthetic transcript totals match **19 provider calls / 19,000 input tokens**;
+  aggregate/last-response metadata is not added again. Zero and missing cache-write
+  fields retain distinct coverage. These synthetic counts say nothing about live
+  cache efficacy.
+- `PYTHONHASHSEED=1`, `7`, `42` runs each pass completeness. Twelve comparable chat
+  pairs have **4,078–4,155 UTF-8 prefix bytes**, median **4,154.5**, about **41–68%**
+  of the previous serialized request. The evidence normalizes fixture paths/UUIDs
+  only and fixes fixture mtimes; production formatting is unchanged.
+- [Seeds 1/7](cache-prefix-seeds-1-7.json) and
+  [seeds 1/42](cache-prefix-seeds-1-42.json): **18/19 requests identical**; only
+  the workflow expert request differs, after 7,806 common bytes. Task 40 owns
+  deterministic set rendering. A failed completeness gate withholds prefix scores.
+- Captures reproduce missing chat search guidance, an uncalled thinkdeep
+  customization hook and codereview literal newline separators.
+  [Separate bounded Tasks C1–C3](capture-followups.md) contain sites/evidence/next
+  steps. The design requests investigation and separate follow-ups here; no prompt
+  behavior was changed to make the measurements pass. The initial harness compared
+  consensus instructions against the neutral tool prompt; corrected it to each
+  participant's actual stance contract, retaining full instruction comparison.
+
+### Verification
+
+Fresh-lock Python 3.12.11: final `./code_quality_checks.sh` **1,994 passed**,
+16 skipped, 16 deselected, 19 subtests; Ruff/Black/isort passed. New cache tests:
+**42 passed**. Python 3.10.12 cache/conversation/progress/transcript/usage matrix:
+**135 passed**. Strict credential-isolated stdio simulator: **3/3 passed**, all
+children reaped. Existing legacy live integration/quick prerequisites and external
+PAL invalid-key limitation remain as recorded under Task 37. No live cache calls,
+pricing claims or provider cache controls were introduced.
+
+Independent isolated code review: **APPROVE**, no findings and none to index.
+The final harness guard rejects missing transcript usage coverage; a dropped audit
+side channel regression verifies failure. Private-recording tests explicitly
+require POSIX, consistent with Task 31's Windows limitation.
+
+### Reflection on Tasks 37–39
+
+The current Jules discovery contract provided newer lifecycle evidence than the
+HTML reference, allowing archive/unarchive to ship with verified wire tests.
+Preserving mutation acknowledgments across failed status reads avoids duplicate
+actions. Cache measurement reused invocation ownership and exposed both workflow
+ordering instability and three concrete prompt follow-ups; none required prompt
+layout changes or a provider-version upgrade in this batch.

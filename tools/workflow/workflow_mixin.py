@@ -36,6 +36,7 @@ from utils.conversation_context import (
     current_invocation,
     invocation_attachments,
     invocation_history,
+    record_provider_usage,
 )
 from utils.conversation_memory import (
     ConversationMemoryError,
@@ -1161,6 +1162,7 @@ class BaseWorkflowMixin(ABC):
 
         # Serialize workflow state for persistence across stateless tool calls
         workflow_state = {
+            "provider_calls": invocation.provider_calls if invocation else [],
             "work_history": self.work_history,
             "initial_request": self.initial_request,
             "tool_state": {name: getattr(self, name) for name in self.workflow_state_defaults},
@@ -1542,6 +1544,7 @@ class BaseWorkflowMixin(ABC):
                     images=images or None,
                 )
                 operation.usage = model_response.usage
+                record_provider_usage(self, provider, model_name, model_response)
             if invocation:
                 invocation.provider_failed = not bool(model_response.content)
                 invocation.reply_content = model_response.content or None

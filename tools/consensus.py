@@ -30,7 +30,7 @@ from config import TEMPERATURE_ANALYTICAL
 from systemprompts import CONSENSUS_PROMPT
 from tools.shared.base_models import ConsolidatedFindings, WorkflowRequest
 from tools.shared.exceptions import ToolExecutionError
-from utils.conversation_context import continuation_offer, current_invocation
+from utils.conversation_context import continuation_offer, current_invocation, record_provider_usage
 from utils.conversation_memory import (
     ConversationMemoryError,
     ConversationNotFoundError,
@@ -674,6 +674,7 @@ of the evidence, even when it strongly points in one direction.""",
                     images=request.images if request.images else None,
                 )
                 operation.usage = response.usage
+                record_provider_usage(self, provider, model_name, response)
             if not response.content or not response.content.strip():
                 raise ToolExecutionError("Model returned an empty response")
             if invocation:

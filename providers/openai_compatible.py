@@ -459,17 +459,7 @@ class OpenAICompatibleProvider(ModelProvider):
 
             content = self._safe_extract_output_text(response)
 
-            usage = None
-            if hasattr(response, "usage"):
-                usage = self._extract_usage(response, responses_api=True)
-            elif hasattr(response, "input_tokens") and hasattr(response, "output_tokens"):
-                input_tokens = getattr(response, "input_tokens", 0) or 0
-                output_tokens = getattr(response, "output_tokens", 0) or 0
-                usage = {
-                    "input_tokens": input_tokens,
-                    "output_tokens": output_tokens,
-                    "total_tokens": input_tokens + output_tokens,
-                }
+            usage = self._extract_usage(response, responses_api=True)
 
             return ModelResponse(
                 content=content,
@@ -738,6 +728,13 @@ class OpenAICompatibleProvider(ModelProvider):
         )
         for target, source in fields:
             value = getattr(metadata, source, None)
+            if type(value) is int and value >= 0:
+                usage[target] = value
+        details = getattr(metadata, "input_tokens_details" if responses_api else "prompt_tokens_details", None)
+        # SDK 2.41 retains newer wire fields as extras, including cache writes.
+        # Compatible endpoints may omit either count; absence never means zero.
+        for target, source in (("cached_input_tokens", "cached_tokens"), ("cache_write_tokens", "cache_write_tokens")):
+            value = getattr(details, source, None)
             if type(value) is int and value >= 0:
                 usage[target] = value
         return usage

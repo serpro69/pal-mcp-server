@@ -4,6 +4,11 @@
 
 ## Unreleased
 
+- Preserve optional cached-input/cache-write counts and per-call transcript usage
+  without counting restored workflow/consensus results again. Add offline usage
+  coverage and request-completeness/prefix reports with a synthetic baseline;
+  prompt layout and cache controls remain unchanged. See [cache measurement](docs/cache-measurement.md).
+
 - Add Jules message/approval and verified archive/unarchive actions. Return
   observed session state without blocking for completion, and preserve successful
   acknowledgments when the following status read fails.

@@ -13,6 +13,7 @@ from typing import Any
 from tools.models import ToolOutput
 from tools.shared.exceptions import ToolExecutionError
 from utils import conversation_memory as memory
+from utils.usage import known_usage
 
 
 class ConversationInvocation:
@@ -28,6 +29,7 @@ class ConversationInvocation:
         self.model_provider: str | None = None
         self.provider_failed = False
         self.history_files: list[str] = []
+        self.provider_calls: list[dict[str, Any]] = []
 
 
 _active: ContextVar[ConversationInvocation | None] = ContextVar("conversation_invocation", default=None)
@@ -42,6 +44,20 @@ def current_conversation_id() -> str | None:
     """Expose only the invocation-owned identity to per-request provider hooks."""
     context = _active.get()
     return context.thread_id if context is not None else None
+
+
+def record_provider_usage(tool, provider, model_name: str, response) -> None:
+    """Capture one returned provider call, never restored workflow aggregates."""
+    invocation = current_invocation(tool)
+    if invocation is not None:
+        invocation.provider_calls.append(
+            {
+                "call_index": len(invocation.provider_calls) + 1,
+                "provider": provider.get_provider_type().value,
+                "model": response.model_name or model_name,
+                "usage": known_usage(response.usage),
+            }
+        )
 
 
 def continuation_offer(thread_id: str) -> dict[str, Any]:

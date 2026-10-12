@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Implementation: [implementation.md](implementation.md)
 > Review resolutions: [review.md](review.md#revalidation-and-resolution)
-> Status: in-progress (Tasks 1–38 done; Tasks 39–42 pending; OpenCode Go/Jules live gates open)
+> Status: in-progress (Tasks 1–39 done; Tasks 40–42 pending; OpenCode Go/Jules live gates open)
 > Created: 2026-10-10
 > Not Doing: toolchain/release-process migration; MCP 2.x; wholesale catalogs; replacement of safety controls; file-annotation implementation; persistent continuation recovery; remote multi-user transport; automatic service activation
 
@@ -828,17 +828,31 @@ remain release-gated on a designated repository/session; no service mutations ra
 
 ## Task 39: Measure cache usage and request completeness
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 20, Task 31, Task 35
 - **Size:** M
 - **Can run in parallel with:** —
 - **Docs:** [Implementation slice](implementation.md#task-39); [design contract](design.md#d10-prompt-cache-work-is-measurement-led)
 
-- [ ] 39.1 Verify optional cached-input/cache-write fields per actual provider endpoint and preserve unknown versus zero; carry each invocation's usage into transcript metadata without cumulative double-counting.
-- [ ] 39.2 Add offline captured-request completeness/prefix metrics and a report grouped by provider/model, with missing-field coverage. Assert completeness per consumer: consensus receives its original proposal/stance/explicit attachments, never earlier verdicts or intervening summaries. Check full audit history separately and preserve those exclusions on fresh tool instances. Establish a measured baseline after Task 9; report only results reproduced by this project's request-capture harness.
-- [ ] 39.3 Verify the acceptance cases in [Task 39](implementation.md#task-39) and record the result here.
+- [x] 39.1 Verify optional cached-input/cache-write fields per actual provider endpoint and preserve unknown versus zero; carry each invocation's usage into transcript metadata without cumulative double-counting.
+- [x] 39.2 Add offline captured-request completeness/prefix metrics and a report grouped by provider/model, with missing-field coverage. Assert completeness per consumer: consensus receives its original proposal/stance/explicit attachments, never earlier verdicts or intervening summaries. Check full audit history separately and preserve those exclusions on fresh tool instances. Establish a measured baseline after Task 9; report only results reproduced by this project's request-capture harness.
+- [x] 39.3 Verify the acceptance cases in [Task 39](implementation.md#task-39) and record the result here.
 
 **Scope / gate:** Cost calculations require separately verified rates and denominators. No live calls or price claims are needed for the offline completeness gate.
+
+**Execution slices:** First normalize endpoint cache counts with usage fixtures;
+then mechanically carry per-call usage through the existing invocation owner to
+transcripts; finally add the dispatcher request-capture/report harness and retain
+its synthetic baseline. These sequential acceptance slices share one task commit.
+Prompt layout changes remain Tasks 40–41.
+
+**Evidence:** [Task 39 validation](validation.md#task-39-cache-usage-and-request-completeness-baseline).
+Full quality **1,994 passed**; Python 3.10 focused **135 passed**; strict stdio
+**3/3 passed**. Nineteen actual dispatcher/SDK requests pass core completeness,
+instruction and audit checks under seeds 1/7/42; workflow ordering differences
+and measured prefixes are retained. Independent isolated review approved with no
+findings. [C1–C3](capture-followups.md) track three reproduced pre-existing prompt
+issues separately; no cache savings or live quality claims are made.
 
 ## Task 40: Stabilize continuation prompts without losing content
 
@@ -957,3 +971,6 @@ T01–T41 --> T42 (final verification)
   need reproduction through Task 39's request-capture harness before being classified
   as defects. These are investigation cases, not approved unrelated fixes. For each
   reproduced defect, record the failing scenario and create a separate bounded task.
+  Task 39 reproduced three issues; [Tasks C1–C3](capture-followups.md) record exact
+  scenarios, affected sites and next steps. Core workflow history and consensus
+  blinding passed. Task 42 must resolve or explicitly release-triage those findings.
