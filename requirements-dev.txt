@@ -1,3 +1,7 @@
+anyio==4.13.0
+    # via
+    #   -c requirements.txt
+    #   -r requirements-dev.in
 black==26.5.1
     # via -r requirements-dev.in
 build==1.5.0
@@ -9,6 +13,10 @@ click==8.4.1
     #   -c requirements.txt
     #   black
     #   pip-tools
+idna==3.18
+    # via
+    #   -c requirements.txt
+    #   anyio
 iniconfig==2.3.0
     # via pytest
 isort==8.0.1
@@ -51,6 +59,7 @@ ruff==0.15.16
 typing-extensions==4.15.0
     # via
     #   -c requirements.txt
+    #   anyio
     #   pytest-asyncio
 wheel==0.47.0
     # via pip-tools

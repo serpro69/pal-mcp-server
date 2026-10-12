@@ -21,6 +21,26 @@ python -m pytest tests/test_providers.py -xvs
 
 ### Simulator Tests
 
+Each scenario owns one MCP stdio server for all its calls, using the Python
+interpreter that launched the simulator. The process and client close on success,
+failure and interruption. Historical `call_mcp_tool_direct` scenarios now use the
+same real MCP dispatch path. Install the dev requirements for the AnyIO bridge.
+
+`--tests`, `--individual`, `--quick`, `--ci` and `--list-tests` are mutually
+exclusive. Summaries count only selected tests and remain visible after failures;
+a selected failure produces a nonzero exit code.
+
+`--ci` selects only provider-agnostic transport/state scenarios, controlled by
+`SIMULATOR_MODEL` (default `auto`). These check continuation, workflow restoration,
+cross-tool calls and explicit errors without judging the model's prose. Routing,
+model-thinking and response-quality scenarios stay in the existing live tiers.
+
+```bash
+# Use your existing registered local model; do not change the default local model.
+CUSTOM_API_URL=http://localhost:11434/v1 SIMULATOR_MODEL=local-llama \
+  python communication_simulator_test.py --ci
+```
+
 Simulator tests replicate real-world Claude CLI interactions with the standalone MCP server. Unlike unit tests that test isolated functions, simulator tests validate the complete end-to-end flow including:
 - Actual MCP protocol communication
 - Standalone server interactions

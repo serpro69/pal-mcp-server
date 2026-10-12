@@ -4,6 +4,10 @@
 
 ## Unreleased
 
+- Keep one MCP stdio session per simulator scenario, preserving continuation state
+  and closing the server on failure. Add provider-agnostic `--ci` selection and
+  `SIMULATOR_MODEL`; selected failures now retain summaries and fail the run.
+
 - Reduce repeated tool-schema prose while preserving all 18 capability names,
   system prompts and clink safety controls. Planner/tracer no longer require a
   model; unused model/expert inputs remain optional and deprecated for PAL 1.x

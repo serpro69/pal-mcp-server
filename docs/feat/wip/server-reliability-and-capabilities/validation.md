@@ -1722,3 +1722,43 @@ progress with Tasks 34–42 pending.
 
 Task 33 final isolated local code review: **APPROVE**, no P0–P3 findings and no
 findings to index. All three requested tasks completed with separate commits.
+
+## Task 34: Simulator session lifetime and selected accounting
+
+2026-10-12. Simulator scenarios now use the installed interpreter and one lazy
+MCP 1.30.0 stdio client/server session across all calls. The old direct-call
+compatibility name delegates to real MCP dispatch. AnyIO 4.13.0's blocking portal
+wrapper enters and exits the SDK context in the same task, with owned teardown
+on failure or interruption. AnyIO is now an explicit dev dependency constrained
+to runtime pins; regenerated dev lock introduces no version upgrades.
+
+Added three explicitly provider-agnostic scenarios for conversation turn counts,
+workflow/cross-tool continuation, and error recovery, using SIMULATOR_MODEL.
+Existing routing/quality scenarios remain outside --ci. Selection modes are
+exclusive, every selected result is counted, and failures retain the summary.
+Updated docs/testing.md and release notes, including the Ollama /v1 example.
+
+Verified SDK lifecycle against the locked installation and
+[tagged MCP 1.30.0 stdio implementation](https://github.com/modelcontextprotocol/python-sdk/blob/v1.30.0/src/mcp/client/stdio/__init__.py);
+Context7's unversioned SDK results included v2 and were not used as version proof.
+AnyIO portal semantics were checked in the installed 4.13.0 package.
+
+Baseline quality: 1,775 passed. Focused tests exercise a fake transport plus a real
+provider-free stdio planner continuation. External PAL review failed with an invalid
+API key; isolated local review remains the available independent reviewer.
+No configured local reasoning endpoint was available. Task 35 will run the new
+provider-agnostic scenarios against its strict local endpoint; live model quality
+remains a separate check. The legacy integration script still stops before tests
+because it only recognizes a checkout-local environment.
+
+Final full quality (Python 3.12.14): **1,795 passed**, 16 skipped, 16 deselected,
+19 subtests; Ruff/Black/isort passed. Focused Python 3.10.19 and 3.12.14: **20 passed**
+each, including child SIGINT probes during pending handshake and tool calls.
+Review found compatibility-alias recursion, premature mid-scenario session cleanup,
+standalone entry points bypassing ownership and interruption losing the exception
+needed to cancel portal tasks; all corrected with targeted regressions.
+Credential-isolated legacy --quick returns **exit 1**, retains a **2/6** summary,
+and fails provider-dependent checks as expected; it is not live-provider evidence.
+
+Final isolated local review: **APPROVE**, no remaining findings. Systemic dispatch/
+portal lifecycle lessons indexed as kk:review-findings; capy database excluded.

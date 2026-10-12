@@ -194,7 +194,7 @@ def main():
     verbose = "--verbose" in sys.argv or "-v" in sys.argv
     test = PromptSizeLimitBugTest(verbose=verbose)
 
-    success = test.run_test()
+    success = test.run()
     if success:
         print("Bug reproduction test completed - check logs for details")
     else:

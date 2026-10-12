@@ -86,10 +86,13 @@ class CommunicationSimulator:
         selected_tests: list[str] = None,
         setup: bool = False,
         quick_mode: bool = False,
+        ci_mode: bool = False,
     ):
         self.verbose = verbose
         self.keep_logs = keep_logs
-        self.selected_tests = selected_tests or []
+        if sum((bool(selected_tests), quick_mode, ci_mode)) > 1:
+            raise ValueError("Test selection modes are mutually exclusive")
+        self.selected_tests = list(dict.fromkeys(selected_tests or []))
         self.setup = setup
         self.quick_mode = quick_mode
         self.temp_dir = None
@@ -123,47 +126,29 @@ class CommunicationSimulator:
             self.selected_tests = self.quick_mode_tests
             self.logger.info(f"Quick mode enabled - running {len(self.quick_mode_tests)} essential tests")
 
+        if ci_mode:
+            self.selected_tests = [name for name, cls in self.test_registry.items() if cls.provider_agnostic]
+            if not self.selected_tests:
+                raise ValueError("No provider-agnostic scenarios registered")
+
+        unknown = set(self.selected_tests) - self.test_registry.keys()
+        if unknown:
+            raise ValueError(f"Unknown tests: {sorted(unknown)}")
+
         # Available test methods mapping
         self.available_tests = {
             name: self._create_test_runner(test_class) for name, test_class in self.test_registry.items()
         }
 
         # Test result tracking
-        self.test_results = dict.fromkeys(self.test_registry.keys(), False)
+        self.test_results = dict.fromkeys(self.selected_tests or self.test_registry.keys())
 
     def _get_python_path(self) -> str:
-        """Get the Python path for the virtual environment"""
-        current_dir = os.getcwd()
-
-        # Try .venv first (modern convention)
-        venv_python = os.path.join(current_dir, ".venv", "bin", "python")
-        if os.path.exists(venv_python):
-            return venv_python
-
-        # Try venv as fallback
-        venv_python = os.path.join(current_dir, "venv", "bin", "python")
-        if os.path.exists(venv_python):
-            return venv_python
-
-        # Try .pal_venv as fallback
-        pal_venv_python = os.path.join(current_dir, ".pal_venv", "bin", "python")
-        if os.path.exists(pal_venv_python):
-            return pal_venv_python
-
-        # Fallback to system python if venv doesn't exist
-        self.logger.warning("Virtual environment not found, using system python")
-        return "python"
+        return sys.executable
 
     def _create_test_runner(self, test_class):
-        """Create a test runner function for a test class"""
-
         def run_test():
-            test_instance = test_class(verbose=self.verbose)
-            result = test_instance.run_test()
-            # Update results
-            test_name = test_instance.test_name
-            self.test_results[test_name] = result
-            return result
+            return test_class(verbose=self.verbose).run()
 
         return run_test
 
@@ -238,7 +223,9 @@ class CommunicationSimulator:
 
             # Check if required dependencies are available
             try:
-                result = self._run_command([self.python_path, "-c", "import json; print('OK')"], capture_output=True)
+                result = self._run_command(
+                    [self.python_path, "-c", "import mcp, anyio; print('OK')"], capture_output=True
+                )
                 if result.returncode != 0:
                     self.logger.error("Python environment validation failed")
                     return False
@@ -255,43 +242,11 @@ class CommunicationSimulator:
             return False
 
     def simulate_claude_cli_session(self) -> bool:
-        """Simulate a complete Claude CLI session with conversation continuity"""
-        try:
-            self.logger.info("Starting Claude CLI simulation...")
-
-            # If specific tests are selected, run only those
-            if self.selected_tests:
-                return self._run_selected_tests()
-
-            # Otherwise run all tests in order
-            test_sequence = list(self.test_registry.keys())
-
-            for test_name in test_sequence:
-                if not self._run_single_test(test_name):
-                    return False
-
-            self.logger.info("All tests passed")
-            return True
-
-        except Exception as e:
-            self.logger.error(f"Claude CLI simulation failed: {e}")
-            return False
+        return self._run_selected_tests()
 
     def _run_selected_tests(self) -> bool:
-        """Run only the selected tests"""
-        try:
-            self.logger.info(f"Running selected tests: {', '.join(self.selected_tests)}")
-
-            for test_name in self.selected_tests:
-                if not self._run_single_test(test_name):
-                    return False
-
-            self.logger.info("All selected tests passed")
-            return True
-
-        except Exception as e:
-            self.logger.error(f"Selected tests failed: {e}")
-            return False
+        outcomes = [self._run_single_test(name) for name in self.test_results]
+        return bool(outcomes) and all(outcomes)
 
     def _run_single_test(self, test_name: str) -> bool:
         """Run a single test by name"""
@@ -304,6 +259,7 @@ class CommunicationSimulator:
             self.logger.info(f"Running test: {test_name}")
             test_function = self.available_tests[test_name]
             result = test_function()
+            self.test_results[test_name] = bool(result)
 
             if result:
                 self.logger.info(f"Test {test_name} passed")
@@ -313,41 +269,16 @@ class CommunicationSimulator:
             return result
 
         except Exception as e:
+            self.test_results[test_name] = False
             self.logger.error(f"Test {test_name} failed with exception: {e}")
             return False
 
     def run_individual_test(self, test_name: str) -> bool:
-        """Run a single test individually"""
-        try:
-            if test_name not in self.available_tests:
-                self.logger.error(f"Unknown test: {test_name}")
-                self.logger.info(f"Available tests: {', '.join(self.available_tests.keys())}")
-                return False
-
-            self.logger.info(f"Running individual test: {test_name}")
-
-            # Setup environment
-            if not self.setup_test_environment():
-                self.logger.error("Environment setup failed")
-                return False
-
-            # Run the single test
-            test_function = self.available_tests[test_name]
-            result = test_function()
-
-            if result:
-                self.logger.info(f"Individual test {test_name} passed")
-            else:
-                self.logger.error(f"Individual test {test_name} failed")
-
-            return result
-
-        except Exception as e:
-            self.logger.error(f"Individual test {test_name} failed with exception: {e}")
+        if test_name not in self.available_tests:
+            self.logger.error("Unknown test: %s", test_name)
             return False
-        finally:
-            if not self.keep_logs:
-                self.cleanup()
+        self.test_results = {test_name: None}
+        return self.run_full_test_suite()
 
     def get_available_tests(self) -> dict[str, str]:
         """Get available tests with descriptions"""
@@ -368,7 +299,7 @@ class CommunicationSimulator:
         total_count = len(self.test_results)
 
         for test_name, result in self.test_results.items():
-            status = "PASS" if result else "FAIL"
+            status = "NOT RUN" if result is None else ("PASS" if result else "FAIL")
             # Get test description
             temp_instance = self.test_registry[test_name](verbose=False)
             description = temp_instance.test_description
@@ -377,13 +308,13 @@ class CommunicationSimulator:
             else:
                 self.logger.error(f"{description}: {status}")
 
-        if passed_count == total_count:
+        if total_count and passed_count == total_count:
             self.logger.info("\nOVERALL RESULT: SUCCESS")
         else:
             self.logger.error("\nOVERALL RESULT: FAILURE")
         self.logger.info(f"{passed_count}/{total_count} tests passed")
         self.logger.info("=" * 70)
-        return passed_count == total_count
+        return bool(total_count) and passed_count == total_count
 
     def run_full_test_suite(self) -> bool:
         """Run the complete test suite"""
@@ -395,22 +326,13 @@ class CommunicationSimulator:
                 self.logger.error("Environment setup failed")
                 return False
 
-            # Main simulation
-            if not self.simulate_claude_cli_session():
-                self.logger.error("Claude CLI simulation failed")
-                return False
-
-            # Print comprehensive summary
-            overall_success = self.print_test_summary()
-
-            return overall_success
-
+            return self.simulate_claude_cli_session()
         except Exception as e:
             self.logger.error(f"Test suite failed: {e}")
             return False
         finally:
-            if not self.keep_logs:
-                self.cleanup()
+            self.print_test_summary()
+            self.cleanup()
 
     def cleanup(self):
         """Cleanup test environment"""
@@ -448,22 +370,24 @@ class CommunicationSimulator:
         return subprocess.run(cmd, check=check, capture_output=capture_output, **kwargs)
 
 
-def parse_arguments():
+def parse_arguments(argv=None):
     """Parse and validate command line arguments"""
     parser = argparse.ArgumentParser(description="PAL MCP Communication Simulator Test")
     parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose logging")
     parser.add_argument("--keep-logs", action="store_true", help="Keep logs for inspection after test completion")
-    parser.add_argument("--tests", "-t", nargs="+", help="Specific tests to run (space-separated)")
-    parser.add_argument("--list-tests", action="store_true", help="List available tests and exit")
-    parser.add_argument("--individual", "-i", help="Run a single test individually")
-    parser.add_argument(
+    selection = parser.add_mutually_exclusive_group()
+    selection.add_argument("--tests", "-t", nargs="+", help="Specific tests to run (space-separated)")
+    selection.add_argument("--list-tests", action="store_true", help="List available tests and exit")
+    selection.add_argument("--individual", "-i", help="Run a single test individually")
+    selection.add_argument(
         "--quick", "-q", action="store_true", help="Run quick test mode (6 essential tests for time-limited testing)"
     )
     parser.add_argument(
         "--setup", action="store_true", help="Force setup standalone server environment using run-server.sh"
     )
 
-    return parser.parse_args()
+    selection.add_argument("--ci", action="store_true", help="Provider-agnostic contract scenarios (SIMULATOR_MODEL)")
+    return parser.parse_args(argv)
 
 
 def list_available_tests():
@@ -541,6 +465,7 @@ def main():
         selected_tests=args.tests,
         setup=args.setup,
         quick_mode=args.quick,
+        ci_mode=args.ci,
     )
 
     # Determine execution mode and run
