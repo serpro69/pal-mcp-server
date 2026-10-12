@@ -4,6 +4,11 @@
 
 ## Unreleased
 
+- Reduce repeated tool-schema prose while preserving all 18 capability names,
+  system prompts and clink safety controls. Planner/tracer no longer require a
+  model; unused model/expert inputs remain optional and deprecated for PAL 1.x
+  compatibility. Add [tool-surface snapshots and checks](docs/tool-surface.md).
+
 - Expose opt-in conversation audits through bounded `pal://threads` and UUID
   transcript resources over MCP 1.x. Reads report truncation and skipped records;
   disabled recording hides retained data, with missing and I/O errors distinguished.

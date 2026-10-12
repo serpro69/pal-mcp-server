@@ -20,13 +20,11 @@ logger = logging.getLogger(__name__)
 
 # Shared field descriptions to avoid duplication
 COMMON_FIELD_DESCRIPTIONS = {
-    "model": "Model to run. Supply a name if requested by the user or stay in auto mode. When in auto mode, use `listmodels` tool for model discovery.",
+    "model": "Use the user's exact model choice; otherwise select via listmodels in auto mode.",
     "temperature": "0 = deterministic · 1 = creative.",
     "thinking_mode": "Reasoning depth: minimal, low, medium, high, or max.",
     "continuation_id": (
-        "Unique thread continuation ID for multi-turn conversations. Works across different tools. "
-        "ALWAYS reuse the last continuation_id you were given—this preserves full conversation context, "
-        "files, and findings so the agent can resume seamlessly."
+        "Always reuse the latest continuation_id to preserve conversation context, files and findings, including across tools."
     ),
     "images": "Optional absolute image paths or base64 blobs for visual context.",
     "absolute_file_paths": "Full paths to relevant code",
@@ -37,22 +35,16 @@ WORKFLOW_FIELD_DESCRIPTIONS = {
     "step": "Current work step content and findings from your overall work",
     "step_number": "Current step number in work sequence (starts at 1)",
     "total_steps": "Estimated total steps needed to complete work",
-    "next_step_required": "Whether another work step is needed. When false, aim to reduce total_steps to match step_number to avoid mismatch.",
+    "next_step_required": "Whether another step follows. When false, align total_steps with step_number.",
     "findings": "Important findings, evidence and insights discovered in this step",
     "files_checked": "List of files examined during this work step",
     "relevant_files": "Files identified as relevant to issue/goal (FULL absolute paths to real files/folders - DO NOT SHORTEN)",
     "relevant_context": "Methods/functions identified as involved in the issue",
     "issues_found": "Issues identified with severity levels during work",
-    "confidence": (
-        "Confidence level: exploring (just starting), low (early investigation), "
-        "medium (some evidence), high (strong evidence), very_high (comprehensive understanding), "
-        "almost_certain (near complete confidence), certain (100% confidence locally - no external validation needed)"
-    ),
+    "confidence": ("Investigation confidence. 'certain' means 100% complete locally and skips external validation."),
     "hypothesis": "Current theory about issue/goal based on work",
     "use_assistant_model": (
-        "Use assistant model for expert analysis after workflow steps. "
-        "False skips expert analysis, relies solely on your personal investigation. "
-        "Defaults to True for comprehensive validation."
+        "Run expert model analysis after workflow steps (default true). False uses only your investigation."
     ),
 }
 

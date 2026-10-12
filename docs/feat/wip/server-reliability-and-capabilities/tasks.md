@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Implementation: [implementation.md](implementation.md)
 > Review resolutions: [review.md](review.md#revalidation-and-resolution)
-> Status: in-progress (Tasks 1–32 done; Tasks 33–42 pending)
+> Status: in-progress (Tasks 1–33 done; Tasks 34–42 pending)
 > Created: 2026-10-10
 > Not Doing: toolchain/release-process migration; MCP 2.x; wholesale catalogs; replacement of safety controls; file-annotation implementation; persistent continuation recovery; remote multi-user transport; automatic service activation
 
@@ -704,17 +704,25 @@ External reviewer remains unavailable due to invalid credentials.
 
 ## Task 33: Reduce tool schema overhead without contract loss
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 10, Task 23, Task 12, Task 13
 - **Size:** M
 - **Can run in parallel with:** —
 - **Docs:** [Implementation slice](implementation.md#task-33); [design contract](design.md#d6-budgets-progress-and-tool-surface)
 
-- [ ] 33.1 Capture baseline tool names, required fields and description size; preserve the same capability names and local clink parameters while shortening repeated prose.
-- [ ] 33.2 Remove only proved-unused advertised fields and relax model requirements for provider-free tools; keep accepted legacy request inputs for a documented transition.
-- [ ] 33.3 Verify the acceptance cases in [Task 33](implementation.md#task-33) and record the result here.
+- [x] 33.1 Capture baseline tool names, required fields and description size; preserve the same capability names and local clink parameters while shortening repeated prose.
+- [x] 33.2 Remove only proved-unused advertised fields and relax model requirements for provider-free tools; keep accepted legacy request inputs for a documented transition.
+- [x] 33.3 Verify the acceptance cases in [Task 33](implementation.md#task-33) and record the result here.
 
 **Scope / gate:** If description editing spans many substantive tool behaviors, split by simple/workflow family before implementation; mechanical text edits do not justify behavior changes.
+
+**Evidence:** [Task 33 validation](validation.md#task-33-smaller-tool-schemas-with-legacy-compatibility),
+2026-10-12. Full quality **1,775 passed**; Python 3.10 focused checks **81 passed**.
+18 capabilities retained; description bytes **34,289 → 29,387 (14.3% lower)**.
+Planner/tracer model inputs are optional; unused fields remain deprecated and
+typed for PAL 1.x compatibility because MCP validates the advertised schema.
+All systemprompt modules and clink safety controls are guarded. Isolated review
+approved with no findings to index; external PAL credentials remain unavailable.
 
 ## Task 34: Repair simulator session lifetime and model selection
 

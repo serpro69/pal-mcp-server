@@ -608,6 +608,15 @@ Resources do not restore continuation memory or support subscriptions.
 
 **Contract / gate:** If description editing spans many substantive tool behaviors, split by simple/workflow family before implementation; mechanical text edits do not justify behavior changes.
 
+**Resolved compatibility window (2026-10-12):** Keep all parameter names in this
+slice. MCP 1.30 validates calls against advertised JSON Schema, so unadvertising
+legacy fields would reject older clients before request-model compatibility runs.
+Planner/tracer `model` and `use_assistant_model` remain typed, optional, deprecated
+compatibility inputs throughout PAL 1.x, without provider effects; advertise the
+actual false expert default. Remove them only in a separately announced PAL major
+release. Shared prose edits are mechanical; only these two local tools change
+requiredness. Tool names, other controls, system prompts and clink safety remain.
+
 <a id="task-34"></a>
 
 ## Task 34: Repair simulator session lifetime and model selection
