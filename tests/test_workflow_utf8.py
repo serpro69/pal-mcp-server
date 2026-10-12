@@ -17,6 +17,7 @@ from tests.test_conversation_storage_errors import FaultStorage
 from tools.analyze import AnalyzeTool
 from tools.codereview import CodeReviewTool
 from tools.debug import DebugIssueTool
+from tools.shared.exceptions import ToolExecutionError
 from utils import conversation_memory as memory
 
 
@@ -135,21 +136,25 @@ async def test_workflow_expert_unicode_result_and_error(monkeypatch, tmp_path, t
     monkeypatch.setattr(GeminiModelProvider, "generate_content", generate)
     source = tmp_path / "example.py"
     source.write_text("données = 1\n", encoding="utf-8")
-    output = await tool_class().execute(
-        {
-            "step": "Analyser les données",
-            "findings": "Une validation est nécessaire",
-            "hypothesis": "Validation des paramètres insuffisante",
-            "confidence": "medium",
-            "step_number": 1,
-            "total_steps": 1,
-            "next_step_required": False,
-            "files_checked": [str(source)],
-            "relevant_files": [str(source)],
-            "model": model,
-        }
-    )
-    result = json.loads(output[0].text)
+    arguments = {
+        "step": "Analyser les données",
+        "findings": "Une validation est nécessaire",
+        "hypothesis": "Validation des paramètres insuffisante",
+        "confidence": "medium",
+        "step_number": 1,
+        "total_steps": 1,
+        "next_step_required": False,
+        "files_checked": [str(source)],
+        "relevant_files": [str(source)],
+        "model": model,
+    }
+    if fails:
+        with pytest.raises(ToolExecutionError) as failure:
+            await tool_class().execute(arguments)
+        result = json.loads(failure.value.payload)
+    else:
+        output = await tool_class().execute(arguments)
+        result = json.loads(output[0].text)
     generate.assert_awaited_once()
     sent = generate.call_args.kwargs
     assert "fr-FR" in sent["system_prompt"] + sent["prompt"]

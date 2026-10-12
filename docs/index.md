@@ -13,7 +13,13 @@ _Formerly known as PAL MCP. See the short [name change note](name-change.md) for
 | [Adding Tools](adding_tools.md) | Create new tools using the shared base classes. |
 | [Advanced Usage](advanced-usage.md) | Auto-mode tricks, workflow tools, and collaboration tips. |
 | [Configuration](configuration.md) | .env options, restriction policies, logging levels. |
+| [Architecture](architecture.md) | Request ownership, async providers, memory, policy and failure boundaries. |
+| [Logging and transcripts](logging.md) | Portable paths, private audit streams and bounded MCP resources. |
+| [Progress](progress.md) | Request-scoped notifications and execution metadata. |
+| [OpenCode Go](opencode-go.md) | Optional provider setup and live-validation gates. |
+| [Jules](tools/jules.md) | Explicit background coding actions and approval controls. |
 | [Testing](testing.md) | Test strategy, command cheats, and coverage notes. |
+| [Reliability verification](feat/wip/server-reliability-and-capabilities/final-verification.md) | Final acceptance evidence and outstanding release gates. |
 | [Troubleshooting](troubleshooting.md) | Common issues and resolutions. |
 
 Additional docs live in this directory; start with the table above to orient yourself.

@@ -226,8 +226,12 @@ async def test_workflow_provider_waits_yield_without_mixing_or_retrying_cancella
             assert not coordination._entries
         else:
             release_async.set()
-            results = await asyncio.wait_for(asyncio.gather(*tasks), 2)
+            expert_failure = outcome == "failure" and tool_name == "thinkdeep"
+            results = await asyncio.wait_for(asyncio.gather(*tasks, return_exceptions=expert_failure), 2)
             for result, model, provider in zip(results, models, ("google", "openai")):
+                if expert_failure:
+                    assert isinstance(result, ToolExecutionError)
+                    result = json.loads(result.payload)
                 if tool_name == "consensus":
                     summary = result["complete_consensus"]
                     assert summary["status"] == ("complete" if outcome == "success" else "failed")

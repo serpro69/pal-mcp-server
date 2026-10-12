@@ -12,8 +12,8 @@ This project includes comprehensive test coverage through unit tests and integra
 
 Run all unit tests with pytest:
 ```bash
-# Run all tests with verbose output
-python -m pytest -xvs
+# Run unit tests without live integration calls
+python -m pytest tests/ -v -m "not integration"
 
 # Run specific test file
 python -m pytest tests/test_providers.py -xvs
@@ -76,7 +76,8 @@ Simulator tests replicate real-world Claude CLI interactions with the standalone
 
 #### Monitoring Logs During Tests
 
-**Important**: The MCP stdio protocol interferes with stderr output during tool execution. Tool execution logs are written to local log files. This is a known limitation of the stdio-based MCP protocol.
+Resolve the configured log directory instead of assuming repository-local logs.
+The strict stub tier uses temporary state that it cleans up after each run.
 
 To monitor logs during test execution:
 
@@ -85,20 +86,20 @@ To monitor logs during test execution:
 ./run-server.sh -f
 
 # Or manually monitor main server logs (includes all tool execution details)
-tail -f -n 500 logs/mcp_server.log
+pal_log_path=$(python -m utils.log_dir)
+tail -f -n 500 "$pal_log_path/mcp_server.log"
 
 # Monitor MCP activity logs (tool calls and completions)  
-tail -f logs/mcp_activity.log
+tail -f "$pal_log_path/mcp_activity.log"
 
-# Check log file sizes (logs rotate at 20MB)
-ls -lh logs/mcp_*.log*
+# Check active and rotated files
+ls -lh "$pal_log_path"/mcp_*.log*
 ```
 
-**Log Rotation**: All log files are configured with automatic rotation at 20MB to prevent disk space issues. The server keeps:
-- 10 rotated files for mcp_server.log (200MB total)
-- 5 rotated files for mcp_activity.log (100MB total)
-
-**Why logs appear in files**: The MCP stdio_server captures stderr during tool execution to prevent interference with the JSON-RPC protocol communication. This means tool execution logs are written to files rather than displayed in console output.
+Main logs rotate at 20 MiB with five backups (120 MiB including the active file);
+activity logs rotate at 10 MiB with two backups (30 MiB including active). Logs
+also reach stderr; stdout is reserved for MCP protocol traffic. See
+[logging](logging.md) for paths, migration and diagnostic limits.
 
 #### Running All Simulator Tests
 ```bash
@@ -175,7 +176,7 @@ Validate real-world usage scenarios by simulating actual Claude prompts:
 - **File deduplication**: Efficient handling of repeated file references
 - **Model selection**: Proper routing to configured providers
 - **Token allocation**: Context window management in practice
-- **Redis validation**: Conversation persistence and retrieval
+- **Memory validation**: In-process TTL conversation storage and retrieval
 
 ## Contributing
 
@@ -188,10 +189,26 @@ For detailed contribution guidelines, testing requirements, and code quality sta
 ./code_quality_checks.sh
 
 # Run unit tests
-python -m pytest -xvs
+python -m pytest tests/ -v -m "not integration"
 
 # Run simulator tests (for tool changes)
 python communication_simulator_test.py
 ```
 
 Remember: All tests must pass before submitting a PR. See the [Contributing Guide](./contributions.md) for complete requirements.
+
+## Final reliability verification
+
+Install both committed locks into fresh environments for Python 3.10, 3.11 and
+3.12. Run the full unit suite and `python -m simulator_tests.stub_provider` in
+each, and run `./code_quality_checks.sh` with an activated environment. Recompile
+seeded temporary copies of both locks using the CI pip-compile flags and compare
+them byte for byte. Package/image checks and independent code/spec reviews
+complement this matrix; passing units alone does not close live-service gates.
+
+[Task 42 evidence and release gates](feat/wip/server-reliability-and-capabilities/final-verification.md)
+record commands, counts, skip reasons and required follow-ups. Retain historical
+cassettes until an explicitly configured recording run replaces them. A changed
+request failing old replay is recorded as a compatibility gap, not edited into a
+passing recording. Optional live model, CLI and Jules checks require their actual
+credentials and targets; a deterministic stub cannot establish reasoning quality.

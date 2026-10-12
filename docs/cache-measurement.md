@@ -53,6 +53,12 @@ This is a diagnostic report over persisted replies, not a billing ledger: missin
 transcripts, failed final persistence, cancelled/failed invocations without a saved
 assistant reply, and provider attempts that returned no usage cannot supply complete
 accounting. It does not infer token counts from workflow aggregates or old turns.
+Even a returned empty/blocked response with known usage can be absent from the
+report when the invocation never saves an assistant reply. Report coverage counts
+describe persisted call records, not every attempted or billed invocation.
+[Task 42 follow-up R1](feat/wip/server-reliability-and-capabilities/final-verification.md#r1-preserve-known-usage-without-an-assistant-reply)
+tracks independent usage persistence and deduplication; complete invocation
+accounting remains unverified until that work lands.
 Retention/privacy/platform limitations follow [transcript configuration](logging.md#private-conversation-transcripts).
 
 ## Reproduce the offline baseline
@@ -136,7 +142,9 @@ reread on every request, and compaction checks a contiguous newest suffix,
 exact-once current input and accurate omission counts. This experiment makes no
 live cost/quality claim and introduces no runtime cache, layout option or snapshots.
 
-Separate [reproduced prompt issues](feat/wip/server-reliability-and-capabilities/capture-followups.md)
-remain open: absent chat search guidance, unused thinkdeep customization, and
-codereview literal newline escapes. The green core-content gate does not certify
-those optional guidance paths or erase the follow-ups.
+The separate [reproduced prompt issues](feat/wip/server-reliability-and-capabilities/capture-followups.md)
+are fixed: chat search guidance, ThinkDeep customization and codereview newline
+rendering now have dispatcher/capture regressions. Historical baseline files
+retain the original failures; updated evidence is in
+[prompt-fixes-capture.json](feat/wip/server-reliability-and-capabilities/prompt-fixes-capture.json).
+The failed-call usage gap R1 and live cost/quality validation remain open.

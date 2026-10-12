@@ -321,6 +321,8 @@ class AzureOpenAIProvider(OpenAICompatibleProvider):
 
     def _resolve_canonical_and_deployment(self, model_name: str) -> tuple[str, str]:
         resolved_canonical = self.resolve_model_identity(model_name)
+        if resolved_canonical is None:
+            raise ValueError(f"Model '{model_name}' is not configured for Azure OpenAI")
 
         if resolved_canonical not in self._deployment_map:
             # The base resolver may hand back the deployment alias. Try to map it
