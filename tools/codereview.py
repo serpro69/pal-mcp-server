@@ -331,49 +331,47 @@ class CodeReviewTool(WorkflowTool):
     def prepare_expert_analysis_context(self, consolidated_findings) -> str:
         """Prepare context for external model call for final code review validation."""
         context_parts = [
-            f"=== CODE REVIEW REQUEST ===\\n{self.initial_request or 'Code review workflow initiated'}\\n=== END REQUEST ==="
+            f"=== CODE REVIEW REQUEST ===\n{self.initial_request or 'Code review workflow initiated'}\n=== END REQUEST ==="
         ]
 
         # Add investigation summary
         investigation_summary = self._build_code_review_summary(consolidated_findings)
         context_parts.append(
-            f"\\n=== AGENT'S CODE REVIEW INVESTIGATION ===\\n{investigation_summary}\\n=== END INVESTIGATION ==="
+            f"\n=== AGENT'S CODE REVIEW INVESTIGATION ===\n{investigation_summary}\n=== END INVESTIGATION ==="
         )
 
         # Add review configuration context if available
         if self.review_config:
-            config_text = "\\n".join(f"- {key}: {value}" for key, value in self.review_config.items() if value)
-            context_parts.append(f"\\n=== REVIEW CONFIGURATION ===\\n{config_text}\\n=== END CONFIGURATION ===")
+            config_text = "\n".join(f"- {key}: {value}" for key, value in self.review_config.items() if value)
+            context_parts.append(f"\n=== REVIEW CONFIGURATION ===\n{config_text}\n=== END CONFIGURATION ===")
 
         # Add relevant code elements if available
         if consolidated_findings.relevant_context:
-            methods_text = "\\n".join(f"- {method}" for method in sorted(consolidated_findings.relevant_context))
-            context_parts.append(f"\\n=== RELEVANT CODE ELEMENTS ===\\n{methods_text}\\n=== END CODE ELEMENTS ===")
+            methods_text = "\n".join(f"- {method}" for method in sorted(consolidated_findings.relevant_context))
+            context_parts.append(f"\n=== RELEVANT CODE ELEMENTS ===\n{methods_text}\n=== END CODE ELEMENTS ===")
 
         # Add issues found if available
         if consolidated_findings.issues_found:
-            issues_text = "\\n".join(
+            issues_text = "\n".join(
                 f"[{issue.get('severity', 'unknown').upper()}] {issue.get('description', 'No description')}"
                 for issue in consolidated_findings.issues_found
             )
-            context_parts.append(f"\\n=== ISSUES IDENTIFIED ===\\n{issues_text}\\n=== END ISSUES ===")
+            context_parts.append(f"\n=== ISSUES IDENTIFIED ===\n{issues_text}\n=== END ISSUES ===")
 
         # Add assessment evolution if available
         if consolidated_findings.hypotheses:
-            assessments_text = "\\n".join(
+            assessments_text = "\n".join(
                 f"Step {h['step']} ({h['confidence']} confidence): {h['hypothesis']}"
                 for h in consolidated_findings.hypotheses
             )
-            context_parts.append(f"\\n=== ASSESSMENT EVOLUTION ===\\n{assessments_text}\\n=== END ASSESSMENTS ===")
+            context_parts.append(f"\n=== ASSESSMENT EVOLUTION ===\n{assessments_text}\n=== END ASSESSMENTS ===")
 
         # Add images if available
         if consolidated_findings.images:
-            images_text = "\\n".join(f"- {img}" for img in consolidated_findings.images)
-            context_parts.append(
-                f"\\n=== VISUAL REVIEW INFORMATION ===\\n{images_text}\\n=== END VISUAL INFORMATION ==="
-            )
+            images_text = "\n".join(f"- {img}" for img in consolidated_findings.images)
+            context_parts.append(f"\n=== VISUAL REVIEW INFORMATION ===\n{images_text}\n=== END VISUAL INFORMATION ===")
 
-        return "\\n".join(context_parts)
+        return "\n".join(context_parts)
 
     def _build_code_review_summary(self, consolidated_findings) -> str:
         """Prepare a comprehensive summary of the code review investigation."""
@@ -391,7 +389,7 @@ class CodeReviewTool(WorkflowTool):
         for finding in consolidated_findings.findings:
             summary_parts.append(finding)
 
-        return "\\n".join(summary_parts)
+        return "\n".join(summary_parts)
 
     def should_include_files_in_expert_prompt(self) -> bool:
         """Include files in expert analysis for comprehensive code review."""
@@ -568,25 +566,25 @@ class CodeReviewTool(WorkflowTool):
                 return {
                     "next_steps": (
                         "You are on step 1 of MAXIMUM 2 steps for continuation. CRITICAL: Quickly review the code NOW. "
-                        "MANDATORY ACTIONS:\\n"
-                        + "\\n".join(f"{i+1}. {action}" for i, action in enumerate(required_actions))
-                        + "\\n\\nSet next_step_required=True and step_number=2 for the next call to trigger expert analysis."
+                        "MANDATORY ACTIONS:\n"
+                        + "\n".join(f"{i+1}. {action}" for i, action in enumerate(required_actions))
+                        + "\n\nSet next_step_required=True and step_number=2 for the next call to trigger expert analysis."
                     )
                 }
             elif is_internal_continuation:
                 # Internal validation mode
                 next_steps = (
                     "Continuing previous conversation with internal validation only. The analysis will build "
-                    "upon the prior findings without external model validation. REQUIRED ACTIONS:\\n"
-                    + "\\n".join(f"{i+1}. {action}" for i, action in enumerate(required_actions))
+                    "upon the prior findings without external model validation. REQUIRED ACTIONS:\n"
+                    + "\n".join(f"{i+1}. {action}" for i, action in enumerate(required_actions))
                 )
             else:
                 # Normal flow for new reviews
                 next_steps = (
                     f"MANDATORY: DO NOT call the {self.get_name()} tool again immediately. You MUST first examine "
-                    f"the code files thoroughly using appropriate tools. CRITICAL AWARENESS: You need to:\\n"
-                    + "\\n".join(f"{i+1}. {action}" for i, action in enumerate(required_actions))
-                    + f"\\n\\nOnly call {self.get_name()} again AFTER completing your investigation. "
+                    f"the code files thoroughly using appropriate tools. CRITICAL AWARENESS: You need to:\n"
+                    + "\n".join(f"{i+1}. {action}" for i, action in enumerate(required_actions))
+                    + f"\n\nOnly call {self.get_name()} again AFTER completing your investigation. "
                     f"When you call {self.get_name()} next time, use step_number: {step_number + 1} "
                     f"and report specific files examined, issues found, and code quality assessments discovered."
                 )
@@ -614,9 +612,9 @@ class CodeReviewTool(WorkflowTool):
                 # Normal flow - deeper analysis needed
                 next_steps = (
                     f"STOP! Do NOT call {self.get_name()} again yet. You are on step 2 of {request.total_steps} minimum required steps. "
-                    f"MANDATORY ACTIONS before calling {self.get_name()} step {step_number + 1}:\\n"
-                    + "\\n".join(f"{i+1}. {action}" for i, action in enumerate(required_actions))
-                    + f"\\n\\nRemember: You MUST set next_step_required=True until step {request.total_steps}. "
+                    f"MANDATORY ACTIONS before calling {self.get_name()} step {step_number + 1}:\n"
+                    + "\n".join(f"{i+1}. {action}" for i, action in enumerate(required_actions))
+                    + f"\n\nRemember: You MUST set next_step_required=True until step {request.total_steps}. "
                     + f"Only call {self.get_name()} again with step_number: {step_number + 1} AFTER completing these code review tasks."
                 )
 
@@ -630,9 +628,9 @@ class CodeReviewTool(WorkflowTool):
             else:
                 # Later steps - final verification
                 next_steps = (
-                    f"WAIT! Your code review needs final verification. DO NOT call {self.get_name()} immediately. REQUIRED ACTIONS:\\n"
-                    + "\\n".join(f"{i+1}. {action}" for i, action in enumerate(required_actions))
-                    + f"\\n\\nREMEMBER: Ensure you have identified all significant issues across all severity levels and "
+                    f"WAIT! Your code review needs final verification. DO NOT call {self.get_name()} immediately. REQUIRED ACTIONS:\n"
+                    + "\n".join(f"{i+1}. {action}" for i, action in enumerate(required_actions))
+                    + f"\n\nREMEMBER: Ensure you have identified all significant issues across all severity levels and "
                     f"verified the completeness of your review. Document findings with specific file references and "
                     f"line numbers where applicable, then call {self.get_name()} with step_number: {step_number + 1}."
                 )

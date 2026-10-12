@@ -81,6 +81,49 @@ async def test_configuration_survives_fresh_objects_and_intermediate_steps(
         assert tool.initial_request == "original task"
 
 
+@pytest.mark.parametrize("continued", [False, True])
+async def test_thinkdeep_scope_reaches_expert_once_on_first_or_restored_call(state_env, continued):
+    args = step_args(problem_context="PROBLEM_SENTINEL", focus_areas=["FOCUS_SENTINEL"])
+    if continued:
+        local = await execute(ThinkDeepTool(), args)
+        args = step_args(step_number=2, continuation_id=local["continuation_offer"]["continuation_id"])
+    result = await execute(
+        ThinkDeepTool(), {**args, "next_step_required": False, "findings": "CURRENT_FINDING_SENTINEL"}
+    )
+    assert not result.get("error")
+    assert len(state_env) == 1
+    prompt = state_env[0]["prompt"]
+    assert prompt.count("- Problem Context: PROBLEM_SENTINEL") == 1
+    assert prompt.count("- Focus Areas: FOCUS_SENTINEL") == 1
+    assert prompt.count("CURRENT_FINDING_SENTINEL") == 1
+    assert prompt.count("VALIDATION OBJECTIVES:") == 1
+
+
+async def test_thinkdeep_scope_updates_can_be_cleared_and_do_not_leak(state_env):
+    first = await execute(
+        ThinkDeepTool(), step_args(problem_context="OLD_PROBLEM_SENTINEL", focus_areas=["OLD_FOCUS_SENTINEL"])
+    )
+    tool = ThinkDeepTool()
+    await execute(
+        tool,
+        step_args(
+            step_number=2,
+            continuation_id=first["continuation_offer"]["continuation_id"],
+            problem_context="NEW_PROBLEM_SENTINEL",
+            focus_areas=[],
+            next_step_required=False,
+        ),
+    )
+    prompt = state_env[-1]["prompt"]
+    assert "- Problem Context: NEW_PROBLEM_SENTINEL" in prompt
+    assert "- Focus Areas: comprehensive analysis" in prompt
+    assert "- Focus Areas: OLD_FOCUS_SENTINEL" not in prompt
+    await execute(tool, step_args(next_step_required=False))
+    prompt = state_env[-1]["prompt"]
+    assert "PROBLEM_SENTINEL" not in prompt
+    assert "FOCUS_SENTINEL" not in prompt
+
+
 async def test_planner_branches_restore_and_reused_object_resets(state_env):
     tool = PlannerTool()
     first = await execute(tool, step_args(is_branch_point=True, branch_id="branch-a", branch_from_step=1))

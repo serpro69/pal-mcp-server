@@ -52,7 +52,7 @@ class TestDockerMCPConfiguration:
                 assert f"{var}=" in content, f"Variable {var} missing"
 
             # Docker-specific variables should also be present
-            docker_vars = ["COMPOSE_PROJECT_NAME", "TZ", "LOG_MAX_SIZE"]
+            docker_vars = ["COMPOSE_PROJECT_NAME", "TZ"]
             for var in docker_vars:
                 assert f"{var}=" in content, f"Docker variable {var} missing"
 

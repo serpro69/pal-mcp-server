@@ -19,6 +19,17 @@ python -m pytest -xvs
 python -m pytest tests/test_providers.py -xvs
 ```
 
+### Integration launcher
+
+`./run_integration_tests.sh` uses the activated environment's Python (including
+virtualenvwrapper), falling back to the checkout's `.pal_venv`. Paths with spaces
+and invocation from another directory are supported. Install both lock files into
+the environment first. Default mode runs live integration tests and requires a
+configured target; `--with-simulator` also runs the live simulator.
+
+For offline validation, `./run_integration_tests.sh --stub` runs the strict local
+simulator below with isolated credentials. It never selects the live tests.
+
 ### Simulator Tests
 
 Each scenario owns one MCP stdio server for all its calls, using the Python

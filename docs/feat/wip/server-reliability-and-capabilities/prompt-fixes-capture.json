@@ -1,0 +1,227 @@
+{
+  "audits": [
+    {
+      "complete": true,
+      "thread": "thread-1",
+      "turns": 28
+    },
+    {
+      "complete": true,
+      "thread": "thread-1",
+      "turns": 32
+    },
+    {
+      "complete": true,
+      "thread": "thread-2",
+      "turns": 7
+    }
+  ],
+  "captured_requests": 19,
+  "instructions_preserved": true,
+  "investigations": {
+    "chat_tool_specific_search_guidance_present": true,
+    "chat_web_search_guidance_present": true,
+    "codereview_contains_literal_newlines": false,
+    "thinkdeep_customization_hook_called": true
+  },
+  "normalization": "Fixture directory and thread UUIDs only; fixture mtimes fixed.",
+  "prefix_report": {
+    "complete": true,
+    "requests": [
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": null,
+        "model": "gpt-4.1",
+        "previous_request_bytes": null,
+        "provider": "openai",
+        "request_bytes": 7780,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 5879,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 7780,
+        "provider": "openai",
+        "request_bytes": 8949,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 6684,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 8949,
+        "provider": "openai",
+        "request_bytes": 9174,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 6909,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 9174,
+        "provider": "openai",
+        "request_bytes": 9399,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 7134,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 9399,
+        "provider": "openai",
+        "request_bytes": 9625,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 7359,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 9625,
+        "provider": "openai",
+        "request_bytes": 9853,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": null,
+        "model": "gpt-5-mini",
+        "previous_request_bytes": null,
+        "provider": "openai",
+        "request_bytes": 10083,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 6308,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 9853,
+        "provider": "openai",
+        "request_bytes": 10495,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 6219,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 10495,
+        "provider": "openai",
+        "request_bytes": 10770,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 6219,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 10770,
+        "provider": "openai",
+        "request_bytes": 11043,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 8776,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 11043,
+        "provider": "openai",
+        "request_bytes": 11318,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 9051,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 11318,
+        "provider": "openai",
+        "request_bytes": 11593,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 9326,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 11593,
+        "provider": "openai",
+        "request_bytes": 11868,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 9601,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 11868,
+        "provider": "openai",
+        "request_bytes": 12143,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": null,
+        "model": "gpt-4.1",
+        "previous_request_bytes": null,
+        "provider": "openai",
+        "request_bytes": 9242,
+        "scenario": "workflow_expert"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": null,
+        "model": "gpt-4.1",
+        "previous_request_bytes": null,
+        "provider": "openai",
+        "request_bytes": 7816,
+        "scenario": "consensus"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": null,
+        "model": "gpt-5-mini",
+        "previous_request_bytes": null,
+        "provider": "openai",
+        "request_bytes": 7655,
+        "scenario": "consensus"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": null,
+        "model": "o3-pro",
+        "previous_request_bytes": null,
+        "provider": "openai",
+        "request_bytes": 7619,
+        "scenario": "responses"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": null,
+        "model": "gpt-4.1",
+        "previous_request_bytes": null,
+        "provider": "openai",
+        "request_bytes": 11339,
+        "scenario": "codereview"
+      }
+    ],
+    "schema_version": 1
+  },
+  "reproduce": "PAL_SKIP_DOTENV=true PYTHONHASHSEED=1 python -m tests.cache_capture --output /tmp/pal-fixes-capture.json",
+  "schema_version": 1,
+  "scope": "synthetic dispatcher to real SDK serializer with fake HTTP transport"
+}

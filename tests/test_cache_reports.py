@@ -5,7 +5,7 @@ import sys
 
 import pytest
 
-from scripts.cache_prefix import common_prefix_bytes, compare_runs, prefix_report
+from scripts.cache_prefix import common_prefix_bytes, compare_runs, prefix_report, request_text
 from scripts.cache_report import read_events, usage_report
 from tests.cache_capture import capture_scenarios
 
@@ -138,6 +138,29 @@ async def test_dispatcher_capture_completeness_audits_and_usage(tmp_path):
     }
     consensus = [c for c in result["captures"] if c["scenario"] == "consensus"]
     assert len(consensus) == 2 and consensus[0]["model"] != consensus[1]["model"]
+    assert result["investigations"] == {
+        "chat_web_search_guidance_present": True,
+        "chat_tool_specific_search_guidance_present": True,
+        "thinkdeep_customization_hook_called": True,
+        "codereview_contains_literal_newlines": False,
+    }
+    for capture in result["captures"]:
+        text = request_text(capture["request"])
+        if capture["scenario"] == "chat_files":
+            assert text.count("WEB SEARCH CAPABILITY:") == 1
+            assert text.count("When discussing topics, consider if searches for these would help:") == 1
+        elif capture["scenario"] == "workflow_expert":
+            assert text.count("DEEP THINKING ANALYSIS VALIDATION") == 1
+            assert text.count("[[PROBLEM_CONTEXT]]") == 1
+            assert text.count("[[FINDINGS_2]]") == 1
+            assert text.count("- Focus Areas: [[FOCUS_AREA]]") == 1
+        elif capture["scenario"] == "codereview":
+            assert "=== CODE REVIEW REQUEST ===\n" in text
+            assert "=== AGENT'S CODE REVIEW INVESTIGATION ===\n" in text
+            # Stored local replies are JSON and legitimately escape newlines.
+            # The newly assembled expert context must use actual separators.
+            assert "=== CODE REVIEW REQUEST ===\\n" not in text
+            assert "=== AGENT'S CODE REVIEW INVESTIGATION ===\\n" not in text
 
 
 async def test_capture_fails_when_transcript_side_channel_drops_usage(tmp_path, monkeypatch):

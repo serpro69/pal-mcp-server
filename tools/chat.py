@@ -88,7 +88,9 @@ class ChatTool(SimpleTool):
         return {"readOnlyHint": False}
 
     def get_system_prompt(self) -> str:
-        return CHAT_PROMPT
+        # System instructions are sent on both first and continued calls. The
+        # user-prompt builder strips its system section before sending the body.
+        return CHAT_PROMPT + self.get_websearch_instruction(self.get_websearch_guidance())
 
     def get_capability_system_prompts(self, capabilities: Optional["ModelCapabilities"]) -> list[str]:
         prompts = list(super().get_capability_system_prompts(capabilities))

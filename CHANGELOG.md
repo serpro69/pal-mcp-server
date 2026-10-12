@@ -4,6 +4,17 @@
 
 ## Unreleased
 
+- Restore chat search guidance on first and continued calls, wire ThinkDeep's
+  validation context with persisted problem/focus scope, and use actual newlines
+  in codereview prompts and caller guidance.
+- Accept activated virtualenvs in the integration launcher; add `--stub` for
+  credential-free local integration checks. Remove ineffective log-rotation
+  settings from Compose, PowerShell setup and deployment examples.
+- Raise security floors for seven existing MCP/auth/HTTP dependencies and update
+  their locks. Remove unused runtime packaging tools and bootstrap wheels from
+  the container. The new scan has no Python or critical findings; unresolved
+  Debian findings remain tracked in the [remediation record](docs/feat/wip/server-reliability-and-capabilities/actionable-fixes.md).
+
 - Preserve optional cached-input/cache-write counts and per-call transcript usage
   without counting restored workflow/consensus results again. Add offline usage
   coverage and request-completeness/prefix reports with a synthetic baseline;

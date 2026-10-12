@@ -39,6 +39,12 @@ with the best architecture for my project
 - `thinking_mode`: minimal|low|medium|high|max (default: high, Gemini only)
 - `continuation_id`: Continue previous conversations
 
+The expert-validation prompt includes `problem_context` and `focus_areas` from
+the workflow's earlier steps. Omitted values retain the saved scope; supplied
+values replace it, and an empty string/list clears it. Starting at step 1 resets
+that scope. Findings, referenced files and conversation history retain their
+existing rendering paths rather than being copied into the validation preamble.
+
 ## Usage Examples
 
 **Architecture Design:**

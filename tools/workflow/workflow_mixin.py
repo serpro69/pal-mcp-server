@@ -270,6 +270,10 @@ class BaseWorkflowMixin(ABC):
 
         return "\n".join(context_parts)
 
+    def customize_expert_analysis_prompt(self, base_prompt: str, request, file_content: str = "") -> str:
+        """Add tool-specific context before history deduplication and file rendering."""
+        return base_prompt
+
     def requires_expert_analysis(self) -> bool:
         """
         Override this to completely disable expert analysis for the tool.
@@ -1488,6 +1492,7 @@ class BaseWorkflowMixin(ABC):
             self._actually_processed_files = []
             self._embedded_file_content = ""
             expert_context = self.prepare_expert_analysis_context(self.consolidated_findings)
+            expert_context = self.customize_expert_analysis_prompt(expert_context, request)
             history = invocation_history(self, self._model_context, expert=True, represented_context=expert_context)
             if history:
                 expert_context = f"{history}\n\n{expert_context}"
