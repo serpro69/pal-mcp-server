@@ -29,7 +29,7 @@ def surface(monkeypatch, isolated_provider_environment):
 
 def test_surface_preserves_names_parameters_types_defaults_and_safety(surface):
     baseline = json.loads(BASELINE.read_text())
-    assert surface["tools"].keys() == baseline["tools"].keys()
+    assert surface["tools"].keys() == baseline["tools"].keys() | {"jules"}
     for name, old in baseline["tools"].items():
         expected = copy.deepcopy(old["schema"])
         if name in ("planner", "tracer"):
@@ -42,8 +42,8 @@ def test_surface_preserves_names_parameters_types_defaults_and_safety(surface):
         if name != "continuation_id":  # Only shared continuation prose is shortened.
             assert surface["tools"]["clink"]["safety_schema"]["properties"][name] == field
     assert surface["tools"]["clink"]["description"] == baseline["tools"]["clink"]["description"]
-    assert surface["totals"]["description_bytes"] < baseline["totals"]["description_bytes"]
-    assert surface["totals"]["serialized_bytes"] < baseline["totals"]["serialized_bytes"]
+    for metric in ("description_bytes", "serialized_bytes"):
+        assert sum(surface["tools"][name][metric] for name in baseline["tools"]) < baseline["totals"][metric]
 
 
 def test_all_systemprompt_modules_and_cli_prompts_are_guarded(surface):
@@ -51,14 +51,16 @@ def test_all_systemprompt_modules_and_cli_prompts_are_guarded(surface):
     prompt_dir = Path(__file__).resolve().parents[1] / "systemprompts"
     actual_paths = {str(p.relative_to(prompt_dir)) for p in prompt_dir.rglob("*") if p.suffix in (".py", ".txt")}
     assert set(surface["systemprompts_sha256"]) == actual_paths
-    assert surface["systemprompts_sha256"] == baseline["systemprompts_sha256"]
+    assert set(surface["systemprompts_sha256"]) == set(baseline["systemprompts_sha256"]) | {"jules_prompt.py"}
+    for name, digest in baseline["systemprompts_sha256"].items():
+        assert surface["systemprompts_sha256"][name] == digest
 
 
 def test_exported_tools_cover_server_capabilities(monkeypatch):
     exported = {getattr(tools, name)().get_name() for name in tools.__all__}
     # Every registered capability has one implementation/export, not synonyms.
     assert set(server.TOOLS).issubset(exported)
-    assert len(exported) == len(tools.__all__) == 18
+    assert len(exported) == len(tools.__all__) == 19
 
 
 @pytest.mark.parametrize("tool_class", [PlannerTool, TracerTool])

@@ -46,6 +46,7 @@ httpx==0.28.1
     #   google-genai
     #   mcp
     #   openai
+    #   pal-mcp-server (pyproject.toml)
 httpx-sse==0.4.3
     # via mcp
 idna==3.18

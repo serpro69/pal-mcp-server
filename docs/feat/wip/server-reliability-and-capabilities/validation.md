@@ -1848,3 +1848,39 @@ needed the original exception to reach the AnyIO portal. Strict CI isolation als
 needed to bypass forced dotenv loading before it could restore external credentials.
 OpenCode Go reused the existing invocation context, keeping the integration small;
 its service-specific live validation and unsupported Messages protocol stay open.
+
+## Task 37: Optional Jules discovery, creation and status
+
+Implemented on 2026-10-12. `tools/jules.py` and its client guidance add one
+provider-free capability with strict action inputs, opaque ID validation, fixed
+HTTPS endpoint/authentication, plan approval on by default, explicit PR opt-in,
+paginated sources/activities and non-retried mutations. Server/tool exports,
+configuration/release docs and tool-surface guards include the new capability
+while retaining all existing names and prompt hashes. Official API references and
+the open live-repository gate are in [the Jules guide](../../../tools/jules.md).
+
+Declared HTTPX >=0.28.1,<1.0 directly; regenerated both pip-tools locks. The
+runtime lock only gains the direct-dependency provenance comment; no package
+version changes. Dependencies were installed from both locks into a fresh Python
+3.12.11 environment at `/tmp/pal-validation`.
+
+- Pre-change quality: **1,852 passed**, 16 skipped, 16 deselected, 19 subtests.
+- `./code_quality_checks.sh` with that environment activated and
+  `BLACK_CACHE_DIR=/tmp/pal-black-cache BLACK_NUM_WORKERS=1`: **1,899 passed**,
+  16 skipped, 16 deselected, 19 subtests; Ruff/Black/isort pass.
+- `python -m pytest tests/test_jules.py tests/test_tool_surface.py -q`:
+  **60 passed** on both Python 3.10.12 and 3.12.11.
+- `python -m simulator_tests.stub_provider`: **3/3 passed**, with external
+  credentials isolated and all MCP children reaped.
+
+The sandboxed formatter/IPC runs stalled and were interrupted; full quality and
+stdio simulation passed outside the sandbox. The repository integration script
+still exits before tests because it hard-codes `.pal_venv`; the validation
+environment is outside the checkout. No live provider, Jules creation or PR was
+run. The external PAL review failed `API_KEY_INVALID`; independent local review
+approved with no findings and none to index. Credential-free legacy `--quick`
+completed with exit 1 and **2/6 passed**; model-dependent scenarios fail without
+configured providers. The strict stub tier above is the offline integration gate.
+Live release gate: designate a disposable
+repository/branch, explicitly authorize creation, then verify discovery, creation
+with plan approval on/PR automation off, and paginated status against Jules.

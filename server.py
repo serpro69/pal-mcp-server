@@ -64,6 +64,7 @@ from tools import (  # noqa: E402
     ConsensusTool,
     DebugIssueTool,
     DocgenTool,
+    JulesTool,
     ListModelsTool,
     LookupTool,
     PlannerTool,
@@ -375,6 +376,7 @@ def filter_disabled_tools(all_tools: dict[str, Any]) -> dict[str, Any]:
 # Each tool provides specialized functionality for different development tasks
 # These instances are schema prototypes; execution gets a fresh instance per call.
 TOOLS = {
+    "jules": JulesTool(),  # Optional provider-free background coding actions
     "chat": ChatTool(),  # Interactive development chat and brainstorming
     "clink": CLinkTool(),  # Bridge requests to configured AI CLIs
     "thinkdeep": ThinkDeepTool(),  # Step-by-step deep thinking workflow with expert analysis
