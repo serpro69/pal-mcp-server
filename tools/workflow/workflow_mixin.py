@@ -45,6 +45,7 @@ from utils.conversation_memory import (
     save_failed_workflow_state,
 )
 from utils.model_context import get_request_budget
+from utils.progress import progress_operation
 
 from ..shared.base_models import ConsolidatedFindings
 from ..shared.exceptions import ToolExecutionError
@@ -1530,15 +1531,17 @@ class BaseWorkflowMixin(ABC):
                 provider, model_name, prompt=prompt, system_prompt=system_prompt, images=images
             ).response_tokens
             self._record_provider_attempt(model_name, provider)
-            model_response = await provider.generate_content(
-                prompt=prompt,
-                model_name=model_name,
-                max_output_tokens=output_limit,
-                system_prompt=system_prompt,
-                temperature=validated_temperature,
-                thinking_mode=thinking_mode,
-                images=images or None,
-            )
+            async with progress_operation("expert") as operation:
+                model_response = await provider.generate_content(
+                    prompt=prompt,
+                    model_name=model_name,
+                    max_output_tokens=output_limit,
+                    system_prompt=system_prompt,
+                    temperature=validated_temperature,
+                    thinking_mode=thinking_mode,
+                    images=images or None,
+                )
+                operation.usage = model_response.usage
             if invocation:
                 invocation.provider_failed = not bool(model_response.content)
                 invocation.reply_content = model_response.content or None

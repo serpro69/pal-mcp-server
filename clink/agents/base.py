@@ -17,6 +17,7 @@ from pathlib import Path
 from clink.constants import DEFAULT_CLEANUP_TIMEOUT_SECONDS, DEFAULT_STREAM_LIMIT, SHARED_ENV_PASSTHROUGH
 from clink.models import ResolvedCLIClient, ResolvedCLIRole
 from clink.parsers import BaseParser, ParsedCLIResponse, ParserError, get_parser
+from utils.progress import progress_operation
 
 logger = logging.getLogger("clink.agent")
 
@@ -77,16 +78,19 @@ class BaseCLIAgent:
             else tempfile.TemporaryDirectory(prefix="pal-clink-")
         )
         with workspace as cwd:
-            return await self._run_in_directory(
-                cwd=cwd,
-                role=role,
-                prompt=prompt,
-                system_prompt=system_prompt,
-                files=files,
-                images=images,
-                allow_edits=allow_edits,
-                editable_paths=editable_paths,
-            )
+            async with progress_operation("cli") as operation:
+                result = await self._run_in_directory(
+                    cwd=cwd,
+                    role=role,
+                    prompt=prompt,
+                    system_prompt=system_prompt,
+                    files=files,
+                    images=images,
+                    allow_edits=allow_edits,
+                    editable_paths=editable_paths,
+                )
+                operation.usage = result.parsed.metadata.get("usage")
+                return result
 
     async def _run_in_directory(
         self,

@@ -3,6 +3,50 @@
 Recorded 2026-10-11. This covers the completed maintenance tasks below, not the
 remaining roadmap or optional live-provider behavior.
 
+## Task 29: Request-scoped MCP progress
+
+Recorded 2026-10-12. Added `utils/progress.py` and mechanical wrappers around
+simple primary/recovery generation, workflow expert, consensus and CLI awaits.
+The MCP boundary obtains the retained 1.x `request_context`, publishes a reporter
+through a resettable ContextVar, and adds invocation-only usage/duration metadata.
+Token zero is valid; no token emits nothing. Heartbeats have an owner and are
+cancelled/joined before returning, including repeated asyncio and SDK AnyIO-level
+cancellation. Notification failures/timeouts disable the side channel, retain the
+answer and surface a sanitized warning. No prompts, commands or paths enter
+notifications. See [progress contract](../../../progress.md).
+
+API verification: Context7's current MCP docs cover 2.x and v1 migration examples,
+so the installed **MCP 1.30.0** source and its versioned
+[`Server.request_context`](https://github.com/modelcontextprotocol/python-sdk/blob/v1.30.0/src/mcp/server/lowlevel/server.py)
+and [`ServerSession.send_progress_notification`](https://github.com/modelcontextprotocol/python-sdk/blob/v1.30.0/src/mcp/server/session.py)
+were used to verify the actual signatures. No dependency changed.
+
+Verification uses the fresh locked Python 3.12.14 and 3.10.19 environments from
+Task 28. Tests cover all four provider paths, CLI parsing/usage, token isolation,
+unknown versus zero counts, notification faults (including final notification),
+real SDK progress round-trip, process cleanup and cancellation during notification
+draining. No client timeout-reset guarantee is inferred from those tests.
+
+- `BLACK_NUM_WORKERS=1 ./code_quality_checks.sh`: **1,673 passed**, 4 skipped,
+  16 deselected, 19 subtests passed; Ruff/Black/isort pass without warnings.
+- Progress/CLI/concurrency/SDK/error suite on Python 3.10.19: **38 passed**.
+
+Live integration/simulator scripts remain setup-blocked exactly as exercised in
+Task 28; Task 34 owns the simulator interpreter/session repair. External PAL
+review remains unavailable after its configured key was rejected in Task 28;
+no retries with the same invalid credential were made. Independent review is the
+available reviewer for this slice.
+
+Independent review found P2: `ToolExecutionError` bypassed execution metadata.
+The MCP boundary now annotates the error after reporter cleanup and re-raises
+with its cause, preserving `isError`. Failed requests emit a terminal failed
+stage; cancellation remains cancellation. Actual SDK sessions verify structured
+and plain errors with and without prior notification failure. Plain error text
+is retained as JSON `content`. No systemic P0/P1 finding needed indexing.
+
+Follow-up isolated review: **APPROVE**, no remaining findings. Full quality and
+minimum-version checks were rerun after the correction with the counts above.
+
 ## Task 28: Evidence-backed catalog reconciliation
 
 Recorded 2026-10-12. [Catalog decisions and follow-ups](catalog-reconciliation.md)

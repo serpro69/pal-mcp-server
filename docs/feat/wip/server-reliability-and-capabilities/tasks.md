@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Implementation: [implementation.md](implementation.md)
 > Review resolutions: [review.md](review.md#revalidation-and-resolution)
-> Status: in-progress (Tasks 1–28 done; Tasks 29–42 pending)
+> Status: in-progress (Tasks 1–29 done; Tasks 30–42 pending)
 > Created: 2026-10-10
 > Not Doing: toolchain/release-process migration; MCP 2.x; wholesale catalogs; replacement of safety controls; file-annotation implementation; persistent continuation recovery; remote multi-user transport; automatic service activation
 
@@ -611,17 +611,27 @@ PAL rejected its key; live integration/simulator setup gates remain open.
 
 ## Task 29: Report request-scoped progress over MCP 1.x
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 19, Task 20, Task 23
 - **Size:** M
 - **Can run in parallel with:** —
 - **Docs:** [Implementation slice](implementation.md#task-29); [design contract](design.md#d6-budgets-progress-and-tool-surface)
 
-- [ ] 29.1 Create a request-local reporter from v1 request_context; emit monotonic progress only when a token exists and publish it through a resettable ContextVar.
-- [ ] 29.2 Add heartbeat contexts around awaited provider/CLI operations and result usage/duration metadata; stop/cancel background tasks deterministically.
-- [ ] 29.3 Verify the acceptance cases in [Task 29](implementation.md#task-29) and record the result here.
+- [x] 29.1 Create a request-local reporter from v1 request_context; emit monotonic progress only when a token exists and publish it through a resettable ContextVar.
+- [x] 29.2 Add heartbeat contexts around awaited provider/CLI operations and result usage/duration metadata; stop/cancel background tasks deterministically.
+- [x] 29.3 Verify the acceptance cases in [Task 29](implementation.md#task-29) and record the result here.
 
 **Scope / gate:** Do not send prompts or guarantee client timeout behavior. Hook additions are mechanical; reporter lifecycle is the main behavior.
+
+**Execution slices:** Implement reporter/context lifecycle first, then mechanically
+wrap primary/recovery/expert/consensus/CLI awaits. Verify SDK round trips,
+notification faults, concurrent tokens and cancellation before committing.
+
+**Evidence:** [Task 29 validation](validation.md#task-29-request-scoped-mcp-progress),
+2026-10-12. Full quality **1,673 passed**; Python 3.10 progress/CLI/concurrency/SDK
+matrix **38 passed**. Isolated review approved after preserving execution metadata
+on MCP tool-error responses. Actual SDK sessions verify notifications and errors;
+external PAL/live integration/simulator setup gates remain open.
 
 ## Task 30: Move logs to a shared portable state-path policy
 

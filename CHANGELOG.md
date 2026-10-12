@@ -4,6 +4,12 @@
 
 ## Unreleased
 
+- Report request-local MCP progress when the caller supplies a progress token,
+  including token 0. Provider and CLI waits send bounded heartbeats; cancellation
+  joins them and notification failures preserve answers with diagnostics.
+  Results include per-invocation operation duration and known usage metadata.
+  See [progress reporting](docs/progress.md) for client and timeout semantics.
+
 - Reconcile verified OpenRouter token capacities and hide three shut-down native
   Gemini entries from discovery without removing IDs or aliases. Add GPT-6.1 Sol
   as an opt-in hidden Responses candidate. Preserve curated defaults and record
