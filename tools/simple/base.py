@@ -28,6 +28,7 @@ from utils.conversation_context import (
 )
 from utils.conversation_memory import ConversationMemoryError, memory_persistence_warning
 from utils.model_context import get_request_budget
+from utils.progress import progress_operation
 
 
 class SimpleTool(BaseTool):
@@ -409,17 +410,19 @@ class SimpleTool(BaseTool):
             supports_thinking = capabilities.supports_extended_thinking
 
             # Generate content with provider abstraction
-            model_response = await provider.generate_content(
-                prompt=prompt,
-                model_name=self._current_model_name,
-                max_output_tokens=get_request_budget(
-                    provider, self._current_model_name, prompt=prompt, system_prompt=system_prompt, images=images
-                ).response_tokens,
-                system_prompt=system_prompt,
-                temperature=temperature,
-                thinking_mode=thinking_mode if supports_thinking else None,
-                images=images if images else None,
-            )
+            async with progress_operation("provider") as operation:
+                model_response = await provider.generate_content(
+                    prompt=prompt,
+                    model_name=self._current_model_name,
+                    max_output_tokens=get_request_budget(
+                        provider, self._current_model_name, prompt=prompt, system_prompt=system_prompt, images=images
+                    ).response_tokens,
+                    system_prompt=system_prompt,
+                    temperature=temperature,
+                    thinking_mode=thinking_mode if supports_thinking else None,
+                    images=images if images else None,
+                )
+                operation.usage = model_response.usage
 
             logger.info(f"Received response from {provider.get_provider_type().value} API for {self.get_name()}")
 
@@ -469,21 +472,23 @@ class SimpleTool(BaseTool):
                         retry_prompt = f"{original_prompt}\n\nIMPORTANT: Please provide a substantive response. If you cannot respond to the above request, please explain why and suggest alternatives."
 
                         try:
-                            retry_response = await provider.generate_content(
-                                prompt=retry_prompt,
-                                model_name=self._current_model_name,
-                                max_output_tokens=get_request_budget(
-                                    provider,
-                                    self._current_model_name,
+                            async with progress_operation("provider_retry") as operation:
+                                retry_response = await provider.generate_content(
                                     prompt=retry_prompt,
+                                    model_name=self._current_model_name,
+                                    max_output_tokens=get_request_budget(
+                                        provider,
+                                        self._current_model_name,
+                                        prompt=retry_prompt,
+                                        system_prompt=system_prompt,
+                                        images=images,
+                                    ).response_tokens,
                                     system_prompt=system_prompt,
-                                    images=images,
-                                ).response_tokens,
-                                system_prompt=system_prompt,
-                                temperature=temperature,
-                                thinking_mode=thinking_mode if supports_thinking else None,
-                                images=images if images else None,
-                            )
+                                    temperature=temperature,
+                                    thinking_mode=thinking_mode if supports_thinking else None,
+                                    images=images if images else None,
+                                )
+                                operation.usage = retry_response.usage
 
                             if retry_response.content:
                                 # Successful retry - use the retry response

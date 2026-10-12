@@ -38,6 +38,7 @@ from utils.conversation_memory import (
     memory_persistence_warning,
 )
 from utils.model_context import get_request_budget
+from utils.progress import progress_operation
 
 from .workflow.base import WorkflowTool
 
@@ -662,15 +663,17 @@ of the evidence, even when it strongly points in one direction.""",
                 provider, model_name, prompt=prompt, system_prompt=system_prompt, images=request.images
             ).response_tokens
             self._record_provider_attempt(model_name, provider)
-            response = await provider.generate_content(
-                prompt=prompt,
-                model_name=model_name,
-                max_output_tokens=output_limit,
-                system_prompt=system_prompt,
-                temperature=validated_temperature,
-                thinking_mode="medium",
-                images=request.images if request.images else None,
-            )
+            async with progress_operation("consensus") as operation:
+                response = await provider.generate_content(
+                    prompt=prompt,
+                    model_name=model_name,
+                    max_output_tokens=output_limit,
+                    system_prompt=system_prompt,
+                    temperature=validated_temperature,
+                    thinking_mode="medium",
+                    images=request.images if request.images else None,
+                )
+                operation.usage = response.usage
             if not response.content or not response.content.strip():
                 raise ToolExecutionError("Model returned an empty response")
             if invocation:

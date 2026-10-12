@@ -70,6 +70,7 @@ from tools import (  # noqa: E402
 from tools.models import ToolOutput  # noqa: E402
 from tools.shared.exceptions import ToolExecutionError  # noqa: E402
 from utils.env import env_override_enabled, get_env  # noqa: E402
+from utils.progress import request_progress
 
 # Configure logging for server operations
 # Can be controlled via LOG_LEVEL environment variable (DEBUG, INFO, WARNING, ERROR)
@@ -490,9 +491,18 @@ async def handle_call_tool(name: str, arguments: dict[str, Any]) -> list[TextCon
     from utils.conversation_coordination import coordinate_conversation
 
     thread_id = arguments.get("continuation_id")
+    try:
+        context = server.request_context
+    except LookupError:
+        context = None  # Direct Python calls have no MCP request token.
     # Invalid input remains the request model's responsibility, not a lock key.
-    async with coordinate_conversation(thread_id if isinstance(thread_id, str) else None):
-        return await _dispatch_tool(name, arguments)
+    try:
+        async with request_progress(context) as progress:
+            async with coordinate_conversation(thread_id if isinstance(thread_id, str) else None):
+                result = await _dispatch_tool(name, arguments)
+    except ToolExecutionError as exc:
+        raise ToolExecutionError(progress.annotate_error(exc.payload)) from exc
+    return progress.annotate(result)
 
 
 async def _dispatch_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
