@@ -290,6 +290,13 @@ identical. No conversation-memory schema change.
 
 ## Revision notes (post-review)
 
+**2026-10-12 coordination:** Server-reliability Task 41 evaluated file ordering,
+provenance placement and compaction without changing runtime file headers. Its
+[recorded decision](../../../adr/0001-retain-conversation-history-layout.md)
+retains this design's unchanged-header and fixed-at-first-embed requirements.
+Any future snapshot/version or provenance format needs an explicit coordinated
+revision here; the test-only candidates do not add annotation persistence.
+
 This revision incorporates four design reviews. Material corrections from the original
 draft: (a) **C5** — the original threaded only `_embed_workflow_files`, missing the
 expert-analysis (paths 3-4) and consensus (path 5) feed paths and the cross-step

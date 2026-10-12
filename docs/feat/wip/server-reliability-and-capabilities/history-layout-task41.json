@@ -1,0 +1,2186 @@
+{
+  "rows": [
+    {
+      "audit_turns": 28,
+      "compaction_events": 0,
+      "complete": true,
+      "coverage": [
+        {
+          "call": 1,
+          "history_tokens": null,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 0
+        },
+        {
+          "call": 2,
+          "history_tokens": 815,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 2
+        },
+        {
+          "call": 3,
+          "history_tokens": 1063,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 4
+        },
+        {
+          "call": 4,
+          "history_tokens": 1311,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 6
+        },
+        {
+          "call": 5,
+          "history_tokens": 1560,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 8
+        },
+        {
+          "call": 6,
+          "history_tokens": 1809,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 10
+        },
+        {
+          "call": 7,
+          "history_tokens": 2057,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 12
+        },
+        {
+          "call": 8,
+          "history_tokens": 2306,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 14
+        },
+        {
+          "call": 9,
+          "history_tokens": 2555,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 16
+        },
+        {
+          "call": 10,
+          "history_tokens": 2803,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 18
+        },
+        {
+          "call": 11,
+          "history_tokens": 3052,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 20
+        },
+        {
+          "call": 12,
+          "history_tokens": 3301,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 22
+        },
+        {
+          "call": 13,
+          "history_tokens": 3549,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 24
+        },
+        {
+          "call": 14,
+          "history_tokens": 3798,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 26
+        }
+      ],
+      "early_rewrites": 0,
+      "layout": "current",
+      "lcp_bytes": [
+        4078,
+        5813,
+        6531,
+        7249,
+        7967,
+        8687,
+        9407,
+        10127,
+        10847,
+        11567,
+        12287,
+        13007,
+        13727
+      ],
+      "scenario": "fixed"
+    },
+    {
+      "audit_turns": 28,
+      "compaction_events": 0,
+      "complete": true,
+      "coverage": [
+        {
+          "call": 1,
+          "history_tokens": null,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 0
+        },
+        {
+          "call": 2,
+          "history_tokens": 815,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 2
+        },
+        {
+          "call": 3,
+          "history_tokens": 1063,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 4
+        },
+        {
+          "call": 4,
+          "history_tokens": 1311,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 6
+        },
+        {
+          "call": 5,
+          "history_tokens": 1560,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 8
+        },
+        {
+          "call": 6,
+          "history_tokens": 1809,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 10
+        },
+        {
+          "call": 7,
+          "history_tokens": 2057,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 12
+        },
+        {
+          "call": 8,
+          "history_tokens": 2306,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 14
+        },
+        {
+          "call": 9,
+          "history_tokens": 2555,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 16
+        },
+        {
+          "call": 10,
+          "history_tokens": 2803,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 18
+        },
+        {
+          "call": 11,
+          "history_tokens": 3052,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 20
+        },
+        {
+          "call": 12,
+          "history_tokens": 3301,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 22
+        },
+        {
+          "call": 13,
+          "history_tokens": 3549,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 24
+        },
+        {
+          "call": 14,
+          "history_tokens": 3798,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 26
+        }
+      ],
+      "early_rewrites": 0,
+      "layout": "first_seen",
+      "lcp_bytes": [
+        4078,
+        5813,
+        6531,
+        7249,
+        7967,
+        8687,
+        9407,
+        10127,
+        10847,
+        11567,
+        12287,
+        13007,
+        13727
+      ],
+      "scenario": "fixed"
+    },
+    {
+      "audit_turns": 28,
+      "compaction_events": 0,
+      "complete": true,
+      "coverage": [
+        {
+          "call": 1,
+          "history_tokens": null,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 0
+        },
+        {
+          "call": 2,
+          "history_tokens": 835,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 2
+        },
+        {
+          "call": 3,
+          "history_tokens": 1083,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 4
+        },
+        {
+          "call": 4,
+          "history_tokens": 1331,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 6
+        },
+        {
+          "call": 5,
+          "history_tokens": 1580,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 8
+        },
+        {
+          "call": 6,
+          "history_tokens": 1829,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 10
+        },
+        {
+          "call": 7,
+          "history_tokens": 2077,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 12
+        },
+        {
+          "call": 8,
+          "history_tokens": 2326,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 14
+        },
+        {
+          "call": 9,
+          "history_tokens": 2575,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 16
+        },
+        {
+          "call": 10,
+          "history_tokens": 2823,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 18
+        },
+        {
+          "call": 11,
+          "history_tokens": 3072,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 20
+        },
+        {
+          "call": 12,
+          "history_tokens": 3321,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 22
+        },
+        {
+          "call": 13,
+          "history_tokens": 3569,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 24
+        },
+        {
+          "call": 14,
+          "history_tokens": 3818,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 26
+        }
+      ],
+      "early_rewrites": 0,
+      "layout": "trailing_mtime",
+      "lcp_bytes": [
+        4078,
+        5856,
+        6574,
+        7292,
+        8010,
+        8730,
+        9450,
+        10170,
+        10890,
+        11610,
+        12330,
+        13050,
+        13770
+      ],
+      "scenario": "fixed"
+    },
+    {
+      "audit_turns": 28,
+      "compaction_events": 0,
+      "complete": true,
+      "coverage": [
+        {
+          "call": 1,
+          "history_tokens": null,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 0
+        },
+        {
+          "call": 2,
+          "history_tokens": 815,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 2
+        },
+        {
+          "call": 3,
+          "history_tokens": 1063,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 4
+        },
+        {
+          "call": 4,
+          "history_tokens": 1311,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 6
+        },
+        {
+          "call": 5,
+          "history_tokens": 1560,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 8
+        },
+        {
+          "call": 6,
+          "history_tokens": 1809,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 10
+        },
+        {
+          "call": 7,
+          "history_tokens": 2057,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 12
+        },
+        {
+          "call": 8,
+          "history_tokens": 2306,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 14
+        },
+        {
+          "call": 9,
+          "history_tokens": 2555,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 16
+        },
+        {
+          "call": 10,
+          "history_tokens": 2803,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 18
+        },
+        {
+          "call": 11,
+          "history_tokens": 3052,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 20
+        },
+        {
+          "call": 12,
+          "history_tokens": 3301,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 22
+        },
+        {
+          "call": 13,
+          "history_tokens": 3549,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 24
+        },
+        {
+          "call": 14,
+          "history_tokens": 3798,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 26
+        }
+      ],
+      "early_rewrites": 0,
+      "layout": "hysteresis",
+      "lcp_bytes": [
+        4078,
+        5813,
+        6531,
+        7249,
+        7967,
+        8687,
+        9407,
+        10127,
+        10847,
+        11567,
+        12287,
+        13007,
+        13727
+      ],
+      "scenario": "fixed"
+    },
+    {
+      "audit_turns": 28,
+      "compaction_events": 0,
+      "complete": true,
+      "coverage": [
+        {
+          "call": 1,
+          "history_tokens": null,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 0
+        },
+        {
+          "call": 2,
+          "history_tokens": 815,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 2
+        },
+        {
+          "call": 3,
+          "history_tokens": 1063,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 4
+        },
+        {
+          "call": 4,
+          "history_tokens": 1512,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 6
+        },
+        {
+          "call": 5,
+          "history_tokens": 1760,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 8
+        },
+        {
+          "call": 6,
+          "history_tokens": 2009,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 10
+        },
+        {
+          "call": 7,
+          "history_tokens": 2458,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 12
+        },
+        {
+          "call": 8,
+          "history_tokens": 2707,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 14
+        },
+        {
+          "call": 9,
+          "history_tokens": 2955,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 16
+        },
+        {
+          "call": 10,
+          "history_tokens": 3404,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 18
+        },
+        {
+          "call": 11,
+          "history_tokens": 3653,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 20
+        },
+        {
+          "call": 12,
+          "history_tokens": 3902,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 22
+        },
+        {
+          "call": 13,
+          "history_tokens": 4351,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 24
+        },
+        {
+          "call": 14,
+          "history_tokens": 4599,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 26
+        }
+      ],
+      "early_rewrites": 4,
+      "layout": "current",
+      "lcp_bytes": [
+        4078,
+        5813,
+        4387,
+        7845,
+        8563,
+        4387,
+        10599,
+        11319,
+        4387,
+        13355,
+        14075,
+        4387,
+        16111
+      ],
+      "scenario": "added"
+    },
+    {
+      "audit_turns": 28,
+      "compaction_events": 0,
+      "complete": true,
+      "coverage": [
+        {
+          "call": 1,
+          "history_tokens": null,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 0
+        },
+        {
+          "call": 2,
+          "history_tokens": 815,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 2
+        },
+        {
+          "call": 3,
+          "history_tokens": 1063,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 4
+        },
+        {
+          "call": 4,
+          "history_tokens": 1512,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 6
+        },
+        {
+          "call": 5,
+          "history_tokens": 1760,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 8
+        },
+        {
+          "call": 6,
+          "history_tokens": 2009,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 10
+        },
+        {
+          "call": 7,
+          "history_tokens": 2458,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 12
+        },
+        {
+          "call": 8,
+          "history_tokens": 2707,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 14
+        },
+        {
+          "call": 9,
+          "history_tokens": 2955,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 16
+        },
+        {
+          "call": 10,
+          "history_tokens": 3404,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 18
+        },
+        {
+          "call": 11,
+          "history_tokens": 3653,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 20
+        },
+        {
+          "call": 12,
+          "history_tokens": 3902,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 22
+        },
+        {
+          "call": 13,
+          "history_tokens": 4351,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 24
+        },
+        {
+          "call": 14,
+          "history_tokens": 4599,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 26
+        }
+      ],
+      "early_rewrites": 4,
+      "layout": "first_seen",
+      "lcp_bytes": [
+        4078,
+        5813,
+        4943,
+        7845,
+        8563,
+        5539,
+        10599,
+        11319,
+        6135,
+        13355,
+        14075,
+        6731,
+        16111
+      ],
+      "scenario": "added"
+    },
+    {
+      "audit_turns": 28,
+      "compaction_events": 0,
+      "complete": true,
+      "coverage": [
+        {
+          "call": 1,
+          "history_tokens": null,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 0
+        },
+        {
+          "call": 2,
+          "history_tokens": 835,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 2
+        },
+        {
+          "call": 3,
+          "history_tokens": 1083,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 4
+        },
+        {
+          "call": 4,
+          "history_tokens": 1552,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 6
+        },
+        {
+          "call": 5,
+          "history_tokens": 1800,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 8
+        },
+        {
+          "call": 6,
+          "history_tokens": 2049,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 10
+        },
+        {
+          "call": 7,
+          "history_tokens": 2518,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 12
+        },
+        {
+          "call": 8,
+          "history_tokens": 2767,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 14
+        },
+        {
+          "call": 9,
+          "history_tokens": 3015,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 16
+        },
+        {
+          "call": 10,
+          "history_tokens": 3484,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 18
+        },
+        {
+          "call": 11,
+          "history_tokens": 3733,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 20
+        },
+        {
+          "call": 12,
+          "history_tokens": 3982,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 22
+        },
+        {
+          "call": 13,
+          "history_tokens": 4451,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 24
+        },
+        {
+          "call": 14,
+          "history_tokens": 4699,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 26
+        }
+      ],
+      "early_rewrites": 4,
+      "layout": "trailing_mtime",
+      "lcp_bytes": [
+        4078,
+        5856,
+        4387,
+        7931,
+        8649,
+        4387,
+        10728,
+        11448,
+        4387,
+        13527,
+        14247,
+        4387,
+        16326
+      ],
+      "scenario": "added"
+    },
+    {
+      "audit_turns": 28,
+      "compaction_events": 0,
+      "complete": true,
+      "coverage": [
+        {
+          "call": 1,
+          "history_tokens": null,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 0
+        },
+        {
+          "call": 2,
+          "history_tokens": 815,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 2
+        },
+        {
+          "call": 3,
+          "history_tokens": 1063,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 4
+        },
+        {
+          "call": 4,
+          "history_tokens": 1512,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 6
+        },
+        {
+          "call": 5,
+          "history_tokens": 1760,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 8
+        },
+        {
+          "call": 6,
+          "history_tokens": 2009,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 10
+        },
+        {
+          "call": 7,
+          "history_tokens": 2458,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 12
+        },
+        {
+          "call": 8,
+          "history_tokens": 2707,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 14
+        },
+        {
+          "call": 9,
+          "history_tokens": 2955,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 16
+        },
+        {
+          "call": 10,
+          "history_tokens": 3404,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 18
+        },
+        {
+          "call": 11,
+          "history_tokens": 3653,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 20
+        },
+        {
+          "call": 12,
+          "history_tokens": 3902,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 22
+        },
+        {
+          "call": 13,
+          "history_tokens": 4351,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 24
+        },
+        {
+          "call": 14,
+          "history_tokens": 4599,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 26
+        }
+      ],
+      "early_rewrites": 4,
+      "layout": "hysteresis",
+      "lcp_bytes": [
+        4078,
+        5813,
+        4387,
+        7845,
+        8563,
+        4387,
+        10599,
+        11319,
+        4387,
+        13355,
+        14075,
+        4387,
+        16111
+      ],
+      "scenario": "added"
+    },
+    {
+      "audit_turns": 28,
+      "compaction_events": 0,
+      "complete": true,
+      "coverage": [
+        {
+          "call": 1,
+          "history_tokens": null,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 0
+        },
+        {
+          "call": 2,
+          "history_tokens": 815,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 2
+        },
+        {
+          "call": 3,
+          "history_tokens": 1063,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 4
+        },
+        {
+          "call": 4,
+          "history_tokens": 1311,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 6
+        },
+        {
+          "call": 5,
+          "history_tokens": 1560,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 8
+        },
+        {
+          "call": 6,
+          "history_tokens": 1809,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 10
+        },
+        {
+          "call": 7,
+          "history_tokens": 2057,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 12
+        },
+        {
+          "call": 8,
+          "history_tokens": 2306,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 14
+        },
+        {
+          "call": 9,
+          "history_tokens": 2555,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 16
+        },
+        {
+          "call": 10,
+          "history_tokens": 2803,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 18
+        },
+        {
+          "call": 11,
+          "history_tokens": 3052,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 20
+        },
+        {
+          "call": 12,
+          "history_tokens": 3301,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 22
+        },
+        {
+          "call": 13,
+          "history_tokens": 3549,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 24
+        },
+        {
+          "call": 14,
+          "history_tokens": 3798,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 26
+        }
+      ],
+      "early_rewrites": 12,
+      "layout": "current",
+      "lcp_bytes": [
+        4078,
+        4426,
+        4426,
+        4426,
+        4426,
+        4426,
+        4426,
+        4426,
+        4426,
+        4425,
+        4426,
+        4426,
+        4426
+      ],
+      "scenario": "touched"
+    },
+    {
+      "audit_turns": 28,
+      "compaction_events": 0,
+      "complete": true,
+      "coverage": [
+        {
+          "call": 1,
+          "history_tokens": null,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 0
+        },
+        {
+          "call": 2,
+          "history_tokens": 815,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 2
+        },
+        {
+          "call": 3,
+          "history_tokens": 1063,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 4
+        },
+        {
+          "call": 4,
+          "history_tokens": 1311,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 6
+        },
+        {
+          "call": 5,
+          "history_tokens": 1560,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 8
+        },
+        {
+          "call": 6,
+          "history_tokens": 1809,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 10
+        },
+        {
+          "call": 7,
+          "history_tokens": 2057,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 12
+        },
+        {
+          "call": 8,
+          "history_tokens": 2306,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 14
+        },
+        {
+          "call": 9,
+          "history_tokens": 2555,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 16
+        },
+        {
+          "call": 10,
+          "history_tokens": 2803,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 18
+        },
+        {
+          "call": 11,
+          "history_tokens": 3052,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 20
+        },
+        {
+          "call": 12,
+          "history_tokens": 3301,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 22
+        },
+        {
+          "call": 13,
+          "history_tokens": 3549,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 24
+        },
+        {
+          "call": 14,
+          "history_tokens": 3798,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 26
+        }
+      ],
+      "early_rewrites": 12,
+      "layout": "first_seen",
+      "lcp_bytes": [
+        4078,
+        4426,
+        4426,
+        4426,
+        4426,
+        4426,
+        4426,
+        4426,
+        4426,
+        4425,
+        4426,
+        4426,
+        4426
+      ],
+      "scenario": "touched"
+    },
+    {
+      "audit_turns": 28,
+      "compaction_events": 0,
+      "complete": true,
+      "coverage": [
+        {
+          "call": 1,
+          "history_tokens": null,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 0
+        },
+        {
+          "call": 2,
+          "history_tokens": 835,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 2
+        },
+        {
+          "call": 3,
+          "history_tokens": 1083,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 4
+        },
+        {
+          "call": 4,
+          "history_tokens": 1331,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 6
+        },
+        {
+          "call": 5,
+          "history_tokens": 1580,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 8
+        },
+        {
+          "call": 6,
+          "history_tokens": 1829,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 10
+        },
+        {
+          "call": 7,
+          "history_tokens": 2077,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 12
+        },
+        {
+          "call": 8,
+          "history_tokens": 2326,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 14
+        },
+        {
+          "call": 9,
+          "history_tokens": 2575,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 16
+        },
+        {
+          "call": 10,
+          "history_tokens": 2823,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 18
+        },
+        {
+          "call": 11,
+          "history_tokens": 3072,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 20
+        },
+        {
+          "call": 12,
+          "history_tokens": 3321,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 22
+        },
+        {
+          "call": 13,
+          "history_tokens": 3569,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 24
+        },
+        {
+          "call": 14,
+          "history_tokens": 3818,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 26
+        }
+      ],
+      "early_rewrites": 12,
+      "layout": "trailing_mtime",
+      "lcp_bytes": [
+        4078,
+        4932,
+        4932,
+        4932,
+        4932,
+        4932,
+        4932,
+        4932,
+        4932,
+        4931,
+        4932,
+        4932,
+        4932
+      ],
+      "scenario": "touched"
+    },
+    {
+      "audit_turns": 28,
+      "compaction_events": 0,
+      "complete": true,
+      "coverage": [
+        {
+          "call": 1,
+          "history_tokens": null,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 0
+        },
+        {
+          "call": 2,
+          "history_tokens": 815,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 2
+        },
+        {
+          "call": 3,
+          "history_tokens": 1063,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 4
+        },
+        {
+          "call": 4,
+          "history_tokens": 1311,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 6
+        },
+        {
+          "call": 5,
+          "history_tokens": 1560,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 8
+        },
+        {
+          "call": 6,
+          "history_tokens": 1809,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 10
+        },
+        {
+          "call": 7,
+          "history_tokens": 2057,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 12
+        },
+        {
+          "call": 8,
+          "history_tokens": 2306,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 14
+        },
+        {
+          "call": 9,
+          "history_tokens": 2555,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 16
+        },
+        {
+          "call": 10,
+          "history_tokens": 2803,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 18
+        },
+        {
+          "call": 11,
+          "history_tokens": 3052,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 20
+        },
+        {
+          "call": 12,
+          "history_tokens": 3301,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 22
+        },
+        {
+          "call": 13,
+          "history_tokens": 3549,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 24
+        },
+        {
+          "call": 14,
+          "history_tokens": 3798,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 26
+        }
+      ],
+      "early_rewrites": 12,
+      "layout": "hysteresis",
+      "lcp_bytes": [
+        4078,
+        4426,
+        4426,
+        4426,
+        4426,
+        4426,
+        4426,
+        4426,
+        4426,
+        4425,
+        4426,
+        4426,
+        4426
+      ],
+      "scenario": "touched"
+    },
+    {
+      "audit_turns": 28,
+      "compaction_events": 0,
+      "complete": true,
+      "coverage": [
+        {
+          "call": 1,
+          "history_tokens": null,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 0
+        },
+        {
+          "call": 2,
+          "history_tokens": 815,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 2
+        },
+        {
+          "call": 3,
+          "history_tokens": 1063,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 4
+        },
+        {
+          "call": 4,
+          "history_tokens": 1311,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 6
+        },
+        {
+          "call": 5,
+          "history_tokens": 1560,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 8
+        },
+        {
+          "call": 6,
+          "history_tokens": 1809,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 10
+        },
+        {
+          "call": 7,
+          "history_tokens": 2057,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 12
+        },
+        {
+          "call": 8,
+          "history_tokens": 2306,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 14
+        },
+        {
+          "call": 9,
+          "history_tokens": 2555,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 16
+        },
+        {
+          "call": 10,
+          "history_tokens": 2803,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 18
+        },
+        {
+          "call": 11,
+          "history_tokens": 3052,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 20
+        },
+        {
+          "call": 12,
+          "history_tokens": 3301,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 22
+        },
+        {
+          "call": 13,
+          "history_tokens": 3550,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 24
+        },
+        {
+          "call": 14,
+          "history_tokens": 3798,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 26
+        }
+      ],
+      "early_rewrites": 12,
+      "layout": "current",
+      "lcp_bytes": [
+        4078,
+        4426,
+        4426,
+        4426,
+        4426,
+        4426,
+        4426,
+        4426,
+        4426,
+        4425,
+        4426,
+        4426,
+        4426
+      ],
+      "scenario": "edited"
+    },
+    {
+      "audit_turns": 28,
+      "compaction_events": 0,
+      "complete": true,
+      "coverage": [
+        {
+          "call": 1,
+          "history_tokens": null,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 0
+        },
+        {
+          "call": 2,
+          "history_tokens": 815,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 2
+        },
+        {
+          "call": 3,
+          "history_tokens": 1063,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 4
+        },
+        {
+          "call": 4,
+          "history_tokens": 1311,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 6
+        },
+        {
+          "call": 5,
+          "history_tokens": 1560,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 8
+        },
+        {
+          "call": 6,
+          "history_tokens": 1809,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 10
+        },
+        {
+          "call": 7,
+          "history_tokens": 2057,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 12
+        },
+        {
+          "call": 8,
+          "history_tokens": 2306,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 14
+        },
+        {
+          "call": 9,
+          "history_tokens": 2555,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 16
+        },
+        {
+          "call": 10,
+          "history_tokens": 2803,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 18
+        },
+        {
+          "call": 11,
+          "history_tokens": 3052,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 20
+        },
+        {
+          "call": 12,
+          "history_tokens": 3301,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 22
+        },
+        {
+          "call": 13,
+          "history_tokens": 3550,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 24
+        },
+        {
+          "call": 14,
+          "history_tokens": 3798,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 26
+        }
+      ],
+      "early_rewrites": 12,
+      "layout": "first_seen",
+      "lcp_bytes": [
+        4078,
+        4426,
+        4426,
+        4426,
+        4426,
+        4426,
+        4426,
+        4426,
+        4426,
+        4425,
+        4426,
+        4426,
+        4426
+      ],
+      "scenario": "edited"
+    },
+    {
+      "audit_turns": 28,
+      "compaction_events": 0,
+      "complete": true,
+      "coverage": [
+        {
+          "call": 1,
+          "history_tokens": null,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 0
+        },
+        {
+          "call": 2,
+          "history_tokens": 835,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 2
+        },
+        {
+          "call": 3,
+          "history_tokens": 1083,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 4
+        },
+        {
+          "call": 4,
+          "history_tokens": 1331,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 6
+        },
+        {
+          "call": 5,
+          "history_tokens": 1580,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 8
+        },
+        {
+          "call": 6,
+          "history_tokens": 1829,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 10
+        },
+        {
+          "call": 7,
+          "history_tokens": 2077,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 12
+        },
+        {
+          "call": 8,
+          "history_tokens": 2326,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 14
+        },
+        {
+          "call": 9,
+          "history_tokens": 2575,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 16
+        },
+        {
+          "call": 10,
+          "history_tokens": 2823,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 18
+        },
+        {
+          "call": 11,
+          "history_tokens": 3072,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 20
+        },
+        {
+          "call": 12,
+          "history_tokens": 3321,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 22
+        },
+        {
+          "call": 13,
+          "history_tokens": 3570,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 24
+        },
+        {
+          "call": 14,
+          "history_tokens": 3818,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 26
+        }
+      ],
+      "early_rewrites": 12,
+      "layout": "trailing_mtime",
+      "lcp_bytes": [
+        4078,
+        4416,
+        4416,
+        4416,
+        4416,
+        4416,
+        4416,
+        4416,
+        4416,
+        4416,
+        4417,
+        4417,
+        4417
+      ],
+      "scenario": "edited"
+    },
+    {
+      "audit_turns": 28,
+      "compaction_events": 0,
+      "complete": true,
+      "coverage": [
+        {
+          "call": 1,
+          "history_tokens": null,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 0
+        },
+        {
+          "call": 2,
+          "history_tokens": 815,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 2
+        },
+        {
+          "call": 3,
+          "history_tokens": 1063,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 4
+        },
+        {
+          "call": 4,
+          "history_tokens": 1311,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 6
+        },
+        {
+          "call": 5,
+          "history_tokens": 1560,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 8
+        },
+        {
+          "call": 6,
+          "history_tokens": 1809,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 10
+        },
+        {
+          "call": 7,
+          "history_tokens": 2057,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 12
+        },
+        {
+          "call": 8,
+          "history_tokens": 2306,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 14
+        },
+        {
+          "call": 9,
+          "history_tokens": 2555,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 16
+        },
+        {
+          "call": 10,
+          "history_tokens": 2803,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 18
+        },
+        {
+          "call": 11,
+          "history_tokens": 3052,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 20
+        },
+        {
+          "call": 12,
+          "history_tokens": 3301,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 22
+        },
+        {
+          "call": 13,
+          "history_tokens": 3550,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 24
+        },
+        {
+          "call": 14,
+          "history_tokens": 3798,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 26
+        }
+      ],
+      "early_rewrites": 12,
+      "layout": "hysteresis",
+      "lcp_bytes": [
+        4078,
+        4426,
+        4426,
+        4426,
+        4426,
+        4426,
+        4426,
+        4426,
+        4426,
+        4425,
+        4426,
+        4426,
+        4426
+      ],
+      "scenario": "edited"
+    },
+    {
+      "audit_turns": 28,
+      "compaction_events": 11,
+      "complete": true,
+      "coverage": [
+        {
+          "call": 1,
+          "history_tokens": null,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 0
+        },
+        {
+          "call": 2,
+          "history_tokens": 815,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 2
+        },
+        {
+          "call": 3,
+          "history_tokens": 1063,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 4
+        },
+        {
+          "call": 4,
+          "history_tokens": 1124,
+          "omitted_prior_turns": 1,
+          "visible_prior_turns": 5
+        },
+        {
+          "call": 5,
+          "history_tokens": 1124,
+          "omitted_prior_turns": 3,
+          "visible_prior_turns": 5
+        },
+        {
+          "call": 6,
+          "history_tokens": 1126,
+          "omitted_prior_turns": 5,
+          "visible_prior_turns": 5
+        },
+        {
+          "call": 7,
+          "history_tokens": 1126,
+          "omitted_prior_turns": 7,
+          "visible_prior_turns": 5
+        },
+        {
+          "call": 8,
+          "history_tokens": 1127,
+          "omitted_prior_turns": 9,
+          "visible_prior_turns": 5
+        },
+        {
+          "call": 9,
+          "history_tokens": 1127,
+          "omitted_prior_turns": 11,
+          "visible_prior_turns": 5
+        },
+        {
+          "call": 10,
+          "history_tokens": 1127,
+          "omitted_prior_turns": 13,
+          "visible_prior_turns": 5
+        },
+        {
+          "call": 11,
+          "history_tokens": 1127,
+          "omitted_prior_turns": 15,
+          "visible_prior_turns": 5
+        },
+        {
+          "call": 12,
+          "history_tokens": 1127,
+          "omitted_prior_turns": 17,
+          "visible_prior_turns": 5
+        },
+        {
+          "call": 13,
+          "history_tokens": 1127,
+          "omitted_prior_turns": 19,
+          "visible_prior_turns": 5
+        },
+        {
+          "call": 14,
+          "history_tokens": 1127,
+          "omitted_prior_turns": 21,
+          "visible_prior_turns": 5
+        }
+      ],
+      "early_rewrites": 0,
+      "layout": "current",
+      "lcp_bytes": [
+        4078,
+        5813,
+        5016,
+        5016,
+        5016,
+        5016,
+        5016,
+        5017,
+        5017,
+        5017,
+        5017,
+        5016,
+        5017
+      ],
+      "scenario": "compacted"
+    },
+    {
+      "audit_turns": 28,
+      "compaction_events": 11,
+      "complete": true,
+      "coverage": [
+        {
+          "call": 1,
+          "history_tokens": null,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 0
+        },
+        {
+          "call": 2,
+          "history_tokens": 815,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 2
+        },
+        {
+          "call": 3,
+          "history_tokens": 1063,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 4
+        },
+        {
+          "call": 4,
+          "history_tokens": 1124,
+          "omitted_prior_turns": 1,
+          "visible_prior_turns": 5
+        },
+        {
+          "call": 5,
+          "history_tokens": 1124,
+          "omitted_prior_turns": 3,
+          "visible_prior_turns": 5
+        },
+        {
+          "call": 6,
+          "history_tokens": 1126,
+          "omitted_prior_turns": 5,
+          "visible_prior_turns": 5
+        },
+        {
+          "call": 7,
+          "history_tokens": 1126,
+          "omitted_prior_turns": 7,
+          "visible_prior_turns": 5
+        },
+        {
+          "call": 8,
+          "history_tokens": 1127,
+          "omitted_prior_turns": 9,
+          "visible_prior_turns": 5
+        },
+        {
+          "call": 9,
+          "history_tokens": 1127,
+          "omitted_prior_turns": 11,
+          "visible_prior_turns": 5
+        },
+        {
+          "call": 10,
+          "history_tokens": 1127,
+          "omitted_prior_turns": 13,
+          "visible_prior_turns": 5
+        },
+        {
+          "call": 11,
+          "history_tokens": 1127,
+          "omitted_prior_turns": 15,
+          "visible_prior_turns": 5
+        },
+        {
+          "call": 12,
+          "history_tokens": 1127,
+          "omitted_prior_turns": 17,
+          "visible_prior_turns": 5
+        },
+        {
+          "call": 13,
+          "history_tokens": 1127,
+          "omitted_prior_turns": 19,
+          "visible_prior_turns": 5
+        },
+        {
+          "call": 14,
+          "history_tokens": 1127,
+          "omitted_prior_turns": 21,
+          "visible_prior_turns": 5
+        }
+      ],
+      "early_rewrites": 0,
+      "layout": "first_seen",
+      "lcp_bytes": [
+        4078,
+        5813,
+        5016,
+        5016,
+        5016,
+        5016,
+        5016,
+        5017,
+        5017,
+        5017,
+        5017,
+        5016,
+        5017
+      ],
+      "scenario": "compacted"
+    },
+    {
+      "audit_turns": 28,
+      "compaction_events": 11,
+      "complete": true,
+      "coverage": [
+        {
+          "call": 1,
+          "history_tokens": null,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 0
+        },
+        {
+          "call": 2,
+          "history_tokens": 835,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 2
+        },
+        {
+          "call": 3,
+          "history_tokens": 1083,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 4
+        },
+        {
+          "call": 4,
+          "history_tokens": 1144,
+          "omitted_prior_turns": 1,
+          "visible_prior_turns": 5
+        },
+        {
+          "call": 5,
+          "history_tokens": 1144,
+          "omitted_prior_turns": 3,
+          "visible_prior_turns": 5
+        },
+        {
+          "call": 6,
+          "history_tokens": 1146,
+          "omitted_prior_turns": 5,
+          "visible_prior_turns": 5
+        },
+        {
+          "call": 7,
+          "history_tokens": 1146,
+          "omitted_prior_turns": 7,
+          "visible_prior_turns": 5
+        },
+        {
+          "call": 8,
+          "history_tokens": 1147,
+          "omitted_prior_turns": 9,
+          "visible_prior_turns": 5
+        },
+        {
+          "call": 9,
+          "history_tokens": 1147,
+          "omitted_prior_turns": 11,
+          "visible_prior_turns": 5
+        },
+        {
+          "call": 10,
+          "history_tokens": 1147,
+          "omitted_prior_turns": 13,
+          "visible_prior_turns": 5
+        },
+        {
+          "call": 11,
+          "history_tokens": 1147,
+          "omitted_prior_turns": 15,
+          "visible_prior_turns": 5
+        },
+        {
+          "call": 12,
+          "history_tokens": 1147,
+          "omitted_prior_turns": 17,
+          "visible_prior_turns": 5
+        },
+        {
+          "call": 13,
+          "history_tokens": 1147,
+          "omitted_prior_turns": 19,
+          "visible_prior_turns": 5
+        },
+        {
+          "call": 14,
+          "history_tokens": 1147,
+          "omitted_prior_turns": 21,
+          "visible_prior_turns": 5
+        }
+      ],
+      "early_rewrites": 0,
+      "layout": "trailing_mtime",
+      "lcp_bytes": [
+        4078,
+        5856,
+        5059,
+        5059,
+        5059,
+        5059,
+        5059,
+        5060,
+        5060,
+        5060,
+        5060,
+        5059,
+        5060
+      ],
+      "scenario": "compacted"
+    },
+    {
+      "audit_turns": 28,
+      "compaction_events": 11,
+      "complete": true,
+      "coverage": [
+        {
+          "call": 1,
+          "history_tokens": null,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 0
+        },
+        {
+          "call": 2,
+          "history_tokens": 815,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 2
+        },
+        {
+          "call": 3,
+          "history_tokens": 1063,
+          "omitted_prior_turns": 0,
+          "visible_prior_turns": 4
+        },
+        {
+          "call": 4,
+          "history_tokens": 1081,
+          "omitted_prior_turns": 2,
+          "visible_prior_turns": 4
+        },
+        {
+          "call": 5,
+          "history_tokens": 1081,
+          "omitted_prior_turns": 4,
+          "visible_prior_turns": 4
+        },
+        {
+          "call": 6,
+          "history_tokens": 1082,
+          "omitted_prior_turns": 6,
+          "visible_prior_turns": 4
+        },
+        {
+          "call": 7,
+          "history_tokens": 1083,
+          "omitted_prior_turns": 8,
+          "visible_prior_turns": 4
+        },
+        {
+          "call": 8,
+          "history_tokens": 1083,
+          "omitted_prior_turns": 10,
+          "visible_prior_turns": 4
+        },
+        {
+          "call": 9,
+          "history_tokens": 1083,
+          "omitted_prior_turns": 12,
+          "visible_prior_turns": 4
+        },
+        {
+          "call": 10,
+          "history_tokens": 1083,
+          "omitted_prior_turns": 14,
+          "visible_prior_turns": 4
+        },
+        {
+          "call": 11,
+          "history_tokens": 1083,
+          "omitted_prior_turns": 16,
+          "visible_prior_turns": 4
+        },
+        {
+          "call": 12,
+          "history_tokens": 1083,
+          "omitted_prior_turns": 18,
+          "visible_prior_turns": 4
+        },
+        {
+          "call": 13,
+          "history_tokens": 1083,
+          "omitted_prior_turns": 20,
+          "visible_prior_turns": 4
+        },
+        {
+          "call": 14,
+          "history_tokens": 1083,
+          "omitted_prior_turns": 22,
+          "visible_prior_turns": 4
+        }
+      ],
+      "early_rewrites": 0,
+      "layout": "hysteresis",
+      "lcp_bytes": [
+        4078,
+        5813,
+        5016,
+        5016,
+        5016,
+        5016,
+        5016,
+        5017,
+        5017,
+        5017,
+        5017,
+        5016,
+        5017
+      ],
+      "scenario": "compacted"
+    }
+  ],
+  "schema_version": 1,
+  "scope": "Test-only layouts, actual dispatcher/SDK, synthetic HTTP; no savings/quality claim"
+}

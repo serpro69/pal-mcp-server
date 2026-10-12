@@ -762,6 +762,17 @@ explicit API errors. Live state-transition checks still require a designated ses
 
 **Contract / gate:** Conditional research/implementation slice. If evidence rejects the layout change, completion is a recorded no-change decision and concrete follow-up, not a fabricated optimization.
 
+**Evaluation scope (2026-10-12):** Compare current rendering with test-only
+first-seen file ordering and compaction hysteresis using dispatcher/SDK captures.
+Keep the existing file delimiter/mtime format in all runtime paths: the separate
+[per-file descriptions design](../per-file-descriptions/design.md) requires
+unchanged headers when annotations are absent and descriptions fixed at first
+embedding. A snapshot/version log or relocated provenance would need a coordinated
+format contract before runtime implementation. Reject a candidate that improves
+prefixes by retaining stale file contents or silently omitting available history.
+Record fixed, added, touched and edited file cases plus a constrained-history case
+over at least 12 calls each, including current-input and stored-audit checks.
+
 <a id="task-42"></a>
 
 ## Task 42: Verify the improved system and complete its documentation

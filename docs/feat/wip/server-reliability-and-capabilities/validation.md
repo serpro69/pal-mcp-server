@@ -2032,3 +2032,54 @@ file layout change. Independent isolated code review: **APPROVE**, no findings
 and none to index. PAL external review failed `API_KEY_INVALID`; the independent
 local reviewer covered the diff. Other providers and live stance behavior were
 not established by the OpenAI synthetic capture suite.
+
+## Task 41: History layout and compaction evaluation
+
+Evaluated on 2026-10-12 after Task 40 (`8a70009`). **Decision: retain the runtime
+layout.** The [decision record](../../../adr/0001-retain-conversation-history-layout.md)
+documents measured trade-offs, annotation coordination, concrete follow-ups and
+rollback. The [retained measurements](history-layout-task41.json) cover 20 runs:
+fixed, added, touched and edited files plus constrained history, each with 14 chat
+calls under the current layout and three scoped test-only candidates.
+
+`python -m tests.history_layout_capture --output /tmp/layout-captures.json
+--summary /tmp/layout-summary.json` (one shell line, `PAL_SKIP_DOTENV=true` and
+`PYTHONHASHSEED=1`) produced **280 real dispatcher/SDK requests** with a fake HTTP
+transport. Every run preserves the 28-turn audit. Captured requests enforce
+exact-once current input/files/retained turns, full system instructions, no stale
+file-version sentinels, a contiguous newest history suffix, the latest complete
+exchange and truthful omission counts. The raw fixture requests are reproducible
+from the harness; the checked-in report retains per-call coverage and prefix bytes.
+
+- First-seen ordering helps some added-file prefixes but still rewrites before
+  history on all four additions. A separate constrained-file regression proves
+  that sharing this order with admission displaces the current attachment.
+- Moving mtime behind file bytes improves touched-file prefixes but slightly
+  worsens edited-file prefixes and adds provenance overhead. Runtime headers stay
+  consistent with the separate file-description design; no snapshots, changed
+  annotation ownership or persisted descriptions are introduced.
+- Dropping 25% of retained turns at overflow still causes 11 compaction events and
+  the same median prefix. Across the constrained run, visible prior-turn coverage
+  falls from 61 to 50. Its extra state and lost context are not justified.
+- The 1,000-token history-selection allowance is distinct from the full rendered
+  envelope: baseline maximum 1,127 estimated tokens, candidate maximum 1,147.
+  The harness enforces a finite allowance plus envelope bound and retains the
+  runtime's full-request budget admission. It does not claim a hard 1,000-token
+  bound on the entire prompt.
+
+The experiment initially varied directory-name lengths between candidates;
+corrected to identical physical paths before retaining results because token
+admission happens before evidence normalization. It also caught a test-only
+provenance footer using the wrong end delimiter; corrected before measuring.
+Neither issue changed runtime behavior or relaxed acceptance assertions.
+
+Verification: full Python 3.12.11 quality **2,007 passed**, 16 skipped,
+16 deselected, 19 subtests; Ruff/Black/isort pass. Python 3.10.12 measurement suites:
+**13 passed**. Full quality includes the strict stdio integration contract. Task
+40's standalone stdio **3/3** and unchanged legacy live/quick limitations apply;
+Task 41 does not alter runtime execution or external-service configuration.
+No live cache, price or answer-quality claim is made. Independent isolated code
+review: **APPROVE**, no findings and none to index. It included the final
+latest-complete-exchange guard. PAL's external review remained unavailable after
+Task 40's confirmed invalid-key failure. The final full quality rerun with that
+guard also passed **2,007 tests**.
