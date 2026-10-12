@@ -756,7 +756,6 @@ def build_conversation_history(
         === CONVERSATION HISTORY (CONTINUATION) ===
         Thread: <thread_id>
         Tool: <original_tool_name>
-        Turn <current>/<max_allowed>
         You are continuing this conversation thread from where it left off.
 
         === FILES REFERENCED IN THIS CONVERSATION ===
@@ -781,6 +780,7 @@ def build_conversation_history(
         <turn_content>
 
         === END CONVERSATION HISTORY ===
+        Turn <current>/<max_allowed>
 
         IMPORTANT: You are continuing an existing conversation thread...
         This is turn X of the conversation - use the conversation history above...
@@ -858,11 +858,11 @@ def build_conversation_history(
     logger.debug(f"[HISTORY]   Max file tokens: {max_file_tokens:,}")
     logger.debug(f"[HISTORY]   Max history tokens: {max_history_tokens:,}")
 
+    history_status = f"Turn {total_turns}/{MAX_CONVERSATION_TURNS}"
     history_parts = [
         "=== CONVERSATION HISTORY (CONTINUATION) ===",
         f"Thread: {context.thread_id}",
         f"Tool: {context.tool_name}",  # Original tool that started the conversation
-        f"Turn {total_turns}/{MAX_CONVERSATION_TURNS}",
         "You are continuing this conversation thread from where it left off.",
         "",
     ]
@@ -908,7 +908,9 @@ def build_conversation_history(
     # OLDER turns first when space runs out, preserving the most contextually relevant exchanges
     turn_entries = []  # Will store (index, formatted_turn_content) for chronological ordering later
     total_turn_tokens = 0
+    # Keep reserving the counter's tokens after moving it behind the stable history.
     file_embedding_tokens = sum(model_context.estimate_tokens(part) for part in history_parts)
+    file_embedding_tokens += model_context.estimate_tokens(history_status)
 
     # CRITICAL: Process turns in REVERSE chronological order (newest to oldest)
     # This prioritization strategy ensures recent context is preserved when token budget is tight
@@ -988,6 +990,7 @@ def build_conversation_history(
         [
             "",
             "=== END CONVERSATION HISTORY ===",
+            history_status,
             "",
             "IMPORTANT: You are continuing an existing conversation thread. Build upon the previous exchanges shown above,",
             "reference earlier points, and maintain consistency with what has been discussed.",

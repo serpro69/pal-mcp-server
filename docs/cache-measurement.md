@@ -1,7 +1,7 @@
 # Cache usage and request measurements
 
-PAL preserves reported cache counts without enabling new cache controls or changing
-prompt layout. Missing, null, negative, boolean and noninteger counts remain
+PAL preserves reported cache counts without enabling new provider cache controls.
+Missing, null, negative, boolean and noninteger counts remain
 unknown; a reported zero remains zero. These measurements do not establish costs
 or model quality.
 
@@ -90,7 +90,28 @@ passes all declared contracts. Its 12 comparable chat pairs share **4,078–4,15
 bytes** (median **4,154.5**), approximately **41–68%** of the previous request.
 Seeds 1/7/42 each pass completeness; the workflow expert request differs across
 processes while the other 18 requests match. These are observations, not savings.
-Tasks 40–41 own changes to ordering/history and constrained-budget experiments.
+This is the pre-Task-40 baseline, retained for comparison.
+
+## Deterministic continuation rendering
+
+Task 40 moves the conversation turn total to the history footer, preserving its
+budget reservation, and sorts set-derived workflow files and symbols at rendering
+boundaries. Caller-ordered file/image lists and chronological findings retain their
+order. File errors, omission markers, modification times and model/tool attribution
+remain available. Consensus retains its complete stance text and shared safety and
+response instructions, with the stance following the shared system instructions.
+
+The [Task 40 comparison](feat/wip/server-reliability-and-capabilities/cache-stability-task40.json)
+passes all content contracts and matches all **19/19 requests** across seeds
+1/7/42. Comparable chat prefixes have median **5,220.5 bytes**, up from **4,154.5**;
+the range is **4,078–7,800 bytes**. Two same-model consensus calls share **6,170
+bytes**, up from **1,190**, with earlier verdicts still excluded. Reproduce the
+same-model case with `python -m tests.cache_capture --consensus-model gpt-4.1
+--output /tmp/cache-same-model.json` (on one shell line).
+
+These are synthetic serialized-request measurements. Live cache benefit and answer
+quality remain unverified. Rollback restores rendering only; no memory/schema
+migration is needed. Task 41 evaluates file/history layout and compaction separately.
 
 Separate [reproduced prompt issues](feat/wip/server-reliability-and-capabilities/capture-followups.md)
 remain open: absent chat search guidance, unused thinkdeep customization, and

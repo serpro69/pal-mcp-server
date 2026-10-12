@@ -20,7 +20,7 @@ from scripts.cache_prefix import prefix_report, request_text
 from scripts.cache_report import read_events, usage_report
 
 
-async def capture_scenarios(root: Path) -> dict:
+async def capture_scenarios(root: Path, *, consensus_model: str = "gpt-5-mini") -> dict:
     from providers.configuration import provider_configurations
     from utils import env as env_config
 
@@ -252,7 +252,7 @@ async def capture_scenarios(root: Path) -> dict:
                     "next_step_required": True,
                     "continuation_id": consensus_thread,
                     "relevant_files": [str(primary)],
-                    "models": [{"model": "gpt-4.1", "stance": "for"}, {"model": "gpt-5-mini", "stance": "against"}],
+                    "models": [{"model": "gpt-4.1", "stance": "for"}, {"model": consensus_model, "stance": "against"}],
                 },
                 "consensus",
                 ["[[ORIGINAL_PROPOSAL]]", "[[FILE_EDITED]]"],
@@ -372,9 +372,12 @@ async def capture_scenarios(root: Path) -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--consensus-model", default="gpt-5-mini", help="Second participant; gpt-4.1 compares stances on one model"
+    )
     args = parser.parse_args()
     with TemporaryDirectory(prefix="pal-cache-capture-") as directory:
-        result = asyncio.run(capture_scenarios(Path(directory)))
+        result = asyncio.run(capture_scenarios(Path(directory), consensus_model=args.consensus_model))
     args.output.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(
         json.dumps(

@@ -52,6 +52,10 @@ def test_all_systemprompt_modules_and_cli_prompts_are_guarded(surface):
     actual_paths = {str(p.relative_to(prompt_dir)) for p in prompt_dir.rglob("*") if p.suffix in (".py", ".txt")}
     assert set(surface["systemprompts_sha256"]) == actual_paths
     assert set(surface["systemprompts_sha256"]) == set(baseline["systemprompts_sha256"]) | {"jules_prompt.py"}
+    # Task 40 deliberately moved the unchanged stance block after shared instructions.
+    baseline["systemprompts_sha256"][
+        "consensus_prompt.py"
+    ] = "2b2dbbe7f3197fa0e8859e13bae950355aad4a3272b89b90e2b308eba8093903"
     for name, digest in baseline["systemprompts_sha256"].items():
         assert surface["systemprompts_sha256"][name] == digest
 

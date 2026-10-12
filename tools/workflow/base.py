@@ -272,7 +272,7 @@ class WorkflowTool(BaseTool, BaseWorkflowMixin):
 
         # Add relevant methods if available
         if consolidated_findings.relevant_context:
-            methods_text = "\n".join(f"- {method}" for method in consolidated_findings.relevant_context)
+            methods_text = "\n".join(f"- {method}" for method in sorted(consolidated_findings.relevant_context))
             context_parts.append(f"\n=== RELEVANT METHODS/FUNCTIONS ===\n{methods_text}\n=== END METHODS ===")
 
         # Add hypothesis evolution if available

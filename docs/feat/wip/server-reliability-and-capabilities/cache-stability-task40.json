@@ -1,0 +1,738 @@
+{
+  "after": {
+    "complete": true,
+    "requests": [
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": null,
+        "model": "gpt-4.1",
+        "previous_request_bytes": null,
+        "provider": "openai",
+        "request_bytes": 5979,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 4078,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 5979,
+        "provider": "openai",
+        "request_bytes": 7148,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 4883,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 7148,
+        "provider": "openai",
+        "request_bytes": 7373,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 5108,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 7373,
+        "provider": "openai",
+        "request_bytes": 7598,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 5333,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 7598,
+        "provider": "openai",
+        "request_bytes": 7824,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 5558,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 7824,
+        "provider": "openai",
+        "request_bytes": 8052,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": null,
+        "model": "gpt-5-mini",
+        "previous_request_bytes": null,
+        "provider": "openai",
+        "request_bytes": 8282,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 4507,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 8052,
+        "provider": "openai",
+        "request_bytes": 8694,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 4418,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 8694,
+        "provider": "openai",
+        "request_bytes": 8969,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 4418,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 8969,
+        "provider": "openai",
+        "request_bytes": 9242,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 6975,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 9242,
+        "provider": "openai",
+        "request_bytes": 9517,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 7250,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 9517,
+        "provider": "openai",
+        "request_bytes": 9792,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 7525,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 9792,
+        "provider": "openai",
+        "request_bytes": 10067,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 7800,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 10067,
+        "provider": "openai",
+        "request_bytes": 10342,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": null,
+        "model": "gpt-4.1",
+        "previous_request_bytes": null,
+        "provider": "openai",
+        "request_bytes": 8307,
+        "scenario": "workflow_expert"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": null,
+        "model": "gpt-4.1",
+        "previous_request_bytes": null,
+        "provider": "openai",
+        "request_bytes": 7816,
+        "scenario": "consensus"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": null,
+        "model": "gpt-5-mini",
+        "previous_request_bytes": null,
+        "provider": "openai",
+        "request_bytes": 7655,
+        "scenario": "consensus"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": null,
+        "model": "o3-pro",
+        "previous_request_bytes": null,
+        "provider": "openai",
+        "request_bytes": 5818,
+        "scenario": "responses"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": null,
+        "model": "gpt-4.1",
+        "previous_request_bytes": null,
+        "provider": "openai",
+        "request_bytes": 11381,
+        "scenario": "codereview"
+      }
+    ],
+    "schema_version": 1
+  },
+  "baseline": "Task 39 layout at parent commit; same tests.cache_capture scenarios",
+  "before": {
+    "complete": true,
+    "requests": [
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": null,
+        "model": "gpt-4.1",
+        "previous_request_bytes": null,
+        "provider": "openai",
+        "request_bytes": 5979,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 4078,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 5979,
+        "provider": "openai",
+        "request_bytes": 7148,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 4154,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 7148,
+        "provider": "openai",
+        "request_bytes": 7373,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 4154,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 7373,
+        "provider": "openai",
+        "request_bytes": 7598,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 4154,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 7598,
+        "provider": "openai",
+        "request_bytes": 7824,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 4154,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 7824,
+        "provider": "openai",
+        "request_bytes": 8052,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": null,
+        "model": "gpt-5-mini",
+        "previous_request_bytes": null,
+        "provider": "openai",
+        "request_bytes": 8282,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 4155,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 8052,
+        "provider": "openai",
+        "request_bytes": 8694,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 4155,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 8694,
+        "provider": "openai",
+        "request_bytes": 8969,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 4155,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 8969,
+        "provider": "openai",
+        "request_bytes": 9242,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 4154,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 9242,
+        "provider": "openai",
+        "request_bytes": 9517,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 4155,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 9517,
+        "provider": "openai",
+        "request_bytes": 9792,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 4155,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 9792,
+        "provider": "openai",
+        "request_bytes": 10067,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": 4155,
+        "model": "gpt-4.1",
+        "previous_request_bytes": 10067,
+        "provider": "openai",
+        "request_bytes": 10342,
+        "scenario": "chat_files"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": null,
+        "model": "gpt-4.1",
+        "previous_request_bytes": null,
+        "provider": "openai",
+        "request_bytes": 8307,
+        "scenario": "workflow_expert"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": null,
+        "model": "gpt-4.1",
+        "previous_request_bytes": null,
+        "provider": "openai",
+        "request_bytes": 7816,
+        "scenario": "consensus"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": null,
+        "model": "gpt-5-mini",
+        "previous_request_bytes": null,
+        "provider": "openai",
+        "request_bytes": 7655,
+        "scenario": "consensus"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": null,
+        "model": "o3-pro",
+        "previous_request_bytes": null,
+        "provider": "openai",
+        "request_bytes": 5818,
+        "scenario": "responses"
+      },
+      {
+        "complete": true,
+        "failures": [],
+        "lcp_bytes": null,
+        "model": "gpt-4.1",
+        "previous_request_bytes": null,
+        "provider": "openai",
+        "request_bytes": 11381,
+        "scenario": "codereview"
+      }
+    ],
+    "schema_version": 1
+  },
+  "candidate": "Task 40 history footer, sorted workflow sets and trailing system stance",
+  "consensus": {
+    "after": {
+      "complete": true,
+      "failures": [],
+      "lcp_bytes": 6170,
+      "model": "gpt-4.1",
+      "previous_request_bytes": 7816,
+      "provider": "openai",
+      "request_bytes": 7652,
+      "scenario": "consensus"
+    },
+    "before": {
+      "complete": true,
+      "failures": [],
+      "lcp_bytes": 1190,
+      "model": "gpt-4.1",
+      "previous_request_bytes": 7816,
+      "provider": "openai",
+      "request_bytes": 7652,
+      "scenario": "consensus"
+    },
+    "scope": "Two actual dispatcher/SDK calls using gpt-4.1 for both stances; full completeness and blinding gates pass."
+  },
+  "normalization": "Fixture directory and thread UUIDs only; fixture mtimes fixed.",
+  "schema_version": 1,
+  "scope": "Task 40 synthetic dispatcher/SDK captures; no live cache or quality claim",
+  "seeds": {
+    "42": {
+      "comparisons": [
+        {
+          "after_sha256": "937fd5647251090df7e77f887fa1bbf4639ff699877a3c6b39aa328459b7b4d5",
+          "before_sha256": "937fd5647251090df7e77f887fa1bbf4639ff699877a3c6b39aa328459b7b4d5",
+          "identical": true,
+          "lcp_bytes": 5979,
+          "request": 1,
+          "scenario": "chat_files"
+        },
+        {
+          "after_sha256": "d2da8eec26f871118b6bbfbe555cb175643e23f6d10233840d50906af5b98973",
+          "before_sha256": "d2da8eec26f871118b6bbfbe555cb175643e23f6d10233840d50906af5b98973",
+          "identical": true,
+          "lcp_bytes": 7148,
+          "request": 2,
+          "scenario": "chat_files"
+        },
+        {
+          "after_sha256": "20c883040a02daf32be9d53491005c37d212148960a7eb8b1b3588a3762354a6",
+          "before_sha256": "20c883040a02daf32be9d53491005c37d212148960a7eb8b1b3588a3762354a6",
+          "identical": true,
+          "lcp_bytes": 7373,
+          "request": 3,
+          "scenario": "chat_files"
+        },
+        {
+          "after_sha256": "513482a261d0f5d80a25abbbd19211f281c37156e82d036c2139b126d53f60f1",
+          "before_sha256": "513482a261d0f5d80a25abbbd19211f281c37156e82d036c2139b126d53f60f1",
+          "identical": true,
+          "lcp_bytes": 7598,
+          "request": 4,
+          "scenario": "chat_files"
+        },
+        {
+          "after_sha256": "1dec0e29986c4885b9181828923275b02f61c4fd9cd5850ef014179a174564b6",
+          "before_sha256": "1dec0e29986c4885b9181828923275b02f61c4fd9cd5850ef014179a174564b6",
+          "identical": true,
+          "lcp_bytes": 7824,
+          "request": 5,
+          "scenario": "chat_files"
+        },
+        {
+          "after_sha256": "84d5e246d9403fcce91363c750523b738713f49ab27474db6c4b437b78a1c351",
+          "before_sha256": "84d5e246d9403fcce91363c750523b738713f49ab27474db6c4b437b78a1c351",
+          "identical": true,
+          "lcp_bytes": 8052,
+          "request": 6,
+          "scenario": "chat_files"
+        },
+        {
+          "after_sha256": "45f64563cd5f79d84b3026f8f36183c5dbe5275dff3090777babe0a75c10930a",
+          "before_sha256": "45f64563cd5f79d84b3026f8f36183c5dbe5275dff3090777babe0a75c10930a",
+          "identical": true,
+          "lcp_bytes": 8282,
+          "request": 7,
+          "scenario": "chat_files"
+        },
+        {
+          "after_sha256": "ae341bc374751cf4cb65170735640f22ea80e0ef32bf2a4478e2c315d8c86b83",
+          "before_sha256": "ae341bc374751cf4cb65170735640f22ea80e0ef32bf2a4478e2c315d8c86b83",
+          "identical": true,
+          "lcp_bytes": 8694,
+          "request": 8,
+          "scenario": "chat_files"
+        },
+        {
+          "after_sha256": "cadae9df23db11c72d2981362d08d4beb1bd5a1940ee9af7f37aae7aff4bbc85",
+          "before_sha256": "cadae9df23db11c72d2981362d08d4beb1bd5a1940ee9af7f37aae7aff4bbc85",
+          "identical": true,
+          "lcp_bytes": 8969,
+          "request": 9,
+          "scenario": "chat_files"
+        },
+        {
+          "after_sha256": "d56d4afb786d255c7150a6423af8d3b16e1f358b374407f1046408870eae5f84",
+          "before_sha256": "d56d4afb786d255c7150a6423af8d3b16e1f358b374407f1046408870eae5f84",
+          "identical": true,
+          "lcp_bytes": 9242,
+          "request": 10,
+          "scenario": "chat_files"
+        },
+        {
+          "after_sha256": "ab9a2a4a9f5cf30c6e2dddcb456052ffeae704c55be549ddd68fbd42d8399828",
+          "before_sha256": "ab9a2a4a9f5cf30c6e2dddcb456052ffeae704c55be549ddd68fbd42d8399828",
+          "identical": true,
+          "lcp_bytes": 9517,
+          "request": 11,
+          "scenario": "chat_files"
+        },
+        {
+          "after_sha256": "ba951552af65e2380b1b3334f2fa249d2297e8599b8dec3e6a328db0bdeaefc5",
+          "before_sha256": "ba951552af65e2380b1b3334f2fa249d2297e8599b8dec3e6a328db0bdeaefc5",
+          "identical": true,
+          "lcp_bytes": 9792,
+          "request": 12,
+          "scenario": "chat_files"
+        },
+        {
+          "after_sha256": "87c29fce239b86727e80dda79502dbea7a1b31ff1d0b654f32fa3047128b01e8",
+          "before_sha256": "87c29fce239b86727e80dda79502dbea7a1b31ff1d0b654f32fa3047128b01e8",
+          "identical": true,
+          "lcp_bytes": 10067,
+          "request": 13,
+          "scenario": "chat_files"
+        },
+        {
+          "after_sha256": "72083e93604cea5818a1561fe2d57955619395fee0ecde9c3dbd251dd5701db0",
+          "before_sha256": "72083e93604cea5818a1561fe2d57955619395fee0ecde9c3dbd251dd5701db0",
+          "identical": true,
+          "lcp_bytes": 10342,
+          "request": 14,
+          "scenario": "chat_files"
+        },
+        {
+          "after_sha256": "aeb40a03aaf093863bf16f4368765f863aaee33c719b375315a681432afb4b36",
+          "before_sha256": "aeb40a03aaf093863bf16f4368765f863aaee33c719b375315a681432afb4b36",
+          "identical": true,
+          "lcp_bytes": 8307,
+          "request": 15,
+          "scenario": "workflow_expert"
+        },
+        {
+          "after_sha256": "cd93c909f8fca14e62ff784aaaa5c22e09dc793a3d29643b0d2d703d58bd1a93",
+          "before_sha256": "cd93c909f8fca14e62ff784aaaa5c22e09dc793a3d29643b0d2d703d58bd1a93",
+          "identical": true,
+          "lcp_bytes": 7816,
+          "request": 16,
+          "scenario": "consensus"
+        },
+        {
+          "after_sha256": "78b721804cdfaca3e6f5584da0a29df26c8f70e6d3b581f332145a042ddb16e6",
+          "before_sha256": "78b721804cdfaca3e6f5584da0a29df26c8f70e6d3b581f332145a042ddb16e6",
+          "identical": true,
+          "lcp_bytes": 7655,
+          "request": 17,
+          "scenario": "consensus"
+        },
+        {
+          "after_sha256": "d74e40ec0d3e11cb2112bab8b0434def4c2d08783972e619e41ee60d0619c81c",
+          "before_sha256": "d74e40ec0d3e11cb2112bab8b0434def4c2d08783972e619e41ee60d0619c81c",
+          "identical": true,
+          "lcp_bytes": 5818,
+          "request": 18,
+          "scenario": "responses"
+        },
+        {
+          "after_sha256": "a7f0b2331f231021388cdaaf6ca91f128f7f300d05d33156d04c4edd9429cf82",
+          "before_sha256": "a7f0b2331f231021388cdaaf6ca91f128f7f300d05d33156d04c4edd9429cf82",
+          "identical": true,
+          "lcp_bytes": 11381,
+          "request": 19,
+          "scenario": "codereview"
+        }
+      ],
+      "complete": true
+    },
+    "7": {
+      "comparisons": [
+        {
+          "after_sha256": "937fd5647251090df7e77f887fa1bbf4639ff699877a3c6b39aa328459b7b4d5",
+          "before_sha256": "937fd5647251090df7e77f887fa1bbf4639ff699877a3c6b39aa328459b7b4d5",
+          "identical": true,
+          "lcp_bytes": 5979,
+          "request": 1,
+          "scenario": "chat_files"
+        },
+        {
+          "after_sha256": "d2da8eec26f871118b6bbfbe555cb175643e23f6d10233840d50906af5b98973",
+          "before_sha256": "d2da8eec26f871118b6bbfbe555cb175643e23f6d10233840d50906af5b98973",
+          "identical": true,
+          "lcp_bytes": 7148,
+          "request": 2,
+          "scenario": "chat_files"
+        },
+        {
+          "after_sha256": "20c883040a02daf32be9d53491005c37d212148960a7eb8b1b3588a3762354a6",
+          "before_sha256": "20c883040a02daf32be9d53491005c37d212148960a7eb8b1b3588a3762354a6",
+          "identical": true,
+          "lcp_bytes": 7373,
+          "request": 3,
+          "scenario": "chat_files"
+        },
+        {
+          "after_sha256": "513482a261d0f5d80a25abbbd19211f281c37156e82d036c2139b126d53f60f1",
+          "before_sha256": "513482a261d0f5d80a25abbbd19211f281c37156e82d036c2139b126d53f60f1",
+          "identical": true,
+          "lcp_bytes": 7598,
+          "request": 4,
+          "scenario": "chat_files"
+        },
+        {
+          "after_sha256": "1dec0e29986c4885b9181828923275b02f61c4fd9cd5850ef014179a174564b6",
+          "before_sha256": "1dec0e29986c4885b9181828923275b02f61c4fd9cd5850ef014179a174564b6",
+          "identical": true,
+          "lcp_bytes": 7824,
+          "request": 5,
+          "scenario": "chat_files"
+        },
+        {
+          "after_sha256": "84d5e246d9403fcce91363c750523b738713f49ab27474db6c4b437b78a1c351",
+          "before_sha256": "84d5e246d9403fcce91363c750523b738713f49ab27474db6c4b437b78a1c351",
+          "identical": true,
+          "lcp_bytes": 8052,
+          "request": 6,
+          "scenario": "chat_files"
+        },
+        {
+          "after_sha256": "45f64563cd5f79d84b3026f8f36183c5dbe5275dff3090777babe0a75c10930a",
+          "before_sha256": "45f64563cd5f79d84b3026f8f36183c5dbe5275dff3090777babe0a75c10930a",
+          "identical": true,
+          "lcp_bytes": 8282,
+          "request": 7,
+          "scenario": "chat_files"
+        },
+        {
+          "after_sha256": "ae341bc374751cf4cb65170735640f22ea80e0ef32bf2a4478e2c315d8c86b83",
+          "before_sha256": "ae341bc374751cf4cb65170735640f22ea80e0ef32bf2a4478e2c315d8c86b83",
+          "identical": true,
+          "lcp_bytes": 8694,
+          "request": 8,
+          "scenario": "chat_files"
+        },
+        {
+          "after_sha256": "cadae9df23db11c72d2981362d08d4beb1bd5a1940ee9af7f37aae7aff4bbc85",
+          "before_sha256": "cadae9df23db11c72d2981362d08d4beb1bd5a1940ee9af7f37aae7aff4bbc85",
+          "identical": true,
+          "lcp_bytes": 8969,
+          "request": 9,
+          "scenario": "chat_files"
+        },
+        {
+          "after_sha256": "d56d4afb786d255c7150a6423af8d3b16e1f358b374407f1046408870eae5f84",
+          "before_sha256": "d56d4afb786d255c7150a6423af8d3b16e1f358b374407f1046408870eae5f84",
+          "identical": true,
+          "lcp_bytes": 9242,
+          "request": 10,
+          "scenario": "chat_files"
+        },
+        {
+          "after_sha256": "ab9a2a4a9f5cf30c6e2dddcb456052ffeae704c55be549ddd68fbd42d8399828",
+          "before_sha256": "ab9a2a4a9f5cf30c6e2dddcb456052ffeae704c55be549ddd68fbd42d8399828",
+          "identical": true,
+          "lcp_bytes": 9517,
+          "request": 11,
+          "scenario": "chat_files"
+        },
+        {
+          "after_sha256": "ba951552af65e2380b1b3334f2fa249d2297e8599b8dec3e6a328db0bdeaefc5",
+          "before_sha256": "ba951552af65e2380b1b3334f2fa249d2297e8599b8dec3e6a328db0bdeaefc5",
+          "identical": true,
+          "lcp_bytes": 9792,
+          "request": 12,
+          "scenario": "chat_files"
+        },
+        {
+          "after_sha256": "87c29fce239b86727e80dda79502dbea7a1b31ff1d0b654f32fa3047128b01e8",
+          "before_sha256": "87c29fce239b86727e80dda79502dbea7a1b31ff1d0b654f32fa3047128b01e8",
+          "identical": true,
+          "lcp_bytes": 10067,
+          "request": 13,
+          "scenario": "chat_files"
+        },
+        {
+          "after_sha256": "72083e93604cea5818a1561fe2d57955619395fee0ecde9c3dbd251dd5701db0",
+          "before_sha256": "72083e93604cea5818a1561fe2d57955619395fee0ecde9c3dbd251dd5701db0",
+          "identical": true,
+          "lcp_bytes": 10342,
+          "request": 14,
+          "scenario": "chat_files"
+        },
+        {
+          "after_sha256": "aeb40a03aaf093863bf16f4368765f863aaee33c719b375315a681432afb4b36",
+          "before_sha256": "aeb40a03aaf093863bf16f4368765f863aaee33c719b375315a681432afb4b36",
+          "identical": true,
+          "lcp_bytes": 8307,
+          "request": 15,
+          "scenario": "workflow_expert"
+        },
+        {
+          "after_sha256": "cd93c909f8fca14e62ff784aaaa5c22e09dc793a3d29643b0d2d703d58bd1a93",
+          "before_sha256": "cd93c909f8fca14e62ff784aaaa5c22e09dc793a3d29643b0d2d703d58bd1a93",
+          "identical": true,
+          "lcp_bytes": 7816,
+          "request": 16,
+          "scenario": "consensus"
+        },
+        {
+          "after_sha256": "78b721804cdfaca3e6f5584da0a29df26c8f70e6d3b581f332145a042ddb16e6",
+          "before_sha256": "78b721804cdfaca3e6f5584da0a29df26c8f70e6d3b581f332145a042ddb16e6",
+          "identical": true,
+          "lcp_bytes": 7655,
+          "request": 17,
+          "scenario": "consensus"
+        },
+        {
+          "after_sha256": "d74e40ec0d3e11cb2112bab8b0434def4c2d08783972e619e41ee60d0619c81c",
+          "before_sha256": "d74e40ec0d3e11cb2112bab8b0434def4c2d08783972e619e41ee60d0619c81c",
+          "identical": true,
+          "lcp_bytes": 5818,
+          "request": 18,
+          "scenario": "responses"
+        },
+        {
+          "after_sha256": "a7f0b2331f231021388cdaaf6ca91f128f7f300d05d33156d04c4edd9429cf82",
+          "before_sha256": "a7f0b2331f231021388cdaaf6ca91f128f7f300d05d33156d04c4edd9429cf82",
+          "identical": true,
+          "lcp_bytes": 11381,
+          "request": 19,
+          "scenario": "codereview"
+        }
+      ],
+      "complete": true
+    }
+  }
+}

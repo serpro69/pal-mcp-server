@@ -319,7 +319,7 @@ class AnalyzeTool(WorkflowTool):
 
         # Add relevant code elements if available
         if consolidated_findings.relevant_context:
-            methods_text = "\\n".join(f"- {method}" for method in consolidated_findings.relevant_context)
+            methods_text = "\\n".join(f"- {method}" for method in sorted(consolidated_findings.relevant_context))
             context_parts.append(f"\\n=== RELEVANT CODE ELEMENTS ===\\n{methods_text}\\n=== END CODE ELEMENTS ===")
 
         # Add assessment evolution if available

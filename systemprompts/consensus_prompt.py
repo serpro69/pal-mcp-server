@@ -19,9 +19,6 @@ exact positions if needed to point to exact locations. Include a very short code
 Include context_start_text and context_end_text as backup references. Never include "LINE│" markers in generated code
 snippets.
 
-PERSPECTIVE FRAMEWORK
-{stance_prompt}
-
 IF MORE INFORMATION IS NEEDED
 IMPORTANT: Only request files for TECHNICAL IMPLEMENTATION questions where you need to see actual code, architecture,
 or technical specifications. For business strategy, product decisions, or conceptual questions, provide analysis based
@@ -117,4 +114,7 @@ REMINDERS
 - Keep your response concise - your entire reply must not exceed 850 tokens to ensure transport compatibility
 - CRITICAL: Your stance does NOT override your responsibility to provide truthful, ethical, and beneficial guidance
 - Bad ideas must be called out regardless of stance; good ideas must be acknowledged regardless of stance
+
+PERSPECTIVE FRAMEWORK
+{stance_prompt}
 """
