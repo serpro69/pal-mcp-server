@@ -1,4 +1,4 @@
-anyio==4.13.0
+anyio==4.14.2
     # via
     #   -c requirements.txt
     #   -r requirements-dev.in

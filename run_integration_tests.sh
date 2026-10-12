@@ -6,20 +6,40 @@
 
 set -e  # Exit on any error
 
+case "${1:-}" in
+    ""|--with-simulator|--stub) ;;
+    *) echo "Usage: $0 [--with-simulator|--stub]" >&2; exit 2 ;;
+esac
+if [[ $# -gt 1 ]]; then
+    echo "Usage: $0 [--with-simulator|--stub]" >&2
+    exit 2
+fi
+
+# Resolve the checkout independently of the caller's current directory.
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+# Respect an explicitly activated environment, including virtualenvwrapper.
+if [[ -n "${VIRTUAL_ENV:-}" && -x "$VIRTUAL_ENV/bin/python" ]]; then
+    PYTHON_CMD="$VIRTUAL_ENV/bin/python"
+elif [[ -x "$SCRIPT_DIR/.pal_venv/bin/python" ]]; then
+    PYTHON_CMD="$SCRIPT_DIR/.pal_venv/bin/python"
+else
+    echo "❌ No virtual environment found. Activate one or run ./run-server.sh first." >&2
+    exit 1
+fi
+
+if [[ "${1:-}" == "--stub" ]]; then
+    # This harness isolates credentials and owns its loopback server and children.
+    exec "$PYTHON_CMD" -m simulator_tests.stub_provider
+fi
+
 echo "🧪 Running Integration Tests for PAL MCP Server"
 echo "=============================================="
 echo "These tests use real API calls with your configured keys"
 echo ""
 
-# Activate virtual environment
-if [[ -f ".pal_venv/bin/activate" ]]; then
-    source .pal_venv/bin/activate
-    echo "✅ Using virtual environment"
-else
-    echo "❌ No virtual environment found!"
-    echo "Please run: ./run-server.sh first"
-    exit 1
-fi
+echo "✅ Using virtual environment Python: $PYTHON_CMD"
 
 # Check for .env file
 if [[ ! -f ".env" ]]; then
@@ -68,7 +88,7 @@ echo "🏃 Running integration tests..."
 echo "------------------------------"
 
 # Run only integration tests (marked with @pytest.mark.integration)
-python -m pytest tests/ -v -m "integration" --tb=short
+"$PYTHON_CMD" -m pytest tests/ -v -m "integration" --tb=short
 
 echo ""
 echo "✅ Integration tests completed!"
@@ -78,7 +98,7 @@ echo ""
 if [[ "$1" == "--with-simulator" ]]; then
     echo "🤖 Running simulator tests..."
     echo "----------------------------"
-    python communication_simulator_test.py --verbose
+    "$PYTHON_CMD" communication_simulator_test.py --verbose
     echo ""
     echo "✅ Simulator tests completed!"
 fi
@@ -86,5 +106,6 @@ fi
 echo "💡 Tips:"
 echo "- Run './run_integration_tests.sh' for integration tests only"
 echo "- Run './run_integration_tests.sh --with-simulator' to also run simulator tests"
+echo "- Run './run_integration_tests.sh --stub' for credential-free local contracts"
 echo "- Run './code_quality_checks.sh' for unit tests and linting"
 echo "- Resolve logs with: python -m utils.log_dir"

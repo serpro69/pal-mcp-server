@@ -21,7 +21,10 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 # Install Python dependencies
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir -r requirements.txt && \
+    pip uninstall -y setuptools wheel && \
+    pip check && \
+    pip uninstall -y pip
 
 # ===========================================
 # STAGE 2: Runtime image
@@ -49,9 +52,10 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
-# Refresh the base interpreter's packaging tools too; updating /opt/venv alone
-# leaves older, vulnerable copies under /usr/local in the runtime image.
-RUN python -m pip install --no-cache-dir --upgrade pip setuptools wheel
+# Installation belongs to the builder. Remove unused packaging tools and bundled
+# bootstrap wheels so their vendored dependencies do not remain in the runtime.
+RUN /usr/local/bin/python -m pip uninstall -y pip setuptools wheel && \
+    rm -rf /usr/local/lib/python3.11/ensurepip
 
 # Copy virtual environment from builder
 COPY --from=builder /opt/venv /opt/venv

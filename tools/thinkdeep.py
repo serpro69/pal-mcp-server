@@ -174,16 +174,23 @@ class ThinkDeepTool(WorkflowTool):
 
         return DEFAULT_THINKING_MODE_THINKDEEP
 
-    def customize_workflow_response(self, response_data: dict, request, **kwargs) -> dict:
-        """
-        Customize the workflow response for thinkdeep-specific needs
-        """
-        # Store request parameters for later use in expert analysis
+    def prepare_step_data(self, request) -> dict:
+        """Retain analysis scope before expert execution and across fresh instances."""
         if request.step_number == 1:
             self.stored_request_params = {
                 "temperature": request.temperature,
                 "thinking_mode": request.thinking_mode,
             }
+        for name in ("problem_context", "focus_areas"):
+            value = getattr(request, name)
+            if value is not None:
+                self.stored_request_params[name] = value
+        return super().prepare_step_data(request)
+
+    def customize_workflow_response(self, response_data: dict, request, **kwargs) -> dict:
+        """
+        Customize the workflow response for thinkdeep-specific needs
+        """
 
         # Add thinking-specific context to response
         response_data.update(
@@ -274,12 +281,6 @@ ANALYSIS SCOPE:
 - Investigation Confidence: {request.confidence}
 - Steps Completed: {request.step_number} of {request.total_steps}
 
-THINKING SUMMARY:
-{request.findings}
-
-KEY INSIGHTS AND CONTEXT:
-{', '.join(request.relevant_context) if request.relevant_context else 'No specific context identified'}
-
 VALIDATION OBJECTIVES:
 1. Assess the depth and quality of the thinking process
 2. Identify any logical gaps, missing considerations, or flawed assumptions
@@ -333,16 +334,22 @@ but also acknowledge strong insights and valid conclusions.
     def _get_problem_context(self, request) -> str:
         """Get problem context from request. Override for custom context handling."""
         try:
-            return request.problem_context or "General analysis"
+            value = request.problem_context
         except AttributeError:
-            return "General analysis"
+            value = None
+        if value is None:
+            value = self.stored_request_params.get("problem_context")
+        return value or "General analysis"
 
     def _get_focus_areas(self, request) -> list[str]:
         """Get focus areas from request. Override for custom focus area handling."""
         try:
-            return request.focus_areas or ["comprehensive analysis"]
+            value = request.focus_areas
         except AttributeError:
-            return ["comprehensive analysis"]
+            value = None
+        if value is None:
+            value = self.stored_request_params.get("focus_areas")
+        return value or ["comprehensive analysis"]
 
     def get_required_actions(
         self, step_number: int, confidence: str, findings: str, total_steps: int, request=None

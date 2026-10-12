@@ -57,8 +57,6 @@ DEFAULT_MODEL=auto
 
 # Logging
 LOG_LEVEL=INFO
-LOG_MAX_SIZE=10MB
-LOG_BACKUP_COUNT=5
 
 # Advanced settings
 DEFAULT_THINKING_MODE_THINKDEEP=high
@@ -111,6 +109,11 @@ The Dockerfile uses a multi-stage build for optimal image size:
 1. **Builder Stage**: Installs locked pip dependencies in a virtual environment.
 2. **Runtime Stage**: Copies the environment and application from the filtered build context.
 
+Package installation stays in the builder. The runtime image omits pip,
+setuptools, wheel and ensurepip bootstrap wheels, including their bundled
+dependencies. Rebuild the image to change Python dependencies; `pip check` runs
+during the build before pip is removed.
+
 Both stages use the same digest-pinned Python 3.11.17 slim-trixie base and apply
 available Debian package updates. Rebuild with `docker build --pull --no-cache`
 after reviewing base updates; a cached build does not establish current patch status.
@@ -127,7 +130,7 @@ workflows can supply release-specific labels.
   filesystem, `no-new-privileges`, and temporary mounts with `noexec,nosuid`.
   A plain `docker run` does not inherit those Compose settings.
 
-See the [dated build and scan evidence](feat/wip/server-reliability-and-capabilities/validation.md#task-2-container)
+See the [latest remediation and scan evidence](feat/wip/server-reliability-and-capabilities/actionable-fixes.md)
 for tested properties and unresolved package findings. A successful build or
 health check does not establish that the image has no vulnerabilities.
 
@@ -213,12 +216,9 @@ healthcheck:
 
 ### Log Management
 
-Logs are automatically rotated with configurable retention:
-
-```env
-LOG_MAX_SIZE=10MB      # Maximum log file size
-LOG_BACKUP_COUNT=5     # Number of backup files to keep
-```
+Logs rotate at fixed limits: the main log uses 20 MiB with five backups, and
+the activity log uses 10 MiB with two backups. `LOG_LEVEL` controls verbosity.
+See [logging](logging.md#rotation-and-diagnostics) for paths and retention.
 
 ## Networking
 

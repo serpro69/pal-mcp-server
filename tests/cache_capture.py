@@ -198,7 +198,7 @@ async def capture_scenarios(root: Path, *, consensus_model: str = "gpt-5-mini") 
                     ThinkDeepTool,
                     "customize_expert_analysis_prompt",
                     autospec=True,
-                    return_value="[[CUSTOMIZATION_HOOK]]",
+                    side_effect=ThinkDeepTool.customize_expert_analysis_prompt,
                 )
             )
             local = await invoke(
@@ -213,6 +213,8 @@ async def capture_scenarios(root: Path, *, consensus_model: str = "gpt-5-mini") 
                     "continuation_id": thread_id,
                     "relevant_files": [str(primary), str(secondary)],
                     "relevant_context": ["SYMBOL_Z", "SYMBOL_A", "SYMBOL_M"],
+                    "problem_context": "[[PROBLEM_CONTEXT]]",
+                    "focus_areas": ["[[FOCUS_AREA]]"],
                 },
                 "workflow_local",
                 [],
@@ -233,7 +235,7 @@ async def capture_scenarios(root: Path, *, consensus_model: str = "gpt-5-mini") 
                 },
                 "workflow_expert",
                 [*expected, "[[WORK_STEP_1]]", "[[WORK_STEP_2]]", "[[FILE_EDITED]]", "[[FILE_ADDED]]"],
-                required=["[[FINDINGS_1]]", "[[FINDINGS_2]]"],
+                required=["[[FINDINGS_1]]", "[[FINDINGS_2]]", "[[PROBLEM_CONTEXT]]", "[[FOCUS_AREA]]"],
             )
             expected.extend(["[[WORK_STEP_1]]", local_reply, "[[WORK_STEP_2]]", f"[[ANSWER_{len(captures):02d}]]"])
             audit(thread_id, expected)

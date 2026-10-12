@@ -68,10 +68,9 @@ Get-Content -LiteralPath (Join-Path $palLogPath 'mcp_server.log') -Wait
 
 These retain the existing runtime limits and correct the previous comments and
 documentation. Thresholds are not strict disk quotas: a single oversized record
-can exceed them. `LOG_MAX_SIZE` and `LOG_BACKUP_COUNT` in older setup/Compose
+can exceed them. `LOG_MAX_SIZE` and `LOG_BACKUP_COUNT` in older configuration
 examples are not consumed; the constants in `utils/log_dir.py` are authoritative.
-Follow-up for Task 42: remove those misleading legacy example settings or design
-and verify actual configurable rotation; no new knob is claimed here.
+Compose and PowerShell setup no longer advertise those ineffective settings.
 
 `LOG_LEVEL` accepts DEBUG, INFO, WARNING, ERROR and CRITICAL. The current server
 default is DEBUG; configure INFO for less detail. Logs retain the existing local
