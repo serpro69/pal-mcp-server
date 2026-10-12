@@ -234,3 +234,119 @@ async def test_tool_annotations_cover_mutations():
         "openWorldHint": True,
     }
     assert "model" not in tool.get_input_schema()["properties"]
+
+
+@pytest.mark.parametrize("action,method", [("message", "sendMessage"), ("approve", "approvePlan")])
+@pytest.mark.parametrize("empty_body", [True, False])
+async def test_steering_methods_payloads_and_observed_state(transport, action, method, empty_body):
+    calls = []
+
+    def handler(request):
+        calls.append(request.method)
+        if request.method == "POST":
+            return httpx.Response(200, content=b"" if empty_body else b"{}")
+        state = "IN_PROGRESS" if "POST" in calls else "AWAITING_PLAN_APPROVAL"
+        return httpx.Response(200, json={**SESSION, "state": state})
+
+    requests, _ = transport(handler)
+    args = {"action": action, "session_id": "opaque-123"}
+    if action == "message":
+        args["prompt"] = "Please cover Ω"
+    result = await call(args)
+    assert result["accepted"] and result["session"]["state"] == "IN_PROGRESS"
+    posts = [request for request in requests if request.method == "POST"]
+    assert len(posts) == 1 and posts[0].url.path == f"/v1alpha/sessions/opaque-123:{method}"
+    assert json.loads(posts[0].content) == ({"prompt": "Please cover Ω"} if action == "message" else {})
+    assert calls == (["GET", "POST", "GET"] if action == "approve" else ["POST", "GET"])
+
+
+@pytest.mark.parametrize("state", ["QUEUED", "IN_PROGRESS", "COMPLETED", "FAILED", "FUTURE_STATE", None])
+async def test_approve_requires_observed_pending_plan(transport, state):
+    requests, _ = transport(lambda request: httpx.Response(200, json={**SESSION, "state": state}))
+    with pytest.raises(ToolExecutionError, match="invalid_state"):
+        await call({"action": "approve", "session_id": "opaque-123"})
+    assert len(requests) == 1 and requests[0].method == "GET"
+
+
+async def test_approval_state_race_is_remote_error_without_retry(transport):
+    requests, _ = transport(
+        lambda request: (
+            httpx.Response(409, json={})
+            if request.method == "POST"
+            else httpx.Response(200, json={**SESSION, "state": "AWAITING_PLAN_APPROVAL"})
+        )
+    )
+    with pytest.raises(ToolExecutionError, match="invalid_state"):
+        await call({"action": "approve", "session_id": "opaque-123"})
+    assert [request.method for request in requests] == ["GET", "POST"]
+
+
+@pytest.mark.parametrize("action", ["message", "approve"])
+async def test_acknowledged_action_survives_status_refresh_failure(transport, action):
+    posted = False
+
+    def handler(request):
+        nonlocal posted
+        if request.method == "POST":
+            posted = True
+            return httpx.Response(200, json={})
+        if posted:
+            return httpx.Response(429, json={})
+        return httpx.Response(200, json={**SESSION, "state": "AWAITING_PLAN_APPROVAL"})
+
+    requests, _ = transport(handler)
+    args = {"action": action, "session_id": "opaque-123"}
+    if action == "message":
+        args["prompt"] = "Feedback"
+    result = await call(args)
+    assert result["status"] == "success" and result["accepted"] is True
+    assert result["session"] is None and result["warnings"][0]["code"] == "rate_limit"
+    assert len([r for r in requests if r.method == "POST"]) == 1
+
+
+@pytest.mark.parametrize("action,archived", [("archive", True), ("unarchive", False)])
+async def test_archive_lifecycle_uses_verified_methods_and_returned_state(transport, action, archived):
+    # Discovery revision20261008: empty request, Session response with archived.
+    requests, _ = transport(
+        lambda request: httpx.Response(200, json={**SESSION, "state": "IN_PROGRESS", "archived": archived})
+    )
+    result = await call({"action": action, "session_id": "opaque-123"})
+    assert result["accepted"] and result["session"]["archived"] is archived
+    assert result["session"]["state"] == "IN_PROGRESS"  # No invented cancellation/completion.
+    assert len(requests) == 1 and requests[0].method == "POST"
+    assert requests[0].url.path == f"/v1alpha/sessions/opaque-123:{action}"
+    assert json.loads(requests[0].content) == {}
+
+
+@pytest.mark.parametrize("action", ["message", "approve", "archive", "unarchive"])
+@pytest.mark.parametrize("bad_id", ["../evil", "one/two", "one\\two", "one?x", "one#x", "one%2ftwo", "one:delete"])
+async def test_every_mutation_rejects_url_injection_before_io(transport, action, bad_id):
+    requests, clients = transport(lambda request: pytest.fail("unexpected I/O"))
+    args = {"action": action, "session_id": bad_id}
+    if action == "message":
+        args["prompt"] = "feedback"
+    with pytest.raises(ToolExecutionError, match="invalid_input"):
+        await call(args)
+    assert not requests and not clients
+
+
+@pytest.mark.parametrize("action", ["message", "archive", "unarchive"])
+@pytest.mark.parametrize("status,code", [(401, "authentication"), (429, "rate_limit"), (500, "http_error")])
+async def test_lifecycle_auth_rate_limit_and_unknown_outcome(transport, action, status, code):
+    requests, _ = transport(lambda request: httpx.Response(status, json={}))
+    args = {"action": action, "session_id": "opaque-123"}
+    if action == "message":
+        args["prompt"] = "feedback"
+    with pytest.raises(ToolExecutionError) as error:
+        await call(args)
+    assert json.loads(error.value.payload)["code"] == code
+    assert json.loads(error.value.payload)["outcome_unknown"] is (status == 500)
+    assert len(requests) == 1
+
+
+async def test_message_requires_content_and_does_not_accept_approval_flags(transport):
+    requests, _ = transport(lambda request: pytest.fail("unexpected I/O"))
+    for fields in ({}, {"prompt": " "}, {"prompt": "ok", "auto_create_pr": True}):
+        with pytest.raises(ToolExecutionError, match="invalid_input"):
+            await call({"action": "message", "session_id": "opaque-123", **fields})
+    assert not requests

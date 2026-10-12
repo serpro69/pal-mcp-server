@@ -705,6 +705,15 @@ follow-up in [OpenCode Go documentation](../../../opencode-go.md).
 
 **Contract / gate:** Archive/unarchive remain gated on official API support and contract tests. Keep an explicit follow-up if either action cannot be verified.
 
+**Resolved lifecycle contract (2026-10-12):** Official v1alpha discovery revision
+20261008 declares POST archive/unarchive with empty request objects and Session
+responses, including the separate output-only `archived` flag. Implement these
+verified methods; do not infer cancellation from archival. Message/approve return
+empty acknowledgments, followed by one status read. Preserve an acknowledged
+mutation if the read fails and return a warning instead of inviting retries.
+Approval requires observed AWAITING_PLAN_APPROVAL; server state races remain
+explicit API errors. Live state-transition checks still require a designated session.
+
 <a id="task-39"></a>
 
 ## Task 39: Measure cache usage and request completeness

@@ -13,6 +13,9 @@ with `DISABLED_TOOLS=jules` if desired.
 | `list_sources` | Optional `page_size` (1–100, default 30), `page_token` | Connected sources and `next_page_token` |
 | `create` | `prompt`, exact `source` from discovery, `starting_branch`; optional `title`, `require_plan_approval`, `auto_create_pr` | Created session and polling guidance |
 | `status` | `session_id`; optional paging inputs | Session state/outputs, one activity page, `next_page_token` |
+| `message` | `session_id`, `prompt` | Message acknowledgment and refreshed session |
+| `approve` | `session_id` | Approval acknowledgment and refreshed session |
+| `archive` / `unarchive` | `session_id` | Updated session, including the reported `archived` flag |
 
 Use an explicit source such as `sources/github/owner/repository` and an explicit
 branch. PAL sets `require_plan_approval=true` and `auto_create_pr=false` by default.
@@ -30,6 +33,18 @@ Pass each returned `next_page_token` as `page_token` with the same action/sessio
 to retrieve more entries. Empty or absent tokens mean the end of the page list.
 Status never waits for coding to finish: poll through separate calls. Unknown
 future states and remote outputs are preserved for inspection.
+
+Inspect the plan through status before explicitly invoking approve. PAL verifies
+the observed state is `AWAITING_PLAN_APPROVAL`; Jules remains authoritative if the
+state changes before the POST. Message forwards feedback without inventing a
+state transition. Successful message/approve calls fetch status once, without
+polling. If that read fails, `accepted=true` and a warning preserve the successful
+mutation; call status again instead of repeating the action.
+
+Archive/unarchive use their dedicated endpoints with empty JSON requests and
+return the service's session object. Do not treat archiving as cancellation or
+infer that coding stopped. State and archival visibility are separate fields.
+The deletion API is outside this tool's scope.
 
 ## Failures and lifecycle
 
@@ -61,5 +76,22 @@ Offline HTTP/MCP tests validate payloads and failure behavior. **Live validation
 remains open:** no test repository or live creation was authorized for this work.
 Next step: designate a disposable repository/branch and explicitly run discovery,
 creation with plan approval on and PR automation off, then inspect status. Do not
-claim live service validation from the fake transport tests. Steering and archive
-support are tracked by Task 38.
+claim live service validation from the fake transport tests. Message/approve and
+archive/unarchive need explicit live exercise on that same designated session.
+
+## Lifecycle evidence (Task 38)
+
+The official [discovery document](https://jules.googleapis.com/$discovery/rest?version=v1alpha),
+retrieved 2026-10-12, reports revision **20261008**. Its session methods include
+`archive` and `unarchive`, although the older developer REST index omits them.
+Both are POSTs to `v1alpha/{+name}:archive` or `:unarchive`, accept empty request
+objects, and return `Session`. The output-only boolean `Session.archived` is
+separate from `Session.state`. This closes the missing-API-evidence gate;
+offline tests cover both directions and unchanged execution state.
+
+`sendMessage` accepts a `prompt`; `approvePlan` accepts an empty request. Both
+return empty response objects; PAL also accepts an empty HTTP response body as
+documented by the [message](https://developers.google.com/jules/api/reference/rest/v1alpha/sessions/sendMessage)
+and [approval](https://developers.google.com/jules/api/reference/rest/v1alpha/sessions/approvePlan)
+references. Unknown states remain inspectable, but cannot pass PAL's approval
+precondition. No credentials were used to retrieve discovery data.

@@ -4,6 +4,10 @@
 
 ## Unreleased
 
+- Add Jules message/approval and verified archive/unarchive actions. Return
+  observed session state without blocking for completion, and preserve successful
+  acknowledgments when the following status read fails.
+
 - Add the optional provider-free `jules` tool for source discovery, explicit
   session creation and paginated status. Require a source/branch, default to plan
   approval and keep automatic PR creation opt-in. Live validation remains gated.
