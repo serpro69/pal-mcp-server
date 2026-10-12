@@ -113,10 +113,35 @@ def _set_dummy_keys_if_missing():
 # Pytest configuration
 def pytest_configure(config):
     """Configure pytest with custom markers"""
+    # Configure before test collection imports server; never write user logs.
+    config._pal_test_state = tempfile.TemporaryDirectory(prefix="pal-test-state-")
+    config._pal_log_environment = {key: os.environ.get(key) for key in ("PAL_STATE_DIR", "PAL_LOG_DIR")}
+    os.environ["PAL_STATE_DIR"] = config._pal_test_state.name
+    os.environ.pop("PAL_LOG_DIR", None)
     config.addinivalue_line("markers", "asyncio: mark test as async")
     config.addinivalue_line("markers", "no_mock_provider: disable automatic provider mocking")
     # Assume we need dummy keys until we learn otherwise
     config._needs_dummy_keys = True
+
+
+def pytest_unconfigure(config):
+    state = getattr(config, "_pal_test_state", None)
+    if state is not None:
+        import logging
+
+        # Windows cannot remove open log files; close only this suite's handlers.
+        for logger in (logging.getLogger(), logging.getLogger("mcp_activity")):
+            for handler in list(logger.handlers):
+                filename = getattr(handler, "baseFilename", None)
+                if filename and Path(filename).is_relative_to(Path(state.name).resolve()):
+                    handler.close()
+                    logger.removeHandler(handler)
+        state.cleanup()
+        for key, value in config._pal_log_environment.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
 
 
 def pytest_collection_modifyitems(session, config, items):

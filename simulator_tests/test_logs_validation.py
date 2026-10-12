@@ -6,6 +6,8 @@ Validates server logs to confirm file deduplication behavior and
 conversation threading is working properly.
 """
 
+from utils.log_dir import ACTIVITY_LOG_NAME, MAIN_LOG_NAME, get_log_dir
+
 from .base_test import BaseSimulatorTest
 
 
@@ -29,7 +31,7 @@ class LogsValidationTest(BaseSimulatorTest):
             import os
 
             logs = ""
-            log_files = ["logs/mcp_server.log", "logs/mcp_activity.log"]
+            log_files = [get_log_dir() / name for name in (MAIN_LOG_NAME, ACTIVITY_LOG_NAME)]
 
             for log_file in log_files:
                 if os.path.exists(log_file):

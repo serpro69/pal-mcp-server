@@ -32,7 +32,6 @@ readonly NC='\033[0m' # No Color
 readonly VENV_PATH=".pal_venv"
 readonly DOCKER_CLEANED_FLAG=".docker_cleaned"
 readonly DESKTOP_CONFIG_FLAG=".desktop_configured"
-readonly LOG_DIR="logs"
 readonly LOG_FILE="mcp_server.log"
 readonly LEGACY_MCP_NAMES=("zen" "zen-mcp" "zen-mcp-server" "zen_mcp" "zen_mcp_server")
 
@@ -2576,14 +2575,33 @@ show_version() {
 }
 
 # Follow logs
+load_env_preserving_state() {
+    # Restore the original path environment, including absence. Python owns
+    # dotenv parsing and force override, avoiding shell expansion differences.
+    local state_set="${PAL_STATE_DIR+x}" state_value="${PAL_STATE_DIR-}"
+    local log_set="${PAL_LOG_DIR+x}" log_value="${PAL_LOG_DIR-}"
+    local xdg_set="${XDG_STATE_HOME+x}" xdg_value="${XDG_STATE_HOME-}"
+    set -a
+    source "$1"
+    set +a
+    if [[ "$state_set" == x ]]; then export PAL_STATE_DIR="$state_value"; else unset PAL_STATE_DIR; fi
+    if [[ "$log_set" == x ]]; then export PAL_LOG_DIR="$log_value"; else unset PAL_LOG_DIR; fi
+    if [[ "$xdg_set" == x ]]; then export XDG_STATE_HOME="$xdg_value"; else unset XDG_STATE_HOME; fi
+}
+
+resolve_log_dir() {
+    local python_cmd="$1"
+    "$python_cmd" -m utils.log_dir --create
+}
+
 follow_logs() {
-    local log_path="$LOG_DIR/$LOG_FILE"
+    local log_dir="$1"
+    local log_path="$log_dir/$LOG_FILE"
 
     echo "Following server logs (Ctrl+C to stop)..."
     echo ""
 
     # Create logs directory and file if they don't exist
-    mkdir -p "$LOG_DIR"
     touch "$log_path"
 
     # Follow the log file
@@ -2666,9 +2684,7 @@ main() {
 
     # Step 3: Source .env file
     if [[ -f .env ]]; then
-        set -a
-        source .env
-        set +a
+        load_env_preserving_state .env
     fi
 
     # Step 4: Check API keys (non-blocking - just warn if missing)
@@ -2702,13 +2718,15 @@ main() {
     check_qwen_cli_integration "$python_cmd" "$server_path"
 
     # Step 13: Display log information
+    local log_dir
+    log_dir=$(resolve_log_dir "$python_cmd") || exit 1
     echo ""
-    echo "Logs will be written to: $script_dir/$LOG_DIR/$LOG_FILE"
+    echo "Logs will be written to: $log_dir/$LOG_FILE"
     echo ""
 
     # Step 14: Handle command line arguments
     if [[ "$arg" == "-f" ]] || [[ "$arg" == "--follow" ]]; then
-        follow_logs
+        follow_logs "$log_dir"
     else
         echo "To follow logs: ./run-server.sh -f"
         echo "To show config: ./run-server.sh -c"

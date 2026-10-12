@@ -34,6 +34,7 @@ services:
       - CUSTOM_MODEL_NAME=${CUSTOM_MODEL_NAME}
       
       # Logging configuration
+      - PAL_STATE_DIR=/var/lib/pal
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - LOG_MAX_SIZE=${LOG_MAX_SIZE:-10MB}
       - LOG_BACKUP_COUNT=${LOG_BACKUP_COUNT:-5}
@@ -50,7 +51,7 @@ services:
     
     # Volumes for persistent data
     volumes:
-      - ./logs:/app/logs
+      - pal-mcp-state:/var/lib/pal
       - pal-mcp-config:/app/conf
       - /etc/localtime:/etc/localtime:ro
     
@@ -89,6 +90,8 @@ services:
 
 # Named volumes
 volumes:
+  pal-mcp-state:
+    driver: local
   pal-mcp-config:
     driver: local
 

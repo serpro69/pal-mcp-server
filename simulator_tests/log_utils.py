@@ -10,13 +10,12 @@ import re
 import subprocess
 from typing import Optional, Union
 
+from utils.log_dir import ACTIVITY_LOG_NAME, MAIN_LOG_NAME, get_log_dir
+from utils.state_dir import StateDirectoryError
+
 
 class LogUtils:
     """Centralized logging utilities for simulator tests."""
-
-    # Log file paths
-    MAIN_LOG_FILE = "logs/mcp_server.log"
-    ACTIVITY_LOG_FILE = "logs/mcp_activity.log"
 
     @classmethod
     def get_server_logs_since(cls, since_time: Optional[str] = None) -> str:
@@ -35,21 +34,21 @@ class LogUtils:
 
             # Read main server log
             try:
-                with open(cls.MAIN_LOG_FILE) as f:
+                with open(get_log_dir() / MAIN_LOG_NAME) as f:
                     main_logs = f.read()
             except FileNotFoundError:
                 pass
 
             # Read activity log
             try:
-                with open(cls.ACTIVITY_LOG_FILE) as f:
+                with open(get_log_dir() / ACTIVITY_LOG_NAME) as f:
                     activity_logs = f.read()
             except FileNotFoundError:
                 pass
 
             return main_logs + "\n" + activity_logs
 
-        except Exception as e:
+        except (OSError, UnicodeError, StateDirectoryError) as e:
             logging.warning(f"Failed to read server logs: {e}")
             return ""
 
@@ -65,14 +64,14 @@ class LogUtils:
             Recent log content as string
         """
         try:
-            with open(cls.MAIN_LOG_FILE) as f:
+            with open(get_log_dir() / MAIN_LOG_NAME) as f:
                 all_lines = f.readlines()
                 recent_lines = all_lines[-lines:] if len(all_lines) > lines else all_lines
                 return "".join(recent_lines)
         except FileNotFoundError:
-            logging.warning(f"Log file {cls.MAIN_LOG_FILE} not found")
+            logging.warning("Main server log not found in the configured log directory")
             return ""
-        except Exception as e:
+        except (OSError, UnicodeError, StateDirectoryError) as e:
             logging.warning(f"Failed to read recent server logs: {e}")
             return ""
 
@@ -89,10 +88,13 @@ class LogUtils:
         """
         try:
             result = subprocess.run(
-                ["tail", "-n", str(lines), cls.MAIN_LOG_FILE], capture_output=True, text=True, timeout=10
+                ["tail", "-n", str(lines), str(get_log_dir() / MAIN_LOG_NAME)],
+                capture_output=True,
+                text=True,
+                timeout=10,
             )
             return result.stdout + result.stderr
-        except Exception as e:
+        except (OSError, UnicodeError, StateDirectoryError, subprocess.SubprocessError) as e:
             logging.warning(f"Failed to get server logs via subprocess: {e}")
             return ""
 
@@ -294,7 +296,7 @@ class LogUtils:
 
         file_info = {}
 
-        for log_file in [cls.MAIN_LOG_FILE, cls.ACTIVITY_LOG_FILE]:
+        for log_file in [str(get_log_dir() / name) for name in (MAIN_LOG_NAME, ACTIVITY_LOG_NAME)]:
             if os.path.exists(log_file):
                 stat = os.stat(log_file)
                 file_info[log_file] = {

@@ -123,11 +123,7 @@ function Wait-ForHealth {
     return $false
 }
 
-# Create logs directory if it doesn't exist
-if (!(Test-Path "logs")) {
-    Write-ColorText "Creating logs directory..." -Color Green
-    New-Item -ItemType Directory -Path "logs" -Force | Out-Null
-}
+# The image initializes the Compose named state volume; old host logs stay untouched.
 
 # Stop existing containers
 Write-ColorText "Stopping existing containers..." -Color Green
@@ -208,4 +204,4 @@ Write-ColorText "  Restart service: " -Color White -NoNewline
 Write-ColorText "docker-compose restart pal-mcp" -Color Green
 
 Write-ColorText "  PowerShell logs: " -Color White -NoNewline
-Write-ColorText "Get-Content logs\mcp_server.log -Wait" -Color Green
+Write-ColorText "docker-compose logs -f pal-mcp" -Color Green

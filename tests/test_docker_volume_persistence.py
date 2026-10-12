@@ -29,10 +29,12 @@ class TestDockerVolumePersistence:
 
         # Check for named volume definition
         assert "pal-mcp-config:" in content, "pal-mcp-config volume must be defined"
+        assert "pal-mcp-state:" in content, "pal-mcp-state volume must be defined"
         assert "driver: local" in content, "Named volume must use local driver"
 
         # Check for volume mounts in service
-        assert "./logs:/app/logs" in content, "Logs volume mount required"
+        assert "pal-mcp-state:/var/lib/pal" in content, "State volume mount required"
+        assert "PAL_STATE_DIR=/var/lib/pal" in content, "Resolver must target the writable mount"
         assert "pal-mcp-config:/app/conf" in content, "Config volume mount required"
 
     def test_persistent_volume_creation(self):
@@ -70,7 +72,7 @@ class TestDockerVolumePersistence:
 
     def test_log_persistence_configuration(self):
         """Test that log persistence is properly configured"""
-        log_mount = "./logs:/app/logs"
+        log_mount = "pal-mcp-state:/var/lib/pal"
 
         if self.docker_compose_path.exists():
             content = self.docker_compose_path.read_text()
@@ -101,10 +103,12 @@ class TestDockerVolumePersistence:
         assert "tar" in backup_cmd
         assert "czf" in backup_cmd
 
-    def test_volume_permissions(self):
-        """Test that volume permissions are properly set"""
-        # Check that logs directory has correct permissions
-        logs_dir = self.project_root / "logs"
+    def test_volume_permissions(self, tmp_path, monkeypatch):
+        """Exercise a writable designated state directory without touching old logs."""
+        from utils.log_dir import get_log_dir
+
+        monkeypatch.setenv("PAL_STATE_DIR", str(tmp_path / "state"))
+        logs_dir = get_log_dir(create=True)
 
         if logs_dir.exists():
             # Check that directory is writable

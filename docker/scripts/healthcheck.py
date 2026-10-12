@@ -3,9 +3,9 @@
 Health check script for PAL MCP Server Docker container
 """
 
-import os
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 try:
@@ -15,6 +15,9 @@ except ImportError:  # pragma: no cover - resolves module path inside container
     if str(project_root) not in sys.path:
         sys.path.insert(0, str(project_root))
     from utils.env import get_env  # type: ignore[import-error]
+
+from utils.log_dir import get_log_dir
+from utils.state_dir import StateDirectoryError
 
 
 def check_process():
@@ -44,18 +47,16 @@ def check_python_imports():
 
 def check_log_directory():
     """Check if logs directory is writable"""
-    log_dir = "/app/logs"
     try:
-        if not os.path.exists(log_dir):
+        log_dir = get_log_dir()
+        if not log_dir.is_dir():
             print(f"Log directory {log_dir} does not exist", file=sys.stderr)
             return False
 
-        test_file = os.path.join(log_dir, ".health_check")
-        with open(test_file, "w") as f:
-            f.write("health_check")
-        os.remove(test_file)
+        with tempfile.TemporaryFile(dir=log_dir) as stream:
+            stream.write(b"health_check")
         return True
-    except Exception as e:
+    except (OSError, StateDirectoryError) as e:
         print(f"Log directory check failed: {e}", file=sys.stderr)
         return False
 

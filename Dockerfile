@@ -63,8 +63,9 @@ WORKDIR /app
 # Copy application code
 COPY --chown=paluser:paluser . .
 
-# Create logs directory with proper permissions
-RUN mkdir -p logs && chown -R paluser:paluser logs
+# External state works with a read-only application directory.
+ENV PAL_STATE_DIR=/var/lib/pal
+RUN mkdir -p /var/lib/pal/logs && chown -R paluser:paluser /var/lib/pal
 
 # Create tmp directory for container operations
 RUN mkdir -p tmp && chown -R paluser:paluser tmp
