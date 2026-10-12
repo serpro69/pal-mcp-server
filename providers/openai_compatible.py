@@ -438,6 +438,8 @@ class OpenAICompatibleProvider(ModelProvider):
         # For responses endpoint, we only add parameters that are explicitly supported
         # Remove unsupported chat completion parameters that may cause API errors
 
+        completion_params = self._prepare_request_params(completion_params, capabilities)
+
         # Retry logic with progressive delays
         max_retries = 4
         retry_delays = [1, 3, 5, 8]
@@ -635,6 +637,8 @@ class OpenAICompatibleProvider(ModelProvider):
                 **kwargs,
             )
 
+        completion_params = self._prepare_request_params(completion_params, capabilities)
+
         # Retry logic with progressive delays
         max_retries = 4  # Total of 4 attempts
         retry_delays = [1, 3, 5, 8]  # Progressive delays: 1s, 3s, 5s, 8s
@@ -677,6 +681,10 @@ class OpenAICompatibleProvider(ModelProvider):
             )
             logging.error(error_msg)
             raise RuntimeError(error_msg) from exc
+
+    def _prepare_request_params(self, params: dict, capabilities: ModelCapabilities) -> dict:
+        """Finalize request-local SDK options without modifying a shared client."""
+        return params
 
     def validate_parameters(self, model_name: str, temperature: float, **kwargs) -> None:
         """Validate model parameters.

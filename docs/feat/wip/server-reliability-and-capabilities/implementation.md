@@ -665,6 +665,14 @@ requiredness. Tool names, other controls, system prompts and clink safety remain
 
 **Contract / gate:** Deferred: Messages-only entries until a separate adapter design and wire-contract test establish support. Record their IDs, required protocol and next validation step during implementation.
 
+**Execution scope (2026-10-12):** The user explicitly requested offline implementation
+and testing while keeping live validation gated. Ship only hidden GLM-5.2 Chat
+Completions and GPT-6 Luna Responses candidates, with native capacity evidence and
+conservative controls; no catalog promotion. Reuse the existing invocation ContextVar
+through a read-only conversation-ID accessor. A request-finalization hook supplies
+headers on both SDK paths. Record the pending gateway smoke checks and Messages
+follow-up in [OpenCode Go documentation](../../../opencode-go.md).
+
 <a id="task-37"></a>
 
 ## Task 37: Add optional Jules discovery, creation and status

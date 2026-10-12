@@ -27,6 +27,7 @@ EVIDENCE_FIELDS = CAPABILITY_FIELD_NAMES - {
     "enabled_by_default",
     "allow_code_generation",
 }
+EVIDENCE_FIELDS.add("api_protocol")  # Provider-specific registries validate supported values.
 
 
 class CatalogInputError(ValueError):

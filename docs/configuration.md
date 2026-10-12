@@ -44,8 +44,13 @@ may be absent or contain `{"models": []}`; an explicitly selected missing file
 is always an error. A malformed file never silently becomes an empty catalog.
 
 Providers can coexist. Complete registered names and aliases resolve in this
-priority order: Gemini, OpenAI, Azure, X.AI, DIAL, Custom, OpenRouter. Policy is
+priority order: Gemini, OpenAI, Azure, X.AI, DIAL, Custom, OpenCode Go, OpenRouter. Policy is
 applied to that identity; a disallowed match does not fall through to another provider.
+
+OpenCode Go is optional: `OPENCODE_GO_API_KEY`, `OPENCODE_GO_ALLOWED_MODELS`
+and `OPENCODE_GO_MODELS_CONFIG_PATH` configure its own key, policy and catalog.
+Initial entries remain hidden pending live validation; see
+[OpenCode Go controls and release gates](opencode-go.md).
 
 **Option 1: Native APIs (Recommended for direct access)**
 ```env

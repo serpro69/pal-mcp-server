@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Implementation: [implementation.md](implementation.md)
 > Review resolutions: [review.md](review.md#revalidation-and-resolution)
-> Status: in-progress (Tasks 1–35 done; Tasks 36–42 pending)
+> Status: in-progress (Tasks 1–36 done; Tasks 37–42 pending; OpenCode Go live gate open)
 > Created: 2026-10-10
 > Not Doing: toolchain/release-process migration; MCP 2.x; wholesale catalogs; replacement of safety controls; file-annotation implementation; persistent continuation recovery; remote multi-user transport; automatic service activation
 
@@ -765,17 +765,24 @@ dotenv isolation and strict rejection regressions pass. Isolated review approved
 
 ## Task 36: Add a verified optional OpenCode Go provider
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 9, Task 22, Task 26, Task 27, Task 29
 - **Size:** M
 - **Can run in parallel with:** —
 - **Docs:** [Implementation slice](implementation.md#task-36); [design contract](design.md#d9-optional-service-integrations)
 
-- [ ] 36.1 Revalidate official endpoints/auth/catalog with kk:dependency-handling; enable only models whose actual protocol the selected adapter supports. Wire provider metadata, package data, restrictions and PAL user agent.
-- [ ] 36.2 Use the real thread ID before the first call and reset request context on exit; keep x-opencode-session per request, not on the shared client. Respect model-specific temperature/output controls.
-- [ ] 36.3 Verify the acceptance cases in [Task 36](implementation.md#task-36) and record the result here.
+- [x] 36.1 Revalidate official endpoints/auth/catalog with kk:dependency-handling; enable only models whose actual protocol the selected adapter supports. Wire provider metadata, package data, restrictions and PAL user agent.
+- [x] 36.2 Use the real thread ID before the first call and reset request context on exit; keep x-opencode-session per request, not on the shared client. Respect model-specific temperature/output controls.
+- [x] 36.3 Verify the acceptance cases in [Task 36](implementation.md#task-36) and record the result here.
 
 **Scope / gate:** Deferred: Messages-only entries until a separate adapter design and wire-contract test establish support. Record their IDs, required protocol and next validation step during implementation.
+
+**Evidence:** [Task 36 validation](validation.md#task-36-optional-opencode-go-offline-validation).
+User-approved offline scope completed: 26 provider tests, 125 Python3.10 focused
+tests, full quality 1,852 passed; lock freshness and packaged catalog verified.
+Isolated review approved. **Live release gate remains open:** both candidates
+stay hidden; no service request or promotion. Messages-only IDs and next steps
+are recorded in [the provider guide](../../../opencode-go.md).
 
 ## Task 37: Add optional Jules discovery, creation and status
 
