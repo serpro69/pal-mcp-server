@@ -1,0 +1,159 @@
+{
+  "as_of": "2026-10-12",
+  "candidates": [],
+  "capability_drift": [
+    {
+      "changes": {
+        "context_window": {
+          "local": 1000000,
+          "observed": 1047576
+        }
+      },
+      "model": "gpt-4.1",
+      "source": "models_dev_review_needed"
+    },
+    {
+      "changes": {
+        "max_output_tokens": {
+          "local": 272000,
+          "observed": 128000
+        }
+      },
+      "model": "gpt-5.2-pro",
+      "source": "models_dev_review_needed"
+    },
+    {
+      "changes": {
+        "max_output_tokens": {
+          "local": 65536,
+          "observed": 100000
+        }
+      },
+      "model": "o3",
+      "source": "models_dev_review_needed"
+    },
+    {
+      "changes": {
+        "max_output_tokens": {
+          "local": 65536,
+          "observed": 100000
+        }
+      },
+      "model": "o3-mini",
+      "source": "models_dev_review_needed"
+    },
+    {
+      "changes": {
+        "max_output_tokens": {
+          "local": 65536,
+          "observed": 100000
+        }
+      },
+      "model": "o3-pro",
+      "source": "models_dev_review_needed"
+    }
+  ],
+  "complete": true,
+  "confirmed_deprecations": [],
+  "observed_on": "2026-10-12",
+  "provider": "openai",
+  "review_needed": [
+    {
+      "model": "gpt-4.1",
+      "reason": "absent_from_provider_snapshot"
+    },
+    {
+      "model": "gpt-5",
+      "reason": "absent_from_provider_snapshot"
+    },
+    {
+      "model": "gpt-5-codex",
+      "reason": "absent_from_provider_snapshot"
+    },
+    {
+      "model": "gpt-5-codex",
+      "reason": "absent_from_models_dev"
+    },
+    {
+      "model": "gpt-5-mini",
+      "reason": "absent_from_provider_snapshot"
+    },
+    {
+      "model": "gpt-5-nano",
+      "reason": "absent_from_provider_snapshot"
+    },
+    {
+      "model": "gpt-5.1-codex",
+      "reason": "absent_from_provider_snapshot"
+    },
+    {
+      "model": "gpt-5.1-codex",
+      "reason": "absent_from_models_dev"
+    },
+    {
+      "model": "gpt-5.1-codex-mini",
+      "reason": "absent_from_provider_snapshot"
+    },
+    {
+      "model": "gpt-5.1-codex-mini",
+      "reason": "absent_from_models_dev"
+    },
+    {
+      "model": "gpt-5.2",
+      "reason": "absent_from_provider_snapshot"
+    },
+    {
+      "model": "gpt-5.2-pro",
+      "reason": "absent_from_provider_snapshot"
+    },
+    {
+      "model": "gpt-5.3-codex",
+      "reason": "absent_from_provider_snapshot"
+    },
+    {
+      "model": "gpt-5.6-luna",
+      "reason": "absent_from_provider_snapshot"
+    },
+    {
+      "model": "gpt-5.6-sol",
+      "reason": "absent_from_provider_snapshot"
+    },
+    {
+      "model": "gpt-5.6-terra",
+      "reason": "absent_from_provider_snapshot"
+    },
+    {
+      "model": "gpt-6-astra",
+      "reason": "absent_from_provider_snapshot"
+    },
+    {
+      "model": "o3",
+      "reason": "absent_from_provider_snapshot"
+    },
+    {
+      "model": "o3-mini",
+      "reason": "absent_from_provider_snapshot"
+    },
+    {
+      "model": "o3-mini",
+      "reason": "models_dev_status",
+      "status": "deprecated"
+    },
+    {
+      "model": "o3-pro",
+      "reason": "absent_from_provider_snapshot"
+    },
+    {
+      "model": "o4-mini",
+      "reason": "absent_from_provider_snapshot"
+    },
+    {
+      "model": "o4-mini",
+      "reason": "models_dev_status",
+      "status": "deprecated"
+    }
+  ],
+  "schema_version": 1,
+  "source_url": "https://developers.openai.com/api/docs/models/gpt-6.1-sol",
+  "status": "review_needed"
+}

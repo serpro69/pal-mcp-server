@@ -1,0 +1,86 @@
+{
+  "as_of": "2026-10-12",
+  "candidates": [],
+  "capability_drift": [],
+  "complete": true,
+  "confirmed_deprecations": [],
+  "observed_on": "2026-10-12",
+  "provider": "openrouter",
+  "review_needed": [
+    {
+      "model": "anthropic/claude-3.5-haiku",
+      "reason": "absent_from_provider_snapshot"
+    },
+    {
+      "model": "anthropic/claude-3.5-haiku",
+      "reason": "absent_from_models_dev"
+    },
+    {
+      "model": "anthropic/claude-sonnet-4.1",
+      "reason": "absent_from_provider_snapshot"
+    },
+    {
+      "model": "anthropic/claude-sonnet-4.1",
+      "reason": "absent_from_models_dev"
+    },
+    {
+      "model": "google/gemini-3-pro-preview",
+      "reason": "absent_from_provider_snapshot"
+    },
+    {
+      "model": "google/gemini-3-pro-preview",
+      "reason": "absent_from_models_dev"
+    },
+    {
+      "model": "meta-llama/llama-3-70b",
+      "reason": "absent_from_provider_snapshot"
+    },
+    {
+      "model": "meta-llama/llama-3-70b",
+      "reason": "absent_from_models_dev"
+    },
+    {
+      "model": "mistralai/mistral-large-2411",
+      "reason": "absent_from_provider_snapshot"
+    },
+    {
+      "model": "mistralai/mistral-large-2411",
+      "reason": "absent_from_models_dev"
+    },
+    {
+      "model": "openai/gpt-5-codex",
+      "reason": "absent_from_provider_snapshot"
+    },
+    {
+      "model": "openai/gpt-5-codex",
+      "reason": "absent_from_models_dev"
+    },
+    {
+      "model": "perplexity/llama-3-sonar-large-32k-online",
+      "reason": "absent_from_provider_snapshot"
+    },
+    {
+      "model": "perplexity/llama-3-sonar-large-32k-online",
+      "reason": "absent_from_models_dev"
+    },
+    {
+      "model": "x-ai/grok-4",
+      "reason": "absent_from_provider_snapshot"
+    },
+    {
+      "model": "x-ai/grok-4",
+      "reason": "absent_from_models_dev"
+    },
+    {
+      "model": "x-ai/grok-4.1-fast",
+      "reason": "absent_from_provider_snapshot"
+    },
+    {
+      "model": "x-ai/grok-4.1-fast",
+      "reason": "absent_from_models_dev"
+    }
+  ],
+  "schema_version": 1,
+  "source_url": "https://openrouter.ai/api/v1/models",
+  "status": "review_needed"
+}

@@ -1,0 +1,91 @@
+{
+  "as_of": "2026-10-12",
+  "candidates": [],
+  "capability_drift": [],
+  "complete": true,
+  "confirmed_deprecations": [
+    {
+      "model": "gemini-2.0-flash",
+      "status": "retired"
+    },
+    {
+      "model": "gemini-2.0-flash-lite",
+      "status": "retired"
+    },
+    {
+      "model": "gemini-3-pro-preview",
+      "status": "retired"
+    }
+  ],
+  "observed_on": "2026-10-12",
+  "provider": "google",
+  "review_needed": [
+    {
+      "model": "gemini-2.0-flash",
+      "reason": "provider_capacities_missing"
+    },
+    {
+      "model": "gemini-2.0-flash",
+      "reason": "absent_from_models_dev"
+    },
+    {
+      "model": "gemini-2.0-flash-lite",
+      "reason": "provider_capacities_missing"
+    },
+    {
+      "model": "gemini-2.0-flash-lite",
+      "reason": "absent_from_models_dev"
+    },
+    {
+      "model": "gemini-2.5-flash",
+      "reason": "provider_capacities_missing"
+    },
+    {
+      "model": "gemini-2.5-flash-lite",
+      "reason": "provider_capacities_missing"
+    },
+    {
+      "model": "gemini-2.5-pro",
+      "reason": "provider_capacities_missing"
+    },
+    {
+      "model": "gemini-3-flash-preview",
+      "reason": "provider_capacities_missing"
+    },
+    {
+      "model": "gemini-3-pro-preview",
+      "reason": "provider_capacities_missing"
+    },
+    {
+      "model": "gemini-3-pro-preview",
+      "reason": "absent_from_models_dev"
+    },
+    {
+      "model": "gemini-3.1-flash-lite",
+      "reason": "provider_capacities_missing"
+    },
+    {
+      "model": "gemini-3.1-pro-preview",
+      "reason": "provider_capacities_missing"
+    },
+    {
+      "model": "gemini-3.5-flash",
+      "reason": "provider_capacities_missing"
+    },
+    {
+      "model": "gemini-3.6-flash",
+      "reason": "provider_capacities_missing"
+    },
+    {
+      "model": "gemini-3.7-flash",
+      "reason": "provider_capacities_missing"
+    },
+    {
+      "model": "gemini-3.8-flash",
+      "reason": "provider_capacities_missing"
+    }
+  ],
+  "schema_version": 1,
+  "source_url": "https://ai.google.dev/gemini-api/docs/deprecations",
+  "status": "review_needed"
+}

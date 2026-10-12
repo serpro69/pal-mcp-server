@@ -1,0 +1,526 @@
+{
+  "openai": [
+    {
+      "model_name": "gpt-5",
+      "aliases": [
+        "gpt5",
+        "gpt-5"
+      ]
+    },
+    {
+      "model_name": "gpt-5.2-pro",
+      "aliases": [
+        "gpt5.2-pro",
+        "gpt5.2pro",
+        "gpt5pro",
+        "gpt5-pro"
+      ]
+    },
+    {
+      "model_name": "gpt-5-mini",
+      "aliases": [
+        "gpt5-mini",
+        "gpt5mini",
+        "mini"
+      ]
+    },
+    {
+      "model_name": "gpt-5-nano",
+      "aliases": [
+        "gpt5nano",
+        "gpt5-nano",
+        "nano"
+      ]
+    },
+    {
+      "model_name": "o3",
+      "aliases": []
+    },
+    {
+      "model_name": "o3-mini",
+      "aliases": [
+        "o3mini"
+      ]
+    },
+    {
+      "model_name": "o3-pro",
+      "aliases": [
+        "o3pro"
+      ]
+    },
+    {
+      "model_name": "o4-mini",
+      "aliases": [
+        "o4mini"
+      ]
+    },
+    {
+      "model_name": "gpt-4.1",
+      "aliases": [
+        "gpt4.1"
+      ]
+    },
+    {
+      "model_name": "gpt-5-codex",
+      "aliases": [
+        "gpt5-codex",
+        "gpt-5-code",
+        "gpt5-code"
+      ]
+    },
+    {
+      "model_name": "gpt-5.2",
+      "aliases": [
+        "gpt5.2",
+        "gpt-5.2",
+        "5.2",
+        "gpt5.1",
+        "gpt-5.1",
+        "5.1"
+      ]
+    },
+    {
+      "model_name": "gpt-5.1-codex",
+      "aliases": [
+        "gpt5.1-codex",
+        "gpt-5.1-codex",
+        "gpt5.1code",
+        "gpt-5.1-code",
+        "codex-5.1"
+      ]
+    },
+    {
+      "model_name": "gpt-5.1-codex-mini",
+      "aliases": [
+        "gpt5.1-codex-mini",
+        "gpt-5.1-codex-mini",
+        "codex-mini",
+        "5.1-codex-mini"
+      ]
+    },
+    {
+      "model_name": "gpt-6-astra",
+      "aliases": [
+        "astra",
+        "gpt-6-astra",
+        "gpt6",
+        "gpt-6",
+        "codex"
+      ]
+    },
+    {
+      "model_name": "gpt-5.3-codex",
+      "aliases": [
+        "gpt5.3-codex",
+        "gpt-5.3-codex",
+        "codex-5.3"
+      ]
+    },
+    {
+      "model_name": "gpt-5.6-sol",
+      "aliases": [
+        "sol",
+        "gpt-5.6-sol",
+        "gpt5.6-sol",
+        "gpt-5.6",
+        "gpt5.6"
+      ]
+    },
+    {
+      "model_name": "gpt-5.6-terra",
+      "aliases": [
+        "terra",
+        "gpt-5.6-terra",
+        "gpt5.6-terra"
+      ]
+    },
+    {
+      "model_name": "gpt-5.6-luna",
+      "aliases": [
+        "luna",
+        "gpt-5.6-luna",
+        "gpt5.6-luna"
+      ]
+    }
+  ],
+  "google": [
+    {
+      "model_name": "gemini-3.8-flash",
+      "aliases": [
+        "flash",
+        "flash3",
+        "flash3.8",
+        "gemini3.8"
+      ]
+    },
+    {
+      "model_name": "gemini-3.7-flash",
+      "aliases": [
+        "flash3.7",
+        "gemini3.7"
+      ]
+    },
+    {
+      "model_name": "gemini-3.6-flash",
+      "aliases": [
+        "flash3.6",
+        "gemini3.6"
+      ]
+    },
+    {
+      "model_name": "gemini-3.1-pro-preview",
+      "aliases": [
+        "pro",
+        "gemini-pro",
+        "gemini3",
+        "gemini3.1",
+        "gemini-3.1-pro"
+      ]
+    },
+    {
+      "model_name": "gemini-3-pro-preview",
+      "aliases": [
+        "gemini-3-pro"
+      ]
+    },
+    {
+      "model_name": "gemini-3.5-flash",
+      "aliases": [
+        "flash3.5",
+        "gemini3.5"
+      ]
+    },
+    {
+      "model_name": "gemini-3-flash-preview",
+      "aliases": [
+        "gemini-3-flash"
+      ]
+    },
+    {
+      "model_name": "gemini-3.1-flash-lite",
+      "aliases": [
+        "flashlite3",
+        "flash-lite-3",
+        "flashlite3.1"
+      ]
+    },
+    {
+      "model_name": "gemini-2.5-pro",
+      "aliases": [
+        "gemini-pro-2.5"
+      ]
+    },
+    {
+      "model_name": "gemini-2.0-flash",
+      "aliases": [
+        "flash-2.0",
+        "flash2"
+      ]
+    },
+    {
+      "model_name": "gemini-2.5-flash-lite",
+      "aliases": [
+        "flashlite",
+        "flash-lite",
+        "flash-lite-2.5"
+      ]
+    },
+    {
+      "model_name": "gemini-2.0-flash-lite",
+      "aliases": [
+        "flash-lite-2.0"
+      ]
+    },
+    {
+      "model_name": "gemini-2.5-flash",
+      "aliases": [
+        "flash2.5"
+      ]
+    }
+  ],
+  "openrouter": [
+    {
+      "model_name": "anthropic/claude-fable-5.1",
+      "aliases": [
+        "fable",
+        "fable5.1",
+        "claude-fable"
+      ]
+    },
+    {
+      "model_name": "anthropic/claude-opus-4.8",
+      "aliases": [
+        "opus",
+        "claude-opus",
+        "opus4.8",
+        "opus-4.8"
+      ]
+    },
+    {
+      "model_name": "anthropic/claude-opus-5",
+      "aliases": [
+        "opus5",
+        "opus-5",
+        "claude-opus-5"
+      ]
+    },
+    {
+      "model_name": "anthropic/claude-opus-4.7",
+      "aliases": [
+        "opus4.7",
+        "opus-4.7"
+      ]
+    },
+    {
+      "model_name": "anthropic/claude-opus-4.6",
+      "aliases": [
+        "opus4.6",
+        "opus-4.6"
+      ]
+    },
+    {
+      "model_name": "anthropic/claude-sonnet-5",
+      "aliases": [
+        "sonnet",
+        "sonnet5",
+        "sonnet-5",
+        "claude-sonnet-5"
+      ]
+    },
+    {
+      "model_name": "anthropic/claude-sonnet-4.6",
+      "aliases": [
+        "sonnet4.6",
+        "sonnet-4.6"
+      ]
+    },
+    {
+      "model_name": "anthropic/claude-haiku-4.5",
+      "aliases": [
+        "haiku",
+        "haiku4.5",
+        "haiku-4.5"
+      ]
+    },
+    {
+      "model_name": "anthropic/claude-opus-4.5",
+      "aliases": [
+        "opus4.5"
+      ]
+    },
+    {
+      "model_name": "anthropic/claude-sonnet-4.5",
+      "aliases": [
+        "sonnet4.5"
+      ]
+    },
+    {
+      "model_name": "anthropic/claude-opus-4.1",
+      "aliases": [
+        "opus4.1"
+      ]
+    },
+    {
+      "model_name": "anthropic/claude-sonnet-4.1",
+      "aliases": [
+        "sonnet4.1"
+      ]
+    },
+    {
+      "model_name": "anthropic/claude-3.5-haiku",
+      "aliases": [
+        "haiku3.5",
+        "haiku-3.5"
+      ]
+    },
+    {
+      "model_name": "google/gemini-3-pro-preview",
+      "aliases": [
+        "pro",
+        "gemini-pro",
+        "gemini",
+        "gemini3",
+        "pro-openrouter"
+      ]
+    },
+    {
+      "model_name": "google/gemini-2.5-pro",
+      "aliases": [
+        "gemini-2.5",
+        "pro-2.5-openrouter"
+      ]
+    },
+    {
+      "model_name": "google/gemini-2.5-flash",
+      "aliases": [
+        "flash",
+        "gemini-flash"
+      ]
+    },
+    {
+      "model_name": "mistralai/mistral-large-2411",
+      "aliases": [
+        "mistral-large",
+        "mistral"
+      ]
+    },
+    {
+      "model_name": "meta-llama/llama-3-70b",
+      "aliases": [
+        "llama",
+        "llama3",
+        "llama3-70b",
+        "llama-70b",
+        "llama3-openrouter"
+      ]
+    },
+    {
+      "model_name": "deepseek/deepseek-r1-0528",
+      "aliases": [
+        "deepseek-r1",
+        "deepseek",
+        "r1",
+        "deepseek-thinking"
+      ]
+    },
+    {
+      "model_name": "perplexity/llama-3-sonar-large-32k-online",
+      "aliases": [
+        "perplexity",
+        "sonar",
+        "perplexity-online"
+      ]
+    },
+    {
+      "model_name": "openai/o3",
+      "aliases": [
+        "o3"
+      ]
+    },
+    {
+      "model_name": "openai/o3-mini",
+      "aliases": [
+        "o3-mini",
+        "o3mini"
+      ]
+    },
+    {
+      "model_name": "openai/o3-mini-high",
+      "aliases": [
+        "o3-mini-high",
+        "o3mini-high"
+      ]
+    },
+    {
+      "model_name": "openai/o3-pro",
+      "aliases": [
+        "o3pro"
+      ]
+    },
+    {
+      "model_name": "openai/o4-mini",
+      "aliases": [
+        "o4-mini",
+        "o4mini"
+      ]
+    },
+    {
+      "model_name": "openai/gpt-5",
+      "aliases": [
+        "gpt5"
+      ]
+    },
+    {
+      "model_name": "openai/gpt-5.2-pro",
+      "aliases": [
+        "gpt5.2-pro",
+        "gpt5.2pro",
+        "gpt5pro"
+      ]
+    },
+    {
+      "model_name": "openai/gpt-5-codex",
+      "aliases": [
+        "codex",
+        "gpt5codex"
+      ]
+    },
+    {
+      "model_name": "openai/gpt-5-mini",
+      "aliases": [
+        "gpt5mini"
+      ]
+    },
+    {
+      "model_name": "openai/gpt-5-nano",
+      "aliases": [
+        "gpt5nano"
+      ]
+    },
+    {
+      "model_name": "openai/gpt-5.2",
+      "aliases": [
+        "gpt5.2",
+        "gpt-5.2",
+        "5.2",
+        "gpt5.1",
+        "gpt-5.1",
+        "5.1"
+      ]
+    },
+    {
+      "model_name": "openai/gpt-5.1-codex",
+      "aliases": [
+        "gpt5.1-codex",
+        "gpt-5.1-codex",
+        "gpt5.1code",
+        "gpt-5.1-code",
+        "codex-5.1"
+      ]
+    },
+    {
+      "model_name": "openai/gpt-5.1-codex-mini",
+      "aliases": [
+        "gpt5.1-codex-mini",
+        "gpt-5.1-codex-mini",
+        "codex-mini",
+        "5.1-codex-mini"
+      ]
+    },
+    {
+      "model_name": "x-ai/grok-4",
+      "aliases": [
+        "grok-4",
+        "grok4",
+        "grok"
+      ]
+    },
+    {
+      "model_name": "x-ai/grok-4.1-fast",
+      "aliases": [
+        "grok-4.1-fast-openrouter",
+        "grok-4.1-openrouter"
+      ]
+    }
+  ],
+  "xai": [
+    {
+      "model_name": "grok-4",
+      "aliases": [
+        "grok",
+        "grok4",
+        "grok-4"
+      ]
+    },
+    {
+      "model_name": "grok-4-1-fast-reasoning",
+      "aliases": [
+        "grok-4.1",
+        "grok-4-1",
+        "grok-4.1-fast-reasoning",
+        "grok-4.1-fast-reasoning-latest",
+        "grok-4.1-fast"
+      ]
+    }
+  ]
+}

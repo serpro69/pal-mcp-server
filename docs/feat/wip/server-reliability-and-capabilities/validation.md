@@ -3,6 +3,52 @@
 Recorded 2026-10-11. This covers the completed maintenance tasks below, not the
 remaining roadmap or optional live-provider behavior.
 
+## Task 28: Evidence-backed catalog reconciliation
+
+Recorded 2026-10-12. [Catalog decisions and follow-ups](catalog-reconciliation.md)
+and [frozen source observations/reports](catalog-evidence/) retain the canonical
+comparison, exact pre-change aliases and evidence for every applied edit.
+Corrected five OpenRouter capacity declarations, hid three shut-down native Gemini
+entries and added GPT-6.1 Sol as a hidden Responses candidate without aliases/rank.
+No default promotion, canonical removal, dependency change or live generation.
+
+Validation used a fresh Python **3.12.14** virtualenv at
+`/tmp/pal-reliability-py312`, installed from both committed locks (MCP 1.30.0,
+GenAI 2.8.0, OpenAI 2.41.0). The existing `pal` virtualenv uses Python 3.14 and
+older SDKs and is not lock verification. Both baselines exposed an existing macOS
+fixture bug: expected `/tmp` paths differed from the renderer's canonical
+`/private/tmp` paths. Canonicalizing that test's fixture paths preserves its
+content assertions; runtime behavior was not changed.
+
+- `BLACK_NUM_WORKERS=1 ./code_quality_checks.sh`: **1,649 passed**, 4 skipped,
+  16 deselected, 19 subtests passed; Ruff/Black/isort passed without warnings.
+- Catalog/wire/embedding suites: **41 passed** on fresh locked Python 3.10.19;
+  catalog/wire tests: **34 passed** on Python 3.12. Tests verify
+  preserved canonical names/aliases, hidden discovery with explicit resolution,
+  exact frozen drift results and real SDK request serialization with fake HTTP.
+- Fresh audit CLI reports: OpenAI/Google/OpenRouter **review_needed**, exit 1;
+  xAI **incomplete**, exit 2 because the secondary snapshot has no matching models.
+  Unresolved capabilities and candidates have concrete next steps in the catalog
+  record; these statuses are not a clean full-provider certification.
+- `./run_integration_tests.sh` failed setup because it requires `.pal_venv`.
+  `python communication_simulator_test.py --quick` failed setup because it treats
+  the PATH executable `python` as a file path. No service calls ran. Use the
+  documented setup before live integration validation; Task 34 owns simulator
+  interpreter/session repair. These release gates remain open.
+- External PAL review attempted its full two-step workflow but the Gemini API
+  rejected its configured key (`API_KEY_INVALID`). Independent sub-agent review
+  supplies this task's review; external review remains unavailable until corrected.
+
+Independent review found P1: the new vision declaration exposed existing Responses
+conversion that nested image arrays inside `input_text.text`. Corrected the shared
+serializer with text/image wire tests and image-log redaction, verified against
+OpenAI 2.41.0's installed types and official image-input documentation. The finding
+was indexed by the review workflow. This narrowly scoped serializer repair is the
+only runtime expansion beyond catalog reconciliation.
+
+Follow-up isolated review: **APPROVE**, no remaining findings. Full quality was
+rerun after the serializer fix with the 1,649-pass result above.
+
 ## Task 27: Reviewable model audit and candidate generation
 
 Recorded 2026-10-11. Added Python module entry points

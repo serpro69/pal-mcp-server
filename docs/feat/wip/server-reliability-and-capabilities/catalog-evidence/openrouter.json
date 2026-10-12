@@ -1,0 +1,217 @@
+{
+  "schema_version": 1,
+  "provider": "openrouter",
+  "source_url": "https://openrouter.ai/api/v1/models",
+  "observed_on": "2026-10-12",
+  "complete": true,
+  "models": [
+    {
+      "id": "anthropic/claude-fable-5.1",
+      "status": "active",
+      "capabilities": {
+        "context_window": 1000000,
+        "max_output_tokens": 128000
+      }
+    },
+    {
+      "id": "anthropic/claude-opus-5",
+      "status": "active",
+      "capabilities": {
+        "context_window": 1000000,
+        "max_output_tokens": 128000
+      }
+    },
+    {
+      "id": "anthropic/claude-sonnet-5",
+      "status": "active",
+      "capabilities": {
+        "context_window": 1000000,
+        "max_output_tokens": 128000
+      }
+    },
+    {
+      "id": "anthropic/claude-opus-4.8",
+      "status": "active",
+      "capabilities": {
+        "context_window": 1000000,
+        "max_output_tokens": 128000
+      }
+    },
+    {
+      "id": "anthropic/claude-opus-4.7",
+      "status": "active",
+      "capabilities": {
+        "context_window": 1000000,
+        "max_output_tokens": 128000
+      }
+    },
+    {
+      "id": "anthropic/claude-sonnet-4.6",
+      "status": "active",
+      "capabilities": {
+        "context_window": 1000000,
+        "max_output_tokens": 128000
+      }
+    },
+    {
+      "id": "anthropic/claude-opus-4.6",
+      "status": "active",
+      "capabilities": {
+        "context_window": 1000000,
+        "max_output_tokens": 128000
+      }
+    },
+    {
+      "id": "openai/gpt-5.2-pro",
+      "status": "active",
+      "capabilities": {
+        "context_window": 400000,
+        "max_output_tokens": 128000
+      }
+    },
+    {
+      "id": "openai/gpt-5.2",
+      "status": "active",
+      "capabilities": {
+        "context_window": 400000,
+        "max_output_tokens": 128000
+      }
+    },
+    {
+      "id": "anthropic/claude-opus-4.5",
+      "status": "active",
+      "capabilities": {
+        "context_window": 200000,
+        "max_output_tokens": 64000
+      }
+    },
+    {
+      "id": "openai/gpt-5.1-codex",
+      "status": "active",
+      "capabilities": {
+        "context_window": 400000,
+        "max_output_tokens": 128000
+      }
+    },
+    {
+      "id": "openai/gpt-5.1-codex-mini",
+      "status": "active",
+      "capabilities": {
+        "context_window": 400000,
+        "max_output_tokens": 128000
+      }
+    },
+    {
+      "id": "anthropic/claude-haiku-4.5",
+      "status": "active",
+      "capabilities": {
+        "context_window": 200000,
+        "max_output_tokens": 64000
+      }
+    },
+    {
+      "id": "anthropic/claude-sonnet-4.5",
+      "status": "active",
+      "capabilities": {
+        "context_window": 1000000,
+        "max_output_tokens": 64000
+      }
+    },
+    {
+      "id": "openai/gpt-5",
+      "status": "active",
+      "capabilities": {
+        "context_window": 400000,
+        "max_output_tokens": 128000
+      }
+    },
+    {
+      "id": "openai/gpt-5-mini",
+      "status": "active",
+      "capabilities": {
+        "context_window": 400000,
+        "max_output_tokens": 128000
+      }
+    },
+    {
+      "id": "openai/gpt-5-nano",
+      "status": "active",
+      "capabilities": {
+        "context_window": 400000,
+        "max_output_tokens": 128000
+      }
+    },
+    {
+      "id": "anthropic/claude-opus-4.1",
+      "status": "active",
+      "capabilities": {
+        "context_window": 200000,
+        "max_output_tokens": 32000
+      }
+    },
+    {
+      "id": "google/gemini-2.5-flash",
+      "status": "active",
+      "capabilities": {
+        "context_window": 1048576,
+        "max_output_tokens": 65535
+      }
+    },
+    {
+      "id": "google/gemini-2.5-pro",
+      "status": "active",
+      "capabilities": {
+        "context_window": 1048576,
+        "max_output_tokens": 65536
+      }
+    },
+    {
+      "id": "openai/o3-pro",
+      "status": "active",
+      "capabilities": {
+        "context_window": 200000,
+        "max_output_tokens": 100000
+      }
+    },
+    {
+      "id": "deepseek/deepseek-r1-0528",
+      "status": "active",
+      "capabilities": {
+        "context_window": 163840,
+        "max_output_tokens": 32768
+      }
+    },
+    {
+      "id": "openai/o3",
+      "status": "active",
+      "capabilities": {
+        "context_window": 200000,
+        "max_output_tokens": 100000
+      }
+    },
+    {
+      "id": "openai/o4-mini",
+      "status": "active",
+      "capabilities": {
+        "context_window": 200000,
+        "max_output_tokens": 100000
+      }
+    },
+    {
+      "id": "openai/o3-mini-high",
+      "status": "active",
+      "capabilities": {
+        "context_window": 200000,
+        "max_output_tokens": 100000
+      }
+    },
+    {
+      "id": "openai/o3-mini",
+      "status": "active",
+      "capabilities": {
+        "context_window": 200000,
+        "max_output_tokens": 100000
+      }
+    }
+  ]
+}
