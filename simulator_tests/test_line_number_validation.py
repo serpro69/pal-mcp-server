@@ -5,6 +5,8 @@ Test to validate line number handling across different tools
 import json
 import os
 
+from utils.log_dir import MAIN_LOG_NAME, get_log_dir
+
 from .base_test import BaseSimulatorTest
 
 
@@ -147,7 +149,7 @@ def validate_data(data):
 
             # Get logs from server
             try:
-                log_file_path = "logs/mcp_server.log"
+                log_file_path = get_log_dir() / MAIN_LOG_NAME
                 with open(log_file_path) as f:
                     lines = f.readlines()
                     logs = "".join(lines[-500:])

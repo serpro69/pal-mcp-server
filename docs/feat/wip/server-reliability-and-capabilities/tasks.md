@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Implementation: [implementation.md](implementation.md)
 > Review resolutions: [review.md](review.md#revalidation-and-resolution)
-> Status: in-progress (Tasks 1–29 done; Tasks 30–42 pending)
+> Status: in-progress (Tasks 1–30 done; Tasks 31–42 pending)
 > Created: 2026-10-10
 > Not Doing: toolchain/release-process migration; MCP 2.x; wholesale catalogs; replacement of safety controls; file-annotation implementation; persistent continuation recovery; remote multi-user transport; automatic service activation
 
@@ -635,17 +635,30 @@ external PAL/live integration/simulator setup gates remain open.
 
 ## Task 30: Move logs to a shared portable state-path policy
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** —
 - **Size:** M
 - **Can run in parallel with:** Task 3, Task 4, Task 5, Task 8
 - **Docs:** [Implementation slice](implementation.md#task-30); [design contract](design.md#d7-state-transcripts-and-resources)
 
-- [ ] 30.1 Resolve PAL_STATE_DIR/XDG/default and PAL_LOG_DIR centrally; use the same result in server, log-follow commands, container configuration and simulator readers.
-- [ ] 30.2 Correct rotation sizes/backup arithmetic and narrow activity logging error catches with diagnostic context; document the old-log migration and keep old files untouched.
-- [ ] 30.3 Verify the acceptance cases in [Task 30](implementation.md#task-30) and record the result here.
+- [x] 30.1 Resolve PAL_STATE_DIR/XDG/default and PAL_LOG_DIR centrally; use the same result in server, log-follow commands, container configuration and simulator readers.
+- [x] 30.2 Correct rotation sizes/backup arithmetic and narrow activity logging error catches with diagnostic context; document the old-log migration and keep old files untouched.
+- [x] 30.3 Verify the acceptance cases in [Task 30](implementation.md#task-30) and record the result here.
 
 **Scope / gate:** Keep the current setup script/toolchain. All log producers and readers must use the same path-resolution policy.
+
+**Execution slices:** Establish the central state/log resolver and server rotation
+first; then mechanically route shell/PowerShell, container and simulator consumers
+through it. Validate precedence, invalid paths, writable external state from a
+read-only installed package, rotation arithmetic and launcher paths separately.
+
+**Evidence:** [Task 30 validation](validation.md#task-30-portable-state-and-log-paths),
+2026-10-12. Full quality **1,708 passed**; Python 3.10 focused suites **106 passed**.
+Twelve native PowerShell cases remain skipped because pwsh is unavailable.
+Read-only installed-wheel MCP stdio startup/list/version and external logs passed;
+Bash/Compose checks passed. Isolated review approved after real handler-error and
+launcher dotenv-precedence fixes. Docker daemon/native Windows and existing live
+release gates remain explicitly open; legacy rotation example cleanup is Task 42.
 
 ## Task 31: Add opt-in private conversation transcripts
 

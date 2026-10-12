@@ -40,14 +40,14 @@ docker/scripts/build.ps1
 ```bash
 # Run with environment file
 docker run --rm -i --env-file .env \
-  -v $(pwd)/logs:/app/logs \
+  -v pal-mcp-state:/var/lib/pal \
   pal-mcp-server:latest
 
 # Run with inline environment variables
 docker run --rm -i \
   -e GEMINI_API_KEY="your_key_here" \
   -e LOG_LEVEL=INFO \
-  -v $(pwd)/logs:/app/logs \
+  -v pal-mcp-state:/var/lib/pal \
   pal-mcp-server:latest
 ```
 
@@ -116,7 +116,7 @@ The container includes health checks that verify:
 
 The Docker setup includes persistent volumes to preserve data between container runs:
 
-- **`./logs:/app/logs`** - Persistent log storage (local folder mount)
+- **`pal-mcp-state:/var/lib/pal`** - Per-server state, including `logs/` (named Docker volume)
 - **`pal-mcp-config:/app/conf`** - Configuration persistence (named Docker volume)
 - **`/etc/localtime:/etc/localtime:ro`** - Host timezone synchronization (read-only)
 
@@ -128,7 +128,7 @@ In the `docker-compose.yml` file, you will find:
 
 ```yaml
 volumes:
-  - ./logs:/app/logs
+  - pal-mcp-state:/var/lib/pal
   - pal-mcp-config:/app/conf
   - /etc/localtime:/etc/localtime:ro
 ```
@@ -137,6 +137,8 @@ and the named volume definition:
 
 ```yaml
 volumes:
+  pal-mcp-state:
+    driver: local
   pal-mcp-config:
     driver: local
 ```
@@ -190,13 +192,18 @@ docker run --rm --env-file .env pal-mcp-server:latest python /usr/local/bin/heal
 
 ### Permission Issues
 
-```bash
-# Fix log directory permissions (Linux/macOS)
-sudo chown -R $USER:$USER logs/
-chmod 755 logs/
+The image creates `/var/lib/pal` for its non-root user, and new named volumes
+inherit that directory's ownership. A custom bind mount must be writable by the
+image's user; verify its UID/GID and set ownership on that designated host path.
+Do not recursively change unrelated project files or run the server as root.
 
-# Windows: Run Docker Desktop as Administrator if needed
-```
+Existing `./logs` bind mounts are not moved or deleted. To keep that location,
+retain the mount to `/app/logs` and explicitly set `PAL_LOG_DIR=/app/logs`.
+Otherwise use the new state volume. `PAL_STATE_DIR`/`PAL_LOG_DIR` overrides must
+have corresponding writable mounts. Each concurrent server needs its own volume
+or log path. The shared resolver can be queried inside the container with
+`python -m utils.log_dir`; [logging documentation](../docs/logging.md) covers the
+same policy for native installations.
 
 ### Memory/Performance Issues
 
@@ -227,7 +234,7 @@ docker run --rm -i --env-file .env pal-mcp-server:latest 2>&1 | tee docker.log
         "--env-file",
         "/absolute/path/to/pal-mcp-server/.env",
         "-v",
-        "/absolute/path/to/pal-mcp-server/logs:/app/logs",
+        "pal-mcp-state:/var/lib/pal",
         "pal-mcp-server:latest"
       ]
     }
@@ -249,7 +256,7 @@ docker run --rm -i --env-file .env pal-mcp-server:latest 2>&1 | tee docker.log
         "--env-file",
         "C:/Users/YourName/path/to/pal-mcp-server/.env",
         "-v",
-        "C:/Users/YourName/path/to/pal-mcp-server/logs:/app/logs",
+        "pal-mcp-state:/var/lib/pal",
         "pal-mcp-server:latest"
       ]
     }

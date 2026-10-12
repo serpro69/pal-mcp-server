@@ -67,8 +67,7 @@ wait_for_health() {
     exit 1
 }
 
-# Create logs directory if it doesn't exist
-mkdir -p logs
+# The image initializes the Compose named state volume; old host logs stay untouched.
 
 # Stop existing containers
 echo -e "${GREEN}Stopping existing containers...${NC}"

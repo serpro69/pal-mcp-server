@@ -8,6 +8,8 @@ and builds conversation context correctly when using continuation_id.
 
 import json
 
+from utils.log_dir import MAIN_LOG_NAME, get_log_dir
+
 from .conversation_base_test import ConversationBaseTest
 
 
@@ -30,7 +32,7 @@ class TestConsensusConversation(ConversationBaseTest):
     def get_server_logs(self):
         """Get server logs from local log file"""
         try:
-            log_file_path = "logs/mcp_server.log"
+            log_file_path = get_log_dir() / MAIN_LOG_NAME
             with open(log_file_path) as f:
                 lines = f.readlines()
                 # Return last 100 lines

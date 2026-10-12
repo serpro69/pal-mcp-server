@@ -24,7 +24,6 @@ import os
 import sys
 import time
 from logging.handlers import RotatingFileHandler
-from pathlib import Path
 from typing import Any, Optional
 
 from mcp.server import Server  # noqa: E402
@@ -70,6 +69,15 @@ from tools import (  # noqa: E402
 from tools.models import ToolOutput  # noqa: E402
 from tools.shared.exceptions import ToolExecutionError  # noqa: E402
 from utils.env import env_override_enabled, get_env  # noqa: E402
+from utils.log_dir import (
+    ACTIVITY_LOG_BACKUPS,
+    ACTIVITY_LOG_MAX_BYTES,
+    ACTIVITY_LOG_NAME,
+    MAIN_LOG_BACKUPS,
+    MAIN_LOG_MAX_BYTES,
+    MAIN_LOG_NAME,
+    get_log_dir,
+)
 from utils.progress import request_progress
 
 # Configure logging for server operations
@@ -91,11 +99,24 @@ class LocalTimeFormatter(logging.Formatter):
         return s
 
 
+class ActivityFileHandler(RotatingFileHandler):
+    """Return emit failures to the caller, after releasing the handler lock."""
+
+    def handleError(self, record):
+        error = sys.exc_info()[1]
+        if error is not None:
+            raise error
+        super().handleError(record)
+
+
 # Configure both console and file logging
 log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
 # Clear any existing handlers first
 root_logger = logging.getLogger()
+for old_handler in root_logger.handlers:
+    if isinstance(old_handler, RotatingFileHandler):
+        old_handler.close()
 root_logger.handlers.clear()
 
 # Create and configure stderr handler explicitly
@@ -105,53 +126,53 @@ stderr_handler.setFormatter(LocalTimeFormatter(log_format))
 root_logger.addHandler(stderr_handler)
 
 # Note: MCP stdio_server interferes with stderr during tool execution
-# All logs are properly written to logs/mcp_server.log for monitoring
+# File monitoring uses the shared operator-selected log directory.
 
 # Set root logger level
 root_logger.setLevel(getattr(logging, log_level, logging.INFO))
 
-# Add rotating file handler for local log monitoring
+# Invalid/unwritable paths fail visibly; never silently write into the package.
+log_dir = get_log_dir(create=True)
+file_handler = RotatingFileHandler(
+    log_dir / MAIN_LOG_NAME,
+    maxBytes=MAIN_LOG_MAX_BYTES,
+    backupCount=MAIN_LOG_BACKUPS,
+    encoding="utf-8",
+)
+file_handler.setLevel(getattr(logging, log_level, logging.INFO))
+file_handler.setFormatter(LocalTimeFormatter(log_format))
+root_logger.addHandler(file_handler)
 
-try:
-    # Create logs directory in project root
-    log_dir = Path(__file__).parent / "logs"
-    log_dir.mkdir(exist_ok=True)
+mcp_logger = logging.getLogger("mcp_activity")
+for old_handler in list(mcp_logger.handlers):
+    if isinstance(old_handler, RotatingFileHandler):
+        old_handler.close()
+        mcp_logger.removeHandler(old_handler)
+mcp_file_handler = ActivityFileHandler(
+    log_dir / ACTIVITY_LOG_NAME,
+    maxBytes=ACTIVITY_LOG_MAX_BYTES,
+    backupCount=ACTIVITY_LOG_BACKUPS,
+    encoding="utf-8",
+)
+mcp_file_handler.setLevel(logging.INFO)
+mcp_file_handler.setFormatter(LocalTimeFormatter("%(asctime)s - %(message)s"))
+mcp_logger.addHandler(mcp_file_handler)
+mcp_logger.setLevel(logging.INFO)
+mcp_logger.propagate = True
 
-    # Main server log with size-based rotation (20MB max per file)
-    # This ensures logs don't grow indefinitely and are properly managed
-    file_handler = RotatingFileHandler(
-        log_dir / "mcp_server.log",
-        maxBytes=20 * 1024 * 1024,  # 20MB max file size
-        backupCount=5,  # Keep 10 rotated files (100MB total)
-        encoding="utf-8",
-    )
-    file_handler.setLevel(getattr(logging, log_level, logging.INFO))
-    file_handler.setFormatter(LocalTimeFormatter(log_format))
-    logging.getLogger().addHandler(file_handler)
-
-    # Create a special logger for MCP activity tracking with size-based rotation
-    mcp_logger = logging.getLogger("mcp_activity")
-    mcp_file_handler = RotatingFileHandler(
-        log_dir / "mcp_activity.log",
-        maxBytes=10 * 1024 * 1024,  # 20MB max file size
-        backupCount=2,  # Keep 5 rotated files (20MB total)
-        encoding="utf-8",
-    )
-    mcp_file_handler.setLevel(logging.INFO)
-    mcp_file_handler.setFormatter(LocalTimeFormatter("%(asctime)s - %(message)s"))
-    mcp_logger.addHandler(mcp_file_handler)
-    mcp_logger.setLevel(logging.INFO)
-    # Ensure MCP activity also goes to stderr
-    mcp_logger.propagate = True
-
-    # Log setup info directly to root logger since logger isn't defined yet
-    logging.info(f"Logging to: {log_dir / 'mcp_server.log'}")
-    logging.info(f"Process PID: {os.getpid()}")
-
-except Exception as e:
-    print(f"Warning: Could not set up file logging: {e}", file=sys.stderr)
+logging.info("Logging to: %s", log_dir / MAIN_LOG_NAME)
+logging.info("Process PID: %s", os.getpid())
 
 logger = logging.getLogger(__name__)
+
+
+def log_activity(event: str, message: str, *args: Any) -> None:
+    """Diagnose expected logging I/O faults without hiding programming errors."""
+    try:
+        logging.getLogger("mcp_activity").info(f"{event}: {message}", *args)
+    except (OSError, UnicodeError):
+        logger.warning("Activity log write failed for %s", event, exc_info=True)
+
 
 # Log PAL_MCP_FORCE_ENV_OVERRIDE configuration for transparency
 if env_override_enabled():
@@ -449,14 +470,10 @@ async def handle_list_tools() -> list[Tool]:
             logger.info(f"MCP Client Connected: {formatted}")
 
             # Log to activity file as well
-            try:
-                mcp_activity_logger = logging.getLogger("mcp_activity")
-                friendly_name = client_info.get("friendly_name", "CLI Agent")
-                raw_name = client_info.get("name", "Unknown")
-                version = client_info.get("version", "Unknown")
-                mcp_activity_logger.info(f"MCP_CLIENT_INFO: {friendly_name} (raw={raw_name} v{version})")
-            except Exception:
-                pass
+            friendly_name = client_info.get("friendly_name", "CLI Agent")
+            raw_name = client_info.get("name", "Unknown")
+            version = client_info.get("version", "Unknown")
+            log_activity("MCP_CLIENT_INFO", "%s (raw=%s v%s)", friendly_name, raw_name, version)
     except Exception as e:
         logger.debug(f"Could not log client info during list_tools: {e}")
     tools = []
@@ -516,11 +533,7 @@ async def _dispatch_tool(name: str, arguments: dict[str, Any]) -> list[TextConte
     logger.debug(f"MCP tool arguments: {list(arguments.keys())}")
 
     # Log to activity file for monitoring
-    try:
-        mcp_activity_logger = logging.getLogger("mcp_activity")
-        mcp_activity_logger.info(f"TOOL_CALL: {name} with {len(arguments)} arguments")
-    except Exception:
-        pass
+    log_activity("TOOL_CALL", "%s with %d arguments", name, len(arguments))
 
     # Admission and history belong to the same execute wrapper used by direct calls.
     # Resolve a continued model before MCP model validation, without changing explicit choices.
@@ -627,11 +640,7 @@ async def _dispatch_tool(name: str, arguments: dict[str, Any]) -> list[TextConte
         logger.info(f"Tool '{name}' execution completed")
 
         # Log completion to activity file
-        try:
-            mcp_activity_logger = logging.getLogger("mcp_activity")
-            mcp_activity_logger.info(f"TOOL_COMPLETED: {name}")
-        except Exception:
-            pass
+        log_activity("TOOL_COMPLETED", "%s", name)
         return result
 
     # Handle unknown tool requests gracefully
@@ -805,11 +814,7 @@ async def reconstruct_thread_context(arguments: dict[str, Any]) -> dict[str, Any
         logger.debug(f"[CONVERSATION_DEBUG] Thread {continuation_id} not found in storage or expired")
 
         # Log to activity file for monitoring
-        try:
-            mcp_activity_logger = logging.getLogger("mcp_activity")
-            mcp_activity_logger.info(f"CONVERSATION_ERROR: Thread {continuation_id} not found or expired")
-        except Exception:
-            pass
+        log_activity("CONVERSATION_ERROR", "Thread %s not found or expired", continuation_id)
 
         # Return error asking CLI to restart conversation with full context
         raise ValueError(
@@ -1005,14 +1010,13 @@ async def reconstruct_thread_context(arguments: dict[str, Any]) -> dict[str, Any
         )
 
     # Log to activity file for monitoring
-    try:
-        mcp_activity_logger = logging.getLogger("mcp_activity")
-        mcp_activity_logger.info(
-            f"CONVERSATION_CONTINUATION: Thread {continuation_id} turn {len(context.turns)} - "
-            f"{len(context.turns)} previous turns loaded"
-        )
-    except Exception:
-        pass
+    log_activity(
+        "CONVERSATION_CONTINUATION",
+        "Thread %s turn %d - %d previous turns loaded",
+        continuation_id,
+        len(context.turns),
+        len(context.turns),
+    )
 
     return enhanced_arguments
 

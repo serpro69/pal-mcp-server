@@ -1,7 +1,92 @@
 # Validation evidence: server reliability and capabilities
 
-Recorded 2026-10-11. This covers the completed maintenance tasks below, not the
+Recorded 2026-10-11–12. This covers the completed maintenance tasks below, not the
 remaining roadmap or optional live-provider behavior.
+
+## Task 30: Portable state and log paths
+
+Recorded 2026-10-12. Added `utils/state_dir.py` and `utils/log_dir.py`, shared by
+the server, Bash/PowerShell launchers, Docker health check and every simulator log
+reader. Explicit PAL paths precede XDG/per-user fallback; PAL_LOG_DIR selects
+logs only. Invalid/unwritable paths fail visibly, and no code copies or deletes
+old repository logs. Container configuration uses an owned `/var/lib/pal` and
+named state volume. The runtime rotation limits remain main 20 MiB/5 backups
+(120 MiB including active) and activity 10 MiB/2 backups (30 MiB including active).
+Activity catches now diagnose expected I/O/encoding failures without swallowing
+programming errors. Tests own temporary state so they cannot write user logs.
+
+Paths and `RotatingFileHandler` signatures/backup semantics were verified through
+Context7 against Python 3.10's
+[pathlib](https://docs.python.org/3.10/library/pathlib.html) and
+[logging handlers](https://docs.python.org/3.10/library/logging.handlers.html).
+No dependency, image version or setup toolchain changed. Native per-user fallback
+is `~/.local/state/pal` on Unix/macOS, LOCALAPPDATA/pal on Windows, then Windows
+home/AppData/Local/pal when LOCALAPPDATA is absent. See [logging](../../../logging.md)
+and [Docker migration](../../../../docker/README.md).
+
+Verification:
+
+- `BLACK_NUM_WORKERS=1 ./code_quality_checks.sh` in locked Python 3.12.14:
+  **1,708 passed**, 16 skipped, 16 deselected, 19 subtests passed; Ruff/Black/isort
+  pass without warnings. The old Docker bind-mount expectations were updated to
+  the declared named state volume; assertions were not weakened.
+- State/log/deployment/Docker suites on locked Python 3.10.19: **106 passed**,
+  12 skipped for the unavailable native PowerShell launcher. Full-suite skips
+  include those 12 plus 4 pre-existing skips.
+  Covers precedence, empty/unset environment, spaces, home expansion, invalid
+  relative/file/ancestor paths, simulated Windows defaults, cause-preserving
+  permission failure, Bash/resolver agreement with inherited paths present/absent
+  and force override on/off, dynamic simulator paths, real rotation counts,
+  health-check cleanup and actual stream/encoding/rollover diagnostics.
+- `bash -n run-server.sh docker/scripts/deploy.sh run_integration_tests.sh` passes.
+- `docker compose -f docker-compose.yml config --quiet` passes; unset optional
+  environment variables produce the existing configuration warnings.
+- Built the wheel using `python -m pip wheel . --no-deps --no-build-isolation`,
+  installed it without dependencies/bytecode under `/tmp/pal-task30-installed-final`,
+  and removed all write permissions from that installation. Ran a real MCP stdio
+  client from `/tmp/pal-task30-cwd` using that wheel's `python -B -m server`, with
+  all declared provider configuration removed and state at
+  `/tmp/pal-task30-state with spaces`. Initialize, tools/list and version passed;
+  both log files were created externally, with no package logs or bytecode writes.
+  Rebuilt/repeated after review corrections. Smoke helper/output:
+  `/tmp/pal-task30-smoke.py` and `/tmp/pal-task30-smoke-final.log`.
+- Docker CLI is installed but the daemon is stopped (confirmed outside sandbox).
+  Actual rebuilt-container/volume ownership execution remains **unavailable**.
+  Next: start Docker, build the unchanged-base recipe, run as the image's non-root
+  user with a read-only root and a new state volume, then exercise the log probe.
+- PowerShell/native Windows is **unavailable** (no `pwsh` executable). Next: run
+  `run-server.ps1 -Follow` with explicit paths containing spaces on Windows and
+  verify the Python resolver output and file access under that user's ACLs.
+- Existing live integration/simulator setup gates and external PAL invalid-key
+  limitation remain those exercised in Task 28. No new live model call occurred.
+
+Follow-up: Task 42 must remove stale `LOG_MAX_SIZE`/`LOG_BACKUP_COUNT` examples or
+design real configuration for them; they were already ignored before this task
+and remain explicitly documented as ineffective. Native concurrent servers need
+separate log directories because standard rotating handlers do not coordinate
+across processes. The new policy does not add transcripts or restart recovery.
+
+Independent review found two P2 issues and approved their corrections. Actual
+rotating handlers consume failures inside `emit`, so `ActivityFileHandler`
+returns them to the caller's narrow diagnostic catches after lock release;
+the client-info activity caller has the same narrow handling. Launcher loading
+now preserves the original PAL/XDG process environment, including absence, so
+Python owns dotenv parsing and force precedence. Real handler failures with
+`logging.raiseExceptions=False` and conflicting synthetic configuration regressions
+verify these fixes. No systemic P0/P1 findings needed indexing.
+
+Final isolated review, including originally absent launcher settings: **APPROVE**.
+Full checks and the installed-wheel smoke were repeated after the runtime fixes.
+
+### Reflection on Tasks 28–30
+
+Catalog declarations exposed a real Responses image serialization defect; wire
+tests now verify that advertised capability. Progress needed its error-result
+path reviewed as carefully as successful replies. Log-path agreement required
+preserving the launcher's original environment, and real logging failures needed
+tests at the handler boundary rather than a mocked logger. These bounded fixes
+are recorded with each task. Catalog uncertainties, live/native-platform checks
+and legacy example cleanup remain explicit follow-ups; Tasks 31–42 are pending.
 
 ## Task 29: Request-scoped MCP progress
 

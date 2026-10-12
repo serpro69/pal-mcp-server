@@ -2,6 +2,11 @@
 
 This guide covers all configuration options for the PAL MCP Server. The server is configured through environment variables defined in your `.env` file.
 
+State/log placement uses `PAL_STATE_DIR`, then `XDG_STATE_HOME/pal`, then the
+per-user fallback. `PAL_LOG_DIR` overrides logs only. All explicit paths must be
+absolute after home expansion. See [logging and migration](logging.md) for
+platform defaults, rotation sizes, container volumes and legacy logs.
+
 ## Quick Start Configuration
 
 **Auto Mode (Recommended):** Set `DEFAULT_MODEL=auto` and let Claude intelligently select the best model for each task:

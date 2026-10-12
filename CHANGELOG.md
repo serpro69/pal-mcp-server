@@ -4,6 +4,13 @@
 
 ## Unreleased
 
+- Move default logs outside the installation using shared PAL/XDG/per-user state
+  resolution, with `PAL_LOG_DIR` for a separate log location. Launchers, simulator
+  readers and container health checks agree; Compose uses a named state volume.
+  Invalid/unwritable paths fail visibly. Old repository logs remain untouched;
+  set an absolute `PAL_LOG_DIR` to keep using them. Document actual rotation
+  limits (main: 20 MiB + 5 backups; activity: 10 MiB + 2 backups).
+
 - Report request-local MCP progress when the caller supplies a progress token,
   including token 0. Provider and CLI waits send bounded heartbeats; cancellation
   joins them and notification failures preserve answers with diagnostics.

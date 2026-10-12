@@ -262,8 +262,8 @@ def log_client_info(server: Any, logger_instance: Optional[logging.Logger] = Non
         try:
             activity_logger = logging.getLogger("mcp_activity")
             activity_logger.info(f"CLIENT_IDENTIFIED: {friendly_name} (name={raw_name}, version={version})")
-        except Exception:
-            pass
+        except (OSError, UnicodeError):
+            log.warning("Activity log write failed for CLIENT_IDENTIFIED", exc_info=True)
     else:
         log.debug("Could not extract client info from MCP protocol")
 

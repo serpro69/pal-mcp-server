@@ -109,7 +109,7 @@ $ErrorActionPreference = "Stop"
 $script:VENV_PATH = ".pal_venv"
 $script:DOCKER_CLEANED_FLAG = ".docker_cleaned"
 $script:DESKTOP_CONFIG_FLAG = ".desktop_configured"
-$script:LOG_DIR = "logs"
+$script:LOG_DIR = $null # Resolved by the shared Python policy after environment setup.
 $script:LOG_FILE = "mcp_server.log"
 $script:LegacyServerNames = @("zen", "zen-mcp", "zen-mcp-server", "zen_mcp", "zen_mcp_server")
 
@@ -898,8 +898,7 @@ DEFAULT_THINKING_MODE_THINKDEEP=high
         Write-Success ".env file exists"
     }
     
-    # Create logs directory for volume mount
-    Initialize-Logging
+    # Docker initializes its named state volume from the image's owned directory.
     
     return $true
 }
@@ -992,15 +991,14 @@ function Get-DockerStatus {
 
 # Setup logging directory
 function Initialize-Logging {
+    param([string]$PythonPath)
     Write-Step "Setting up Logging"
-    
-    if (!(Test-Path $LOG_DIR)) {
-        New-Item -ItemType Directory -Path $LOG_DIR -Force | Out-Null
-        Write-Success "Logs directory created"
+    $resolved = & $PythonPath -m utils.log_dir --create
+    if ($LASTEXITCODE -ne 0) {
+        throw "Cannot resolve PAL log directory; check PAL_STATE_DIR and PAL_LOG_DIR."
     }
-    else {
-        Write-Success "Logs directory already exists"
-    }
+    $script:LOG_DIR = [string]$resolved
+    Write-Success "Logs directory: $script:LOG_DIR"
 }
 
 # Check Docker
@@ -2035,7 +2033,7 @@ function Follow-Logs {
     
     $logPath = Join-Path $LOG_DIR $LOG_FILE
     
-    if (!(Test-Path $logPath)) {
+    if (!(Test-Path -LiteralPath $logPath)) {
         Write-Warning "Log file not found: $logPath"
         Write-Info "Starting server to generate logs..."
         Start-Server
@@ -2046,7 +2044,7 @@ function Follow-Logs {
         Write-Info "Following logs at: $logPath"
         Write-Host "Press Ctrl+C to stop following logs"
         Write-Host ""
-        Get-Content $logPath -Wait
+        Get-Content -LiteralPath $logPath -Wait
     }
     catch {
         Write-Error "Failed to follow logs: $_"
@@ -2112,6 +2110,12 @@ function Import-EnvFile {
             if ($line -match '^([^#][^=]*?)=(.*)$') {
                 $key = $matches[1].Trim()
                 $value = $matches[2].Trim() -replace '^["'']|["'']$', ''
+
+                # Python owns dotenv parsing and force override for state paths.
+                # Leave their original process environment (including absence).
+                if ($key -in @("PAL_STATE_DIR", "PAL_LOG_DIR", "XDG_STATE_HOME")) {
+                    continue
+                }
                 
                 # Set environment variable for the current session
                 [Environment]::SetEnvironmentVariable($key, $value, "Process")
@@ -2223,10 +2227,10 @@ function Invoke-PythonWorkflow {
     Invoke-McpClientConfiguration -UseDocker $false -PythonPath $pythonPath -ServerPath $serverPath
     
     Show-SetupInstructions $pythonPath $serverPath
-    Initialize-Logging
+    Initialize-Logging -PythonPath $pythonPath
     
     Write-Host ""
-    Write-Host "Logs will be written to: $(Get-AbsolutePath $LOG_DIR)\$LOG_FILE"
+    Write-Host "Logs will be written to: $(Join-Path $LOG_DIR $LOG_FILE)"
     Write-Host ""
     
     if ($Follow) {

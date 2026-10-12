@@ -77,13 +77,13 @@ class TestDockerHealthCheck:
                 # This is expected in test environment
                 pass
 
-    def test_log_directory_check(self):
+    def test_log_directory_check(self, tmp_path, monkeypatch):
         """Test log directory health check logic"""
-        # Test with existing directory
-        test_dir = self.project_root / "logs"
+        from docker.scripts.healthcheck import check_log_directory
 
-        if test_dir.exists():
-            assert os.access(test_dir, os.W_OK), "Logs directory must be writable"
+        monkeypatch.setenv("PAL_LOG_DIR", str(tmp_path))
+        assert check_log_directory()
+        assert list(tmp_path.iterdir()) == []
 
     def test_health_check_timeout_handling(self):
         """Test that health checks handle timeouts properly"""
