@@ -4,6 +4,11 @@
 
 ## Unreleased
 
+- Add opt-in `PAL_TRANSCRIPTS=true` private JSONL conversation audits with 30-day
+  startup retention. Recording failures preserve memory and answers. POSIX
+  permissions are enforced; Windows recording fails closed pending native ACL
+  validation. See [transcript configuration](docs/logging.md#private-conversation-transcripts).
+
 - Move default logs outside the installation using shared PAL/XDG/per-user state
   resolution, with `PAL_LOG_DIR` for a separate log location. Launchers, simulator
   readers and container health checks agree; Compose uses a named state volume.

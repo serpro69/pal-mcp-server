@@ -92,3 +92,40 @@ The health check resolves the same log directory and tests writability with a
 unique temporary file. See [Docker setup](../docker/README.md) for mounts and
 migration of existing bind-mounted logs. A custom container path must have a
 matching writable mount and permissions for the configured container user.
+
+## Private conversation transcripts
+
+Set `PAL_TRANSCRIPTS=true` to record conversation audit streams under
+`<state directory>/transcripts/<canonical UUID>.jsonl`. The default is false.
+Prompts, raw replies, file/image references and available turn metadata are
+sensitive persistent data. Choose a private local state directory, with separate
+directories for mutually untrusted projects and for separate server processes.
+`PAL_LOG_DIR` has no effect on transcripts.
+
+Schema version 1 starts with a `thread` event (thread ID, timestamp, initiating
+tool and parent ID), followed by `turn` events with one-based memory turn numbers,
+timestamp, role, raw content, tool, files/images, model/provider and available
+model metadata. Null usage/provenance remains unknown. Events append only after
+successful memory writes; a failed append warns in logs while preserving the
+answer and memory. A missing turn number therefore indicates an audit gap.
+Workflow-state-only updates do not create synthetic conversation turns.
+
+POSIX transcript directories use mode 0700 and regular files use 0600; existing
+permissions are tightened before access. Symlinked configured roots, transcript
+directories and files, hard-linked files, and nonregular files are rejected.
+The state owner is trusted; this is not an OS sandbox against that owner.
+Windows recording fails closed with a diagnostic because chmod cannot establish
+private Windows ACLs. Native Windows ACL/reparse-point support remains a follow-up
+requiring Windows contract tests before activation; normal memory/logging still work.
+
+Startup removes only owned, single-link regular files with canonical UUID names
+whose last modification is older than 30 days. Unrelated files and links remain
+untouched. Cleanup errors warn without preventing startup. Retention is a startup
+policy, not a disk quota or a background timer. Disabling recording stops both
+appends and pruning, leaving existing files for explicit operator removal.
+
+Writes are serialized within one process. A short write is completed; an ordinary
+append failure attempts to restore the previous length. A crash may leave an
+incomplete final line; the next append separates it from the next valid record.
+These are best-effort audit records, not fsync-backed recovery. Transcripts never
+restore continuations: process restart and memory TTL retain their existing behavior.

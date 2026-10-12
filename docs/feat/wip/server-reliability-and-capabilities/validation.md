@@ -1579,3 +1579,45 @@ of child exit; a real descendant test exposed why repeated cancellation must not
 wait forever for pipe EOF. The environment-template documentation moved to the
 configuration guide due to the local security hook. These are the only material
 scope adjustments; the feature remains in progress with Tasks 7–42 pending.
+
+## Task 31: Private opt-in conversation transcripts
+
+2026-10-12. Added `utils/transcripts.py`, successful-memory hooks in
+`utils/conversation_memory.py`, startup pruning in `server.py`, transcript tests,
+configuration documentation and release notes. Schema v1 records thread metadata
+and ordered raw turns; no transcript is used for continuation recovery.
+
+Default recording is off. POSIX directories/files enforce 0700/0600, ownership,
+canonical UUID names, no-follow descriptor access and single-link regular files.
+Existing permissive modes are tightened. Short appends complete; ordinary failures
+attempt length rollback and warn without losing memory or successful answers.
+Startup retention removes only eligible files older than 30 days and diagnoses
+failures. The operator/state owner remains trusted and one process owns each state
+folder. Windows explicitly fails closed; native ACL/reparse-point implementation
+and Windows execution tests remain an open portability gate before advertising
+Windows transcript support.
+
+Python 3.10 filesystem APIs verified through version-matched Context7 documentation:
+[os file descriptor APIs](https://docs.python.org/3.10/library/os.html). No dependency
+or lock changes. Python 3.12.14 lock-based environment in
+`/private/tmp/pal-reliability-py312`: `BLACK_NUM_WORKERS=1 ./code_quality_checks.sh`
+passed **1,733 tests**, 16 skipped, 16 deselected, 19 subtests passed; Ruff, Black
+and isort passed. Python 3.10 transcript + conversation ownership tests:
+**59 passed**. Tests include an actual MCP dispatcher invocation with fake provider,
+raw response records and an audit failure that still returns/persists the answer.
+Filesystem tests cover malformed IDs, Unicode, symlinks/hardlinks/FIFOs, tightened
+existing permissions, short/partial writes, concurrent appends, retention eligibility,
+retention errors, disabled mode and simulated Windows fail-closed behavior.
+
+The repository integration runner and quick simulator were attempted and stop at
+their pre-existing `.pal_venv`/interpreter setup checks; the lock-based test virtualenv
+is outside the checkout. No successful live integration/model-quality result is
+claimed. PAL external code review was attempted and failed with API_KEY_INVALID.
+Independent local review is recorded in the task entry.
+
+The isolated reviewer found that resolving a default/XDG PAL root erased a
+symlink before no-follow validation. The shared resolver now offers a
+default-preserving unresolved-leaf option for transcripts, with explicit XDG and
+default-home regressions. This containment pattern was indexed as review knowledge.
+
+Final isolated local code review: **APPROVE**, no remaining findings.

@@ -281,6 +281,18 @@ def create_thread(tool_name: str, initial_request: dict[str, Any], parent_thread
     # Store in memory with configurable TTL to prevent indefinite accumulation
     _save_thread(context)
 
+    from utils.transcripts import record_event
+
+    record_event(
+        thread_id,
+        {
+            "event": "thread",
+            "timestamp": now,
+            "tool_name": tool_name,
+            "parent_thread_id": parent_thread_id,
+        },
+    )
+
     logger.debug(f"[THREAD] Created new thread {thread_id} with parent {parent_thread_id}")
 
     return thread_id
@@ -432,6 +444,9 @@ def add_turn(
 
     # Save back to storage and refresh TTL
     _save_thread(context)
+    from utils.transcripts import record_event
+
+    record_event(thread_id, {"event": "turn", "turn": len(context.turns), **turn.model_dump(mode="json")})
     return True
 
 

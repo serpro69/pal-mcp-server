@@ -79,6 +79,7 @@ from utils.log_dir import (
     get_log_dir,
 )
 from utils.progress import request_progress
+from utils.transcripts import prune_transcripts
 
 # Configure logging for server operations
 # Can be controlled via LOG_LEVEL environment variable (DEBUG, INFO, WARNING, ERROR)
@@ -1192,6 +1193,9 @@ async def _serve():
     """
     # Validate and configure providers based on available API keys
     configure_providers()
+
+    # Audit retention is optional and cannot prevent startup or recover memory.
+    await asyncio.to_thread(prune_transcripts)
 
     # Log startup message
     logger.info("PAL MCP Server starting up...")
