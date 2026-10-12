@@ -415,8 +415,8 @@ class BaseWorkflowMixin(ABC):
         except Exception as e:
             logger.warning(f"[WORKFLOW_FILES] {self.get_name()}: Could not get conversation files: {e}")
 
-        # Convert to list and remove any empty/None values
-        files_for_expert = [f for f in all_relevant_files if f and f.strip()]
+        # Sets have no caller-defined order. Stabilize both embedding and admission.
+        files_for_expert = sorted(f for f in all_relevant_files if f and f.strip())
 
         if not files_for_expert:
             logger.debug(f"[WORKFLOW_FILES] {self.get_name()}: No relevant files found for expert analysis")
@@ -878,9 +878,9 @@ class BaseWorkflowMixin(ABC):
             self.get_completion_data_key(): {
                 "initial_request": initial_description or self.get_initial_request(request.step),
                 "steps_taken": len(consolidated_findings.findings),
-                "files_examined": list(consolidated_findings.files_checked),
-                "relevant_files": list(consolidated_findings.relevant_files),
-                "relevant_context": list(consolidated_findings.relevant_context),
+                "files_examined": sorted(consolidated_findings.files_checked),
+                "relevant_files": sorted(consolidated_findings.relevant_files),
+                "relevant_context": sorted(consolidated_findings.relevant_context),
                 "work_summary": work_summary,
                 "caller_findings": caller_findings,
                 "final_analysis": caller_findings,  # Deprecated caller-data alias, retained through PAL 1.x.
@@ -1343,9 +1343,9 @@ class BaseWorkflowMixin(ABC):
             response_data[f"complete_{self.get_name()}"] = {
                 "initial_request": self.get_initial_request(request.step),
                 "steps_taken": len(self.work_history),
-                "files_examined": list(self.consolidated_findings.files_checked),
-                "relevant_files": list(self.consolidated_findings.relevant_files),
-                "relevant_context": list(self.consolidated_findings.relevant_context),
+                "files_examined": sorted(self.consolidated_findings.files_checked),
+                "relevant_files": sorted(self.consolidated_findings.relevant_files),
+                "relevant_context": sorted(self.consolidated_findings.relevant_context),
                 "issues_found": self.consolidated_findings.issues_found,
                 "work_summary": work_summary,
             }

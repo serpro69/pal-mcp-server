@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Implementation: [implementation.md](implementation.md)
 > Review resolutions: [review.md](review.md#revalidation-and-resolution)
-> Status: in-progress (Tasks 1–39 done; Tasks 40–42 pending; OpenCode Go/Jules live gates open)
+> Status: in-progress (Tasks 1–40 done; Tasks 41–42 pending; OpenCode Go/Jules live gates open)
 > Created: 2026-10-10
 > Not Doing: toolchain/release-process migration; MCP 2.x; wholesale catalogs; replacement of safety controls; file-annotation implementation; persistent continuation recovery; remote multi-user transport; automatic service activation
 
@@ -856,17 +856,29 @@ issues separately; no cache savings or live quality claims are made.
 
 ## Task 40: Stabilize continuation prompts without losing content
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 39, Task 24
 - **Size:** M
 - **Can run in parallel with:** —
 - **Docs:** [Implementation slice](implementation.md#task-40); [design contract](design.md#d10-prompt-cache-work-is-measurement-led)
 
-- [ ] 40.1 Move volatile turn counters away from leading history and render set-derived files/symbols/images deterministically; preserve error/omission and provenance information.
-- [ ] 40.2 Evaluate moving consensus stance after stable content using captured requests and behavior regressions; add provider-specific routing keys only after verifying each provider accepts them.
-- [ ] 40.3 Verify the acceptance cases in [Task 40](implementation.md#task-40) and record the result here.
+- [x] 40.1 Move volatile turn counters away from leading history and render set-derived files/symbols/images deterministically; preserve error/omission and provenance information.
+- [x] 40.2 Evaluate moving consensus stance after stable content using captured requests and behavior regressions; add provider-specific routing keys only after verifying each provider accepts them.
+- [x] 40.3 Verify the acceptance cases in [Task 40](implementation.md#task-40) and record the result here.
 
 **Scope / gate:** Do not let a higher prefix score pass by omitting context. Revalidate live cache benefit separately.
+
+**Execution slices:** Stabilize the history envelope, then mechanically sort
+set-derived workflow presentation at each existing renderer, then evaluate stance
+placement with complete captured requests. Ordered request/history image lists
+retain their existing order. No dependency or provider routing-key changes.
+
+**Evidence:** [Task 40 validation](validation.md#task-40-stable-continuation-prompts).
+Full quality **2,005 passed**; Python 3.10 focused **61 passed**; strict stdio
+**3/3 passed**. Complete captures match **19/19** across seeds 1/7/42. Median
+chat prefix **4,154.5 → 5,220.5 bytes**, same-model consensus **1,190 → 6,170**.
+Independent isolated review approved with no findings; PAL external review had
+an invalid API key. Live cache benefit/quality checks remain open.
 
 ## Task 41: Evaluate append-oriented history and compaction
 

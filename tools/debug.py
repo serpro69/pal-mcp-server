@@ -294,7 +294,7 @@ class DebugIssueTool(WorkflowTool):
 
         # Add relevant methods/functions if available
         if consolidated_findings.relevant_context:
-            methods_text = "\n".join(f"- {method}" for method in consolidated_findings.relevant_context)
+            methods_text = "\n".join(f"- {method}" for method in sorted(consolidated_findings.relevant_context))
             context_parts.append(f"\n=== RELEVANT METHODS/FUNCTIONS ===\n{methods_text}\n=== END METHODS ===")
 
         # Add hypothesis evolution if available
@@ -315,7 +315,7 @@ class DebugIssueTool(WorkflowTool):
         # Add file content if we have relevant files
         if consolidated_findings.relevant_files:
             file_content, _ = self._prepare_file_content_for_prompt(
-                list(consolidated_findings.relevant_files), None, "Essential debugging files"
+                sorted(consolidated_findings.relevant_files), None, "Essential debugging files"
             )
             if file_content:
                 context_parts.append(

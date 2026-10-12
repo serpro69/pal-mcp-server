@@ -272,12 +272,12 @@ class SecauditTool(WorkflowTool):
 
         # Add relevant files if available
         if consolidated_findings.relevant_files:
-            files_text = "\n".join(f"- {file}" for file in consolidated_findings.relevant_files)
+            files_text = "\n".join(f"- {file}" for file in sorted(consolidated_findings.relevant_files))
             context_parts.append(f"\n=== RELEVANT FILES ===\n{files_text}\n=== END FILES ===")
 
         # Add relevant security elements if available
         if consolidated_findings.relevant_context:
-            methods_text = "\n".join(f"- {method}" for method in consolidated_findings.relevant_context)
+            methods_text = "\n".join(f"- {method}" for method in sorted(consolidated_findings.relevant_context))
             context_parts.append(
                 f"\n=== SECURITY-CRITICAL CODE ELEMENTS ===\n{methods_text}\n=== END CODE ELEMENTS ==="
             )

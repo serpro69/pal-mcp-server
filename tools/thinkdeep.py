@@ -208,10 +208,10 @@ class ThinkDeepTool(WorkflowTool):
                 {
                     "steps_completed": len(self.work_history),
                     "final_confidence": self.get_caller_confidence(request),
-                    "relevant_context": list(self.consolidated_findings.relevant_context),
+                    "relevant_context": sorted(self.consolidated_findings.relevant_context),
                     "key_findings": self.consolidated_findings.findings,
                     "issues_identified": self.consolidated_findings.issues_found,
-                    "files_analyzed": list(self.consolidated_findings.relevant_files),
+                    "files_analyzed": sorted(self.consolidated_findings.relevant_files),
                 }
             )
 
@@ -447,7 +447,7 @@ but also acknowledge strong insights and valid conclusions.
                 context_parts.append(f"{i}. {finding}")
 
         if consolidated_findings.relevant_context:
-            context_parts.append(f"\nRELEVANT CONTEXT:\n{', '.join(consolidated_findings.relevant_context)}")
+            context_parts.append(f"\nRELEVANT CONTEXT:\n{', '.join(sorted(consolidated_findings.relevant_context))}")
 
         # Get hypothesis from latest hypotheses entry if available
         if consolidated_findings.hypotheses:

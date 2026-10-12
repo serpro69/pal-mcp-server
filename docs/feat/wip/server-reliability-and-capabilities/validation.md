@@ -1989,3 +1989,46 @@ Preserving mutation acknowledgments across failed status reads avoids duplicate
 actions. Cache measurement reused invocation ownership and exposed both workflow
 ordering instability and three concrete prompt follow-ups; none required prompt
 layout changes or a provider-version upgrade in this batch.
+
+## Task 40: Stable continuation prompts
+
+Implemented on 2026-10-12, starting from `02cab82`. The turn total moves behind
+history while retaining its token reservation. Workflow set-derived file paths and
+symbols render in sorted order, including local replies that may later enter
+history. Ordered image lists already use list/dict insertion order and retain that
+contract. File mtimes, errors, omission markers and model/tool provenance remain.
+Consensus moves only its existing perspective block after the shared instructions;
+custom stance text and safety/response constraints remain intact. No provider
+cache controls, dependencies or storage formats change.
+
+[Recorded baseline/candidate measurements](cache-stability-task40.json) use the
+real dispatcher and SDK serializer with synthetic HTTP. All 19 request contracts
+pass and all requests match across seeds 1/7/42 (baseline: 18/19). Twelve comparable
+chat pairs improve from median 4,154.5 to 5,220.5 UTF-8 bytes; candidate range
+4,078–7,800. A separate same-model `gpt-4.1` consensus run improves 1,190 → 6,170
+prefix bytes. Both participants retain the original proposal, explicit files and
+their full stance while excluding previous verdicts/summaries. Different-model
+wire prefixes are not used to claim cache reuse. Live cache benefit and model
+quality remain open checks.
+
+Verification in the existing lock-based Python 3.12.11 environment:
+
+- Pre-change full quality: **1,994 passed**. Final `./code_quality_checks.sh` with
+  `BLACK_NUM_WORKERS=1 BLACK_CACHE_DIR=/tmp/pal-black-cache`: **2,005 passed**,
+  16 skipped, 16 deselected, 19 subtests; Ruff/Black/isort pass.
+- Python 3.10.12 prompt, conversation, consensus and file-budget suite: **61 passed**.
+- Strict credential-isolated stdio simulator: **3/3 passed**, children reaped.
+- The full-suite prompt hash guard correctly flagged the deliberate stance move;
+  updated only that approved prompt digest, retaining the historical baseline.
+- Sandboxed async/formatter runs stalled; completed outside the sandbox as in
+  Tasks 37–39. `run_integration_tests.sh` still requires checkout-local `.pal_venv`
+  and exits before running tests. No live provider validation is claimed.
+- Credential-free legacy `--quick`: **2/6 passed**, exit 1; model-dependent cases
+  need a configured provider. The strict stub tier is the offline integration gate.
+
+Rollback is rendering-only: revert this task's prompt changes and matching guard;
+no conversation-memory migration is required. Task 41 owns any further history or
+file layout change. Independent isolated code review: **APPROVE**, no findings
+and none to index. PAL external review failed `API_KEY_INVALID`; the independent
+local reviewer covered the diff. Other providers and live stance behavior were
+not established by the OpenAI synthetic capture suite.
