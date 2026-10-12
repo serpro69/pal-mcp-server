@@ -57,7 +57,7 @@ def _make_private(fd: int, *, directory: bool = False) -> os.stat_result:
     if not expected_type(info.st_mode) or (not directory and info.st_nlink != 1):
         raise TranscriptError("Transcript path must be a directory or a single-link regular file")
     if info.st_uid != os.getuid():
-        raise TranscriptError("Transcript path must belong to the current user")
+        raise PermissionError("Transcript path must belong to the current user")
     mode = 0o700 if directory else 0o600
     os.fchmod(fd, mode)
     if stat.S_IMODE(os.fstat(fd).st_mode) != mode:

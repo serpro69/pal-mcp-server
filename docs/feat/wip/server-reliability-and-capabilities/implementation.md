@@ -578,6 +578,20 @@ unimplemented features done. Never relax an acceptance assertion to conceal a re
 
 **Contract / gate:** Verify resource-not-found error mapping against the retained MCP 1.x protocol/SDK before implementation; distinguish it from permission and I/O failures.
 
+**Resolved resource contract (2026-10-12):** MCP 1.30.0 decorators return
+`ReadResourceContents` and preserve explicit `McpError(ErrorData(...))` errors.
+Use -32002 for unknown/missing/disabled resources, -32603 for permission/storage
+failures. Schema v1 `application/json` envelopes: `pal://threads` returns at most
+100 summaries ordered by canonical UUID, with `truncated` and skipped-file counts.
+Scan at most 10,000 directory entries; exceeding that cap is an explicit capacity
+error, never an arbitrarily ordered successful subset. Thread reads examine at
+most 1 MiB plus one overflow byte and 1,000 physical records, retaining complete
+valid records only; report malformed records, interrupted final lines and limits.
+Reject records beyond 64 JSON container levels and non-finite/unencodable values.
+No cursor/pagination in v1; truncation is explicit. MCP resources/list advertises
+the index and resources/templates/list advertises the UUID template when enabled.
+Resources do not restore continuation memory or support subscriptions.
+
 <a id="task-33"></a>
 
 ## Task 33: Reduce tool schema overhead without contract loss

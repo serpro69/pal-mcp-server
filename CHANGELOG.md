@@ -4,6 +4,10 @@
 
 ## Unreleased
 
+- Expose opt-in conversation audits through bounded `pal://threads` and UUID
+  transcript resources over MCP 1.x. Reads report truncation and skipped records;
+  disabled recording hides retained data, with missing and I/O errors distinguished.
+
 - Add opt-in `PAL_TRANSCRIPTS=true` private JSONL conversation audits with 30-day
   startup retention. Recording failures preserve memory and answers. POSIX
   permissions are enforced; Windows recording fails closed pending native ACL

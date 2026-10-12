@@ -19,6 +19,7 @@ as defined by the MCP protocol.
 """
 
 import asyncio
+import json
 import logging
 import os
 import sys
@@ -27,19 +28,27 @@ from logging.handlers import RotatingFileHandler
 from typing import Any, Optional
 
 from mcp.server import Server  # noqa: E402
+from mcp.server.lowlevel.helper_types import ReadResourceContents
 from mcp.server.models import InitializationOptions  # noqa: E402
 from mcp.server.stdio import stdio_server  # noqa: E402
+from mcp.shared.exceptions import McpError
 from mcp.types import (  # noqa: E402
+    ErrorData,
     GetPromptResult,
+    JSONRPCRequest,
     Prompt,
     PromptMessage,
     PromptsCapability,
+    Resource,
+    ResourcesCapability,
+    ResourceTemplate,
     ServerCapabilities,
     TextContent,
     Tool,
     ToolAnnotations,
     ToolsCapability,
 )
+from pydantic import AnyUrl
 
 from config import (  # noqa: E402
     DEFAULT_MODEL,
@@ -79,7 +88,9 @@ from utils.log_dir import (
     get_log_dir,
 )
 from utils.progress import request_progress
-from utils.transcripts import prune_transcripts
+from utils.state_dir import StateDirectoryError
+from utils.transcript_reader import ResourceLimitError, ResourceNotFoundError, read_resource, resource_thread_id
+from utils.transcripts import TranscriptError, prune_transcripts, transcripts_enabled
 
 # Configure logging for server operations
 # Can be controlled via LOG_LEVEL environment variable (DEBUG, INFO, WARNING, ERROR)
@@ -186,6 +197,88 @@ else:
 # Create the MCP server instance with a unique name identifier
 # This name is used by MCP clients to identify and connect to this specific server
 server: Server = Server("pal-server")
+
+
+@server.list_resources()
+async def handle_list_resources() -> list[Resource]:
+    if not transcripts_enabled():
+        return []
+    return [
+        Resource(
+            uri="pal://threads",
+            name="Conversation transcripts",
+            mimeType="application/json",
+            description="Private audit index; bounded to 100 threads, sorted by UUID.",
+        )
+    ]
+
+
+@server.list_resource_templates()
+async def handle_list_resource_templates() -> list[ResourceTemplate]:
+    if not transcripts_enabled():
+        return []
+    return [
+        ResourceTemplate(
+            uriTemplate="pal://threads/{thread_id}",
+            name="Conversation transcript",
+            mimeType="application/json",
+            description="Canonical UUID audit; bounded to 1 MiB/1000 records.",
+        )
+    ]
+
+
+@server.read_resource()
+async def handle_read_resource(uri: AnyUrl) -> list[ReadResourceContents]:
+    try:
+        result = await asyncio.to_thread(read_resource, str(uri))
+    except ResourceNotFoundError as exc:
+        raise McpError(ErrorData(code=-32002, message="Resource not found")) from exc
+    except ResourceLimitError as exc:
+        raise McpError(
+            ErrorData(code=-32603, message="Transcript directory scan limit exceeded (10000 entries)")
+        ) from exc
+    except PermissionError as exc:
+        logger.warning("Transcript resource permission denied")
+        raise McpError(ErrorData(code=-32603, message="Transcript permission denied")) from exc
+    except (OSError, TranscriptError, StateDirectoryError) as exc:
+        logger.warning("Transcript resource unavailable (%s)", type(exc).__name__)
+        raise McpError(ErrorData(code=-32603, message="Transcript storage unavailable")) from exc
+    return [
+        ReadResourceContents(
+            content=json.dumps(result, ensure_ascii=False, allow_nan=False), mime_type="application/json"
+        )
+    ]
+
+
+class _ResourceURIStream:
+    """Validate resource URI spelling before MCP's AnyUrl normalization.
+
+    Invalid spellings become a fixed unknown URI so the normal MCP lifecycle
+    returns -32002 with its original request ID and cancellation/error handling.
+    """
+
+    def __init__(self, stream):
+        self.stream = stream
+
+    async def __aenter__(self):
+        await self.stream.__aenter__()
+        return self
+
+    async def __aexit__(self, *args):
+        return await self.stream.__aexit__(*args)
+
+    async def __aiter__(self):
+        async for message in self.stream:
+            if not isinstance(message, Exception):
+                request = message.message.root
+                if isinstance(request, JSONRPCRequest) and request.method == "resources/read":
+                    params = request.params
+                    if isinstance(params, dict) and isinstance(params.get("uri"), str):
+                        try:
+                            resource_thread_id(params["uri"])
+                        except ResourceNotFoundError:
+                            request.params = {**params, "uri": "pal://invalid-resource"}
+            yield message
 
 
 # Constants for tool filtering
@@ -1236,7 +1329,7 @@ async def _serve():
     # This allows the server to be launched by MCP clients as a subprocess
     async with stdio_server() as (read_stream, write_stream):
         await server.run(
-            read_stream,
+            _ResourceURIStream(read_stream),
             write_stream,
             InitializationOptions(
                 server_name="PAL",
@@ -1245,6 +1338,7 @@ async def _serve():
                 capabilities=ServerCapabilities(
                     tools=ToolsCapability(),  # Advertise tool support capability
                     prompts=PromptsCapability(),  # Advertise prompt support capability
+                    resources=ResourcesCapability(),  # No subscriptions/list-change notifications.
                 ),
             ),
         )

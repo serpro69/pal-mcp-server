@@ -1621,3 +1621,48 @@ default-preserving unresolved-leaf option for transcripts, with explicit XDG and
 default-home regressions. This containment pattern was indexed as review knowledge.
 
 Final isolated local code review: **APPROVE**, no remaining findings.
+
+## Task 32: Bounded MCP conversation resources
+
+2026-10-12. Added `utils/transcript_reader.py`, MCP resource discovery/template/read
+handlers in `server.py`, permission-error classification in the private file helper,
+resource tests, concrete limits in the implementation plan, logging docs and release
+notes. Schema v1 JSON views expose a deterministic 100-thread index and 1 MiB /
+1,000-record thread reads; the 10,000-directory-entry cap produces an explicit error.
+Truncation, malformed records, interrupted final lines and skipped files are visible.
+Disabled recording hides discovery and retained data; no recovery or subscription
+behavior was added.
+
+Dependency verification: Context7's unversioned MCP material returned v2 guidance,
+so the implementation was verified against the actual locked **MCP 1.30.0** package
+and [tagged v1.30.0 server implementation](https://github.com/modelcontextprotocol/python-sdk/blob/v1.30.0/src/mcp/server/lowlevel/server.py).
+The retained [2025-11-25 resource error contract](https://modelcontextprotocol.io/specification/2025-11-25/server/resources#error-handling)
+uses -32002 for resource-not-found and -32603 for internal failures. Tests observe
+those actual JSON-RPC codes through ClientSession and the stdio transport. No SDK
+version/dependency/lock changes.
+
+`tests/test_transcript_resources.py` launches the installed interpreter and real
+server in a temporary state directory with provider credentials explicitly empty.
+Both enabled and disabled scenarios initialize, verify advertised resources,
+list resources/templates, read the index/thread and check unknown/missing/malformed
+and disabled-retained errors. Transport/session teardown is owned and bounded by
+the test. No external API or model is used. Reader tests also cover huge files,
+record limits, malformed/deep JSON, invalid Unicode bytes, wrong thread IDs,
+interrupted final lines, symlinks/hardlinks/FIFOs/directories, deterministic listings,
+scan limits and real reader permission failures.
+
+Full Python 3.12 quality: **1,761 passed**, 16 skipped, 16 deselected, 19 subtests;
+Ruff/Black/isort passed. Python 3.10 transcript/resource tests: **53 passed**.
+Existing live runner setup limitations and invalid external PAL review credentials
+from Task 31 remain; the real stdio resource gate itself passed without them.
+
+Independent review identified numeric overflow producing non-JSON infinity and
+a state-path exception escaping safe error mapping. Both are fixed, including
+UTF-8 encodability checks for escaped lone surrogates. An actual raw stdio
+regression also exposed SDK dot-segment normalization: a small incoming-stream
+guard validates resource URI spellings before AnyUrl coercion. Invalid spellings
+use the ordinary MCP missing-resource response; canonical reads still pass.
+
+JSON nesting is capped at 64 containers so per-record and envelope export cannot
+differ at recursion boundaries. Final isolated review: **APPROVE**, no remaining
+findings or P0/P1 indexing items. Final checks retained the 1,761/53 pass counts.
