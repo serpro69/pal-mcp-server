@@ -32,6 +32,7 @@ from .test_planner_continuation_history import PlannerContinuationHistoryTest
 from .test_planner_validation import PlannerValidationTest
 from .test_precommitworkflow_validation import PrecommitWorkflowValidationTest
 from .test_prompt_size_limit_bug import PromptSizeLimitBugTest
+from .test_provider_agnostic import SessionContinuationTest, SessionErrorTest, WorkflowSessionTest
 
 # Redis validation test removed - no longer needed for standalone server
 from .test_refactor_validation import RefactorValidationTest
@@ -44,6 +45,9 @@ from .test_xai_models import XAIModelsTest
 
 # Test registry for dynamic loading
 TEST_REGISTRY = {
+    "session_continuation": SessionContinuationTest,
+    "workflow_session": WorkflowSessionTest,
+    "session_errors": SessionErrorTest,
     "basic_conversation": BasicConversationTest,
     "chat_validation": ChatSimpleValidationTest,
     "codereview_validation": CodeReviewValidationTest,

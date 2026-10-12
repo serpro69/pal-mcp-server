@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Implementation: [implementation.md](implementation.md)
 > Review resolutions: [review.md](review.md#revalidation-and-resolution)
-> Status: in-progress (Tasks 1–33 done; Tasks 34–42 pending)
+> Status: in-progress (Tasks 1–34 done; Tasks 35–42 pending)
 > Created: 2026-10-10
 > Not Doing: toolchain/release-process migration; MCP 2.x; wholesale catalogs; replacement of safety controls; file-annotation implementation; persistent continuation recovery; remote multi-user transport; automatic service activation
 
@@ -726,17 +726,23 @@ approved with no findings to index; external PAL credentials remain unavailable.
 
 ## Task 34: Repair simulator session lifetime and model selection
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 9, Task 23, Task 30
 - **Size:** M
 - **Can run in parallel with:** —
 - **Docs:** [Implementation slice](implementation.md#task-34); [design contract](design.md#d8-simulator-and-test-reliability)
 
-- [ ] 34.1 Keep one MCP process/session for each complete scenario; use the installed Python and correctly close it, instead of launching a new in-memory store per call.
-- [ ] 34.2 Add configurable SIMULATOR_MODEL/provider-agnostic selection, selected-test result accounting and clear mutually exclusive selection modes. Correct Ollama /v1 examples without changing the user's default local model.
-- [ ] 34.3 Verify the acceptance cases in [Task 34](implementation.md#task-34) and record the result here.
+- [x] 34.1 Keep one MCP process/session for each complete scenario; use the installed Python and correctly close it, instead of launching a new in-memory store per call.
+- [x] 34.2 Add configurable SIMULATOR_MODEL/provider-agnostic selection, selected-test result accounting and clear mutually exclusive selection modes. Correct Ollama /v1 examples without changing the user's default local model.
+- [x] 34.3 Verify the acceptance cases in [Task 34](implementation.md#task-34) and record the result here.
 
 **Scope / gate:** Never classify a routing- or response-quality-dependent scenario as stub-safe. Each multi-call scenario owns one complete server-session lifetime.
+
+**Evidence:** [Task 34 validation](validation.md#task-34-simulator-session-lifetime-and-selected-accounting).
+Full quality: 1,795 passed; focused 3.10/3.12: 20 passed each, including real stdio
+continuation and bounded SIGINT teardown. Isolated local review approved after
+compatibility/lifecycle fixes; external PAL key invalid. Local stub execution is
+paired with Task 35; live reasoning checks remain unavailable.
 
 ## Task 35: Add a strict stub simulator tier to local CI
 

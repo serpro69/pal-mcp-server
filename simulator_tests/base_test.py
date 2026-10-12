@@ -9,18 +9,27 @@ import json
 import logging
 import os
 import subprocess
+import sys
+from contextlib import ExitStack
 from typing import Optional
 
 from .log_utils import LogUtils
+from .server_session import SimulatorSession
 
 
 class BaseSimulatorTest:
     """Base class for all communication simulator tests"""
 
+    provider_agnostic = False
+
     def __init__(self, verbose: bool = False):
         self.verbose = verbose
         self.test_files = {}
         self.test_dir = None
+        self._session = None
+        self._resources = ExitStack()
+        self.last_result = None
+        self.model = os.getenv("SIMULATOR_MODEL", "auto").strip() or "auto"
 
         # Configure logging first
         log_level = logging.DEBUG if verbose else logging.INFO
@@ -30,27 +39,21 @@ class BaseSimulatorTest:
         self.python_path = self._get_python_path()
 
     def _get_python_path(self) -> str:
-        """Get the Python path for the virtual environment"""
-        current_dir = os.getcwd()
+        """Use the interpreter that has the simulator's dependencies installed."""
+        return sys.executable
 
-        # Try .venv first (modern convention)
-        venv_python = os.path.join(current_dir, ".venv", "bin", "python")
-        if os.path.exists(venv_python):
-            return venv_python
+    def run(self) -> bool:
+        """Own the entire scenario, including failed setup and interrupted calls."""
+        try:
+            return self.run_test()
+        finally:
+            self.close_session()
 
-        # Try venv as fallback
-        venv_python = os.path.join(current_dir, "venv", "bin", "python")
-        if os.path.exists(venv_python):
-            return venv_python
-
-        # Try .pal_venv as fallback
-        pal_venv_python = os.path.join(current_dir, ".pal_venv", "bin", "python")
-        if os.path.exists(pal_venv_python):
-            return pal_venv_python
-
-        # Fallback to system python if venv doesn't exist
-        self.logger.warning("Virtual environment not found, using system python")
-        return "python"
+    def close_session(self):
+        try:
+            self._resources.__exit__(*sys.exc_info())
+        finally:
+            self._session = None
 
     def setup_test_files(self):
         """Create test files for the simulation"""
@@ -125,114 +128,17 @@ class Calculator:
         self.logger.debug(f"Created test files with absolute paths: {list(self.test_files.values())}")
 
     def call_mcp_tool(self, tool_name: str, params: dict) -> tuple[Optional[str], Optional[str]]:
-        """Call an MCP tool via standalone server"""
+        """Call tools on the scenario's persistent, lazily opened stdio session."""
+        self.last_result = None
         try:
-            # Prepare the MCP initialization and tool call sequence
-            init_request = {
-                "jsonrpc": "2.0",
-                "id": 1,
-                "method": "initialize",
-                "params": {
-                    "protocolVersion": "2024-11-05",
-                    "capabilities": {"tools": {}},
-                    "clientInfo": {"name": "communication-simulator", "version": "1.0.0"},
-                },
-            }
-
-            # Send initialized notification
-            initialized_notification = {"jsonrpc": "2.0", "method": "notifications/initialized"}
-
-            # Prepare the tool call request
-            tool_request = {
-                "jsonrpc": "2.0",
-                "id": 2,
-                "method": "tools/call",
-                "params": {"name": tool_name, "arguments": params},
-            }  # Combine all messages
-            messages = [
-                json.dumps(init_request, ensure_ascii=False),
-                json.dumps(initialized_notification, ensure_ascii=False),
-                json.dumps(tool_request, ensure_ascii=False),
-            ]
-
-            # Join with newlines as MCP expects
-            input_data = "\n".join(messages) + "\n"
-
-            # Call the standalone MCP server directly
-            server_cmd = [self.python_path, "server.py"]
-
-            self.logger.debug(f"Calling MCP tool {tool_name} with proper initialization")
-
-            # Execute the command with proper handling for async responses
-            # For consensus tool and other long-running tools, we need to ensure
-            # the subprocess doesn't close prematurely
-            result = subprocess.run(
-                server_cmd,
-                input=input_data,
-                text=True,
-                capture_output=True,
-                timeout=3600,  # 1 hour timeout
-                check=False,  # Don't raise on non-zero exit code
-            )
-
-            if result.returncode != 0:
-                self.logger.error(f"Standalone server failed with return code {result.returncode}")
-                self.logger.error(f"Stderr: {result.stderr}")
-                # Still try to parse stdout as the response might have been written before the error
-                self.logger.debug(f"Attempting to parse stdout despite error: {result.stdout[:500]}")
-
-            # Parse the response - look for the tool call response
-            response_data = self._parse_mcp_response(result.stdout, expected_id=2)
-            if not response_data:
-                return None, None
-
-            # Extract continuation_id if present
-            continuation_id = self._extract_continuation_id(response_data)
-
-            return response_data, continuation_id
-
-        except subprocess.TimeoutExpired:
-            self.logger.error(f"MCP tool call timed out after 1 hour: {tool_name}")
+            if self._session is None:
+                self._session = self._resources.enter_context(SimulatorSession())
+            self.last_result = self._session.call_tool(tool_name, dict(params))
+            response = "\n".join(item.text for item in self.last_result.content if item.type == "text")
+            return response, self._extract_continuation_id(response)
+        except Exception:
+            self.logger.exception("MCP tool call failed: %s", tool_name)
             return None, None
-        except Exception as e:
-            self.logger.error(f"MCP tool call failed: {e}")
-            return None, None
-
-    def _parse_mcp_response(self, stdout: str, expected_id: int = 2) -> Optional[str]:
-        """Parse MCP JSON-RPC response from stdout"""
-        try:
-            lines = stdout.strip().split("\n")
-            for line in lines:
-                if line.strip() and line.startswith("{"):
-                    response = json.loads(line)
-                    # Look for the tool call response with the expected ID
-                    if response.get("id") == expected_id and "result" in response:
-                        # Extract the actual content from the response
-                        result = response["result"]
-                        # Handle new response format with 'content' array
-                        if isinstance(result, dict) and "content" in result:
-                            content_array = result["content"]
-                            if isinstance(content_array, list) and len(content_array) > 0:
-                                return content_array[0].get("text", "")
-                        # Handle legacy format
-                        elif isinstance(result, list) and len(result) > 0:
-                            return result[0].get("text", "")
-                    elif response.get("id") == expected_id and "error" in response:
-                        self.logger.error(f"MCP error: {response['error']}")
-                        return None
-
-            # If we get here, log all responses for debugging
-            self.logger.warning(f"No valid tool call response found for ID {expected_id}")
-            self.logger.warning(f"Full stdout: {stdout}")
-            self.logger.warning(f"Total stdout lines: {len(lines)}")
-            for i, line in enumerate(lines[:10]):  # Log first 10 lines
-                self.logger.warning(f"Line {i}: {line[:100]}...")
-            return None
-
-        except json.JSONDecodeError as e:
-            self.logger.error(f"Failed to parse MCP response: {e}")
-            self.logger.debug(f"Stdout that failed to parse: {stdout}")
-            return None
 
     def _extract_continuation_id(self, response_text: str) -> Optional[str]:
         """Extract continuation_id from response metadata"""
@@ -287,7 +193,7 @@ class Calculator:
         return os.path.abspath(file_path)
 
     def cleanup_test_files(self):
-        """Clean up test files"""
+        """Clean up test files without ending a scenario's MCP session."""
         if hasattr(self, "test_dir") and self.test_dir and os.path.exists(self.test_dir):
             import shutil
 

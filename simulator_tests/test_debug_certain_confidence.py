@@ -12,8 +12,6 @@ Tests the debug tool's 'certain' confidence feature in a realistic simulation:
 import json
 from typing import Optional
 
-from tools.shared.exceptions import ToolExecutionError
-
 from .conversation_base_test import ConversationBaseTest
 
 
@@ -469,43 +467,6 @@ This happens every time a user tries to log in. The error occurs in the password
         except Exception as e:
             self.logger.error(f"Multi-step investigation certain test failed: {e}")
             return False
-
-    def call_mcp_tool_direct(self, tool_name: str, params: dict) -> tuple[Optional[str], Optional[str]]:
-        """Call an MCP tool directly in-process to maintain conversation memory"""
-        try:
-            # Get the tool instance
-            if tool_name not in self._tools:
-                self.logger.error(f"Tool '{tool_name}' not found in available tools")
-                return None, None
-
-            tool = self._tools[tool_name]
-
-            # Execute the tool with proper async handling
-            loop = self._get_event_loop()
-
-            # Call the tool's execute method
-            try:
-                result = loop.run_until_complete(tool.execute(params))
-            except ToolExecutionError as exc:
-                response_text = exc.payload
-                continuation_id = self._extract_debug_continuation_id(response_text)
-                return response_text, continuation_id
-
-            if not result or len(result) == 0:
-                self.logger.error(f"Tool '{tool_name}' returned empty result")
-                return None, None
-
-            # Extract the text content from the result
-            response_text = result[0].text if hasattr(result[0], "text") else str(result[0])
-
-            # Extract continuation_id from debug response if present
-            continuation_id = self._extract_debug_continuation_id(response_text)
-
-            return response_text, continuation_id
-
-        except Exception as e:
-            self.logger.error(f"Failed to call tool '{tool_name}' directly: {e}")
-            return None, None
 
     def _extract_debug_continuation_id(self, response_text: str) -> Optional[str]:
         """Extract continuation_id from debug response"""

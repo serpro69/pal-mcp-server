@@ -169,7 +169,7 @@ def main():
     verbose = "--verbose" in sys.argv or "-v" in sys.argv
     test = TestModelThinkingConfig(verbose=verbose)
 
-    success = test.run_test()
+    success = test.run()
     sys.exit(0 if success else 1)
 
 

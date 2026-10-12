@@ -107,7 +107,7 @@ def main():
     verbose = "--verbose" in sys.argv or "-v" in sys.argv
     test = O3ProExpensiveTest(verbose=verbose)
 
-    success = test.run_test()
+    success = test.run()
 
     if success:
         print("✅ O3-Pro test completed successfully")
