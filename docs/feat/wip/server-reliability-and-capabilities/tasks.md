@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Implementation: [implementation.md](implementation.md)
 > Review resolutions: [review.md](review.md#revalidation-and-resolution)
-> Status: in-progress (Tasks 1–37 done; Tasks 38–42 pending; OpenCode Go/Jules live gates open)
+> Status: in-progress (Tasks 1–38 done; Tasks 39–42 pending; OpenCode Go/Jules live gates open)
 > Created: 2026-10-10
 > Not Doing: toolchain/release-process migration; MCP 2.x; wholesale catalogs; replacement of safety controls; file-annotation implementation; persistent continuation recovery; remote multi-user transport; automatic service activation
 
@@ -807,17 +807,24 @@ until a disposable repository/branch and explicit creation authorization exist.
 
 ## Task 38: Add Jules steering and verified lifecycle actions
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 37
 - **Size:** M
 - **Can run in parallel with:** —
 - **Docs:** [Implementation slice](implementation.md#task-38); [design contract](design.md#d9-optional-service-integrations)
 
-- [ ] 38.1 Add message and approve actions with state-aware responses and validated session IDs; expose polling to the caller instead of blocking until coding completes.
-- [ ] 38.2 Verify archive/unarchive against current official API/discovery data. Implement and test only if supported; otherwise retain a durable deferred entry naming the missing evidence and next validation step.
-- [ ] 38.3 Verify the acceptance cases in [Task 38](implementation.md#task-38) and record the result here.
+- [x] 38.1 Add message and approve actions with state-aware responses and validated session IDs; expose polling to the caller instead of blocking until coding completes.
+- [x] 38.2 Verify archive/unarchive against current official API/discovery data. Implement and test only if supported; otherwise retain a durable deferred entry naming the missing evidence and next validation step.
+- [x] 38.3 Verify the acceptance cases in [Task 38](implementation.md#task-38) and record the result here.
 
 **Scope / gate:** Archive/unarchive remain gated on official API support and contract tests. Keep an explicit follow-up if either action cannot be verified.
+
+**Evidence:** [Task 38 validation](validation.md#task-38-jules-steering-and-verified-lifecycle-actions).
+Official discovery revision **20261008** verifies archive/unarchive; both are
+implemented with state-transition wire tests. Full quality **1,952 passed**;
+Jules **99 passed**; Python 3.10 focused **113 passed**; strict stdio **3/3 passed**.
+Independent isolated review approved with no findings. Live lifecycle checks
+remain release-gated on a designated repository/session; no service mutations ran.
 
 ## Task 39: Measure cache usage and request completeness
 
@@ -934,8 +941,11 @@ T01–T41 --> T42 (final verification)
 - **OpenCode Messages protocol:** models that require an unsupported protocol remain
   unavailable. Task 36 records verified supported entries; the next step is a
   dedicated adapter design and wire tests for Messages-only entries.
-- **Jules archive/unarchive:** API support is unresolved. Task 38 must verify the
-  methods and state transitions or retain an explicit API-validation follow-up.
+- **Jules live lifecycle validation:** Task 38 verified archive/unarchive in
+  official discovery revision 20261008 and implements their wire contracts.
+  Live message/approval and archive/unarchive checks require a designated test
+  repository/session; next step: authorize that target and verify reported state
+  and archival visibility. Offline tests do not establish live service behavior.
 - **Explicit provider caches / strict-prefix layout:** wait for Tasks 39–41's
   completeness and benefit evidence. Next step: a provider-specific API, pricing and
   quality assessment followed by separately bounded implementation tasks.

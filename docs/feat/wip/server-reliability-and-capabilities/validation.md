@@ -1884,3 +1884,36 @@ configured providers. The strict stub tier above is the offline integration gate
 Live release gate: designate a disposable
 repository/branch, explicitly authorize creation, then verify discovery, creation
 with plan approval on/PR automation off, and paginated status against Jules.
+
+## Task 38: Jules steering and verified lifecycle actions
+
+Implemented on 2026-10-12. `tools/jules.py`, its client guidance, HTTP tests and
+[the tool guide](../../../tools/jules.md) now expose message, approve, archive and
+unarchive. Approval checks the observed pending-plan state; message/approve send
+their distinct POST payloads, accept empty acknowledgments and refresh state once.
+A failed refresh preserves `accepted=true` and gives polling guidance. Archive
+and unarchive use their own POSTs and return the reported session/archival state.
+All actions validate IDs before I/O and avoid automatic retries.
+
+Official Google discovery was retrieved without credentials from
+`https://jules.googleapis.com/$discovery/rest?version=v1alpha`, revision
+**20261008**. It declares archive/unarchive with empty request objects, Session
+responses and the output-only boolean `archived`; this is newer evidence than
+the HTML REST index. The API-evidence gate is closed, with dedicated tests of
+both archival directions and execution-state preservation. No delete action was
+added. No live session was created or mutated.
+
+- `python -m pytest tests/test_jules.py -q`: **99 passed** on Python 3.12.11.
+- Jules/tool-surface suite on Python 3.10.12: **113 passed**.
+- Full quality in the lock-based Python 3.12.11 environment: **1,952 passed**,
+  16 skipped, 16 deselected, 19 subtests; Ruff/Black/isort pass.
+- No dependency changes. Task 37's legacy integration/quick limitations remain;
+  repeating an unavailable live run cannot validate these new service actions.
+
+Live release gate stays open: designate a disposable session/repository and
+explicitly authorize steering/approval and archival round trips. Compare observed
+state and visibility against the offline fixtures, without treating archive as
+cancellation. External PAL remains unavailable after Task 37's invalid-key failure.
+
+Strict credential-isolated stdio simulator: **3/3 passed**, all children reaped.
+Independent isolated code review: **APPROVE**, no findings and none to index.

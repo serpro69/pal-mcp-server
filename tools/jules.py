@@ -29,9 +29,9 @@ def valid_component(value: str) -> bool:
 class JulesRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
-    action: Literal["list_sources", "create", "status"]
+    action: Literal["list_sources", "create", "status", "message", "approve", "archive", "unarchive"]
     session_id: str | None = Field(default=None, max_length=512, description="Opaque ID, without sessions/ prefix.")
-    prompt: str | None = Field(default=None, max_length=100_000, description="Task to start; create only.")
+    prompt: str | None = Field(default=None, max_length=100_000, description="Task for create or feedback for message.")
     source: str | None = Field(default=None, max_length=1024, description="Exact sources/... name from list_sources.")
     starting_branch: str | None = Field(
         default=None, max_length=1024, description="Explicit repository branch for create."
@@ -52,14 +52,20 @@ class JulesRequest(BaseModel):
             "list_sources": {"page_size", "page_token"},
             "create": {"prompt", "source", "starting_branch", "title", "require_plan_approval", "auto_create_pr"},
             "status": {"session_id", "page_size", "page_token"},
+            "message": {"session_id", "prompt"},
+            "approve": {"session_id"},
+            "archive": {"session_id"},
+            "unarchive": {"session_id"},
         }
         if self.model_fields_set - allowed[self.action] - {"action"}:
             raise ValueError("Fields supplied do not apply to the selected action")
-        if self.action == "status" and (self.session_id is None or not valid_component(self.session_id)):
+        if self.action in ("status", "message", "approve", "archive", "unarchive") and (
+            self.session_id is None or not valid_component(self.session_id)
+        ):
             raise ValueError("session_id must be one nonempty URL-safe opaque component")
+        if self.action in ("create", "message") and (not self.prompt or not self.prompt.strip()):
+            raise ValueError("create and message require a nonempty prompt")
         if self.action == "create":
-            if not self.prompt or not self.prompt.strip():
-                raise ValueError("create requires a nonempty prompt")
             if not self.starting_branch or not self.starting_branch.strip():
                 raise ValueError("create requires an explicit starting_branch")
             if not self.source or not self.source.startswith("sources/"):
@@ -125,7 +131,9 @@ class JulesTool(BaseTool):
                 result = await self._dispatch(client, request)
         return [TextContent(type="text", text=json.dumps({"status": "success", "action": request.action, **result}))]
 
-    async def _request(self, client: httpx.AsyncClient, method: str, path: str, **kwargs) -> dict[str, Any]:
+    async def _request(
+        self, client: httpx.AsyncClient, method: str, path: str, *, allow_empty: bool = False, **kwargs
+    ) -> dict[str, Any]:
         mutating = method != "GET"
         reconcile = " Remote outcome is unknown; check Jules before repeating this action." if mutating else ""
         try:
@@ -148,6 +156,8 @@ class JulesTool(BaseTool):
             )
             unknown = mutating and response.status_code >= 500
             raise _error(code, message + (reconcile if unknown else ""), outcome_unknown=unknown)
+        if allow_empty and not response.content:
+            return {}
         try:
             data = response.json()
         except (ValueError, RecursionError) as exc:
@@ -172,14 +182,62 @@ class JulesTool(BaseTool):
         return {field: items, "next_page_token": token or None}
 
     @staticmethod
-    def _session(data: dict[str, Any], *, created: bool = False) -> dict[str, Any]:
+    def _session(data: dict[str, Any], *, mutated: bool = False) -> dict[str, Any]:
         name = data.get("name")
         if not isinstance(name, str) or not name.startswith("sessions/") or not valid_component(name[9:]):
             message = "Jules returned an invalid session."
-            if created:
-                message += " Remote outcome is unknown; check Jules before creating another session."
-            raise _error("invalid_response", message, outcome_unknown=created)
+            if mutated:
+                message += " Remote outcome is unknown; check Jules before repeating the action."
+            raise _error("invalid_response", message, outcome_unknown=mutated)
         return data
+
+    @staticmethod
+    def _next_action(session: dict[str, Any]) -> str:
+        state = session.get("state")
+        if session.get("archived") is True:
+            return "Session is archived. Use unarchive to restore its visibility; archiving is not cancellation."
+        if state == "AWAITING_PLAN_APPROVAL":
+            return "Inspect the plan with status; call approve only after explicit approval, or message with feedback."
+        if state == "AWAITING_USER_FEEDBACK":
+            return "Inspect activities with status, then send the requested feedback with message."
+        if state in ("COMPLETED", "FAILED"):
+            return "Inspect session outputs and activities with status."
+        return "Call status again to inspect the observed state and activities; no completion is assumed."
+
+    async def _steer(self, client: httpx.AsyncClient, request: JulesRequest, path: str) -> dict[str, Any]:
+        if request.action == "approve":
+            before = self._session(await self._request(client, "GET", path))
+            if before.get("state") != "AWAITING_PLAN_APPROVAL":
+                raise _error("invalid_state", "Session is not awaiting plan approval; inspect status before approving.")
+        methods = {"message": "sendMessage", "approve": "approvePlan", "archive": "archive", "unarchive": "unarchive"}
+        payload = {"prompt": request.prompt} if request.action == "message" else {}
+        data = await self._request(
+            client,
+            "POST",
+            path + ":" + methods[request.action],
+            json=payload,
+            allow_empty=request.action in ("message", "approve"),
+        )
+        if request.action in ("archive", "unarchive"):
+            session = self._session(data, mutated=True)
+        else:
+            try:
+                session = self._session(await self._request(client, "GET", path))
+            except ToolExecutionError as exc:
+                # The POST succeeded. Do not turn a subsequent read failure into
+                # a failed mutation that invites a duplicate message/approval.
+                return {
+                    "accepted": True,
+                    "session": None,
+                    "warnings": [
+                        {
+                            "code": json.loads(exc.payload)["code"],
+                            "content": "Action accepted, but status refresh failed. Call status; do not repeat the action.",
+                        }
+                    ],
+                    "next_action": "Call status to inspect the session.",
+                }
+        return {"accepted": True, "session": session, "next_action": self._next_action(session)}
 
     async def _dispatch(self, client: httpx.AsyncClient, request: JulesRequest) -> dict[str, Any]:
         params = {"pageSize": request.page_size}
@@ -200,12 +258,14 @@ class JulesTool(BaseTool):
             if request.title is not None:
                 payload["title"] = request.title
             data = await self._request(client, "POST", "/sessions", json=payload)
-            return {"session": self._session(data, created=True), "next_action": "Call status to inspect progress."}
+            return {"session": self._session(data, mutated=True), "next_action": "Call status to inspect progress."}
         path = f"/sessions/{request.session_id}"
+        if request.action != "status":
+            return await self._steer(client, request, path)
         session = self._session(await self._request(client, "GET", path))
         activities = self._page(await self._request(client, "GET", path + "/activities", params=params), "activities")
         return {
             "session": session,
             **activities,
-            "next_action": "Call status again to poll; pass next_page_token as page_token for more activities.",
+            "next_action": self._next_action(session) + " Pass next_page_token as page_token for more activities.",
         }
