@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Implementation: [implementation.md](implementation.md)
 > Review resolutions: [review.md](review.md#revalidation-and-resolution)
-> Status: in-progress (Tasks 1–31 done; Tasks 32–42 pending)
+> Status: in-progress (Tasks 1–32 done; Tasks 33–42 pending)
 > Created: 2026-10-10
 > Not Doing: toolchain/release-process migration; MCP 2.x; wholesale catalogs; replacement of safety controls; file-annotation implementation; persistent continuation recovery; remote multi-user transport; automatic service activation
 
@@ -683,17 +683,24 @@ limitations remain recorded separately.
 
 ## Task 32: Expose bounded conversation resources through MCP 1.x
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 31, Task 23
 - **Size:** M
 - **Can run in parallel with:** —
 - **Docs:** [Implementation slice](implementation.md#task-32); [design contract](design.md#d7-state-transcripts-and-resources)
 
-- [ ] 32.1 Implement pal://threads and canonical UUID thread resources with deterministic bounded listing and read limits, plus explicit skipped-record diagnostics.
-- [ ] 32.2 Map missing/disabled resources to Resource not found and distinguish permission/I/O failures; reject traversal and symlinks. Hide old data when recording/resources are disabled.
-- [ ] 32.3 Verify the acceptance cases in [Task 32](implementation.md#task-32) and record the result here.
+- [x] 32.1 Implement pal://threads and canonical UUID thread resources with deterministic bounded listing and read limits, plus explicit skipped-record diagnostics.
+- [x] 32.2 Map missing/disabled resources to Resource not found and distinguish permission/I/O failures; reject traversal and symlinks. Hide old data when recording/resources are disabled.
+- [x] 32.3 Verify the acceptance cases in [Task 32](implementation.md#task-32) and record the result here.
 
 **Scope / gate:** Verify resource-not-found error mapping against the retained MCP 1.x protocol/SDK before implementation; distinguish it from permission and I/O failures.
+
+**Evidence:** [Task 32 validation](validation.md#task-32-bounded-mcp-conversation-resources),
+2026-10-12. Full quality **1,761 passed**; Python 3.10 transcript/resources **53 passed**,
+including enabled/disabled real MCP stdio and raw URI traversal checks. Isolated
+review approved after strict JSON export, safe state-error mapping and URI
+normalization fixes; no remaining findings. No findings required indexing.
+External reviewer remains unavailable due to invalid credentials.
 
 ## Task 33: Reduce tool schema overhead without contract loss
 

@@ -129,3 +129,40 @@ append failure attempts to restore the previous length. A crash may leave an
 incomplete final line; the next append separates it from the next valid record.
 These are best-effort audit records, not fsync-backed recovery. Transcripts never
 restore continuations: process restart and memory TTL retain their existing behavior.
+
+## MCP conversation resources
+
+With `PAL_TRANSCRIPTS=true`, MCP resource discovery lists `pal://threads` and a
+`pal://threads/{thread_id}` template. Both return `application/json` schema-v1
+envelopes. The resources capability is advertised even while disabled, but
+discovery returns no entries and all reads are hidden when recording is disabled,
+including retained files. Resources are audit views, not resumable conversations.
+
+| Resource | Contents | Limits |
+| --- | --- | --- |
+| `pal://threads` | `threads` with UUID, URI, file byte size and Unix modification timestamp, sorted by UUID | 100 summaries; 10,000 directory entries examined |
+| `pal://threads/{thread_id}` | Complete validated `records` in file order | 1 MiB examined plus one overflow byte; 1,000 physical records |
+
+The index includes `total_threads`, `skipped_files`, `limit` and `truncated`.
+Unrecognized filenames, links and nonregular files are skipped. Exceeding the
+directory scan cap fails explicitly instead of returning a nondeterministic subset.
+Thread reads include `truncated` and diagnostics for `skipped_malformed_records`,
+`interrupted_final_lines`, `examined_records`, `byte_limit` and `record_limit`.
+Malformed JSON, invalid event shape/version/thread identity and incomplete final
+lines are omitted with counts. Non-finite numbers, unencodable Unicode and records
+nested beyond 64 JSON containers are also skipped. A partial line at the byte limit is truncation,
+not evidence of a corrupt file. Diagnostics count only examined records. V1 has no
+cursor or pagination: later records/threads require operator inspection of the
+private files when a view is truncated. No subscriptions or change notifications.
+
+Thread IDs must be canonical lowercase hyphenated UUIDs. Queries, fragments,
+percent-encoded IDs and paths are rejected. Missing, unknown, unsafe-file and
+disabled resources use MCP error -32002 (`Resource not found`). Permission failures
+and storage/configuration failures use -32603 with distinct safe messages. Local
+path/error details are not exposed to the client. Reads use the same private
+directory/file policy as recording and run outside the event-loop thread.
+
+The mapping follows the retained
+[MCP 2025-11-25 resource contract](https://modelcontextprotocol.io/specification/2025-11-25/server/resources#error-handling)
+and was verified against Python SDK 1.30.0; MCP 2.x migration guidance has a different
+mapping and does not govern this implementation.
