@@ -12,7 +12,7 @@ class StateDirectoryError(ValueError):
     """State/log configuration cannot select or create a usable directory."""
 
 
-def resolve_directory(value: str | Path, setting: str, *, create: bool = False) -> Path:
+def resolve_directory(value: str | Path, setting: str, *, create: bool = False, resolve_links: bool = True) -> Path:
     """Expand home, require an absolute path and diagnose invalid ancestors."""
     try:
         if "\x00" in str(value):
@@ -20,7 +20,8 @@ def resolve_directory(value: str | Path, setting: str, *, create: bool = False) 
         path = Path(value).expanduser()
         if not path.is_absolute():
             raise ValueError("an absolute path is required")
-        path = path.resolve()
+        if resolve_links:
+            path = path.resolve()
         for ancestor in (path, *path.parents):
             try:
                 mode = ancestor.stat().st_mode
@@ -36,21 +37,21 @@ def resolve_directory(value: str | Path, setting: str, *, create: bool = False) 
         raise StateDirectoryError(f"Invalid {setting} directory: {exc}") from exc
 
 
-def get_state_dir(*, create: bool = False) -> Path:
+def get_state_dir(*, create: bool = False, resolve_links: bool = True) -> Path:
     """PAL_STATE_DIR > XDG_STATE_HOME/pal > platform per-user state."""
     configured = get_env("PAL_STATE_DIR")
     if configured:
-        return resolve_directory(configured, "PAL_STATE_DIR", create=create)
+        return resolve_directory(configured, "PAL_STATE_DIR", create=create, resolve_links=resolve_links)
     xdg = get_env("XDG_STATE_HOME")
     if xdg:
         root = resolve_directory(xdg, "XDG_STATE_HOME")
-        return resolve_directory(root / "pal", "XDG_STATE_HOME/pal", create=create)
+        return resolve_directory(root / "pal", "XDG_STATE_HOME/pal", create=create, resolve_links=resolve_links)
     if sys.platform == "win32" and os.environ.get("LOCALAPPDATA"):
         root = resolve_directory(os.environ["LOCALAPPDATA"], "LOCALAPPDATA")
-        return resolve_directory(root / "pal", "LOCALAPPDATA/pal", create=create)
+        return resolve_directory(root / "pal", "LOCALAPPDATA/pal", create=create, resolve_links=resolve_links)
     try:
         home = Path.home()
     except (RuntimeError, OSError) as exc:
         raise StateDirectoryError("Cannot resolve the user home; set an absolute PAL_STATE_DIR") from exc
     suffix = Path("AppData/Local/pal") if sys.platform == "win32" else Path(".local/state/pal")
-    return resolve_directory(home / suffix, "per-user state", create=create)
+    return resolve_directory(home / suffix, "per-user state", create=create, resolve_links=resolve_links)

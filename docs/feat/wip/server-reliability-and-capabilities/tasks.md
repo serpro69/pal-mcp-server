@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Implementation: [implementation.md](implementation.md)
 > Review resolutions: [review.md](review.md#revalidation-and-resolution)
-> Status: in-progress (Tasks 1–30 done; Tasks 31–42 pending)
+> Status: in-progress (Tasks 1–31 done; Tasks 32–42 pending)
 > Created: 2026-10-10
 > Not Doing: toolchain/release-process migration; MCP 2.x; wholesale catalogs; replacement of safety controls; file-annotation implementation; persistent continuation recovery; remote multi-user transport; automatic service activation
 
@@ -662,17 +662,24 @@ release gates remain explicitly open; legacy rotation example cleanup is Task 42
 
 ## Task 31: Add opt-in private conversation transcripts
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 9, Task 30
 - **Size:** M
 - **Can run in parallel with:** —
 - **Docs:** [Implementation slice](implementation.md#task-31); [design contract](design.md#d7-state-transcripts-and-resources)
 
-- [ ] 31.1 Write versioned thread/turn JSONL records only after successful memory writes; default recording off locally and document retention/disable behavior.
-- [ ] 31.2 Validate UUIDs and directory containment, reject links, enforce private permissions with explicit cross-platform handling, and prune only eligible expired regular transcript files.
-- [ ] 31.3 Verify the acceptance cases in [Task 31](implementation.md#task-31) and record the result here.
+- [x] 31.1 Write versioned thread/turn JSONL records only after successful memory writes; default recording off locally and document retention/disable behavior.
+- [x] 31.2 Validate UUIDs and directory containment, reject links, enforce private permissions with explicit cross-platform handling, and prune only eligible expired regular transcript files.
+- [x] 31.3 Verify the acceptance cases in [Task 31](implementation.md#task-31) and record the result here.
 
 **Scope / gate:** This does not persist resumable workflow state across server restarts. Transcript errors are visible without undoing successful memory writes.
+
+**Evidence:** [Task 31 validation](validation.md#task-31-private-opt-in-conversation-transcripts),
+2026-10-12. Full quality: **1,733 passed**; Python 3.10 transcript/ownership: **59 passed**.
+Independent isolated code review approved after fixing default/XDG root symlink
+normalization; no remaining findings. External PAL reviewer failed API_KEY_INVALID.
+Windows recording fails closed pending native ACL validation. Live runner setup
+limitations remain recorded separately.
 
 ## Task 32: Expose bounded conversation resources through MCP 1.x
 
