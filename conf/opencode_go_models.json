@@ -1,0 +1,36 @@
+{
+  "_README": {
+    "description": "OpenCode Go candidates, verified offline on 2026-10-12. Live gateway smoke validation remains gated; no entries promoted to default discovery.",
+    "documentation": "https://opencode.ai/docs/go/",
+    "protocols": "Only chat_completions and responses are supported. Messages-only models are deliberately excluded.",
+    "capacity_policy": "Native model capacities bound these candidates; GLM uses a conservative 65,536 output cap. Gateway validation is still required."
+  },
+  "models": [
+    {
+      "model_name": "glm-5.2",
+      "api_protocol": "chat_completions",
+      "context_window": 1000000,
+      "max_output_tokens": 65536,
+      "supports_temperature": true,
+      "temperature_constraint": "fixed",
+      "supports_images": false,
+      "supports_extended_thinking": false,
+      "supports_streaming": false,
+      "enabled_by_default": false,
+      "description": "OpenCode Go Chat Completions candidate; fixed temperature 1, PAL output cap 65,536; live validation pending"
+    },
+    {
+      "model_name": "gpt-6-luna",
+      "api_protocol": "responses",
+      "context_window": 1050000,
+      "max_output_tokens": 128000,
+      "supports_temperature": false,
+      "supports_images": false,
+      "supports_extended_thinking": true,
+      "default_reasoning_effort": "medium",
+      "supports_streaming": false,
+      "enabled_by_default": false,
+      "description": "OpenCode Go Responses candidate; no temperature; text-only PAL slice; live validation pending"
+    }
+  ]
+}

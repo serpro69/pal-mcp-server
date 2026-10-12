@@ -38,6 +38,12 @@ def current_invocation(tool) -> ConversationInvocation | None:
     return context if context is not None and context.tool is tool else None
 
 
+def current_conversation_id() -> str | None:
+    """Expose only the invocation-owned identity to per-request provider hooks."""
+    context = _active.get()
+    return context.thread_id if context is not None else None
+
+
 def continuation_offer(thread_id: str) -> dict[str, Any]:
     thread = memory.get_thread(thread_id)
     if thread is None:

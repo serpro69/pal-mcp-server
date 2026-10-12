@@ -41,6 +41,7 @@ class ModelProviderRegistry:
         ProviderType.XAI,  # Direct X.AI GROK access
         ProviderType.DIAL,  # DIAL unified API access
         ProviderType.CUSTOM,  # Local/self-hosted models
+        ProviderType.OPENCODE_GO,  # Explicitly configured OpenCode Go catalog
         ProviderType.OPENROUTER,  # Catch-all for cloud models
     ]
 

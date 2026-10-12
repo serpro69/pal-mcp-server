@@ -4,6 +4,10 @@
 
 ## Unreleased
 
+- Add optional OpenCode Go Chat Completions/Responses support with per-request
+  conversation headers and PAL user agent. Initial GLM-5.2/GPT-6 Luna candidates
+  remain hidden and live-validation gated; Messages-only models are excluded.
+
 - Run a strict, credential-isolated loopback simulator tier in CI on PRs and main
   pushes. It verifies MCP continuation and HTTP contracts without external APIs.
 

@@ -60,6 +60,7 @@ def provider_classes():
     from .dial import DIALModelProvider
     from .gemini import GeminiModelProvider
     from .openai import OpenAIModelProvider
+    from .opencode_go import OpenCodeGoProvider
     from .openrouter import OpenRouterProvider
     from .xai import XAIModelProvider
 
@@ -70,6 +71,7 @@ def provider_classes():
         XAIModelProvider,
         DIALModelProvider,
         CustomProvider,
+        OpenCodeGoProvider,
         OpenRouterProvider,
     )
 

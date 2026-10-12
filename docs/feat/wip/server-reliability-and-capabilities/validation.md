@@ -1796,3 +1796,55 @@ Final quality: **1,823 passed**, 16 skipped, 16 deselected, 19 subtests; Python
 An unsupported-method probe fails the CI gate even when all three scenarios pass;
 huge numeric temperature inputs are rejected without overflow. Final isolated local
 review approved after these fixes; dotenv-isolation lesson indexed separately.
+
+## Task 36: Optional OpenCode Go, offline validation
+
+2026-10-12. The user explicitly selected offline implementation/testing and retained
+the live release gate. Added the optional provider and protocol-validating registry,
+hidden GLM-5.2/GPT-6 Luna candidates, metadata/policy/package registration and a
+small shared request-finalization hook. The existing invocation ContextVar exposes
+its already-saved thread ID through a read-only accessor; no separate identity or
+mutable shared-client session state was introduced.
+
+The [provider guide](../../../opencode-go.md#evidence-and-release-gates) retains
+dated official endpoint/catalog evidence, native capability sources, conservative
+PAL controls, SDK contract evidence and deferred Messages IDs/next steps. OpenAI
+Python remains **2.41.0**, verified via installed signatures and tagged source;
+both SDK endpoints serialize `extra_headers` as headers. No dependency versions
+changed and both pip-tools lock freshness commands produced no diff.
+
+Offline tests use the real SDK serializers with HTTP MockTransport through actual
+PAL dispatch/direct-tool paths. They verify bearer authentication, exact routes and
+model IDs, PAL user agent, first/continued thread IDs, concurrent Chat/Responses
+isolation, error/cancellation reset, missing/unsafe identity rejection before client
+allocation, output limits/temperature/usage, expert and consensus calls, hidden
+discovery, allow/deny precedence, absent configuration and protocol-aware catalog
+proposals. Only synthetic OpenCode credentials were used; no live generation
+request was made.
+
+Built local sdist and wheel using the declared isolated build requirements; both
+contain `providers/opencode_go.py`, `providers/registries/opencode_go.py` and
+`conf/opencode_go_models.json`. The initial no-isolation build identified missing
+setuptools_scm in the validation environment; the normal isolated build succeeded.
+Nothing was published. Catalog promotion, gateway-specific capacity confirmation
+and Messages support remain explicitly gated.
+
+Setup diagnostics/environment forwarding and the container's key check also
+recognize OpenCode Go. Bash syntax validation passed; PowerShell is not installed
+in this environment, so its two mechanical key-list additions lack native runtime
+validation. The container key check has a Go-only credential regression.
+
+Final full quality: **1,852 passed**, 16 skipped, 16 deselected, 19 subtests;
+Ruff/Black/isort passed. Python 3.10 provider/configuration/wire suite: **125 passed**.
+The OpenCode Go suite contributes **26 offline tests**. Final isolated local code
+review: **APPROVE**, no remaining findings and none to index for this task.
+External PAL review remains unavailable because its configured key is invalid.
+
+### Reflection on Tasks 34–36
+
+Legacy simulator overrides required explicit base dispatch, and file cleanup could
+not own session lifetime because some scenarios clean files mid-run. Interruption
+needed the original exception to reach the AnyIO portal. Strict CI isolation also
+needed to bypass forced dotenv loading before it could restore external credentials.
+OpenCode Go reused the existing invocation context, keeping the integration small;
+its service-specific live validation and unsupported Messages protocol stay open.
