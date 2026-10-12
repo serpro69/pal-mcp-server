@@ -1,0 +1,16 @@
+{
+  "models": [
+    {
+      "model_name": "pal-stub",
+      "aliases": [],
+      "context_window": 32768,
+      "max_output_tokens": 4096,
+      "supports_temperature": true,
+      "supports_images": false,
+      "supports_extended_thinking": false,
+      "supports_json_mode": false,
+      "supports_function_calling": false,
+      "description": "Deterministic local simulator transport fixture; no model reasoning"
+    }
+  ]
+}

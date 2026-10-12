@@ -42,6 +42,13 @@ def reload_env(dotenv_mapping: Mapping[str, str | None] | None = None) -> None:
 
     global _DOTENV_VALUES, _FORCE_ENV_OVERRIDE
 
+    # Process-only switch for hermetic launchers. Check before reading the file:
+    # an on-disk force-override setting must not reactivate isolated credentials.
+    if os.getenv("PAL_SKIP_DOTENV", "").strip().lower() == "true":
+        _DOTENV_VALUES = {}
+        _FORCE_ENV_OVERRIDE = False
+        return
+
     if dotenv_mapping is not None:
         _DOTENV_VALUES = dict(dotenv_mapping)
         _FORCE_ENV_OVERRIDE = _compute_force_override(_DOTENV_VALUES)
