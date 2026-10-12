@@ -1666,3 +1666,59 @@ use the ordinary MCP missing-resource response; canonical reads still pass.
 JSON nesting is capped at 64 containers so per-record and envelope export cannot
 differ at recursion boundaries. Final isolated review: **APPROVE**, no remaining
 findings or P0/P1 indexing items. Final checks retained the 1,761/53 pass counts.
+
+## Task 33: Smaller tool schemas with legacy compatibility
+
+2026-10-12. Added `scripts/tool_surface.py`, durable semantic/safety/prompt regression
+fixture and tests, and `docs/tool-surface.md`. Shortened shared descriptions in
+`tools/shared/base_models.py` and `base_tool.py`; corrected planner/tracer schemas
+to avoid model discovery/requiredness for local workflows. No systemprompt or clink
+implementation changed.
+
+The pre-edit baseline (runtime parent `7e7aeee`) is retained at
+[tool_surface_baseline.json](../../../../tests/fixtures/tool_surface_baseline.json).
+The [post-edit snapshot](tool-surface-current.json) uses the same auto-mode,
+no-registered-provider, shipped-CLI configuration. A fresh-process recapture was
+byte-identical. All 18 capability names and parameter names/types are retained.
+Serialized description bytes decreased **34,289 → 29,387 (14.3%)**; compact serialized
+tool bytes decreased **54,421 → 49,577**. These are UTF-8 JSON byte measurements,
+not token, latency or cost claims.
+
+Consumer tracing confirms planner/tracer `requires_model`, `requires_expert_analysis`
+and `should_call_expert_analysis` all reject provider work; their request models
+already default expert selection to false. Their model/expert inputs are now
+optional/deprecated with accurate advertised default false. They remain accepted
+throughout PAL 1.x. MCP 1.30's `Server.call_tool(validate_input=True)` validates
+against the advertised schema before invoking the request model, so unadvertising
+these fields would break legacy callers. No fields were removed; removal is
+reserved for an explicitly announced PAL major-version compatibility change.
+This scoped adjustment is recorded in the implementation contract.
+
+Tests compare the entire semantic schema with only the documented local-tool
+changes allowed. They preserve annotations and clink's exact local controls/safety
+wording (only shared continuation prose is shortened), guard every Python/text
+systemprompt by hash, and invoke the actual SDK-decorated call path. New and legacy
+planner/tracer calls succeed without providers; wrong legacy types still fail SDK
+validation. Explicit fixtures opt out of the repository's name-dependent auto-mode
+mock. All prompt modules are discovered from the filesystem rather than a hand list.
+
+`BLACK_NUM_WORKERS=1 ./code_quality_checks.sh` in the lock-based Python 3.12.14
+environment: **1,775 passed**, 16 skipped, 16 deselected, 19 subtests; Ruff/Black/isort
+passed. Python 3.10.19 focused tool-surface/planner/tracer/consensus-schema/clink-safety/
+auto-mode suite: **81 passed**. No dependencies or locks changed. The live integration
+runner/simulator setup and external PAL credential limitations remain as recorded
+in Task 31; actual offline MCP stdio resource verification passed in Task 32.
+
+### Reflection on Tasks 31–33
+
+The shared path resolver needed an opt-in unresolved-leaf mode so private transcript
+checks could detect default/XDG root symlinks. Resource review exposed both strict
+JSON encoding cases and SDK URL normalization; a narrow stdio guard preserves the
+raw URI rejection contract. Tool schema trimming needed a compatibility adjustment
+because request-model acceptance alone cannot bypass MCP's schema validation.
+Those boundaries have regressions and durable documentation. Native Windows
+transcript ACL support remains explicitly gated; the broader feature stays in
+progress with Tasks 34–42 pending.
+
+Task 33 final isolated local code review: **APPROVE**, no P0–P3 findings and no
+findings to index. All three requested tasks completed with separate commits.

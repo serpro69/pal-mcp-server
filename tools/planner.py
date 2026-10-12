@@ -169,6 +169,12 @@ class PlannerTool(WorkflowTool):
 
         # Planner tool-specific field definitions
         planner_field_overrides = {
+            "use_assistant_model": {
+                "type": "boolean",
+                "default": False,
+                "deprecated": True,
+                "description": "Legacy compatibility input; ignored. Planning runs locally.",
+            },
             # Override standard workflow fields that need planning-specific descriptions
             "step": {
                 "type": "string",
@@ -225,8 +231,12 @@ class PlannerTool(WorkflowTool):
         return WorkflowSchemaBuilder.build_schema(
             tool_specific_fields=planner_field_overrides,
             required_fields=[],  # No additional required fields beyond workflow defaults
-            model_field_schema=self.get_model_field_schema(),
-            auto_mode=self.is_effective_auto_mode(),
+            model_field_schema={
+                "type": "string",
+                "deprecated": True,
+                "description": "Legacy compatibility input; ignored. Planning runs locally.",
+            },
+            auto_mode=False,
             tool_name=self.get_name(),
             excluded_workflow_fields=excluded_workflow_fields,
             excluded_common_fields=excluded_common_fields,

@@ -1,0 +1,1672 @@
+{
+  "snapshot_version": 1,
+  "systemprompts_sha256": {
+    "__init__.py": "aa9c900e10ad8a4b0ca6131fb02ec991856a88cda53694fed08d34a0aeb355bf",
+    "analyze_prompt.py": "514969e3f71d5c4497ce1e19d938fce2097dbd9b6b0202b6b688f6b67116c808",
+    "chat_prompt.py": "daa24dddbb46ab9f8fa08a139f4a1746bd3015c71d2c2d9b66486a9d999e997a",
+    "clink/codex_codereviewer.txt": "e3f56db8fe837cce36e1b1893662f135ea990abc19f88cfbfe1607e07257d5a1",
+    "clink/default.txt": "a2ac3ec9c444e504b3cfdde0cf5b4f9463addcb22736c3684b338b3af3021f5f",
+    "clink/default_codereviewer.txt": "9aed3a8712c824b9457d98cff85645727ffcab6b3b3cf5a28f53aa0a58f99804",
+    "clink/default_planner.txt": "67a3daffb343d02ac2a4d90503a29974e4ad714a274c9cddfdc717a8c3f18e0a",
+    "codereview_prompt.py": "401cbc278588bc9ca9a3ff6a35b281d9f6690124d596b5b4216d4bc36013e929",
+    "consensus_prompt.py": "e1d4e893c3670a0bf27cb253b4b506c7725b0c04f24b4929299d03ae7f97fa19",
+    "debug_prompt.py": "9831249bb8e1912d7db4c31a3dbb8da43d042ec8c780ab7b0bd6dca9eae2b880",
+    "docgen_prompt.py": "377d298eae3c87f2683c390f375b400313c1fe9f2809266c136bdd405d2fc887",
+    "generate_code_prompt.py": "d06d7b9d92e3bce2c5d04d40de8c3ad512cd20a3322947b300f8a152a177773f",
+    "planner_prompt.py": "4906a4141f10b8447b2c133b4b7a1ac3e5677422c06ec4259663d728cc125d8c",
+    "precommit_prompt.py": "868f02bb9fe0dc66f273a6c5bb32de92a2d2db7451f71160c8b9eac2cc010703",
+    "refactor_prompt.py": "0e391a187afddb9d9680c006c6a6634a5aed9907036e7ee391b5defc3da6e3ee",
+    "secaudit_prompt.py": "97bd420186f155927ee86a28456256c2d1d1af192fba278bd63a27e625a47bb0",
+    "testgen_prompt.py": "c0d51b12bc79b4a4d438467cb5f0a8ac9372d3e5587fec8f9e96c44779d05b9a",
+    "thinkdeep_prompt.py": "44fa2219877aef8eb2a3e16dab0daa5949deea0857a023f5f34c2b0694f723f3",
+    "tracer_prompt.py": "069f991e89fa14ccf725e59be2f183cbeacc34f0ebfcb2515b65a7759e862775"
+  },
+  "tools": {
+    "analyze": {
+      "annotations": {
+        "readOnlyHint": true
+      },
+      "description_bytes": 2670,
+      "schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "analysis_type": {
+            "default": "general",
+            "enum": [
+              "architecture",
+              "performance",
+              "security",
+              "quality",
+              "general"
+            ],
+            "type": "string"
+          },
+          "confidence": {
+            "enum": [
+              "exploring",
+              "low",
+              "medium",
+              "high",
+              "very_high",
+              "almost_certain",
+              "certain"
+            ],
+            "type": "string"
+          },
+          "continuation_id": {
+            "type": "string"
+          },
+          "files_checked": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "findings": {
+            "type": "string"
+          },
+          "images": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "issues_found": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "model": {
+            "type": "string"
+          },
+          "next_step_required": {
+            "type": "boolean"
+          },
+          "output_format": {
+            "default": "detailed",
+            "enum": [
+              "summary",
+              "detailed",
+              "actionable"
+            ],
+            "type": "string"
+          },
+          "relevant_context": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "relevant_files": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "step": {
+            "type": "string"
+          },
+          "step_number": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "temperature": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "type": "number"
+          },
+          "thinking_mode": {
+            "enum": [
+              "minimal",
+              "low",
+              "medium",
+              "high",
+              "max"
+            ],
+            "type": "string"
+          },
+          "total_steps": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "use_assistant_model": {
+            "default": true,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "step",
+          "step_number",
+          "total_steps",
+          "next_step_required",
+          "findings",
+          "model"
+        ],
+        "title": "AnalyzeRequest",
+        "type": "object"
+      },
+      "serialized_bytes": 4282
+    },
+    "apilookup": {
+      "annotations": {
+        "readOnlyHint": true
+      },
+      "description_bytes": 428,
+      "schema": {
+        "properties": {
+          "prompt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "prompt"
+        ],
+        "type": "object"
+      },
+      "serialized_bytes": 574
+    },
+    "challenge": {
+      "annotations": {
+        "readOnlyHint": true
+      },
+      "description_bytes": 471,
+      "schema": {
+        "properties": {
+          "prompt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "prompt"
+        ],
+        "type": "object"
+      },
+      "serialized_bytes": 617
+    },
+    "chat": {
+      "annotations": {
+        "readOnlyHint": false
+      },
+      "description_bytes": 1130,
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "absolute_file_paths": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "continuation_id": {
+            "type": "string"
+          },
+          "images": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "model": {
+            "type": "string"
+          },
+          "prompt": {
+            "type": "string"
+          },
+          "temperature": {
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          },
+          "thinking_mode": {
+            "enum": [
+              "minimal",
+              "low",
+              "medium",
+              "high",
+              "max"
+            ],
+            "type": "string"
+          },
+          "working_directory_absolute_path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "prompt",
+          "working_directory_absolute_path",
+          "model"
+        ],
+        "type": "object"
+      },
+      "serialized_bytes": 1815
+    },
+    "clink": {
+      "annotations": {
+        "readOnlyHint": false
+      },
+      "description": "Link a request to an external AI CLI (Gemini CLI, Qwen CLI, etc.) through PAL MCP to reuse their capabilities inside existing workflows.",
+      "description_bytes": 995,
+      "safety_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "absolute_file_paths": {
+            "description": "Full paths to relevant code",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "allow_edits": {
+            "default": false,
+            "description": "Allow the target CLI to modify the local filesystem. Defaults to false to prevent untrusted prompts from triggering arbitrary file writes.",
+            "type": "boolean"
+          },
+          "cli_name": {
+            "description": "Configured CLI client name (from conf/cli_clients). Available: claude, codex, gemini",
+            "enum": [
+              "claude",
+              "codex",
+              "gemini"
+            ],
+            "type": "string"
+          },
+          "continuation_id": {
+            "description": "Always reuse the latest continuation_id to preserve conversation context, files and findings, including across tools.",
+            "type": "string"
+          },
+          "editable_paths": {
+            "default": [],
+            "description": "Absolute paths the CLI may edit when allow_edits=true. Honored by the 'claude' CLI; other CLIs reject editable_paths with an error.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "images": {
+            "description": "Optional absolute image paths or base64 blobs for visual context.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "prompt": {
+            "description": "User request forwarded to the CLI (conversation context is pre-applied).",
+            "type": "string"
+          },
+          "role": {
+            "description": "Optional role preset defined for the selected CLI (defaults to 'default'). Roles per CLI: claude: codereviewer, default, planner; codex: codereviewer, default, planner; gemini: codereviewer, default, planner",
+            "enum": [
+              "codereviewer",
+              "default",
+              "planner"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "prompt",
+          "cli_name"
+        ],
+        "type": "object"
+      },
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "absolute_file_paths": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "allow_edits": {
+            "default": false,
+            "type": "boolean"
+          },
+          "cli_name": {
+            "enum": [
+              "claude",
+              "codex",
+              "gemini"
+            ],
+            "type": "string"
+          },
+          "continuation_id": {
+            "type": "string"
+          },
+          "editable_paths": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "images": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "prompt": {
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "codereviewer",
+              "default",
+              "planner"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "prompt",
+          "cli_name"
+        ],
+        "type": "object"
+      },
+      "serialized_bytes": 1690
+    },
+    "codereview": {
+      "annotations": {
+        "readOnlyHint": true
+      },
+      "description_bytes": 2346,
+      "schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "confidence": {
+            "enum": [
+              "exploring",
+              "low",
+              "medium",
+              "high",
+              "very_high",
+              "almost_certain",
+              "certain"
+            ],
+            "type": "string"
+          },
+          "continuation_id": {
+            "type": "string"
+          },
+          "files_checked": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "findings": {
+            "type": "string"
+          },
+          "focus_on": {
+            "type": "string"
+          },
+          "hypothesis": {
+            "type": "string"
+          },
+          "images": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "issues_found": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "model": {
+            "type": "string"
+          },
+          "next_step_required": {
+            "type": "boolean"
+          },
+          "relevant_context": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "relevant_files": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "review_type": {
+            "default": "full",
+            "enum": [
+              "full",
+              "security",
+              "performance",
+              "quick"
+            ],
+            "type": "string"
+          },
+          "review_validation_type": {
+            "default": "external",
+            "enum": [
+              "external",
+              "internal"
+            ],
+            "type": "string"
+          },
+          "severity_filter": {
+            "default": "all",
+            "enum": [
+              "critical",
+              "high",
+              "medium",
+              "low",
+              "all"
+            ],
+            "type": "string"
+          },
+          "standards": {
+            "type": "string"
+          },
+          "step": {
+            "type": "string"
+          },
+          "step_number": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "temperature": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "type": "number"
+          },
+          "thinking_mode": {
+            "enum": [
+              "minimal",
+              "low",
+              "medium",
+              "high",
+              "max"
+            ],
+            "type": "string"
+          },
+          "total_steps": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "use_assistant_model": {
+            "default": true,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "step",
+          "step_number",
+          "total_steps",
+          "next_step_required",
+          "findings",
+          "model"
+        ],
+        "title": "CodereviewRequest",
+        "type": "object"
+      },
+      "serialized_bytes": 4186
+    },
+    "consensus": {
+      "annotations": {
+        "readOnlyHint": true
+      },
+      "description_bytes": 2026,
+      "schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "continuation_id": {
+            "type": "string"
+          },
+          "current_model_index": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "findings": {
+            "type": "string"
+          },
+          "images": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "model_responses": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "models": {
+            "items": {
+              "properties": {
+                "model": {
+                  "type": "string"
+                },
+                "stance": {
+                  "default": "neutral",
+                  "enum": [
+                    "for",
+                    "against",
+                    "neutral"
+                  ],
+                  "type": "string"
+                },
+                "stance_prompt": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "model"
+              ],
+              "type": "object"
+            },
+            "minItems": 2,
+            "type": "array"
+          },
+          "next_step_required": {
+            "type": "boolean"
+          },
+          "relevant_files": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "step": {
+            "type": "string"
+          },
+          "step_number": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "total_steps": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "use_assistant_model": {
+            "default": true,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "step",
+          "step_number",
+          "total_steps",
+          "next_step_required",
+          "findings"
+        ],
+        "title": "ConsensusRequest",
+        "type": "object"
+      },
+      "serialized_bytes": 3221
+    },
+    "debug": {
+      "annotations": {
+        "readOnlyHint": true
+      },
+      "description_bytes": 2651,
+      "schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "confidence": {
+            "enum": [
+              "exploring",
+              "low",
+              "medium",
+              "high",
+              "very_high",
+              "almost_certain",
+              "certain"
+            ],
+            "type": "string"
+          },
+          "continuation_id": {
+            "type": "string"
+          },
+          "files_checked": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "findings": {
+            "type": "string"
+          },
+          "hypothesis": {
+            "type": "string"
+          },
+          "images": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "issues_found": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "model": {
+            "type": "string"
+          },
+          "next_step_required": {
+            "type": "boolean"
+          },
+          "relevant_context": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "relevant_files": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "step": {
+            "type": "string"
+          },
+          "step_number": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "temperature": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "type": "number"
+          },
+          "thinking_mode": {
+            "enum": [
+              "minimal",
+              "low",
+              "medium",
+              "high",
+              "max"
+            ],
+            "type": "string"
+          },
+          "total_steps": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "use_assistant_model": {
+            "default": true,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "step",
+          "step_number",
+          "total_steps",
+          "next_step_required",
+          "findings",
+          "model"
+        ],
+        "title": "DebugRequest",
+        "type": "object"
+      },
+      "serialized_bytes": 4054
+    },
+    "docgen": {
+      "annotations": {
+        "readOnlyHint": true
+      },
+      "description_bytes": 1454,
+      "schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "comments_on_complex_logic": {
+            "default": true,
+            "type": "boolean"
+          },
+          "continuation_id": {
+            "type": "string"
+          },
+          "document_complexity": {
+            "default": true,
+            "type": "boolean"
+          },
+          "document_flow": {
+            "default": true,
+            "type": "boolean"
+          },
+          "findings": {
+            "type": "string"
+          },
+          "issues_found": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "next_step_required": {
+            "type": "boolean"
+          },
+          "num_files_documented": {
+            "default": 0,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "relevant_context": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "relevant_files": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "step": {
+            "type": "string"
+          },
+          "step_number": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "total_files_to_document": {
+            "default": 0,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "total_steps": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "update_existing": {
+            "default": true,
+            "type": "boolean"
+          },
+          "use_assistant_model": {
+            "default": true,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "step",
+          "step_number",
+          "total_steps",
+          "next_step_required",
+          "findings",
+          "document_complexity",
+          "document_flow",
+          "update_existing",
+          "comments_on_complex_logic",
+          "num_files_documented",
+          "total_files_to_document"
+        ],
+        "title": "DocgenRequest",
+        "type": "object"
+      },
+      "serialized_bytes": 2902
+    },
+    "listmodels": {
+      "annotations": {
+        "readOnlyHint": true
+      },
+      "description_bytes": 103,
+      "schema": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "serialized_bytes": 230
+    },
+    "planner": {
+      "annotations": {
+        "readOnlyHint": true
+      },
+      "description_bytes": 1246,
+      "schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "branch_from_step": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "branch_id": {
+            "type": "string"
+          },
+          "continuation_id": {
+            "type": "string"
+          },
+          "is_branch_point": {
+            "type": "boolean"
+          },
+          "is_step_revision": {
+            "type": "boolean"
+          },
+          "model": {
+            "deprecated": true,
+            "type": "string"
+          },
+          "more_steps_needed": {
+            "type": "boolean"
+          },
+          "next_step_required": {
+            "type": "boolean"
+          },
+          "revises_step_number": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "step": {
+            "type": "string"
+          },
+          "step_number": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "total_steps": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "use_assistant_model": {
+            "default": false,
+            "deprecated": true,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "step",
+          "step_number",
+          "total_steps",
+          "next_step_required"
+        ],
+        "title": "PlannerRequest",
+        "type": "object"
+      },
+      "serialized_bytes": 2253
+    },
+    "precommit": {
+      "annotations": {
+        "readOnlyHint": true
+      },
+      "description_bytes": 2625,
+      "schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "compare_to": {
+            "type": "string"
+          },
+          "confidence": {
+            "enum": [
+              "exploring",
+              "low",
+              "medium",
+              "high",
+              "very_high",
+              "almost_certain",
+              "certain"
+            ],
+            "type": "string"
+          },
+          "continuation_id": {
+            "type": "string"
+          },
+          "files_checked": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "findings": {
+            "type": "string"
+          },
+          "focus_on": {
+            "type": "string"
+          },
+          "hypothesis": {
+            "type": "string"
+          },
+          "images": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "include_staged": {
+            "default": true,
+            "type": "boolean"
+          },
+          "include_unstaged": {
+            "default": true,
+            "type": "boolean"
+          },
+          "issues_found": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "model": {
+            "type": "string"
+          },
+          "next_step_required": {
+            "type": "boolean"
+          },
+          "path": {
+            "type": "string"
+          },
+          "precommit_type": {
+            "default": "external",
+            "enum": [
+              "external",
+              "internal"
+            ],
+            "type": "string"
+          },
+          "relevant_context": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "relevant_files": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "severity_filter": {
+            "default": "all",
+            "enum": [
+              "critical",
+              "high",
+              "medium",
+              "low",
+              "all"
+            ],
+            "type": "string"
+          },
+          "step": {
+            "type": "string"
+          },
+          "step_number": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "temperature": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "type": "number"
+          },
+          "thinking_mode": {
+            "enum": [
+              "minimal",
+              "low",
+              "medium",
+              "high",
+              "max"
+            ],
+            "type": "string"
+          },
+          "total_steps": {
+            "minimum": 3,
+            "type": "integer"
+          },
+          "use_assistant_model": {
+            "default": true,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "step",
+          "step_number",
+          "total_steps",
+          "next_step_required",
+          "findings",
+          "model"
+        ],
+        "title": "PrecommitRequest",
+        "type": "object"
+      },
+      "serialized_bytes": 4517
+    },
+    "refactor": {
+      "annotations": {
+        "readOnlyHint": true
+      },
+      "description_bytes": 3232,
+      "schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "confidence": {
+            "default": "incomplete",
+            "enum": [
+              "exploring",
+              "incomplete",
+              "partial",
+              "complete"
+            ],
+            "type": "string"
+          },
+          "continuation_id": {
+            "type": "string"
+          },
+          "files_checked": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "findings": {
+            "type": "string"
+          },
+          "focus_areas": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "hypothesis": {
+            "type": "string"
+          },
+          "images": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "issues_found": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "model": {
+            "type": "string"
+          },
+          "next_step_required": {
+            "type": "boolean"
+          },
+          "refactor_type": {
+            "default": "codesmells",
+            "enum": [
+              "codesmells",
+              "decompose",
+              "modernize",
+              "organization"
+            ],
+            "type": "string"
+          },
+          "relevant_context": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "relevant_files": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "step": {
+            "type": "string"
+          },
+          "step_number": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "style_guide_examples": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "temperature": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "type": "number"
+          },
+          "thinking_mode": {
+            "enum": [
+              "minimal",
+              "low",
+              "medium",
+              "high",
+              "max"
+            ],
+            "type": "string"
+          },
+          "total_steps": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "use_assistant_model": {
+            "default": true,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "step",
+          "step_number",
+          "total_steps",
+          "next_step_required",
+          "findings",
+          "model"
+        ],
+        "title": "RefactorRequest",
+        "type": "object"
+      },
+      "serialized_bytes": 4923
+    },
+    "secaudit": {
+      "annotations": {
+        "readOnlyHint": true
+      },
+      "description_bytes": 2368,
+      "schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "audit_focus": {
+            "default": "comprehensive",
+            "enum": [
+              "owasp",
+              "compliance",
+              "infrastructure",
+              "dependencies",
+              "comprehensive"
+            ],
+            "type": "string"
+          },
+          "compliance_requirements": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "confidence": {
+            "enum": [
+              "exploring",
+              "low",
+              "medium",
+              "high",
+              "very_high",
+              "almost_certain",
+              "certain"
+            ],
+            "type": "string"
+          },
+          "continuation_id": {
+            "type": "string"
+          },
+          "files_checked": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "findings": {
+            "type": "string"
+          },
+          "hypothesis": {
+            "type": "string"
+          },
+          "images": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "issues_found": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "model": {
+            "type": "string"
+          },
+          "next_step_required": {
+            "type": "boolean"
+          },
+          "relevant_context": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "relevant_files": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "security_scope": {
+            "type": "string"
+          },
+          "severity_filter": {
+            "default": "all",
+            "enum": [
+              "critical",
+              "high",
+              "medium",
+              "low",
+              "all"
+            ],
+            "type": "string"
+          },
+          "step": {
+            "type": "string"
+          },
+          "step_number": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "temperature": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "type": "number"
+          },
+          "thinking_mode": {
+            "enum": [
+              "minimal",
+              "low",
+              "medium",
+              "high",
+              "max"
+            ],
+            "type": "string"
+          },
+          "threat_level": {
+            "default": "medium",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ],
+            "type": "string"
+          },
+          "total_steps": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "use_assistant_model": {
+            "default": true,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "step",
+          "step_number",
+          "total_steps",
+          "next_step_required",
+          "findings",
+          "model"
+        ],
+        "title": "SecauditRequest",
+        "type": "object"
+      },
+      "serialized_bytes": 4286
+    },
+    "testgen": {
+      "annotations": {
+        "readOnlyHint": true
+      },
+      "description_bytes": 2469,
+      "schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "confidence": {
+            "enum": [
+              "exploring",
+              "low",
+              "medium",
+              "high",
+              "very_high",
+              "almost_certain",
+              "certain"
+            ],
+            "type": "string"
+          },
+          "continuation_id": {
+            "type": "string"
+          },
+          "files_checked": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "findings": {
+            "type": "string"
+          },
+          "hypothesis": {
+            "type": "string"
+          },
+          "images": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "issues_found": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "model": {
+            "type": "string"
+          },
+          "next_step_required": {
+            "type": "boolean"
+          },
+          "relevant_context": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "relevant_files": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "step": {
+            "type": "string"
+          },
+          "step_number": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "temperature": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "type": "number"
+          },
+          "thinking_mode": {
+            "enum": [
+              "minimal",
+              "low",
+              "medium",
+              "high",
+              "max"
+            ],
+            "type": "string"
+          },
+          "total_steps": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "use_assistant_model": {
+            "default": true,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "step",
+          "step_number",
+          "total_steps",
+          "next_step_required",
+          "findings",
+          "model"
+        ],
+        "title": "TestgenRequest",
+        "type": "object"
+      },
+      "serialized_bytes": 3876
+    },
+    "thinkdeep": {
+      "annotations": {
+        "readOnlyHint": true
+      },
+      "description_bytes": 1622,
+      "schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "confidence": {
+            "enum": [
+              "exploring",
+              "low",
+              "medium",
+              "high",
+              "very_high",
+              "almost_certain",
+              "certain"
+            ],
+            "type": "string"
+          },
+          "continuation_id": {
+            "type": "string"
+          },
+          "files_checked": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "findings": {
+            "type": "string"
+          },
+          "focus_areas": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "hypothesis": {
+            "type": "string"
+          },
+          "images": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "issues_found": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "model": {
+            "type": "string"
+          },
+          "next_step_required": {
+            "type": "boolean"
+          },
+          "problem_context": {
+            "type": "string"
+          },
+          "relevant_context": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "relevant_files": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "step": {
+            "type": "string"
+          },
+          "step_number": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "temperature": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "type": "number"
+          },
+          "thinking_mode": {
+            "enum": [
+              "minimal",
+              "low",
+              "medium",
+              "high",
+              "max"
+            ],
+            "type": "string"
+          },
+          "total_steps": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "use_assistant_model": {
+            "default": true,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "step",
+          "step_number",
+          "total_steps",
+          "next_step_required",
+          "findings",
+          "model"
+        ],
+        "title": "ThinkdeepRequest",
+        "type": "object"
+      },
+      "serialized_bytes": 3156
+    },
+    "tracer": {
+      "annotations": {
+        "readOnlyHint": true
+      },
+      "description_bytes": 1478,
+      "schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "confidence": {
+            "enum": [
+              "exploring",
+              "low",
+              "medium",
+              "high",
+              "very_high",
+              "almost_certain",
+              "certain"
+            ],
+            "type": "string"
+          },
+          "continuation_id": {
+            "type": "string"
+          },
+          "files_checked": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "findings": {
+            "type": "string"
+          },
+          "images": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "model": {
+            "deprecated": true,
+            "type": "string"
+          },
+          "next_step_required": {
+            "type": "boolean"
+          },
+          "relevant_context": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "relevant_files": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "step": {
+            "type": "string"
+          },
+          "step_number": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "target_description": {
+            "type": "string"
+          },
+          "total_steps": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "trace_mode": {
+            "enum": [
+              "precision",
+              "dependencies",
+              "ask"
+            ],
+            "type": "string"
+          },
+          "use_assistant_model": {
+            "default": false,
+            "deprecated": true,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "step",
+          "step_number",
+          "total_steps",
+          "next_step_required",
+          "findings",
+          "target_description",
+          "trace_mode"
+        ],
+        "title": "TracerRequest",
+        "type": "object"
+      },
+      "serialized_bytes": 2798
+    },
+    "version": {
+      "annotations": {
+        "readOnlyHint": true
+      },
+      "description_bytes": 73,
+      "schema": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "serialized_bytes": 197
+    }
+  },
+  "totals": {
+    "description_bytes": 29387,
+    "serialized_bytes": 49577,
+    "tools": 18
+  }
+}

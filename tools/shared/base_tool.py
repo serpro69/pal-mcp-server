@@ -486,8 +486,8 @@ class BaseTool(ABC):
         # Use the centralized effective auto mode check
         if self.is_effective_auto_mode():
             description = (
-                "Currently in auto model selection mode. CRITICAL: When the user names a model, you MUST use that exact name unless the server rejects it. "
-                "If no model is provided, you may use the `listmodels` tool to review options and select an appropriate match."
+                "Auto mode: use the user's exact model choice unless rejected; otherwise select via listmodels. "
+                "Report validation errors without substituting another model."
             )
             summaries, total, restricted = self._get_ranked_model_summaries()
             remainder = max(0, total - len(summaries))
@@ -510,8 +510,8 @@ class BaseTool(ABC):
             }
 
         description = (
-            f"The default model is '{DEFAULT_MODEL}'. Override only when the user explicitly requests a different model, and use that exact name. "
-            "If the requested model fails validation, surface the server error instead of substituting another model. When unsure, use the `listmodels` tool for details."
+            f"Default model: '{DEFAULT_MODEL}'. Override only with the user's exact requested model. "
+            "Report validation errors without substitution. Use listmodels for details."
         )
         summaries, total, restricted = self._get_ranked_model_summaries()
         remainder = max(0, total - len(summaries))
