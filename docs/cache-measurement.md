@@ -111,7 +111,30 @@ same-model case with `python -m tests.cache_capture --consensus-model gpt-4.1
 
 These are synthetic serialized-request measurements. Live cache benefit and answer
 quality remain unverified. Rollback restores rendering only; no memory/schema
-migration is needed. Task 41 evaluates file/history layout and compaction separately.
+migration is needed.
+
+## History layout evaluation
+
+Task 41 retains the current runtime layout. Fourteen calls each with fixed, added,
+touched and edited files, plus a 1,000-token history-selection case, compare the
+current layout to three test-only candidates. First-seen order can displace a
+new attachment under a file limit; moving modification times helps touch-only
+changes but conflicts with the annotation header contract; the tested compaction
+hysteresis discards more context without reducing compaction events.
+
+The [decision and follow-ups](adr/0001-retain-conversation-history-layout.md)
+link measured results, compatibility constraints and rollback. Reproduce all
+280 synthetic dispatcher/SDK requests with:
+
+```sh
+PAL_SKIP_DOTENV=true PYTHONHASHSEED=1 python -m tests.history_layout_capture --output /tmp/layout-captures.json --summary /tmp/layout-summary.json
+```
+
+The full output retains requests, content contracts and audit/coverage results;
+the committed summary retains prefixes and coverage per call. File bytes are
+reread on every request, and compaction checks a contiguous newest suffix,
+exact-once current input and accurate omission counts. This experiment makes no
+live cost/quality claim and introduces no runtime cache, layout option or snapshots.
 
 Separate [reproduced prompt issues](feat/wip/server-reliability-and-capabilities/capture-followups.md)
 remain open: absent chat search guidance, unused thinkdeep customization, and

@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Implementation: [implementation.md](implementation.md)
 > Review resolutions: [review.md](review.md#revalidation-and-resolution)
-> Status: in-progress (Tasks 1–40 done; Tasks 41–42 pending; OpenCode Go/Jules live gates open)
+> Status: in-progress (Tasks 1–41 done; Task 42 pending; OpenCode Go/Jules live gates open)
 > Created: 2026-10-10
 > Not Doing: toolchain/release-process migration; MCP 2.x; wholesale catalogs; replacement of safety controls; file-annotation implementation; persistent continuation recovery; remote multi-user transport; automatic service activation
 
@@ -882,17 +882,27 @@ an invalid API key. Live cache benefit/quality checks remain open.
 
 ## Task 41: Evaluate append-oriented history and compaction
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 40
 - **Size:** M
 - **Can run in parallel with:** —
 - **Docs:** [Implementation slice](implementation.md#task-41); [design contract](design.md#d10-prompt-cache-work-is-measurement-led)
 
-- [ ] 41.1 Use measured file/history churn to evaluate first-seen rendering, changed-file version presentation and compaction hysteresis. Reconcile any header change with the existing per-file descriptions design before coding.
-- [ ] 41.2 Implement only the justified layout slice, preserve fresh file content and explicit omitted-turn markers, and record the decision plus rollback format. Defer strict-prefix instruction relocation and provider-explicit caches until measured benefit/API evidence warrants separate tasks.
-- [ ] 41.3 Verify the acceptance cases in [Task 41](implementation.md#task-41) and record the result here.
+- [x] 41.1 Use measured file/history churn to evaluate first-seen rendering, changed-file version presentation and compaction hysteresis. Reconcile any header change with the existing per-file descriptions design before coding.
+- [x] 41.2 Implement only the justified layout slice, preserve fresh file content and explicit omitted-turn markers, and record the decision plus rollback format. Defer strict-prefix instruction relocation and provider-explicit caches until measured benefit/API evidence warrants separate tasks.
+- [x] 41.3 Verify the acceptance cases in [Task 41](implementation.md#task-41) and record the result here.
 
 **Scope / gate:** Conditional research/implementation slice. If evidence rejects the layout change, completion is a recorded no-change decision and concrete follow-up, not a fabricated optimization.
+
+**Evidence:** [Task 41 validation](validation.md#task-41-history-layout-and-compaction-evaluation).
+**No runtime layout change:** 280 synthetic dispatcher/SDK requests compare five
+14-call scenarios across four layouts. First-seen admission can lose the newest
+file; moved mtime has mixed results and annotation-format costs; tested hysteresis
+discards more history without fewer compactions. The
+[decision](../../../adr/0001-retain-conversation-history-layout.md) records
+compatibility, follow-ups and rollback. Full quality **2,007 passed**; Python 3.10
+measurement suites **13 passed**. Independent isolated review approved with no
+findings. Live cost/quality and provider-explicit caching remain gated.
 
 ## Task 42: Verify the improved system and complete its documentation
 
@@ -973,8 +983,10 @@ T01–T41 --> T42 (final verification)
   repository/session; next step: authorize that target and verify reported state
   and archival visibility. Offline tests do not establish live service behavior.
 - **Explicit provider caches / strict-prefix layout:** wait for Tasks 39–41's
-  completeness and benefit evidence. Next step: a provider-specific API, pricing and
-  quality assessment followed by separately bounded implementation tasks.
+  live benefit evidence. Offline Tasks 39–41 are complete; Task 41 retains the
+  current layout. Next step: the [recorded follow-ups](../../../adr/0001-retain-conversation-history-layout.md),
+  including a provider-specific API, pricing and quality assessment before
+  separately bounded implementation tasks.
 - **Live cassette/service validation:** after request formatting or optional-service
   implementation, re-record or smoke-test only against explicitly configured targets.
   Missing credentials keep that release gate open; do not fabricate recordings.
