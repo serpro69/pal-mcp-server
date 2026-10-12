@@ -4,6 +4,10 @@
 
 ## Unreleased
 
+- Add the optional provider-free `jules` tool for source discovery, explicit
+  session creation and paginated status. Require a source/branch, default to plan
+  approval and keep automatic PR creation opt-in. Live validation remains gated.
+
 - Add optional OpenCode Go Chat Completions/Responses support with per-request
   conversation headers and PAL user agent. Initial GLM-5.2/GPT-6 Luna candidates
   remain hidden and live-validation gated; Messages-only models are excluded.

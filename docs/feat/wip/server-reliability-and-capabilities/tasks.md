@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Implementation: [implementation.md](implementation.md)
 > Review resolutions: [review.md](review.md#revalidation-and-resolution)
-> Status: in-progress (Tasks 1–36 done; Tasks 37–42 pending; OpenCode Go live gate open)
+> Status: in-progress (Tasks 1–37 done; Tasks 38–42 pending; OpenCode Go/Jules live gates open)
 > Created: 2026-10-10
 > Not Doing: toolchain/release-process migration; MCP 2.x; wholesale catalogs; replacement of safety controls; file-annotation implementation; persistent continuation recovery; remote multi-user transport; automatic service activation
 
@@ -786,17 +786,24 @@ are recorded in [the provider guide](../../../opencode-go.md).
 
 ## Task 37: Add optional Jules discovery, creation and status
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 23, Task 29
 - **Size:** M
 - **Can run in parallel with:** —
 - **Docs:** [Implementation slice](implementation.md#task-37); [design contract](design.md#d9-optional-service-integrations)
 
-- [ ] 37.1 Verify current v1alpha sources/sessions/activities contracts and declare directly imported runtime dependencies through pip-tools. Add a configured, provider-free action tool with accurate mutation annotations.
-- [ ] 37.2 Implement source discovery, explicit create and paginated status; validate opaque session IDs and inputs before network I/O. Default to plan approval and require explicit automatic PR mode.
-- [ ] 37.3 Verify the acceptance cases in [Task 37](implementation.md#task-37) and record the result here.
+- [x] 37.1 Verify current v1alpha sources/sessions/activities contracts and declare directly imported runtime dependencies through pip-tools. Add a configured, provider-free action tool with accurate mutation annotations.
+- [x] 37.2 Implement source discovery, explicit create and paginated status; validate opaque session IDs and inputs before network I/O. Default to plan approval and require explicit automatic PR mode.
+- [x] 37.3 Verify the acceptance cases in [Task 37](implementation.md#task-37) and record the result here.
 
 **Scope / gate:** Creating a Jules session or PR requires an explicitly designated test target. Offline contract tests do not activate the service.
+
+**Evidence:** [Task 37 validation](validation.md#task-37-optional-jules-discovery-creation-and-status).
+Full quality **1,899 passed**; focused **60 passed** on Python 3.10/3.12; strict
+stdio CI **3/3 passed**. Both locks regenerated; package versions unchanged.
+Isolated local review approved with no findings; external PAL key invalid.
+Implementation/offline acceptance is complete; **live release gate remains open**
+until a disposable repository/branch and explicit creation authorization exist.
 
 ## Task 38: Add Jules steering and verified lifecycle actions
 

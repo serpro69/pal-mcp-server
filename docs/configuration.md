@@ -52,6 +52,10 @@ and `OPENCODE_GO_MODELS_CONFIG_PATH` configure its own key, policy and catalog.
 Initial entries remain hidden pending live validation; see
 [OpenCode Go controls and release gates](opencode-go.md).
 
+`JULES_API_KEY` configures the independent [Jules action tool](tools/jules.md).
+It does not activate a model provider. Creation requires an explicitly selected
+source and branch; plan approval defaults on and automatic PR creation defaults off.
+
 **Option 1: Native APIs (Recommended for direct access)**
 ```env
 # Google Gemini API
