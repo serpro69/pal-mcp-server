@@ -16,7 +16,7 @@ from mcp.types import TextContent
 logger = logging.getLogger(__name__)
 HEARTBEAT_SECONDS = 10.0
 NOTIFICATION_TIMEOUT_SECONDS = 1.0
-_USAGE_FIELDS = ("input_tokens", "output_tokens", "total_tokens")
+_USAGE_FIELDS = ("input_tokens", "output_tokens", "total_tokens", "cached_input_tokens", "cache_write_tokens")
 _current: ContextVar["RequestProgress | None"] = ContextVar("pal_progress", default=None)
 
 

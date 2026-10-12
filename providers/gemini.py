@@ -402,6 +402,7 @@ class GeminiModelProvider(RegistryBackedProviderMixin, ModelProvider):
             ("input_tokens", "prompt_token_count"),
             ("output_tokens", "candidates_token_count"),
             ("total_tokens", "total_token_count"),
+            ("cached_input_tokens", "cached_content_token_count"),
         ):
             value = getattr(metadata, source, None)
             if type(value) is int and value >= 0:

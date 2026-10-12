@@ -116,24 +116,11 @@ class TestOpenAICompatibleTokenUsage(unittest.TestCase):
         self.assertEqual(usage["total_tokens"], 0)
 
     def test_alternative_token_format_with_none(self):
-        """Test alternative token format (input_tokens/output_tokens) with None values."""
-        # This tests the other code path in generate_content_openai_responses
-        # Simulate a response with input_tokens/output_tokens attributes that could be None
-        response = Mock()
-        response.input_tokens = None  # This was causing crashes
+        """Unsupported top-level counts cannot invent endpoint usage or totals."""
+        response = Mock(spec=["input_tokens", "output_tokens"])
+        response.input_tokens = None
         response.output_tokens = 50
-
-        # Test the pattern: getattr(response, "input_tokens", 0) or 0
-        input_tokens = getattr(response, "input_tokens", 0) or 0
-        output_tokens = getattr(response, "output_tokens", 0) or 0
-
-        # Should not crash and should handle None gracefully
-        self.assertEqual(input_tokens, 0)
-        self.assertEqual(output_tokens, 50)
-
-        # Test that addition works
-        total = input_tokens + output_tokens
-        self.assertEqual(total, 50)
+        self.assertEqual(self.provider._extract_usage(response, responses_api=True), {})
 
 
 if __name__ == "__main__":
