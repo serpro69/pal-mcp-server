@@ -1,6 +1,6 @@
 # Antigravity clink: isolated verification
 
-> Status: verification complete; walkthrough approved; design documented; implementation pending
+> Status: historical research complete; design review findings addressed; implementation pending
 > Verified: 2026-10-10
 > Checkout: `c20d384a9c5a38ab8d58c780d2e269c537e409fa`
 > Request: [PAL issue #465](https://github.com/BeehiveInnovations/pal-mcp-server/issues/465), originally supplied as a pull-request URL
@@ -9,6 +9,12 @@
 > Final artifacts: [design.md](./design.md), [implementation.md](./implementation.md), [tasks.md](./tasks.md)
 
 This is a research record for the ongoing `kk:design` workflow. It is not an approved design or an implementation plan. All five verification agents completed. No fallback to non-isolated verification was needed. Public documentation was retrieved on the verification date and may change; release notes supply the version distinctions below. The official `agy` executable was not found on the inspection shell's PATH.
+
+## Current baseline after design review
+
+The 2026-10-12 [review and revalidation](./review-design.md) checked HEAD `2d821f14cb35869added0838827177dc957f6da6`. The original Q1–Q5 answers below retain their historical checkout context. Implementation must use the revised [design](./design.md) and [plan](./implementation.md): the runner now filters child environments, defaults to a private scratch cwd, and shares conversation admission/history ownership between MCP and decorated direct execution. The four review findings are addressed in the documents; no agy runtime capability is thereby proven.
+
+Task 1 owns verification of authentication passthrough and useful referenced-file reads plus safe/edit behavior in both cwd modes. The existing no-edit gate remains unresolved. Shared prompt-file admission may precede an unsupported-path rejection; the accepted guarantee is no agent creation or subprocess launch. Lifecycle cleanup findings from the old checkout were fixed before this review and need regression coverage, not a duplicate repair task.
 
 ## Confirmed requirements entering verification
 
@@ -20,7 +26,7 @@ This is a research record for the ongoing `kk:design` workflow. It is not an app
 - Preserve opt-in edits and reject path restrictions that cannot be honored.
 - Evaluate both configuration-driven prompt arguments and an Antigravity-specific adapter before selecting a direction.
 
-The user approved these requirements, selected the thin agy adapter with structured stdin, and approved all three walkthrough sections: request flow/scope, results/failure/safety behavior, and implementation/validation order. The linked design and plan record those decisions; independent review remains pending. Do not treat untested capabilities as already fulfilled.
+The user approved these requirements, selected the thin agy adapter with structured stdin, and approved all three walkthrough sections: request flow/scope, results/failure/safety behavior, and implementation/validation order. The linked design and plan record those decisions and the subsequent review corrections. Do not treat untested capabilities as already fulfilled.
 
 ## Follow-up clarification: version and authentication
 
@@ -171,12 +177,12 @@ The original two-option comparison was incomplete; the supplemental evaluation a
 
 These items distinguish resolved design choices from runtime evidence and unrelated work still needed. The implementation tasks now own the feature's capability and acceptance checks; no implementation has been deferred silently.
 
-1. **Audience and authentication — requirement resolved, runtime verification pending:** existing Google login/subscription use without an API key is required, alongside configured enterprise authentication. Consumer-login wrapping remains unsupported upstream and must be documented as such. Next: verify cached-login execution and clear absent/expired-login errors; do not substitute API-key-only acceptance tests or silently switch providers.
+1. **Audience and authentication — requirement resolved, runtime verification pending:** existing Google login/subscription use without an API key is required, alongside configured enterprise authentication. Consumer-login wrapping remains unsupported upstream and must be documented as such. Next: Task 1 verifies the design's agy-specific passthrough names and authentication through the actual filtered child environment; Task 2 implements those defaults and synthetic environment tests. Do not substitute API-key-only acceptance tests or silently switch providers.
 2. **Version and transport — direction resolved, runtime verification pending:** use 1.3.3 as the current reference and a thin adapter with structured stdin. Next: inspect that binary's version/help and exercise a one-request/EOF lifecycle, result/error envelopes, roles, and PAL continuation with controlled fixtures. Legacy-version compatibility is out of scope.
-3. **Edit safety:** no robust per-request no-write mechanism is verified. Next: determine how effective policies can be isolated without modifying users' persistent settings; test attempted file edits and command-based writes with permissive preexisting settings, plus opt-in edits and path rejection. If this cannot be established, revisit scope explicitly.
+3. **Edit safety and useful file access:** no robust per-request no-write mechanism is verified. Next: Task 1 tests effective policies without modifying users' persistent settings, including content-dependent reads, attempted file edits, command-based writes, and opt-in edits under permissive settings in both cwd modes. In scratch mode, project fixtures must remain outside the CLI cwd. If useful reads and the safe/edit contract cannot coexist, revisit scope explicitly before Task 2.
 4. **Logging guarantee — scope resolved, preexisting follow-up deferred:** the approved feature protects the new forwarded prompt in command channels. Existing Claude code includes its system prompt in argv and the returned command; its test expects that value. This is preexisting and unmodified, so fix it in a separate scoped redaction change. Next: inspect `clink/agents/claude.py` and `tests/test_clink_claude_agent.py` together before changing expectations.
 5. **Argument transport — rejected:** prompt-specific argument-size handling is unnecessary for the selected stdin transport. The generic subprocess failure behavior is unchanged; reconsider explicit size-error handling only if a future feature introduces prompt arguments.
-6. **Preexisting lifecycle cleanup:** spawn failures/timeouts can bypass temporary output-file deletion; cancellation has no encompassing cleanup handler. Verification did not change unrelated code. Next: scope a focused lifecycle follow-up with cleanup tests if the runner is refactored; do not duplicate these gaps into a new adapter.
+6. **Preexisting lifecycle cleanup — resolved in the current baseline:** the original checkout had output-file cleanup and cancellation gaps. HEAD `2d821f1` has `ExitStack` cleanup and `_kill_and_reap()` for timeout/cancellation. Next: preserve `tests/test_clink_environment.py` coverage while adding the encoder at `_run_in_directory()`'s communication site; do not reopen the already-fixed gaps as agy work.
 
 ## Validation record
 
