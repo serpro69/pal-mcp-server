@@ -74,6 +74,24 @@ class InMemoryStorage:
         """Redis-compatible setex method"""
         self.set_with_ttl(key, ttl_seconds, value)
 
+    def compare_and_setex(self, key: str, ttl_seconds: int, expected: Optional[str], value: str) -> bool:
+        """Replace an unchanged live value, or create when expected is None.
+
+        Expiration is treated as absence. An update with an existing snapshot
+        therefore cannot resurrect an expired key or refresh its TTL on conflict.
+        """
+        with self._lock:
+            now = time.time()
+            entry = self._store.get(key)
+            if entry is not None and now >= entry[1]:
+                del self._store[key]
+                entry = None
+            current = entry[0] if entry is not None else None
+            if current != expected:
+                return False
+            self._store[key] = (value, now + ttl_seconds)
+            return True
+
     def _cleanup_worker(self):
         """Background thread that periodically cleans up expired entries"""
         while not self._shutdown:
