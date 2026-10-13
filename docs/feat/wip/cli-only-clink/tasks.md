@@ -9,7 +9,7 @@
 > Review: [review.md](review.md)
 > Not Doing: CLI-backed chat/providers, additional CLI-backed workflows, installation/login/billing management, shared remote deployments, native CLI sessions, durable history, multimodal parity, new filesystem sandbox, dependency upgrades
 
-Tasks 1–11 are done; Tasks 12–14 are pending. Review findings R1–R8 are addressed in these plans; implementation progress is tracked below. Deferred scope remains in [design.md](design.md#deferred-findings-and-verification-limits). Tasks 1–6 established reliable bounded CLI conversations. Tasks 7–9 added provider setup diagnostics, runtime capability snapshots, call guards, and coherent discovery/continuation guidance. Tasks 10–11 document local setup and usage and align Bash/PowerShell setup messages and templates. Intermediate behavior is explicit in the implementation plan. A skipped live check is not completed coverage.
+Tasks 1–12 are done; Tasks 13–14 are pending. Review findings R1–R8 are addressed in these plans; implementation progress is tracked below. Deferred scope remains in [design.md](design.md#deferred-findings-and-verification-limits). Tasks 1–6 established reliable bounded CLI conversations. Tasks 7–9 added provider setup diagnostics, runtime capability snapshots, call guards, and coherent discovery/continuation guidance. Tasks 10–11 document local setup and usage and align Bash/PowerShell setup messages and templates. Task 12 proves conversations and immediate busy rejection through real MCP stdio with isolated fake CLIs. Intermediate behavior is explicit in the implementation plan. A skipped live check is not completed coverage.
 
 ## Task 1: Surface Gemini and Claude execution failures
 
@@ -168,15 +168,17 @@ Completed 2026-10-13: PowerShell 7.6.6 syntax parsing, isolated template/import 
 
 ## Task 12: Prove the real MCP conversation
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 6, Task 9
 - **Size:** M
 - **Can run in parallel with:** Task 10, Task 11
 - **Docs:** [implementation.md#task-12-prove-the-real-mcp-conversation](implementation.md#task-12-prove-the-real-mcp-conversation)
 
-- [ ] 12.1 Add `tests/test_cli_only_mcp.py` and isolated launcher/fake-CLI fixtures → verify real stdio initialization/discovery/first request/dependent follow-up for all vendor parsers with no installed CLI or credentials.
-- [ ] 12.2 Inspect prior prompt/reply markers, current edit flags, and unavailable-tool errors; prohibit provider inference/model context → verify fixture credentials cannot satisfy acceptance.
-- [ ] 12.3 Hold one fake continuation open and require the second same-ID call to return busy before release → verify the actual MCP boundary respects immediate rejection; run the Task 12 command.
+- [x] 12.1 Add `tests/test_cli_only_mcp.py` and isolated launcher/fake-CLI fixtures → verify real stdio initialization/discovery/first request/dependent follow-up for all vendor parsers with no installed CLI or credentials.
+- [x] 12.2 Inspect prior prompt/reply markers, current edit flags, and unavailable-tool errors; prohibit provider inference/model context → verify fixture credentials cannot satisfy acceptance.
+- [x] 12.3 Hold one fake continuation open and require the second same-ID call to return busy before release → verify the actual MCP boundary respects immediate rejection; run the Task 12 command.
+
+Completed 2026-10-13: six real-stdio acceptance cases passed across Gemini, Claude, and Codex parser formats, with provider/dotenv isolation, dependent history, current-request edit permissions, and busy-before-release/retry assertions. Full quality checks passed with 2,536 tests passed and 16 skipped. Independent review approved after correcting synchronization-socket cleanup order for Python 3.12. Installed-vendor/platform limits and existing live-check failures are recorded in the [Task 12 execution record](implementation.md#task-12-execution-record-2026-10-13).
 
 ## Task 13: Add optional live checks with truthful skip reporting
 

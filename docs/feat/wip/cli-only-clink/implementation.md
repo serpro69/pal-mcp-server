@@ -1,6 +1,6 @@
 # Implementation: CLI-only conversations through clink
 
-> Status: Tasks 1–11 complete; Tasks 12–14 pending
+> Status: Tasks 1–12 complete; Tasks 13–14 pending
 > Created: 2026-10-10
 > Design: [design.md](design.md)
 > Tasks: [tasks.md](tasks.md)
@@ -492,3 +492,28 @@ Validation reused the existing Python 3.10.12 `pal` environment. A portable offi
 Independent review identified one P2 issue: the new Windows instructions repeated the existing `#Requires -Version 5.1` contract, but Qwen configuration status used a PowerShell 7 ternary. It now uses equivalent `if/else`; both outcomes of the actual source expression were checked in isolation. The reviewer approved the amended three-file diff with no remaining P0–P3 findings. External PAL `gemini-3.8-flash` review failed authentication and supplied no expert findings; `kk:review-code:isolated` completed through its independent-reviewer fallback. No systemic findings or new conventions required indexing.
 
 Native Windows PowerShell 5.1 execution, Docker/client setup, and vendor login were not exercised. Syntax parsing and mocked template checks do not establish the full setup walkthrough, which remains Task 14. Tasks 12–14 still own real-stdio acceptance and live verification; the feature remains in progress. Final post-review edits only record verification and task/header status. Optional editorial follow-up: `$kk:clarify-docs` on the Windows CLI setup section of `docs/getting-started.md`.
+
+## Task 12 execution record (2026-10-13)
+
+`tests/test_cli_only_mcp.py` now exercises the actual `server.run()` entrypoint over the MCP SDK's stdio transport. The isolated launcher and fake executable live in `tests/fixtures/cli_only_server.py` and `tests/fixtures/cli_only_fake.py`. Shipped manifests are copied into temporary overrides and retain their argument buckets/roles; each command selects the test interpreter and fake executable, so no installed vendor CLI or credential is required. Real Gemini JSON, Claude JSON, and Codex JSONL parsers process the fake replies.
+
+The launcher uses an explicit subprocess environment allowlist, sets `PAL_SKIP_DOTENV` before importing PAL, and installs failing guards on both dotenv entrypoints before any application import. Personal CLI configuration lookup is redirected through the registry's test-only path patch; shipped configuration and normal manifest override resolution remain real. Provider registration/lookup, every declared provider's inference method, and the actual `ModelContext` constructor are guarded and record any attempted use. Tests deliberately populate the parent environment with synthetic credentials, catalog settings, and child-CLI keys, then require provider-free startup, absent setup diagnostics, and no leaked credential names in the fake subprocess. The server subprocess does not import pytest/conftest.
+
+For each vendor, the conversation case initializes MCP, checks all nine independent tool/prompt listings and clink/continue instructions, inspects startup diagnostics, and rejects chat/consensus before resolving an unknown conversation ID. It then completes three exchanges: explicit CLI/planner/edit selection, a dependent follow-up with saved selection and edits omitted, and a fresh edit opt-in without inherited path scope. Captured prompts require prior user/reply/current markers exactly once and in order; captured arguments verify safe/edit buckets and Claude path-scope reset. The fake follow-up itself fails unless both prior sides arrive. Continuation IDs, saved-history metadata, retained-message counts, and remaining capacity are checked.
+
+A separate case for each vendor holds a fake continuation on an explicit local TCP readiness/release handshake. The second same-ID MCP call must return retryable `ConversationBusyError` while the first remains blocked and before the test sends release. After release, the first completes and retrying the rejected input succeeds exactly once, without an extra stored user turn or CLI launch. Tasks, SDK contexts, and accepted sockets have explicit owners; shutdown reaches the server launcher's completion marker.
+
+Validation used Python 3.10.12 in the existing `pal` environment, with no dependency changes. MCP calls and environment/teardown behavior were checked against installed 1.30.0 and its exact-version [stdio implementation](https://github.com/modelcontextprotocol/python-sdk/blob/v1.30.0/src/mcp/client/stdio/__init__.py) and [client session](https://github.com/modelcontextprotocol/python-sdk/blob/v1.30.0/src/mcp/client/session.py); Context7 did not list that version.
+
+| Check | Result |
+| --- | --- |
+| Baseline | Reused passing Task 11 quality checks at unchanged commit `678e206`: 2,530 passed, 16 skipped, 16 deselected, 19 subtests passed. |
+| `python -m pytest tests/test_cli_only_mcp.py -q` | Passed: six cases, including both conversation/permission and busy/retry paths for every parser. Targeted rerun after accepted-socket ownership changes also passed. |
+| Final `./code_quality_checks.sh` | Passed outside the sandbox after review corrections: 2,536 passed, 16 skipped, 16 deselected, 19 subtests passed; Ruff, Black, and isort passed. An earlier standalone sandboxed Black run stalled and was interrupted; the quality script completed formatting and validation. |
+| Python 3.12 cleanup probe | Reproduced listener-first teardown blocking on installed Python 3.12.11 with a local socket and remote EOF; closing/awaiting accepted peers first completed. This is a focused standard-library check, not the full Python 3.12 suite. |
+| `./run_integration_tests.sh` | Failed: 3 failed, 2 passed, 11 skipped. Reproduced the existing Claude exact-output assertion (answer plus summary) and two OpenAI connection failures. |
+| `python communication_simulator_test.py --quick` | Failed: runner reported 4 passed and 2 failed (`basic_conversation`, `per_tool_deduplication`), as in prior tasks. |
+
+Independent review found a cleanup-order issue hidden by Python 3.10: [Python 3.12 `Server.wait_closed()`](https://docs.python.org/3.12/library/asyncio-eventloop.html#asyncio.Server.wait_closed) also waits for active accepted connections. The gate now records peers at acceptance, closes/awaits them before joining the listener, and bounds both joins. The amended four-file test/task diff was approved with no remaining P0–P3 findings. External PAL `gemini-3.8-flash` review failed authentication and supplied no expert findings; the isolated-review fallback completed through the independent reviewer. No systemic review findings required indexing; the cross-version cleanup lesson was indexed as `kk:test-patterns:asyncio-server-cleanup`.
+
+The implemented production behavior needed no change. Native Windows/macOS execution and installed-vendor compatibility remain unverified. The SDK's Windows selector-loop fallback was inspected, but that is not platform test coverage. Tasks 13–14 still own opted-in live checks, truthful skip reporting, and the full setup walkthrough; the feature remains in progress. Final post-review edits only record verification and task/header status.
