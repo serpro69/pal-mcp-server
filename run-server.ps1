@@ -7,7 +7,7 @@
     - Installs and checks Python 3.10+ (with venv or uv if available)
     - Installs required Python dependencies
     - Configures environment files (.env)
-    - Validates presence of required API keys
+    - Explains CLI-only and API-backed setup paths
     - Cleans Python caches and obsolete Docker artifacts
     - Offers automatic integration with Claude Desktop, Gemini CLI, VSCode, Cursor, Windsurf, and Trae
     - Manages configuration file backups (max 3 retained)
@@ -477,45 +477,23 @@ function Cleanup-Docker {
     New-Item -Path $DOCKER_CLEANED_FLAG -ItemType File -Force | Out-Null
 }
 
-# Validate API keys
-function Test-ApiKeys {
-    Write-Step "Validating API Keys"
-    
-    if (!(Test-Path ".env")) {
-        Write-Warning "No .env file found. API keys should be configured."
-        return $false
+# Explain setup choices; Python startup owns provider classification and validation.
+function Show-SetupPaths {
+    param([switch]$UseDocker = $false)
+
+    Write-Step "CLI and API Setup Paths"
+    Write-Info "CLI conversations: use clink with an installed, authenticated Codex, Claude Code, or Gemini CLI."
+    Write-Info "No PAL model-provider API key is required for clink or the available independent tools."
+    Write-Info "Install and sign in to the selected CLI yourself, using the same OS account that runs PAL."
+    Write-Info "API-backed tools (chat, consensus, etc.): configure a provider in .env or the launch environment."
+    Write-Info "Local API endpoints are also supported; see docs/getting-started.md."
+    if ($UseDocker) {
+	Write-Info "For clink in Docker, the selected CLI and its authentication must be available inside the container."
+	Write-Info "A host installation/login is not automatically available there; use native Python setup for local CLIs."
     }
-    
-    $envContent = Get-Content ".env"
-    $hasValidKey = $false
-    
-    $keyPatterns = @{
-        "GEMINI_API_KEY"     = "AIza[0-9A-Za-z-_]{35}"
-        "OPENAI_API_KEY"     = "sk-[a-zA-Z0-9]{20}T3BlbkFJ[a-zA-Z0-9]{20}"
-        "XAI_API_KEY"        = "xai-[a-zA-Z0-9-_]+"
-        "OPENROUTER_API_KEY" = "sk-or-[a-zA-Z0-9-_]+"
-        "OPENCODE_GO_API_KEY" = ".+"
-    }
-    
-    foreach ($line in $envContent) {
-        if ($line -match '^([^#][^=]*?)=(.*)$') {
-            $key = $matches[1].Trim()
-            $value = $matches[2].Trim() -replace '^["'']|["'']$', ''
-            
-            if ($keyPatterns.ContainsKey($key) -and $value -ne "your_${key.ToLower()}_here" -and $value.Length -gt 10) {
-                Write-Success "Found valid $key"
-                $hasValidKey = $true
-            }
-        }
-    }
-    
-    if (!$hasValidKey) {
-        Write-Warning "No valid API keys found in .env file"
-        Write-Info "Please edit .env file with your actual API keys"
-        return $false
-    }
-    
-    return $true
+    Write-Info "At startup PAL determines available tools. Use listmodels for provider setup hints and CLI executable status."
+    Write-Info "Executable discovery does not verify login, billing, or compatible CLI arguments."
+    Write-Info "Restart PAL after configuration changes. See docs/tools/clink.md for first-request and follow-up examples."
 }
 
 # Check if uv is available
@@ -864,19 +842,20 @@ function Initialize-DockerEnvironment {
         Write-Warning "No .env file found. Creating default .env file..."
         
         $defaultEnv = @"
-# API Keys - Replace with your actual keys
-GEMINI_API_KEY=your_gemini_api_key_here
-GOOGLE_API_KEY=your_google_api_key_here
-OPENAI_API_KEY=your_openai_api_key_here
-ANTHROPIC_API_KEY=your_anthropic_api_key_here
-XAI_API_KEY=your_xai_api_key_here
-DIAL_API_KEY=your_dial_api_key_here
-DIAL_API_HOST=your_dial_api_host_here
-DIAL_API_VERSION=your_dial_api_version_here
-OPENROUTER_API_KEY=your_openrouter_api_key_here
-CUSTOM_API_URL=your_custom_api_url_here
-CUSTOM_API_KEY=your_custom_api_key_here
-CUSTOM_MODEL_NAME=your_custom_model_name_here
+# Optional provider settings - uncomment only the settings you use.
+# Leave these unset for provider-free CLI conversations through clink.
+# GEMINI_API_KEY=your_gemini_api_key_here
+# GOOGLE_API_KEY=your_google_api_key_here
+# OPENAI_API_KEY=your_openai_api_key_here
+# ANTHROPIC_API_KEY=your_anthropic_api_key_here
+# XAI_API_KEY=your_xai_api_key_here
+# DIAL_API_KEY=your_dial_api_key_here
+# DIAL_API_HOST=your_dial_api_host_here
+# DIAL_API_VERSION=your_dial_api_version_here
+# OPENROUTER_API_KEY=your_openrouter_api_key_here
+# CUSTOM_API_URL=
+# CUSTOM_API_KEY=
+# CUSTOM_MODEL_NAME=
 
 # Server Configuration
 DEFAULT_MODEL=auto
@@ -891,7 +870,7 @@ DEFAULT_THINKING_MODE_THINKDEEP=high
         
         $defaultEnv | Out-File -FilePath ".env" -Encoding UTF8
         Write-Success "Default .env file created"
-        Write-Warning "Please edit .env file with your actual API keys"
+	Write-Info "Provider settings are optional. Uncomment and configure them only for API-backed tools."
     }
     else {
         Write-Success ".env file exists"
@@ -1761,7 +1740,7 @@ function Test-QwenCliIntegration {
                     $cwdMatches = ([string]::IsNullOrEmpty($cwdValue) -or $cwdValue -eq $scriptDir)
 
                     if ($commandMatches -and $argsMatches -and $cwdMatches) {
-                        $configStatus = $legacyRemoved ? "cleanup" : "match"
+			$configStatus = if ($legacyRemoved) { "cleanup" } else { "match" }
                     }
                     else {
                         $configStatus = "mismatch"
@@ -2000,6 +1979,7 @@ function Show-SetupInstructions {
     Write-Host ""
     Write-Host "MCP clients will automatically connect to the server." -ForegroundColor Green
     Write-Host "For manual configuration, use the paths shown above." -ForegroundColor Gray
+    Write-Info "Ask PAL listmodels for actual startup availability; enabled API-backed tools still require a provider."
 }
 
 # Start the server
@@ -2062,19 +2042,20 @@ function Initialize-EnvFile {
     if (!(Test-Path ".env")) {
         Write-Info "Creating default .env file..."
         @"
-# API Keys - Replace with your actual keys
-GEMINI_API_KEY=your_gemini_api_key_here
-GOOGLE_API_KEY=your_google_api_key_here
-OPENAI_API_KEY=your_openai_api_key_here
-ANTHROPIC_API_KEY=your_anthropic_api_key_here
-XAI_API_KEY=your_xai_api_key_here
-DIAL_API_KEY=your_dial_api_key_here
-DIAL_API_HOST=your_dial_api_host_here
-DIAL_API_VERSION=your_dial_api_version_here
-OPENROUTER_API_KEY=your_openrouter_api_key_here
-CUSTOM_API_URL=your_custom_api_url_here
-CUSTOM_API_KEY=your_custom_api_key_here
-CUSTOM_MODEL_NAME=your_custom_model_name_here
+# Optional provider settings - uncomment only the settings you use.
+# Leave these unset for provider-free CLI conversations through clink.
+# GEMINI_API_KEY=your_gemini_api_key_here
+# GOOGLE_API_KEY=your_google_api_key_here
+# OPENAI_API_KEY=your_openai_api_key_here
+# ANTHROPIC_API_KEY=your_anthropic_api_key_here
+# XAI_API_KEY=your_xai_api_key_here
+# DIAL_API_KEY=your_dial_api_key_here
+# DIAL_API_HOST=your_dial_api_host_here
+# DIAL_API_VERSION=your_dial_api_version_here
+# OPENROUTER_API_KEY=your_openrouter_api_key_here
+# CUSTOM_API_URL=
+# CUSTOM_API_KEY=
+# CUSTOM_MODEL_NAME=
 
 # Server Configuration
 DEFAULT_MODEL=auto
@@ -2088,7 +2069,7 @@ DEFAULT_THINKING_MODE_THINKDEEP=high
 "@ | Out-File -FilePath ".env" -Encoding UTF8
         
         Write-Success "Default .env file created"
-        Write-Warning "Please edit .env file with your actual API keys"
+	Write-Info "Provider settings are optional. Uncomment and configure them only for API-backed tools."
     }
     else {
         Write-Success ".env file already exists"
@@ -2146,7 +2127,7 @@ function Invoke-DockerWorkflow {
     if (!(Initialize-DockerEnvironment)) { exit 1 }
     
     Import-EnvFile
-    Test-ApiKeys
+    Show-SetupPaths -UseDocker
     
     if (!(Build-DockerImage -Force:$Force)) { exit 1 }
     
@@ -2201,7 +2182,7 @@ function Invoke-PythonWorkflow {
     Clear-PythonCache
     Initialize-EnvFile
     Import-EnvFile
-    Test-ApiKeys
+    Show-SetupPaths
     
     try {
         $pythonPath = Initialize-Environment

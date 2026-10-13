@@ -7,7 +7,7 @@ This guide walks you through setting up the PAL MCP Server from scratch, includi
 - **Python 3.10+** (3.12 recommended)
 - **Git**
 - **[uv installed](https://docs.astral.sh/uv/getting-started/installation/)** (for uvx method)
-- **Windows users**: WSL2 required for Claude Code CLI
+- **Windows users**: use native PowerShell setup or run Bash setup inside WSL; install and authenticate the selected CLI in the same environment as PAL. Claude Code supports both [native Windows and WSL](https://code.claude.com/docs/en/setup#set-up-on-windows).
 
 ## Step 1: Choose CLI Conversations or API-backed Tools
 
@@ -301,7 +301,15 @@ cd pal-mcp-server
 
 **After updates:** Always run `./run-server.sh` again after `git pull`.
 
-**Windows users**: See the [WSL Setup Guide](wsl-setup.md) for detailed WSL configuration.
+### Windows CLI setup
+
+For local Windows CLIs, run `.\run-server.ps1` from the checkout in PowerShell (the script requires PowerShell 5.1 or later). Use its native Python workflow, then restart your MCP client. Install and authenticate the chosen vendor CLI under the Windows account that launches PAL, and make its executable available on that process's `PATH` or through an explicit CLI manifest command. Use Windows absolute paths for request files and `working_dir`; the generated Python launcher is `.pal_venv\Scripts\python.exe`.
+
+Both PowerShell setup branches create a new `.env` with provider credentials and endpoints commented out. Leave them unset for provider-free clink, or uncomment only the API settings you intend to use. Existing files are preserved: older generated files may still contain `CUSTOM_API_URL=your_custom_api_url_here`, which PAL treats as absent. Remove or comment unused placeholder keys in those files too, especially `ANTHROPIC_API_KEY`, because child CLIs can inherit them. A real custom endpoint remains configured, and inherited provider settings still count; commenting a file entry does not clear a process environment variable. The PowerShell launcher imports active `.env` assignments into its process, so those assignments replace same-named inherited values.
+
+For WSL, install/run PAL and the selected CLI inside the same distribution and use `./run-server.sh` with Linux paths. Do not assume a Windows CLI login or `PATH` is available inside WSL. See the [WSL Setup Guide](wsl-setup.md) for that setup path and the vendor's [current Windows requirements](https://code.claude.com/docs/en/setup#set-up-on-windows).
+
+The `-Docker` path needs the selected CLI executable and its authentication **inside the container**. It does not automatically reuse the host's installation or login. Native Python setup is the local CLI path described here. Neither setup branch installs vendor CLIs or probes their login state; `listmodels` reports executable observations with authentication unverified.
 
 ## Step 3: Configure the Selected Setup Path
 

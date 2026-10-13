@@ -9,7 +9,7 @@
 > Review: [review.md](review.md)
 > Not Doing: CLI-backed chat/providers, additional CLI-backed workflows, installation/login/billing management, shared remote deployments, native CLI sessions, durable history, multimodal parity, new filesystem sandbox, dependency upgrades
 
-Tasks 1–10 are done; Tasks 11–14 are pending. Review findings R1–R8 are addressed in these plans; implementation progress is tracked below. Deferred scope remains in [design.md](design.md#deferred-findings-and-verification-limits). Tasks 1–6 established reliable bounded CLI conversations. Tasks 7–9 added provider setup diagnostics, runtime capability snapshots, call guards, and coherent discovery/continuation guidance. Task 10 documents local setup and usage and aligns Bash setup messages. Intermediate behavior is explicit in the implementation plan. A skipped live check is not completed coverage.
+Tasks 1–11 are done; Tasks 12–14 are pending. Review findings R1–R8 are addressed in these plans; implementation progress is tracked below. Deferred scope remains in [design.md](design.md#deferred-findings-and-verification-limits). Tasks 1–6 established reliable bounded CLI conversations. Tasks 7–9 added provider setup diagnostics, runtime capability snapshots, call guards, and coherent discovery/continuation guidance. Tasks 10–11 document local setup and usage and align Bash/PowerShell setup messages and templates. Intermediate behavior is explicit in the implementation plan. A skipped live check is not completed coverage.
 
 ## Task 1: Surface Gemini and Claude execution failures
 
@@ -155,14 +155,16 @@ Completed 2026-10-13: Bash syntax, 95 relative links, 17 JSON examples, five cli
 
 ## Task 11: Align PowerShell setup
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 10
 - **Size:** S
 - **Can run in parallel with:** Task 12, Task 13
 - **Docs:** [implementation.md#task-11-align-powershell-setup](implementation.md#task-11-align-powershell-setup)
 
-- [ ] 11.1 Update both `run-server.ps1` setup branches' messages/templates → verify generated defaults are absent and real supplied endpoints remain configured.
-- [ ] 11.2 Parse PowerShell syntax without installation/configuration mutations and clarify Windows documentation where needed → verify no login probe or credential management is introduced; Task 14 owns the setup walkthrough.
+- [x] 11.1 Update both `run-server.ps1` setup branches' messages/templates → verify generated defaults are absent and real supplied endpoints remain configured.
+- [x] 11.2 Parse PowerShell syntax without installation/configuration mutations and clarify Windows documentation where needed → verify no login probe or credential management is introduced; Task 14 owns the setup walkthrough.
+
+Completed 2026-10-13: PowerShell 7.6.6 syntax parsing, isolated template/import checks for both branches, 25 documentation links, and 197 provider regression tests passed. Full quality checks passed with 2,530 tests passed and 16 skipped. Independent review approved after correcting an existing PowerShell 7-only expression that contradicted the script's declared 5.1 minimum. Native Windows execution and the full setup walkthrough remain unverified; details and existing live-check failures are in the [Task 11 execution record](implementation.md#task-11-execution-record-2026-10-13).
 
 ## Task 12: Prove the real MCP conversation
 
