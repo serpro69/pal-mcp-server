@@ -9,7 +9,7 @@
 > Review: [review.md](review.md)
 > Not Doing: CLI-backed chat/providers, additional CLI-backed workflows, installation/login/billing management, shared remote deployments, native CLI sessions, durable history, multimodal parity, new filesystem sandbox, dependency upgrades
 
-Tasks 1–3 are done; Tasks 4–14 are pending. Review findings R1–R8 are addressed in these plans; implementation progress is tracked below. Deferred scope remains in [design.md](design.md#deferred-findings-and-verification-limits). Tasks 1–2 established failure classification; Task 3 replaced eager CLI admission with atomic recording. Tasks 4–5 separately deliver bounded history/selection and non-waiting coordination. Intermediate behavior is explicit in the implementation plan. A skipped live check is not completed coverage.
+Tasks 1–4 are done; Tasks 5–14 are pending. Review findings R1–R8 are addressed in these plans; implementation progress is tracked below. Deferred scope remains in [design.md](design.md#deferred-findings-and-verification-limits). Tasks 1–2 established failure classification; Task 3 replaced eager CLI admission with atomic recording; Task 4 added bounded history and saved selection. Task 5 delivers non-waiting coordination. Intermediate behavior is explicit in the implementation plan. A skipped live check is not completed coverage.
 
 ## Task 1: Surface Gemini and Claude execution failures
 
@@ -56,16 +56,18 @@ Completed 2026-10-13: all 327 targeted checks passed; full quality checks passed
 
 ## Task 4: Bound history and restore CLI selection
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 3
 - **Size:** M
 - **Can run in parallel with:** —
 - **Docs:** [implementation.md#task-4-bound-history-and-restore-cli-selection](implementation.md#task-4-bound-history-and-restore-cli-selection)
 
-- [ ] 4.1 Implement complete-exchange rendering in `clink/conversation.py` with the 16,384 default in `clink/constants.py` → verify wrappers/notices/reference accounting, chronological suffix selection, parent depth, incomplete legacy groups, and oversized-newest-exchange errors.
-- [ ] 4.2 Preserve raw content while storing reduced presentation in `model_metadata.clink.visible_reply` → verify subsequent CLI history uses displayed text without losing raw cross-tool/audit content.
-- [ ] 4.3 Update `tools/clink.py` selection/defaults/schema for successful CLI/role inheritance → verify explicit overrides, continuation without `cli_name`, ambiguity errors, and no inherited edit permission.
-- [ ] 4.4 Add `tests/test_clink_history_budget.py`, extend continuation tests, and run the Task 4 command → verify the new history/selection behavior; per-client settings and immediate busy errors remain assigned to Tasks 6 and 5.
+- [x] 4.1 Implement complete-exchange rendering in `clink/conversation.py` with the 16,384 default in `clink/constants.py` → verify wrappers/notices/reference accounting, chronological suffix selection, parent depth, incomplete legacy groups, and oversized-newest-exchange errors.
+- [x] 4.2 Preserve raw content while storing reduced presentation in `model_metadata.clink.visible_reply` → verify subsequent CLI history uses displayed text without losing raw cross-tool/audit content.
+- [x] 4.3 Update `tools/clink.py` selection/defaults/schema for successful CLI/role inheritance → verify explicit overrides, continuation without `cli_name`, ambiguity errors, and no inherited edit permission.
+- [x] 4.4 Add `tests/test_clink_history_budget.py`, extend continuation tests, and run the Task 4 command → verify the new history/selection behavior; per-client settings and immediate busy errors remain assigned to Tasks 6 and 5.
+
+Completed 2026-10-13: 209 targeted and 14 tool-surface tests passed; full quality checks passed with 2,257 tests passed and 16 skipped. Independent code review found no issues. Live-check and external-review limitations are recorded in the [Task 4 execution record](implementation.md#task-4-execution-record-2026-10-13).
 
 ## Task 5: Reject overlapping CLI continuations immediately
 

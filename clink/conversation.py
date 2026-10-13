@@ -11,12 +11,11 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
-from tools.models import ToolOutput
-from tools.shared.exceptions import ToolExecutionError
+from clink.constants import DEFAULT_HISTORY_TOKEN_BUDGET
 from utils import conversation_memory as memory
-from utils.conversation_context import CLIHistoryBudget
 from utils.file_utils import expand_paths
 from utils.storage_backend import InMemoryStorage
+from utils.token_utils import estimate_tokens
 from utils.transcripts import record_event
 
 if TYPE_CHECKING:
@@ -25,6 +24,106 @@ if TYPE_CHECKING:
 
 class ConversationConflictError(memory.ConversationStorageError):
     """The prepared thread changed or expired before the reply was recorded."""
+
+
+@dataclass
+class CLIHistory:
+    """A bounded text projection and the complete messages it retains."""
+
+    text: str
+    turns: list[memory.ConversationTurn]
+    metadata: dict[str, Any]
+
+
+def _render_turn(number: int, turn: memory.ConversationTurn) -> str:
+    label = "Agent" if turn.role == "user" else turn.model_name or "Assistant"
+    if turn.tool_name:
+        label += f" using {turn.tool_name}"
+    if turn.model_provider:
+        label += f" via {turn.model_provider}"
+    parts = [f"--- Turn {number} ({label}) ---"]
+    if turn.files:
+        parts.append("Files: " + ", ".join(turn.files))
+    if turn.images:
+        parts.append("Images: " + ", ".join(turn.images))
+    content = turn.content
+    if turn.role == "assistant":
+        clink_metadata = (turn.model_metadata or {}).get("clink")
+        if isinstance(clink_metadata, dict) and isinstance(clink_metadata.get("visible_reply"), str):
+            content = clink_metadata["visible_reply"]
+    parts.append(content)
+    return "\n".join(parts)
+
+
+def render_history(thread: memory.ThreadContext, *, token_budget: int = DEFAULT_HISTORY_TOKEN_BUDGET) -> CLIHistory:
+    """Retain the newest suffix of complete exchanges, measuring the final text.
+
+    The caller supplies a bounded, flattened parent snapshot. Incomplete legacy
+    groups are omitted without mutating storage. Paths remain references only.
+    """
+    groups: list[list[tuple[int, memory.ConversationTurn]]] = []
+    pending: list[tuple[int, memory.ConversationTurn]] = []
+    for number, turn in enumerate(thread.turns, start=1):
+        if turn.role == "assistant" and pending:
+            pending.append((number, turn))
+            continue
+        if len(pending) >= 2:
+            groups.append(pending)
+        pending = [(number, turn)] if turn.role == "user" else []
+    if len(pending) >= 2:
+        groups.append(pending)
+
+    total = len(thread.turns)
+    incomplete = total - sum(len(group) for group in groups)
+    if total and not groups:
+        raise ValueError("Conversation history has no complete exchange; start a new conversation.")
+
+    metadata = {
+        "estimated_tokens": 0,
+        "token_budget": token_budget,
+        "retained_messages": 0,
+        "omitted_messages": total,
+        "incomplete_messages": incomplete,
+        "incomplete_legacy_omitted": bool(incomplete),
+    }
+    if not groups:
+        return CLIHistory("", [], metadata)
+
+    rendered = ["\n\n".join(_render_turn(number, turn) for number, turn in group) for group in groups]
+    # Drop oldest whole groups until even the wrappers and omission notice fit.
+    # Checking every suffix also handles changing notice length at the boundary.
+    for start in range(len(groups)):
+        retained = [turn for group in groups[start:] for _, turn in group]
+        omitted = total - len(retained)
+        parts = [
+            "=== CONVERSATION HISTORY (CONTINUATION) ===",
+            f"Thread: {thread.thread_id}",
+            f"Tool: {thread.tool_name}",
+        ]
+        if omitted:
+            parts.append(
+                f"[Omitted {omitted} messages: {incomplete} from incomplete legacy groups; "
+                f"{omitted - incomplete} older messages outside the history budget.]"
+            )
+        parts.extend(rendered[start:])
+        parts.extend(
+            [
+                "=== END CONVERSATION HISTORY ===",
+                "Build on the exchanges above. Provide new insights or answers to the current request; "
+                "do not repeat earlier analysis.",
+            ]
+        )
+        text = "\n\n".join(parts)
+        tokens = estimate_tokens(text)
+        if tokens <= token_budget:
+            metadata.update(estimated_tokens=tokens, retained_messages=len(retained), omitted_messages=omitted)
+            return CLIHistory(text, retained, metadata)
+
+    raise ValueError(
+        f"The newest complete exchange exceeds the history-only budget of {token_budget} estimated tokens "
+        "including wrappers and references. Start a shorter conversation or configure a larger history_token_budget "
+        "for a future server session. This budget excludes the current request and CLI-generated context."
+    )
 
 
 def prepare_request(tool: CLinkTool, arguments: dict[str, Any]) -> CLinkRequest:
@@ -40,6 +139,11 @@ def prepare_request(tool: CLinkTool, arguments: dict[str, Any]) -> CLinkRequest:
         tool._raise_tool_error(editable_path_error)
     size_error = tool.check_prompt_size(request.prompt)
     if size_error:
+        # Import lazily: tools.__init__ registers CLinkTool, which imports this
+        # module. The history renderer must also be importable on its own.
+        from tools.models import ToolOutput
+        from tools.shared.exceptions import ToolExecutionError
+
         raise ToolExecutionError(ToolOutput(**size_error).model_dump_json())
 
     files = tool.get_request_files(request)
@@ -67,6 +171,7 @@ class CLIConversation:
     files: list[str]
     images: list[str]
     user_content: str
+    history_metadata: dict[str, Any]
 
     @classmethod
     def prepare(cls, request: CLinkRequest) -> CLIConversation:
@@ -121,28 +226,45 @@ class CLIConversation:
                     parents = parents[index + 1 :]
                     break
             turns = [turn for parent in parents for turn in parent.turns] + turns
-        combined = thread.model_copy(update={"turns": turns + [user_turn], "parent_thread_id": None})
+        history = render_history(thread.model_copy(update={"turns": turns, "parent_thread_id": None}))
+        combined = thread.model_copy(update={"turns": history.turns + [user_turn], "parent_thread_id": None})
         files = memory.get_conversation_file_list(combined)
         images = memory.get_conversation_image_list(combined)
 
         user_content = request.prompt.strip()
-        if expected is not None:
-            # Task 4 replaces this renderer with complete-exchange selection.
-            # Keep the current input outside its truncation budget, as before.
-            history_turns = [turn.model_copy(update={"files": None}) for turn in combined.turns]
-            history_turns[-1] = history_turns[-1].model_copy(update={"content": ""})
-            history, _ = memory.build_conversation_history(
-                combined.model_copy(update={"turns": history_turns}), CLIHistoryBudget()
-            )
-            user_content = f"{history}\n\n=== NEW USER INPUT ===\n{request.prompt}"
-        return cls(storage, thread, expected, user_turn, files, images, user_content)
+        if history.text:
+            user_content = f"{history.text}\n\n=== NEW USER INPUT ===\n{request.prompt}"
+        return cls(storage, thread, expected, user_turn, files, images, user_content, history.metadata)
+
+    def resolve_selection(self, request: CLinkRequest, cli_names: list[str]) -> tuple[str, str]:
+        """Inherit only successful CLI/role defaults, never request permissions."""
+        defaults = self.thread.initial_context.get("clink_defaults", {})
+        if not isinstance(defaults, dict):
+            defaults = {}
+        cli_name = request.cli_name if request.cli_name is not None else defaults.get("cli_name")
+        role = request.role if request.role is not None else defaults.get("role", "default")
+        if cli_name is None:
+            if not cli_names:
+                raise ValueError("No CLI clients are configured for clink.")
+            if len(cli_names) != 1:
+                raise ValueError(
+                    "cli_name is required when multiple CLI clients are configured and no selection is saved."
+                )
+            cli_name = cli_names[0]
+        if not isinstance(cli_name, str) or cli_name not in cli_names:
+            raise ValueError(f"Invalid cli_name {cli_name!r}. Select a configured CLI: {', '.join(cli_names)}.")
+        if not isinstance(role, str) or not role:
+            raise ValueError("Invalid role; specify a valid role for the selected CLI.")
+        return cli_name, role
 
     @staticmethod
     def _check_capacity(thread: memory.ThreadContext) -> None:
         if memory.MAX_CONVERSATION_TURNS - len(thread.turns) < 2:
             raise memory.ConversationLimitError("Conversation requires two free message slots for an input and reply")
 
-    def commit(self, reply: str, *, provider: str, model_name: str | None, model_metadata: dict[str, Any]) -> int:
+    def commit(
+        self, reply: str, *, provider: str, role: str, model_name: str | None, model_metadata: dict[str, Any]
+    ) -> int:
         """Commit both raw turns once, then emit compatible audit events in order.
 
         There is no await between CAS and audit emission. The caller owns any
@@ -162,7 +284,14 @@ class CLIConversation:
             model_metadata=model_metadata,
         )
         committed = self.thread.model_copy(
-            update={"turns": self.thread.turns + [self.user_turn, assistant], "last_updated_at": now}
+            update={
+                "turns": self.thread.turns + [self.user_turn, assistant],
+                "last_updated_at": now,
+                "initial_context": {
+                    **self.thread.initial_context,
+                    "clink_defaults": {"cli_name": provider, "role": role},
+                },
+            }
         )
         data = committed.model_dump_json()
         try:
