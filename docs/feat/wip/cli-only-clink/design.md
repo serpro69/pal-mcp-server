@@ -1,6 +1,6 @@
 # Design: CLI-only conversations through clink
 
-> Status: reviewed and revised; Task 1 complete, Tasks 2–14 pending
+> Status: reviewed and revised; Tasks 1–2 complete, Tasks 3–14 pending
 > Created: 2026-10-10
 > Issue: [BeehiveInnovations/pal-mcp-server#402](https://github.com/BeehiveInnovations/pal-mcp-server/issues/402)
 > Source baseline: `2d821f1` (rebased from `c20d384` on 2026-10-12)
@@ -187,4 +187,4 @@ Update getting-started, clink/configuration guidance, README navigation, and bot
 | Descendant-process cleanup is not fully established; the current runner already kills/reaps its direct child on timeout and cancellation. | No process-tree supervision redesign is part of this change.                               | Preserve and test existing child cleanup plus coordinator release; separately review descendant supervision before promising process-tree termination.             |
 | API/local-tool invocation deliberately records input before execution, so failure may leave an unanswered user turn.                      | Their audit semantics are preserved; CLI success-only recording is the explicit exception. | Any future change needs a separate decision on failed-input auditing and failure/retry tests; do not apply the CLI commit policy to other tools opportunistically. |
 
-During design review, quality checks exited before lint/tests because no virtual environment was active. No application code, installed environment, live authentication, or inference was changed by those review corrections. Their validation limits remain recorded in [implementation.md](implementation.md#design-session-validation). Task 1 implementation and current deterministic/live-check outcomes are recorded separately in the [execution record](implementation.md#task-1-execution-record-2026-10-13).
+During design review, quality checks exited before lint/tests because no virtual environment was active. No application code, installed environment, live authentication, or inference was changed by those review corrections. Their validation limits remain recorded in [implementation.md](implementation.md#design-session-validation). Implementation and current deterministic/live-check outcomes are recorded separately for [Task 1](implementation.md#task-1-execution-record-2026-10-13) and [Task 2](implementation.md#task-2-execution-record-2026-10-13).
