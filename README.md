@@ -47,17 +47,19 @@ The new **[`clink`](docs/tools/clink.md)** (CLI + Link) tool connects external A
 - **Context Isolation** - Run separate investigations without polluting your primary workspace
 - **Role Specialization** - Spawn `planner`, `codereviewer`, or custom role agents with specialized system prompts
 - **Full CLI Capabilities** - Web search, file inspection, MCP tool access, latest documentation lookups
-- **Seamless Continuity** - Sub-CLIs participate as first-class members with full conversation context between tools
+- **Bounded Continuity** - Continue with a PAL conversation ID; clink forwards the newest complete exchanges that fit the selected CLI's history budget
 
-```bash
+**No PAL provider key required:** use an installed, authenticated CLI for ongoing conversations through clink. PAL starts without model providers and retains available independent tools. See [CLI-only setup](docs/getting-started.md#cli-conversations-without-pal-provider-keys) and [first-request/follow-up examples](docs/tools/clink.md#first-request-and-follow-up).
+
+```text
 # Codex spawns Codex subagent for isolated code review in fresh context
 clink with codex codereviewer to audit auth module for security issues
 # Subagent reviews in isolation, returns final report without cluttering your context as codex reads each file and walks the directory structure
 
-# Consensus from different AI models → Implementation handoff with full context preservation between tools
+# With PAL API providers configured: consensus → bounded CLI handoff
 Use consensus with gpt-5 and gemini-pro to decide: dark mode or offline support next
-Continue with clink gemini - implement the recommended feature
-# Gemini receives full debate context and starts coding immediately
+Continue with clink cli_name=gemini allow_edits=true - implement the recommended feature
+# Supply the PAL continuation ID; edit permission must be explicit on every call
 ```
 
 👉 **[Learn more about clink](docs/tools/clink.md)** · **[CLI history budgets](docs/configuration.md#cli-conversation-history-budgets)**
@@ -163,7 +165,10 @@ For best results when using [Codex CLI](https://developers.openai.com/codex/cli)
 
 **Prerequisites:** Python 3.10+, Git, [uv installed](https://docs.astral.sh/uv/getting-started/installation/)
 
-**1. Get API Keys** (choose one or more):
+**1. Choose a setup path:**
+
+- **CLI conversations:** install and authenticate Codex, Claude Code, or Gemini CLI, then use `clink`. Leave PAL model-provider keys/endpoints unconfigured for provider-free mode. Follow [local CLI setup](docs/getting-started.md#cli-conversations-without-pal-provider-keys).
+- **API-backed tools:** configure a provider for `chat`, `consensus`, `codereview`, and other model-backed workflows. Choose one or more below; a local endpoint may not need a key.
 
 - **[OpenRouter](https://openrouter.ai/)** - Access multiple models with one API
 - **[Gemini](https://makersuite.google.com/app/apikey)** - Google's latest models
@@ -191,7 +196,7 @@ cd pal-mcp-server
 
 ```json
 // Add to ~/.claude/settings.json or .mcp.json
-// Don't forget to add your API keys under env
+// API-backed example: for provider-free clink, omit GEMINI_API_KEY
 {
   "mcpServers": {
     "pal": {
@@ -213,6 +218,22 @@ cd pal-mcp-server
 
 **3. Start Using!**
 
+For CLI conversations, ask your client to call clink:
+
+```json
+{"cli_name": "codex", "prompt": "Remember the codeword ORCHID-42."}
+```
+
+Then follow up with the returned ID:
+
+```json
+{"continuation_id": "<continuation_offer.continuation_id>", "prompt": "What codeword did I give you?"}
+```
+
+Use your installed CLI's name on the first request; the follow-up inherits the successful CLI/role. Edits default off on each call. History defaults to 16,384 estimated tokens and 50 stored messages, expires after three hours without a successful recorded exchange, and is lost on restart. [Permissions, limits, and failure handling](docs/tools/clink.md) explain busy retries, missing executables, and replies that could not be recorded. CLI failures do not fall back to an API provider.
+
+With API providers configured, you can also use these workflows:
+
 ```
 "Use pal to analyze this code for security issues with gemini pro"
 "Debug this error with o3 and then get flash to suggest optimizations"
@@ -221,12 +242,14 @@ cd pal-mcp-server
 ```
 
 👉 **[Complete Setup Guide](docs/getting-started.md)** with detailed installation, configuration for Gemini / Codex / Qwen, and troubleshooting
-👉 **[Cursor & VS Code Setup](docs/getting-started.md#ide-clients)** for IDE integration instructions
+👉 **[Cursor & VS Code Setup](docs/getting-started.md#ide-clients-cursor--vs-code)** for IDE integration instructions
 📺 **[Watch tools in action](#-watch-tools-in-action)** to see real-world examples
 
 ## Provider Configuration
 
-PAL activates any provider that has credentials in your `.env`. See `.env.example` for deeper customization.
+PAL determines its mode at startup from successfully configured model providers. Configure provider settings in `.env` or the launch environment for API-backed tools; custom/local endpoints can work without a key. See `.env.example` for customization. Restart PAL after changes.
+
+Without registered model providers, PAL exposes the enabled subset of `clink`, `version`, `listmodels`, `planner`, `tracer`, `docgen`, `challenge`, `apilookup`, and `jules` (which needs its own service credentials). `listmodels` reports setup hints and CLI executable observations with authentication unverified. API-backed tools are unavailable until a provider is configured. PAL does not manage CLI login or guarantee subscription billing; see [vendor authentication guidance](docs/tools/clink.md#authentication-and-version-assumptions).
 
 ## Core Tools
 
@@ -342,6 +365,7 @@ DISABLED_TOOLS=
 **Note:**
 
 - Essential tools (`version`, `listmodels`) cannot be disabled
+- Enabling a tool does not satisfy its provider requirements; `listmodels` reports actual startup availability
 - After changing tool configuration, restart your Claude session for changes to take effect
 - Each tool adds to context window usage, so only enable what you need
 
@@ -465,6 +489,7 @@ DISABLED_TOOLS=
 
 - [Docs Overview](docs/index.md) - High-level map of major guides
 - [Getting Started](docs/getting-started.md) - Complete setup guide
+- [CLI-only conversations](docs/getting-started.md#cli-conversations-without-pal-provider-keys) - Local setup without PAL provider keys
 - [Tools Reference](docs/tools/) - All tools with examples
 - [Advanced Usage](docs/advanced-usage.md) - Power user features
 - [Configuration](docs/configuration.md) - Environment variables, restrictions

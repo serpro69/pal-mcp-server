@@ -9,9 +9,39 @@ This guide walks you through setting up the PAL MCP Server from scratch, includi
 - **[uv installed](https://docs.astral.sh/uv/getting-started/installation/)** (for uvx method)
 - **Windows users**: WSL2 required for Claude Code CLI
 
-## Step 1: Get API Keys
+## Step 1: Choose CLI Conversations or API-backed Tools
 
-You need at least one API key. Choose based on your needs:
+PAL can start without a model provider. Choose an installed, authenticated CLI for conversations through `clink`, or configure an API provider for tools such as `chat`, `consensus`, and `codereview`. Both paths can coexist; clink always invokes the selected CLI and never falls back to an API provider.
+
+### CLI conversations without PAL provider keys
+
+1. Install Codex, Claude Code, or Gemini CLI separately and sign in as the OS user who will run PAL. Follow the [vendor authentication guidance](tools/clink.md#authentication-and-version-assumptions); PAL does not install or log in to these CLIs.
+2. Install PAL using either method in Step 2. For a clone, `./run-server.sh` sets up the Python environment and MCP integration. Your MCP client launches the server; the setup script does not run a CLI login check.
+3. Leave PAL model-provider credentials and endpoints absent or empty in the launch environment, MCP configuration, and `.env`. Remove the API-key entries from the example MCP configurations below. A configured custom/local endpoint also enables a PAL provider, even if it needs no key. Shipped placeholders count as absent; do not add a dummy key to enable startup.
+4. Make the selected executable available on the **MCP server's** `PATH` or set its explicit command path in a [CLI manifest](tools/clink.md#configuration). Preserve access to the same home/authentication location used when signing in. Use actual absolute directories in client `PATH` settings; literal `~` or `$HOME` values in JSON/TOML environment fields may not be expanded by the client.
+5. Restart PAL and ask it to run `listmodels`. Provider-free diagnostics list available independent tools, missing/incomplete provider settings, and whether configured CLI executables were found at startup. Authentication remains unverified until use.
+6. Make a first clink request with `cli_name`, then follow up using the returned PAL continuation ID. Use the [request examples](tools/clink.md#first-request-and-follow-up) below the setup guidance.
+
+For example, after clone setup, a local MCP entry can launch the generated Python environment without provider keys (replace both paths):
+
+```json
+{
+  "mcpServers": {
+    "pal": {
+      "command": "/absolute/path/to/pal-mcp-server/.pal_venv/bin/python",
+      "args": ["/absolute/path/to/pal-mcp-server/server.py"]
+    }
+  }
+}
+```
+
+This entry still inherits the client's environment, and PAL may read its `.env`; omitting keys here does not clear keys configured elsewhere. By default, inherited variables take precedence; `.env` can enable `PAL_MCP_FORCE_ENV_OVERRIDE` to make its settings authoritative for PAL. Ensure neither source configures a provider if you want provider-free mode. See the [configuration guide](configuration.md). CLI authentication and billing remain controlled by the vendor CLI and its own settings.
+
+With no registered PAL model provider, the enabled subset of `clink`, `version`, `listmodels`, `planner`, `tracer`, `docgen`, `challenge`, `apilookup`, and `jules` remains available. Some are disabled in the default tool configuration; Jules needs its own service credentials. API-backed tools are hidden and direct calls return a provider-required error. Startup still succeeds without an installed CLI or with clink disabled. Existing bootstrap configuration errors remain errors, rather than triggering a fallback mode.
+
+### API-backed tools
+
+Configure at least one provider for API-backed tools. Cloud providers generally need a key; a custom/local endpoint may not. Choose based on your needs:
 
 ### Option A: OpenRouter (Recommended for beginners)
 **One API for multiple models**
@@ -69,6 +99,8 @@ Choose your preferred installation method:
 **Prerequisites**: [Install uv first](https://docs.astral.sh/uv/getting-started/installation/)
 
 Choose your AI coding assistant and add the corresponding configuration:
+
+The examples below show API-backed setup. For CLI-only conversations, omit provider keys and endpoints while retaining the launcher and executable lookup settings described [above](#cli-conversations-without-pal-provider-keys).
 
 **For Claude Desktop:**
 1. Open Claude Desktop → Settings → Developer → Edit Config
@@ -180,7 +212,7 @@ Create or edit `~/.qwen/settings.json`:
 }
 ```
 
-Replace the placeholder API key with the providers you use (Gemini, OpenAI, OpenRouter, etc.).
+For API-backed tools, replace the placeholder API key with the providers you use (Gemini, OpenAI, OpenRouter, etc.). For provider-free clink, omit that key entry.
 
 **For OpenCode CLI:**
 Edit `~/.config/opencode/opencode.json`:
@@ -205,7 +237,7 @@ Edit `~/.config/opencode/opencode.json`:
 }
 ```
 
-Add any other API keys you rely on (`OPENAI_API_KEY`, `OPENROUTER_API_KEY`, etc.).
+For API-backed tools, add any other provider keys you use (`OPENAI_API_KEY`, `OPENROUTER_API_KEY`, etc.). For provider-free clink, omit the key entry.
 
 #### IDE Clients (Cursor & VS Code)
 
@@ -263,7 +295,7 @@ cd pal-mcp-server
 **What the setup script does:**
 - ✅ Creates Python virtual environment
 - ✅ Installs all dependencies  
-- ✅ Creates .env file for API keys
+- ✅ Creates .env for optional provider settings and server configuration
 - ✅ Configures Claude integrations
 - ✅ Provides copy-paste configuration
 
@@ -271,7 +303,11 @@ cd pal-mcp-server
 
 **Windows users**: See the [WSL Setup Guide](wsl-setup.md) for detailed WSL configuration.
 
-## Step 3: Configure API Keys
+## Step 3: Configure the Selected Setup Path
+
+For provider-free clink, keep PAL model-provider keys/endpoints unconfigured as described in [Step 1](#cli-conversations-without-pal-provider-keys), and skip the API examples in this step. Login to the selected CLI is a separate prerequisite; an empty PAL provider configuration does not choose the child's authentication method.
+
+For API-backed tools, configure the providers you intend to use:
 
 ### For uvx installation:
 Add your API keys directly to the MCP configuration shown above.
@@ -283,9 +319,9 @@ Edit the `.env` file:
 nano .env
 ```
 
-Add your API keys (at least one required):
+Add the settings for your chosen provider only; do not copy every example endpoint/key into a CLI-only setup:
 ```env
-# Choose your providers (at least one required)
+# Cloud provider examples (choose one or more for API-backed tools)
 GEMINI_API_KEY=your-gemini-api-key-here      # For Gemini models  
 OPENAI_API_KEY=your-openai-api-key-here      # For GPT-5.2, GPT-5.1-Codex, O3
 XAI_API_KEY=your-xai-api-key-here            # For Grok models
@@ -355,11 +391,13 @@ Gemini uses a single `timeout` field per server inside `~/.gemini/settings.json`
 Versions 0.2.1 and newer currently ignore values above ~60 seconds for some transports due to a known regression; if you still see premature disconnects we recommend breaking work into smaller calls or watching the Gemini CLI release notes for the fix.
 
 **Important notes:**
-- ⭐ **No restart needed** - Changes take effect immediately 
+- ⭐ **Restart PAL after configuration changes** - provider availability and CLI configuration are loaded at startup; process-local conversation IDs are lost on restart
 - ⭐ If multiple APIs configured, native APIs take priority over OpenRouter
 - ⭐ Configure model aliases in [`conf/custom_models.json`](../conf/custom_models.json)
 
 ## Step 4: Test the Installation
+
+For either path, start with `"Use pal to list available models"`. In provider-free mode this reports setup and CLI executable diagnostics instead of API models. Then ask `"Use clink with cli_name=codex to remember the codeword ORCHID-42"`, substituting your installed CLI. Ask a dependent follow-up through clink with the returned `continuation_offer.continuation_id`; see the [exact tool arguments](tools/clink.md#first-request-and-follow-up). Executable discovery alone does not prove authentication or a successful conversation.
 
 ### For Claude Desktop:
 1. Restart Claude Desktop
@@ -369,7 +407,7 @@ Versions 0.2.1 and newer currently ignore values above ~60 seconds for some tran
 ### For Claude Code CLI:
 1. Exit any existing Claude session
 2. Run `claude` from your project directory  
-3. Try: `"Use pal to chat about Python best practices"`
+3. Try: `"Use pal to list available models"`, then the clink example above or an API-backed chat if a provider is configured
 
 ### For Gemini CLI:
 **Note**: While PAL MCP connects to Gemini CLI, tool invocation isn't working correctly yet. See [Gemini CLI Setup](gemini-setup.md) for updates.
@@ -389,7 +427,7 @@ Versions 0.2.1 and newer currently ignore values above ~60 seconds for some tran
 2. Open a new conversation
 3. Try: `"Use pal to list available models"`
 
-### Test Commands:
+### API-backed Test Commands:
 ```
 "Use pal to list available models"
 "Chat with pal about the best approach for API design"
@@ -400,6 +438,10 @@ Versions 0.2.1 and newer currently ignore values above ~60 seconds for some tran
 **Note**: Codex CLI provides excellent MCP integration with automatic environment variable configuration when using the setup script.
 
 ## Step 5: Start Using PAL
+
+For CLI conversations, use [clink's first-request and follow-up examples](tools/clink.md#first-request-and-follow-up). Edit permission must be supplied on each request; it is never inherited. History is bounded, expires by default after three hours without a successful recorded exchange, and is lost on restart. See [permissions](tools/clink.md#edit-permissions), [limits](tools/clink.md#conversation-limits), and [failure handling](tools/clink.md#diagnostics-and-failures).
+
+The model-selection and multi-model examples below require configured PAL model providers. Provider-independent workflows remain available according to the enabled tools reported by `listmodels`.
 
 ### Basic Usage Patterns:
 
@@ -457,6 +499,13 @@ Versions 0.2.1 and newer currently ignore values above ~60 seconds for some tran
 - Run `"Use pal to list available models"` to see what's configured
 - Check model restrictions in environment variables
 - Verify API key has access to requested models
+
+### CLI Setup and Continuation Issues
+
+- **Provider-free `listmodels`:** this is expected without registered providers. Its missing/incomplete setting hints explain how to enable API tools; they do not prevent independent tools from working.
+- **Executable found, request fails:** discovery does not verify authentication, quota, CLI version, or arguments. Check the selected CLI's diagnostic and [vendor guidance](tools/clink.md#authentication-and-version-assumptions) under the same OS account and launch environment.
+- **Busy continuation:** retry the same ID after the active request finishes. Failed CLI requests do not append history or refresh its TTL.
+- **Expired/full/oversized history:** start a new conversation or follow the [history budget guidance](configuration.md#cli-conversation-history-budgets). If an answer has `metadata.history_saved=false`, keep the answer; it has no new continuation offer.
 
 ### Performance Issues
 

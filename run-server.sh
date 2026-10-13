@@ -1107,53 +1107,19 @@ migrate_env_file() {
     echo "  (Backup saved as .env.backup_*)"
 }
 
-# Check API keys and warn if missing (non-blocking)
-check_api_keys() {
-    local has_key=false
-    local api_keys=(
-        "GEMINI_API_KEY:your_gemini_api_key_here"
-        "OPENAI_API_KEY:your_openai_api_key_here"
-        "XAI_API_KEY:your_xai_api_key_here"
-        "DIAL_API_KEY:your_dial_api_key_here"
-        "OPENROUTER_API_KEY:your_openrouter_api_key_here"
-        "OPENCODE_GO_API_KEY:your_opencode_go_api_key_here"
-    )
-
-    for key_pair in "${api_keys[@]}"; do
-        local key_name="${key_pair%%:*}"
-        local placeholder="${key_pair##*:}"
-        local key_value="${!key_name:-}"
-
-        if [[ -n "$key_value" ]] && [[ "$key_value" != "$placeholder" ]]; then
-            print_success "$key_name configured"
-            has_key=true
-        fi
-    done
-
-    # Check custom API URL
-    if [[ -n "${CUSTOM_API_URL:-}" ]]; then
-        print_success "CUSTOM_API_URL configured: $CUSTOM_API_URL"
-        has_key=true
-    fi
-
-    if [[ "$has_key" == false ]]; then
-        print_warning "No API keys found in .env!"
-        echo ""
-        echo "The Python development environment will be set up, but you won't be able to use the MCP server until you add API keys."
-        echo ""
-        echo "To add API keys, edit .env and add at least one:"
-        echo "  GEMINI_API_KEY=your-actual-key"
-        echo "  OPENAI_API_KEY=your-actual-key"
-        echo "  XAI_API_KEY=your-actual-key"
-        echo "  DIAL_API_KEY=your-actual-key"
-        echo "  OPENROUTER_API_KEY=your-actual-key"
-        echo "  OPENCODE_GO_API_KEY=your-actual-key"
-        echo ""
-        print_info "You can continue with development setup and add API keys later."
-        echo ""
-    fi
-
-    return 0  # Always return success to continue setup
+# Explain setup choices; Python startup owns provider classification and validation.
+display_setup_paths() {
+    print_info "Choose how PAL will run requests:"
+    echo "  CLI conversations: use clink with an installed, authenticated Codex, Claude Code, or Gemini CLI."
+    echo "  No PAL model-provider API key is required for clink or the available independent tools."
+    echo "  Install and sign in to the selected CLI yourself, using the same OS account that runs PAL."
+    echo "  API-backed tools (chat, consensus, etc.): configure a provider in .env or the launch environment."
+    echo "  Local API endpoints are also supported; see docs/getting-started.md."
+    echo ""
+    echo "  At startup PAL determines available tools. Use listmodels for provider setup hints and CLI executable status."
+    echo "  Executable discovery does not verify login, billing, or compatible CLI arguments."
+    echo "  Restart PAL after configuration changes. See docs/tools/clink.md for first-request and follow-up examples."
+    echo ""
 }
 
 
@@ -2454,7 +2420,8 @@ EOF
 
    [mcp_servers.pal.env]
    PATH = "/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin:\$HOME/.local/bin:\$HOME/.cargo/bin:\$HOME/bin"
-   GEMINI_API_KEY = "your_gemini_api_key_here"
+   # Optional: configure a provider for API-backed tools.
+   # GEMINI_API_KEY = "your_gemini_api_key_here"
 EOF
     echo ""
 }
@@ -2470,6 +2437,7 @@ display_setup_instructions() {
     printf '%*s\n' "$((${#setup_header} + 12))" | tr ' ' '='
     echo ""
     print_success "PAL is ready to use!"
+    echo "Ask PAL listmodels for the tools and providers available after startup."
     
     # Display enabled/disabled tools if DISABLED_TOOLS is configured
     if [[ -n "${DISABLED_TOOLS:-}" ]]; then
@@ -2515,7 +2483,7 @@ display_setup_instructions() {
         
         # Display enabled tools
         echo ""
-        echo -e "  ${GREEN}Enabled Tools (${#enabled_tools[@]}):${NC}"
+	echo -e "  ${GREEN}Tools enabled by configuration (${#enabled_tools[@]}):${NC}"
         local enabled_list=""
         for tool in "${enabled_tools[@]}"; do
             if [[ -n "$enabled_list" ]]; then
@@ -2524,6 +2492,7 @@ display_setup_instructions() {
             enabled_list+="$tool"
         done
         echo "    $enabled_list"
+	echo "    Runtime availability also depends on provider setup; API-backed tools require a configured provider."
         
         # Display disabled tools
         echo ""
@@ -2692,8 +2661,8 @@ main() {
         load_env_preserving_state .env
     fi
 
-    # Step 4: Check API keys (non-blocking - just warn if missing)
-    check_api_keys
+    # Step 4: Explain CLI and API setup paths without probing credentials
+    display_setup_paths
 
     # Step 5: Setup Python environment (uv-first approach)
     local python_cmd
