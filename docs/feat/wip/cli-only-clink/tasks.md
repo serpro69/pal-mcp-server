@@ -9,7 +9,7 @@
 > Review: [review.md](review.md)
 > Not Doing: CLI-backed chat/providers, additional CLI-backed workflows, installation/login/billing management, shared remote deployments, native CLI sessions, durable history, multimodal parity, new filesystem sandbox, dependency upgrades
 
-Tasks 1–7 are done; Tasks 8–14 are pending. Review findings R1–R8 are addressed in these plans; implementation progress is tracked below. Deferred scope remains in [design.md](design.md#deferred-findings-and-verification-limits). Tasks 1–2 established failure classification; Task 3 replaced eager CLI admission with atomic recording; Task 4 added bounded history and saved selection; Task 5 added non-waiting coordination; Task 6 made history budgets configurable per CLI; Task 7 added declaration-derived provider setup diagnostics. Intermediate behavior is explicit in the implementation plan. A skipped live check is not completed coverage.
+Tasks 1–8 are done; Tasks 9–14 are pending. Review findings R1–R8 are addressed in these plans; implementation progress is tracked below. Deferred scope remains in [design.md](design.md#deferred-findings-and-verification-limits). Tasks 1–2 established failure classification; Task 3 replaced eager CLI admission with atomic recording; Task 4 added bounded history and saved selection; Task 5 added non-waiting coordination; Task 6 made history budgets configurable per CLI; Task 7 added declaration-derived provider setup diagnostics; Task 8 added runtime capability snapshots and call availability guards. Intermediate behavior is explicit in the implementation plan. A skipped live check is not completed coverage.
 
 ## Task 1: Surface Gemini and Claude execution failures
 
@@ -111,16 +111,18 @@ Completed 2026-10-13: 197 targeted tests passed; full quality checks passed with
 
 ## Task 8: Preserve provider-free startup and call availability
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 5, Task 7
 - **Size:** M
 - **Can run in parallel with:** Task 6
 - **Docs:** [implementation.md#task-8-preserve-provider-free-startup-and-call-availability](implementation.md#task-8-preserve-provider-free-startup-and-call-availability)
 
-- [ ] 8.1 Add `utils/runtime_capabilities.py` using actual provider registration and Task 7 diagnostics → verify provider-free/no-CLI/clink-disabled startup, API mode with an empty restricted catalogue, and preserved fatal errors.
-- [ ] 8.2 Add `clink/availability.py` and share executable resolution with the runner → verify lookup semantics match invocation and discovery executes no command.
-- [ ] 8.3 Guard calls in `server.py` before coordination/history reads using the enabled subset of clink/version/listmodels/planner/tracer/docgen/challenge/apilookup/jules → verify independent tools survive and selected prerequisite errors stay local to their tool.
-- [ ] 8.4 Add `tests/test_cli_only_startup.py` and run the Task 8 command → verify a first fake-CLI reply without provider use and retained bootstrap behavior. Task 9 completes discovery coherency before release.
+- [x] 8.1 Add `utils/runtime_capabilities.py` using actual provider registration and Task 7 diagnostics → verify provider-free/no-CLI/clink-disabled startup, API mode with an empty restricted catalogue, and preserved fatal errors.
+- [x] 8.2 Add `clink/availability.py` and share executable resolution with the runner → verify lookup semantics match invocation and discovery executes no command.
+- [x] 8.3 Guard calls in `server.py` before coordination/history reads using the enabled subset of clink/version/listmodels/planner/tracer/docgen/challenge/apilookup/jules → verify independent tools survive and selected prerequisite errors stay local to their tool.
+- [x] 8.4 Add `tests/test_cli_only_startup.py` and run the Task 8 command → verify a first fake-CLI reply without provider use and retained bootstrap behavior. Task 9 completes discovery coherency before release.
+
+Completed 2026-10-13: 203 targeted and 191 related regression tests passed; full quality checks passed with 2,490 tests passed and 16 skipped. Independent code review found no issues. Live-check and external-review limitations are recorded in the [Task 8 execution record](implementation.md#task-8-execution-record-2026-10-13).
 
 ## Task 9: Discover and resume all available independent tools
 

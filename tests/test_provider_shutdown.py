@@ -59,6 +59,7 @@ async def test_stdio_lifetime_awaits_allocated_clients(monkeypatch, outcome):
     def configure():
         if outcome == "startup_error":
             raise ValueError("startup failed")
+        return {}
 
     monkeypatch.setattr(server, "configure_providers", configure)
 

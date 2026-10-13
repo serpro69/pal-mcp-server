@@ -48,12 +48,16 @@ async def capture_scenarios(root: Path, *, consensus_model: str = "gpt-5-mini") 
         from tests.test_conversation_storage_errors import FaultStorage
         from tools.thinkdeep import ThinkDeepTool
         from utils import conversation_memory as memory
-        from utils import model_restrictions
+        from utils import model_restrictions, runtime_capabilities
 
         provider = OpenAIModelProvider("synthetic-capture-key")
         registry = ModelProviderRegistry()
         stack.enter_context(patch.object(registry, "_providers", {ProviderType.OPENAI: OpenAIModelProvider}))
         stack.enter_context(patch.object(registry, "_initialized_providers", {ProviderType.OPENAI: provider}))
+        stack.enter_context(patch.object(runtime_capabilities, "_runtime", None))
+        runtime_capabilities.initialize_runtime_capabilities(
+            configured_providers=(ProviderType.OPENAI,), enabled_tools=server.TOOLS
+        )
         stack.enter_context(patch.object(model_restrictions, "_restriction_service", None))
         stack.enter_context(patch.object(memory, "get_storage", return_value=FaultStorage()))
         stack.enter_context(patch.object(memory, "MAX_CONVERSATION_TURNS", 100))
