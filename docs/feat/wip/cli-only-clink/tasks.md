@@ -9,7 +9,7 @@
 > Review: [review.md](review.md)
 > Not Doing: CLI-backed chat/providers, additional CLI-backed workflows, installation/login/billing management, shared remote deployments, native CLI sessions, durable history, multimodal parity, new filesystem sandbox, dependency upgrades
 
-Tasks 1–8 are done; Tasks 9–14 are pending. Review findings R1–R8 are addressed in these plans; implementation progress is tracked below. Deferred scope remains in [design.md](design.md#deferred-findings-and-verification-limits). Tasks 1–2 established failure classification; Task 3 replaced eager CLI admission with atomic recording; Task 4 added bounded history and saved selection; Task 5 added non-waiting coordination; Task 6 made history budgets configurable per CLI; Task 7 added declaration-derived provider setup diagnostics; Task 8 added runtime capability snapshots and call availability guards. Intermediate behavior is explicit in the implementation plan. A skipped live check is not completed coverage.
+Tasks 1–9 are done; Tasks 10–14 are pending. Review findings R1–R8 are addressed in these plans; implementation progress is tracked below. Deferred scope remains in [design.md](design.md#deferred-findings-and-verification-limits). Tasks 1–6 established reliable bounded CLI conversations. Tasks 7–9 added provider setup diagnostics, runtime capability snapshots, call guards, and coherent discovery/continuation guidance. Intermediate behavior is explicit in the implementation plan. A skipped live check is not completed coverage.
 
 ## Task 1: Surface Gemini and Claude execution failures
 
@@ -126,16 +126,18 @@ Completed 2026-10-13: 203 targeted and 191 related regression tests passed; full
 
 ## Task 9: Discover and resume all available independent tools
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 8
 - **Size:** M
 - **Can run in parallel with:** Task 6
 - **Docs:** [implementation.md#task-9-discover-and-resume-all-available-independent-tools](implementation.md#task-9-discover-and-resume-all-available-independent-tools)
 
-- [ ] 9.1 Apply availability to tool/prompt listings and aliases in `server.py` → verify all nine independent tools, disabled-tool rules, and rejection of unavailable consensus.
-- [ ] 9.2 Update initialization, `/pal:continue`, and `tools/listmodels.py` → verify absent/incomplete setup hints, unverified authentication, executable observations, and unchanged API-mode behavior; continuation targets must support PAL history.
-- [ ] 9.3 Add parameterized no-provider coverage in `tests/test_cli_only_discovery.py`, including local challenge/apilookup, docgen first/follow-up/completion, and Jules with fake transport → verify no lost capabilities or unsupported continuation offers.
-- [ ] 9.4 Update intended surface assertions and run the Task 9 command → verify listings, aliases, calls, and guidance agree.
+- [x] 9.1 Apply availability to tool/prompt listings and aliases in `server.py` → verify all nine independent tools, disabled-tool rules, and rejection of unavailable consensus.
+- [x] 9.2 Update initialization, `/pal:continue`, and `tools/listmodels.py` → verify absent/incomplete setup hints, unverified authentication, executable observations, and unchanged API-mode behavior; continuation targets must support PAL history.
+- [x] 9.3 Add parameterized no-provider coverage in `tests/test_cli_only_discovery.py`, including local challenge/apilookup, docgen first/follow-up/completion, and Jules with fake transport → verify no lost capabilities or unsupported continuation offers.
+- [x] 9.4 Update intended surface assertions and run the Task 9 command → verify listings, aliases, calls, and guidance agree.
+
+Completed 2026-10-13: 194 targeted tests passed; full quality checks passed with 2,530 tests passed and 16 skipped. Independent code review found no issues. Live-check and external-review limitations are recorded in the [Task 9 execution record](implementation.md#task-9-execution-record-2026-10-13).
 
 ## Task 10: Document local setup and usage
 

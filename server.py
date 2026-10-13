@@ -596,8 +596,10 @@ async def handle_list_tools() -> list[Tool]:
         logger.debug(f"Could not log client info during list_tools: {e}")
     tools = []
 
-    # Add all registered AI-powered tools from the TOOLS registry
-    for tool in TOOLS.values():
+    available = get_runtime_capabilities().available_tools
+    for name, tool in TOOLS.items():
+        if name not in available:
+            continue
         # Get optional annotations from the tool
         annotations = tool.get_annotations()
         tool_annotations = ToolAnnotations(**annotations) if annotations else None
@@ -1187,9 +1189,12 @@ async def handle_list_prompts() -> list[Prompt]:
     """
     logger.debug("MCP client requested prompt list")
     prompts = []
+    runtime = get_runtime_capabilities()
 
     # Add a prompt for each tool with rich templates
     for tool_name, tool in TOOLS.items():
+        if tool_name not in runtime.available_tools:
+            continue
         if tool_name in PROMPT_TEMPLATES:
             # Use the rich template
             template_info = PROMPT_TEMPLATES[tool_name]
@@ -1210,17 +1215,64 @@ async def handle_list_prompts() -> list[Prompt]:
                 )
             )
 
-    # Add special "continue" prompt
-    prompts.append(
-        Prompt(
-            name="continue",
-            description="Continue the previous conversation using the chat tool",
-            arguments=[],
+    if _continuation_tools():
+        prompts.append(
+            Prompt(
+                name="continue",
+                description=(
+                    "Continue with the previous available conversation tool"
+                    if runtime.provider_free
+                    else "Continue the previous conversation using the chat tool"
+                ),
+                arguments=[],
+            )
         )
-    )
 
     logger.debug(f"Returning {len(prompts)} prompts to MCP client")
     return prompts
+
+
+def _continuation_tools() -> list[str]:
+    runtime = get_runtime_capabilities()
+    if not runtime.provider_free:
+        return ["chat"] if "chat" in runtime.available_tools else []
+    return sorted(
+        name
+        for name, tool in TOOLS.items()
+        if name in runtime.available_tools and "continuation_id" in tool.get_input_schema().get("properties", {})
+    )
+
+
+def _provider_free_continuation() -> str:
+    names = _continuation_tools()
+    if not names:
+        raise ValueError("No available tools support PAL conversation continuation.")
+    instruction = (
+        "Continue with the same available conversation tool used previously and the latest continuation_id "
+        "from its response. Available conversation tools: " + ", ".join(names) + ". "
+        "If the previous tool is unavailable, explain that it cannot be resumed in the current configuration."
+    )
+    if "clink" in names:
+        instruction += (
+            " For an existing clink conversation, cli_name and role may be omitted to reuse saved selection "
+            "or supplied as explicit overrides. Supply edit permission on each request when needed."
+        )
+    return instruction
+
+
+def _provider_free_tool_prompt(tool_name: str, default: str) -> str:
+    return {
+        "clink": (
+            "Use clink with cli_name=<configured CLI> for a new conversation. "
+            "For a follow-up, supply continuation_id; cli_name and role may be omitted to reuse saved selection "
+            "or supplied as explicit overrides."
+        ),
+        "planner": "Use planner to create a detailed plan locally.",
+        "tracer": "Use tracer to trace code execution paths locally.",
+        "docgen": "Use docgen to generate documentation through its local workflow.",
+        "apilookup": "Use apilookup for current API or SDK documentation lookup instructions.",
+        "listmodels": "Use listmodels to inspect startup provider settings, available tools, and CLI executable status.",
+    }.get(tool_name, default)
 
 
 @server.get_prompt()
@@ -1247,6 +1299,13 @@ async def handle_get_prompt(name: str, arguments: dict[str, Any] = None) -> GetP
         ValueError: If the prompt name is unknown
     """
     logger.debug(f"MCP client requested prompt: {name} with args: {arguments}")
+    runtime = get_runtime_capabilities()
+
+    if name.lower() == "continue" and runtime.provider_free:
+        return GetPromptResult(
+            description="Continue the previous conversation",
+            messages=[PromptMessage(role="user", content={"type": "text", "text": _provider_free_continuation()})],
+        )
 
     # Handle special "continue" case
     if name.lower() == "continue":
@@ -1271,7 +1330,7 @@ async def handle_get_prompt(name: str, arguments: dict[str, Any] = None) -> GetP
                 break
 
         # If not found, check if it's a direct tool name
-        if not tool_name and name in TOOLS:
+        if not tool_name and name in ALL_TOOLS:
             tool_name = name
             template_info = {
                 "name": name,
@@ -1282,6 +1341,9 @@ async def handle_get_prompt(name: str, arguments: dict[str, Any] = None) -> GetP
         if not tool_name:
             logger.error(f"Unknown prompt requested: {name}")
             raise ValueError(f"Unknown prompt: {name}")
+
+    # Aliases resolve to their underlying tool before the shared call guard.
+    _check_call_availability(tool_name)
 
     # Get the template
     template = template_info.get("template", f"Use {tool_name}")
@@ -1314,7 +1376,7 @@ async def handle_get_prompt(name: str, arguments: dict[str, Any] = None) -> GetP
         )
     else:
         # Simple prompt case
-        tool_instruction = prompt_text
+        tool_instruction = _provider_free_tool_prompt(tool_name, prompt_text) if runtime.provider_free else prompt_text
 
     return GetPromptResult(
         prompt=Prompt(
@@ -1343,7 +1405,7 @@ async def _serve():
     MCP protocol's JSON-RPC message format.
     """
     # Validate and configure providers based on available API keys
-    initialize_runtime()
+    runtime = initialize_runtime()
 
     # Audit retention is optional and cannot prevent startup or recover memory.
     await asyncio.to_thread(prune_transcripts)
@@ -1368,11 +1430,35 @@ async def _serve():
 
     logger.info(f"Default thinking mode (ThinkDeep): {DEFAULT_THINKING_MODE_THINKDEEP}")
 
-    logger.info(f"Available tools: {list(TOOLS.keys())}")
+    logger.info(f"Available tools: {sorted(runtime.available_tools)}")
     logger.info("Server ready - waiting for tool requests...")
 
     # Prepare dynamic instructions for the MCP client based on model mode
-    if IS_AUTO_MODE:
+    if runtime.provider_free:
+        handshake_instructions = (
+            "No PAL model providers are configured. Available tools: "
+            + ", ".join(sorted(runtime.available_tools))
+            + ". Use listmodels for startup setup diagnostics and CLI executable observations. "
+            "Use each available local workflow tool directly for its task."
+        )
+        if "clink" in runtime.available_tools:
+            handshake_instructions += (
+                " For CLI conversations, use clink. "
+                + (
+                    "A new conversation requires cli_name when multiple CLI clients are configured. "
+                    if len(runtime.cli_statuses) > 1
+                    else "Use cli_name to select a configured CLI. "
+                )
+                + "A follow-up may omit cli_name and role to reuse saved selection with continuation_id. "
+                "CLI authentication is unverified; invocation rechecks the selected executable."
+            )
+            if not any(item.executable_found for item in runtime.cli_statuses):
+                handshake_instructions += (
+                    " No configured CLI executable was found at startup; install and authenticate your CLI."
+                )
+        if "jules" in runtime.available_tools:
+            handshake_instructions += " Jules uses its own JULES_API_KEY."
+    elif IS_AUTO_MODE:
         handshake_instructions = (
             "When the user names a specific model (e.g. 'use chat with gpt5'), send that exact model in the tool call. "
             "When no model is mentioned, first use the `listmodels` tool from PAL to obtain available models to choose the best one from."

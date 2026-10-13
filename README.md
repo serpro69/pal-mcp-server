@@ -60,7 +60,7 @@ Continue with clink gemini - implement the recommended feature
 # Gemini receives full debate context and starts coding immediately
 ```
 
-👉 **[Learn more about clink](docs/tools/clink.md)**
+👉 **[Learn more about clink](docs/tools/clink.md)** · **[CLI history budgets](docs/configuration.md#cli-conversation-history-budgets)**
 
 ---
 
