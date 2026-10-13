@@ -74,6 +74,8 @@ class GeminiAgent(BaseCLIAgent):
         code = error_block.get("code")
         err_type = error_block.get("type")
         detail_message = error_block.get("message")
+        if detail_message is not None and not isinstance(detail_message, str):
+            detail_message = json.dumps(detail_message, ensure_ascii=False)
 
         prologue = combined[:brace_index].strip()
         lines: list[str] = []

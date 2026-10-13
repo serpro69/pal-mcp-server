@@ -32,7 +32,9 @@ class CodexJSONLParser(BaseParser):
             events.append(event)
             event_type = event.get("type")
             if event_type == "item.completed":
-                item = event.get("item") or {}
+                item = event.get("item")
+                if not isinstance(item, dict):
+                    raise ParserError("Codex CLI item.completed event must contain an 'item' object")
                 if item.get("type") == "agent_message":
                     text = item.get("text")
                     if isinstance(text, str) and text.strip():

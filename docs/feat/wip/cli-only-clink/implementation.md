@@ -1,11 +1,11 @@
 # Implementation: CLI-only conversations through clink
 
-> Status: Tasks 1–13 complete; Task 14 pending
+> Status: done; all fourteen tasks complete with verification limits recorded
 > Created: 2026-10-10
 > Design: [design.md](design.md)
 > Tasks: [tasks.md](tasks.md)
 > Baseline: `2d821f1`
-> Review: [review.md](review.md)
+> Final validation: [validation.md](validation.md)
 
 ## Read first
 
@@ -246,7 +246,7 @@ CLI authentication precedence and invocation flags vary by installed version. Re
 ## Design-session validation
 
 - Original source/vendor verification used `c20d384`; the 2026-10-12 review and corrections inspect `2d821f1`. No live inference or billing claim follows from those checks.
-- The original five findings and the subsequent readiness findings R6–R8 are addressed in the plans, including the reopened R1 inventory gap. [review.md](review.md) records the corrections; all fourteen implementation tasks remain pending.
+- The original five findings and the subsequent readiness findings R6–R8 were addressed in the plans, including the reopened R1 inventory gap. The original review report is not retained in this checkout; its corrected contracts are preserved in the design and implementation plans. At that stage all fourteen implementation tasks remained pending.
 - `./code_quality_checks.sh` exits 1 with “No virtual environment found!” before linting/tests. No environment was installed for these documentation changes; application and live integration/simulator validation remain unrun.
 - All implementation tasks remain pending. Document-only validation covers formatting, local links/anchors, task dependencies/parallel markers, and diff whitespace; results are recorded in the review's correction validation.
 
@@ -546,3 +546,11 @@ The user explicitly authorized Claude, Codex, and Antigravity live checks; Gemin
 `kk:review-code:isolated` completed through its independent-reviewer fallback. The reviewer approved the eight implementation/test/guide/task files with no P0–P3 findings. External PAL `gemini-3.8-flash` review failed authentication and supplied no expert findings. No systemic findings or new conventions required indexing. Post-review changes only record final verification and task/header status. Relative link targets in the changed guide/implementation record were checked, excluding the existing absent `review.md`; whitespace checks passed with Python space indentation allowed.
 
 No feature scope or dependency change was needed. Sharing the live conversation across pytest and the simulator replaced the two legacy smoke cases, preserving their arithmetic check while adding provider-free isolation and dependent history. Optional editorial follow-up: `$kk:clarify-docs` on `docs/tools/clink.md`.
+
+## Task 14 execution record (2026-10-13)
+
+Final verification, the isolated setup walkthrough, and independent code/spec reviews are complete. [validation.md](validation.md) records the commands, outcomes, review findings/corrections, and remaining environment/platform limits. Final quality checks passed with **2,625 tests**, 16 skips, 15 integration cases deselected, and 19 subtests passed; Ruff, Black, and isort passed. All three setup workflows and nine fake-CLI first/follow-up conversations passed, as did the selected Claude/Codex live conversations. The two broader API suites retain their documented connection/credential failures and are not counted as passing acceptance.
+
+Spec review led to diagnostic-preserving handling of malformed nested Codex/Gemini output and removal of links to an absent original design-review artifact. The approved walkthrough then identified the shipped Azure endpoint placeholder being treated as incomplete setup. Azure now applies the shared placeholder rule consistently through bootstrap and implicit constructor fallback while preserving real endpoints. Thirty-eight parser/runner cases and four Azure cases cover these corrections. Independent review approved the final changes; spec review reported conformance. No intentional deviation or new project convention required indexing.
+
+The walkthrough used actual setup/configuration functions with temporary files and the completed fake-CLI MCP harness. Installation, Docker daemon, cache/log creation, and personal client changes were intercepted; native Windows/macOS and container execution remain unverified. The earlier environment-file hook rejection was resolved by explicit user approval for this isolated walkthrough. External PAL review remained unavailable because of its invalid API credential. Completing this run-and-record task does not convert those limitations into successful coverage.

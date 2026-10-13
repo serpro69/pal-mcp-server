@@ -31,6 +31,7 @@ class AzureOpenAIProvider(OpenAICompatibleProvider):
         "AZURE_ALLOWED_MODELS",
         placeholders=("your_azure_openai_key_here", "your_azure_openai_api_key_here"),
         required_env=("AZURE_OPENAI_ENDPOINT",),
+        required_placeholders=(("AZURE_OPENAI_ENDPOINT", "https://your-resource.openai.azure.com/"),),
         optional_env=("AZURE_OPENAI_API_VERSION", "AZURE_MODELS_CONFIG_PATH"),
         arguments=(("azure_endpoint", "AZURE_OPENAI_ENDPOINT"), ("api_version", "AZURE_OPENAI_API_VERSION")),
         restriction_aliases=("AZURE_OPENAI_ALLOWED_MODELS",),
@@ -61,7 +62,7 @@ class AzureOpenAIProvider(OpenAICompatibleProvider):
         super().__init__(api_key, base_url=azure_endpoint, **kwargs)
 
         if not azure_endpoint:
-            azure_endpoint = get_env("AZURE_OPENAI_ENDPOINT")
+            azure_endpoint = self.CONFIGURATION.effective_value("AZURE_OPENAI_ENDPOINT")
         if not azure_endpoint:
             raise ValueError("Azure OpenAI endpoint is required via parameter or AZURE_OPENAI_ENDPOINT")
 

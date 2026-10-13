@@ -571,6 +571,33 @@ def test_startup_does_not_register_legacy_custom_placeholder(bootstrap_environme
     assert result.status == ("incomplete" if custom_key else "absent")
 
 
+@pytest.mark.parametrize("azure_key", [None, "your_azure_openai_api_key_here", "private-key"])
+def test_startup_treats_shipped_azure_endpoint_as_absent(bootstrap_environment, monkeypatch, caplog, azure_key):
+    monkeypatch.setenv("AZURE_OPENAI_ENDPOINT", "https://your-resource.openai.azure.com/")
+    if azure_key is not None:
+        monkeypatch.setenv("AZURE_OPENAI_API_KEY", azure_key)
+    result = provider_setup_diagnostics()[ProviderType.AZURE]
+    assert result.status == ("incomplete" if azure_key == "private-key" else "absent")
+    assert "AZURE_OPENAI_ENDPOINT" in result.missing_settings
+    assert "azure_endpoint" not in AzureOpenAIProvider.CONFIGURATION.constructor_kwargs()
+    server.configure_providers()
+    assert not bootstrap_environment._providers
+    assert "No model providers configured" in caplog.text
+    assert "private-key" not in caplog.text
+
+
+def test_azure_constructor_cannot_restore_placeholder_endpoint(isolated_provider_environment, monkeypatch):
+    monkeypatch.setenv("AZURE_OPENAI_ENDPOINT", " https://your-resource.openai.azure.com/ ")
+    with pytest.raises(ValueError, match="Azure OpenAI endpoint is required"):
+        AzureOpenAIProvider("synthetic")
+    provider = AzureOpenAIProvider(
+        "synthetic",
+        azure_endpoint="https://real-resource.openai.azure.com/",
+        deployments={"canonical": {"deployment": "deployed", "context_window": 100000, "max_output_tokens": 1000}},
+    )
+    assert provider.azure_endpoint == "https://real-resource.openai.azure.com"
+
+
 def test_opencode_only_startup_survives_other_partial_settings(bootstrap_environment, monkeypatch):
     monkeypatch.setenv("OPENCODE_GO_API_KEY", "private-opencode-key")
     monkeypatch.setenv("AZURE_OPENAI_ENDPOINT", "https://azure.invalid")

@@ -1,12 +1,12 @@
 # Design: CLI-only conversations through clink
 
-> Status: reviewed and revised; Tasks 1–13 complete, Task 14 pending
+> Status: done; verification limits recorded in validation.md
 > Created: 2026-10-10
 > Issue: [BeehiveInnovations/pal-mcp-server#402](https://github.com/BeehiveInnovations/pal-mcp-server/issues/402)
 > Source baseline: `2d821f1` (rebased from `c20d384` on 2026-10-12)
 > Implementation: [implementation.md](implementation.md)
 > Tasks: [tasks.md](tasks.md)
-> Review: [review.md](review.md)
+> Final validation: [validation.md](validation.md)
 
 ## Problem and outcome
 
@@ -14,7 +14,7 @@ Individual developers running PAL locally want to converse through their install
 
 Success means a developer can start PAL without provider configuration and hold an ongoing, bounded conversation through a selected CLI. PAL makes no direct model-provider inference calls in that path. A first request followed by a context-dependent request is the minimum acceptance test, not a two-message product limit.
 
-The user approved the original audience, outcome, constraints, and clink approach, then requested verification and correction of all valid design-review findings. This revision reconciles the plan with the newer server-reliability implementation. It preserves existing provider-free tools and raw audit records while keeping the intended bounded CLI conversation experience. The [review](review.md) records the evidence and resolutions; current implementation progress is in [tasks.md](tasks.md).
+The user approved the original audience, outcome, constraints, and clink approach, then requested verification and correction of all valid design-review findings. This revision reconciles the plan with the newer server-reliability implementation. It preserves existing provider-free tools and raw audit records while keeping the intended bounded CLI conversation experience. The original design-review report is not retained in this checkout; the corrected contracts are preserved below. Current implementation progress is in [tasks.md](tasks.md), and final checks and review findings are in [validation.md](validation.md).
 
 ## Constraints
 

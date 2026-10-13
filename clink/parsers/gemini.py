@@ -66,13 +66,14 @@ class GeminiJSONParser(BaseParser):
             if isinstance(models, dict) and models:
                 model_name = next(iter(models.keys()))
                 metadata["model_used"] = model_name
-                model_stats = models.get(model_name) or {}
-                tokens = model_stats.get("tokens")
-                if isinstance(tokens, dict):
-                    metadata["token_usage"] = tokens
-                api_stats = model_stats.get("api")
-                if isinstance(api_stats, dict):
-                    metadata["latency_ms"] = api_stats.get("totalLatencyMs")
+                model_stats = models.get(model_name)
+                if isinstance(model_stats, dict):
+                    tokens = model_stats.get("tokens")
+                    if isinstance(tokens, dict):
+                        metadata["token_usage"] = tokens
+                    api_stats = model_stats.get("api")
+                    if isinstance(api_stats, dict):
+                        metadata["latency_ms"] = api_stats.get("totalLatencyMs")
 
         if payload.get("error"):
             diagnostic = json.dumps(payload["error"], ensure_ascii=False)

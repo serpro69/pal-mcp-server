@@ -6,7 +6,7 @@ from unittest.mock import Mock
 import pytest
 
 from clink.agents import AgentOutput
-from clink.parsers.base import ParsedCLIResponse
+from clink.parsers.base import ParsedCLIResponse, ParserError
 from clink.parsers.claude import ClaudeJSONParser
 from clink.parsers.codex import CodexJSONLParser
 from clink.parsers.gemini import GeminiJSONParser
@@ -390,5 +390,67 @@ async def test_codex_execution_classification_controls_assistant_persistence(
 
     assert output["metadata"]["return_code"] == returncode
     assert output["metadata"]["stderr"] == "CLI diagnostic"
+    assert len(launches) == 1
+    resolve_provider.assert_not_called()
+
+
+@pytest.mark.parametrize("item", [None, "invalid", 42, True, [], ["invalid"]])
+def test_codex_rejects_malformed_completed_item_even_with_an_answer(item):
+    stdout = json.dumps(CODEX_ANSWER) + "\n" + json.dumps({"type": "item.completed", "item": item})
+    with pytest.raises(ParserError, match="item.completed.*object"):
+        CodexJSONLParser().parse(stdout, "Diagnostic")
+
+
+@pytest.mark.parametrize("model_stats", [None, "invalid", 42, True, [], ["invalid"]])
+@pytest.mark.parametrize("failed", [False, True])
+def test_gemini_optional_stats_cannot_hide_answer_or_terminal_error(model_stats, failed):
+    payload = {"response": "Answer", "stats": {"models": {"gemini": model_stats}}}
+    if failed:
+        payload["error"] = {"message": "Quota exhausted"}
+    parsed = GeminiJSONParser().parse(json.dumps(payload), "Diagnostic")
+    assert parsed.is_error is failed
+    assert ("Quota exhausted" in parsed.content) if failed else parsed.content == "Answer"
+    assert parsed.metadata["raw"] == payload
+    assert parsed.metadata["stderr"] == "Diagnostic"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("continuation", [False, True], ids=["first-call", "follow-up"])
+@pytest.mark.parametrize("returncode", [0, 2])
+@pytest.mark.parametrize(
+    "cli_name,payload",
+    [
+        ("codex", {"type": "item.completed", "item": "invalid"}),
+        ("gemini", {"error": {"message": "Quota exhausted"}, "stats": {"models": {"gemini": "invalid"}}}),
+        ("gemini", {"stats": {"models": {"gemini": ["invalid"]}}}),
+        ("gemini", {"error": {"message": {"detail": "Quota exhausted"}}}),
+        ("gemini", {"error": {"message": 429}}),
+    ],
+)
+async def test_malformed_nested_output_keeps_structured_diagnostics_and_history(
+    execution, cli_name, payload, returncode, continuation
+):
+    storage, resolve_provider, launches, configure_process = execution
+    stdout = json.dumps(payload)
+    configure_process(stdout, "Original diagnostic", returncode)
+    arguments = {"cli_name": cli_name, "prompt": "Current input"}
+    if continuation:
+        thread_id = memory.create_thread("clink", {"cli_name": cli_name})
+        memory.add_turn(thread_id, "user", "Previous input")
+        memory.add_turn(thread_id, "assistant", "Previous answer")
+        arguments["continuation_id"] = thread_id
+    snapshot = storage._store.copy()
+
+    with pytest.raises(ToolExecutionError) as error:
+        await CLinkTool().execute(arguments)
+
+    output = json.loads(str(error.value))
+    assert output["status"] == "error"
+    assert output["metadata"]["stdout"] == stdout
+    assert output["metadata"]["stderr"] == "Original diagnostic"
+    assert output["metadata"]["return_code"] == returncode
+    assert output["continuation_offer"] is None
+    assert "continuation_id" not in output["metadata"]
+    assert storage._store == snapshot
     assert len(launches) == 1
     resolve_provider.assert_not_called()

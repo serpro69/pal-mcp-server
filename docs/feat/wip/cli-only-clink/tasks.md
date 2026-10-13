@@ -3,13 +3,13 @@
 > Design: [design.md](design.md)
 > Implementation: [implementation.md](implementation.md)
 > Issue: [#402](https://github.com/BeehiveInnovations/pal-mcp-server/issues/402)
-> Status: in-progress
+> Status: done
 > Created: 2026-10-10
 > Baseline: `2d821f1`; review corrections: 2026-10-12
-> Review: [review.md](review.md)
+> Final validation: [validation.md](validation.md)
 > Not Doing: CLI-backed chat/providers, additional CLI-backed workflows, installation/login/billing management, shared remote deployments, native CLI sessions, durable history, multimodal parity, new filesystem sandbox, dependency upgrades
 
-Tasks 1–13 are done; Task 14 is pending. Review findings R1–R8 are addressed in these plans; implementation progress is tracked below. Deferred scope remains in [design.md](design.md#deferred-findings-and-verification-limits). Tasks 1–6 established reliable bounded CLI conversations. Tasks 7–9 added provider setup diagnostics, runtime capability snapshots, call guards, and coherent discovery/continuation guidance. Tasks 10–11 document local setup and usage and align Bash/PowerShell setup messages and templates. Task 12 proves conversations and immediate busy rejection through real MCP stdio with isolated fake CLIs. Task 13 adds explicitly selected live checks with separate skip reporting; Claude and Codex completed real first/follow-up conversations. Intermediate behavior is explicit in the implementation plan. A skipped live check is not completed coverage.
+All fourteen tasks are done. Review findings R1–R8 are addressed in the plans, and final implementation corrections and actual check results are recorded in [validation.md](validation.md). Deferred scope remains in [design.md](design.md#deferred-findings-and-verification-limits). Tasks 1–6 established reliable bounded CLI conversations. Tasks 7–9 added provider setup diagnostics, runtime capability snapshots, call guards, and coherent discovery/continuation guidance. Tasks 10–11 document local setup and usage and align Bash/PowerShell setup messages and templates. Task 12 proves conversations and immediate busy rejection through real MCP stdio with isolated fake CLIs. Task 13 adds explicitly selected live checks with separate skip reporting; Claude and Codex completed real first/follow-up conversations. Task 14 completed the setup walkthrough and final reviews. Existing API-environment failures and unverified platforms remain explicit limitations; skipped or failed checks are not completed coverage.
 
 ## Task 1: Surface Gemini and Claude execution failures
 
@@ -197,17 +197,19 @@ Completed 2026-10-13: 67 deterministic runner/session/gate tests passed; full qu
 
 ## Task 14: Final verification and setup walkthrough
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 1, Task 2, Task 3, Task 4, Task 5, Task 6, Task 7, Task 8, Task 9, Task 10, Task 11, Task 12, Task 13
 - **Size:** S
 - **Can run in parallel with:** —
 - **Docs:** [implementation.md#task-14-final-verification-and-setup-walkthrough](implementation.md#task-14-final-verification-and-setup-walkthrough)
 
-- [ ] 14.1 Run `$kk:test`, `./code_quality_checks.sh`, targeted MCP tests, and supported script syntax checks → record actual deterministic results.
-- [ ] 14.2 Run the integration script, quick simulator suite, and selected individual CLI/live checks in a configured environment → record missing prerequisites as unmet checks, never passing coverage.
-- [ ] 14.3 Walk the Bash/PowerShell setup instructions and request examples from Tasks 10–11 against the completed Task 12 fake-CLI harness → verify the full setup path and Task 13 skip/failure summaries.
-- [ ] 14.4 Run `$kk:document` and `$kk:review-code` with Python language input → validate guidance and fix or durably record implementation findings with reasons.
-- [ ] 14.5 Run `$kk:review-spec` over all feature documents → verify the final contracts and acceptance before marking the feature complete.
+- [x] 14.1 Run `$kk:test`, `./code_quality_checks.sh`, targeted MCP tests, and supported script syntax checks → record actual deterministic results.
+- [x] 14.2 Run the integration script, quick simulator suite, and selected individual CLI/live checks in a configured environment → record missing prerequisites as unmet checks, never passing coverage.
+- [x] 14.3 Walk the Bash/PowerShell setup instructions and request examples from Tasks 10–11 against the completed Task 12 fake-CLI harness → verify the full setup path and Task 13 skip/failure summaries.
+- [x] 14.4 Run `$kk:document` and `$kk:review-code` with Python language input → validate guidance and fix or durably record implementation findings with reasons.
+- [x] 14.5 Run `$kk:review-spec` over all feature documents → verify the final contracts and acceptance before marking the feature complete.
+
+Completed 2026-10-13: final quality checks passed with 2,625 tests passed and 16 skipped; 73 MCP/simulator, 151 parser/runner, and 185 provider checks passed in targeted runs. The approved isolated walkthrough passed three setup workflows and nine fake-CLI conversations; Claude/Codex live checks passed. Corrected malformed-output diagnostics, shipped Azure placeholder handling, and missing-review provenance. Independent code review approved and spec review reported conformance. [Final validation](validation.md) retains broader API-suite failures, external-review authentication limits, and stubbed/platform operations as unmet coverage rather than passing claims.
 
 ## Dependency Graph
 
