@@ -2,8 +2,6 @@
 
 import logging
 
-from utils.env import get_env
-
 from .configuration import ProviderConfiguration
 from .openai_compatible import OpenAICompatibleProvider
 from .registries.custom import CustomEndpointModelRegistry
@@ -39,6 +37,7 @@ class CustomProvider(OpenAICompatibleProvider):
         optional_env=("CUSTOM_MODELS_CONFIG_PATH", "CUSTOM_MODEL_NAME"),
         arguments=(("base_url", "CUSTOM_API_URL"),),
         key_optional=True,
+        required_placeholders=(("CUSTOM_API_URL", "your_custom_api_url_here"),),
     )
 
     FRIENDLY_NAME = "Custom API"
@@ -70,9 +69,9 @@ class CustomProvider(OpenAICompatibleProvider):
         """
         # Fall back to environment variables only if not provided
         if not base_url:
-            base_url = get_env("CUSTOM_API_URL", "") or ""
+            base_url = self.CONFIGURATION.effective_value("CUSTOM_API_URL") or ""
         if not api_key:
-            api_key = get_env("CUSTOM_API_KEY", "") or ""
+            api_key = self.CONFIGURATION.api_key() or ""
 
         if not base_url:
             raise ValueError(

@@ -9,7 +9,7 @@
 > Review: [review.md](review.md)
 > Not Doing: CLI-backed chat/providers, additional CLI-backed workflows, installation/login/billing management, shared remote deployments, native CLI sessions, durable history, multimodal parity, new filesystem sandbox, dependency upgrades
 
-Tasks 1–6 are done; Tasks 7–14 are pending. Review findings R1–R8 are addressed in these plans; implementation progress is tracked below. Deferred scope remains in [design.md](design.md#deferred-findings-and-verification-limits). Tasks 1–2 established failure classification; Task 3 replaced eager CLI admission with atomic recording; Task 4 added bounded history and saved selection; Task 5 added non-waiting coordination; Task 6 made history budgets configurable per CLI. Intermediate behavior is explicit in the implementation plan. A skipped live check is not completed coverage.
+Tasks 1–7 are done; Tasks 8–14 are pending. Review findings R1–R8 are addressed in these plans; implementation progress is tracked below. Deferred scope remains in [design.md](design.md#deferred-findings-and-verification-limits). Tasks 1–2 established failure classification; Task 3 replaced eager CLI admission with atomic recording; Task 4 added bounded history and saved selection; Task 5 added non-waiting coordination; Task 6 made history budgets configurable per CLI; Task 7 added declaration-derived provider setup diagnostics. Intermediate behavior is explicit in the implementation plan. A skipped live check is not completed coverage.
 
 ## Task 1: Surface Gemini and Claude execution failures
 
@@ -98,14 +98,16 @@ Completed 2026-10-13: 223 targeted tests passed; full quality checks passed with
 
 ## Task 7: Classify provider settings from shared declarations
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** —
 - **Size:** M
 - **Can run in parallel with:** Task 6
 - **Docs:** [implementation.md#task-7-classify-provider-settings-from-shared-declarations](implementation.md#task-7-classify-provider-settings-from-shared-declarations)
 
-- [ ] 7.1 Add declaration-derived setup diagnostics and required-setting placeholder handling in `providers/configuration.py`; declare the legacy custom-URL placeholder in `providers/custom.py` → verify real values remain unchanged and custom keys remain optional.
-- [ ] 7.2 Extend `tests/test_provider_configuration.py` and run the Task 7 command → verify OpenCode-Go-only, absence/placeholders, partial Azure/custom, valid-plus-partial, and non-credential restriction/catalogue cases; retain existing bootstrap warnings/errors.
+- [x] 7.1 Add declaration-derived setup diagnostics and required-setting placeholder handling in `providers/configuration.py`; declare the legacy custom-URL placeholder in `providers/custom.py` → verify real values remain unchanged and custom keys remain optional.
+- [x] 7.2 Extend `tests/test_provider_configuration.py` and run the Task 7 command → verify OpenCode-Go-only, absence/placeholders, partial Azure/custom, valid-plus-partial, and non-credential restriction/catalogue cases; retain existing bootstrap warnings/errors.
+
+Completed 2026-10-13: 197 targeted tests passed; full quality checks passed with 2,436 tests passed and 16 skipped. Independent code review found no issues. Live-check and external-review limitations are recorded in the [Task 7 execution record](implementation.md#task-7-execution-record-2026-10-13).
 
 ## Task 8: Preserve provider-free startup and call availability
 
