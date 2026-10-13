@@ -1,6 +1,6 @@
 # Design: CLI-only conversations through clink
 
-> Status: reviewed and revised; Tasks 1–7 complete, Tasks 8–14 pending
+> Status: reviewed and revised; Tasks 1–8 complete, Tasks 9–14 pending
 > Created: 2026-10-10
 > Issue: [BeehiveInnovations/pal-mcp-server#402](https://github.com/BeehiveInnovations/pal-mcp-server/issues/402)
 > Source baseline: `2d821f1` (rebased from `c20d384` on 2026-10-12)

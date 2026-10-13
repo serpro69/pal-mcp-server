@@ -50,6 +50,8 @@ from mcp.types import (  # noqa: E402
 )
 from pydantic import AnyUrl
 
+from clink import get_registry as get_cli_registry
+from clink.availability import discover_cli_availability
 from config import (  # noqa: E402
     DEFAULT_MODEL,
     __version__,
@@ -89,6 +91,11 @@ from utils.log_dir import (
     get_log_dir,
 )
 from utils.progress import request_progress
+from utils.runtime_capabilities import (
+    get_runtime_capabilities,
+    initialize_runtime_capabilities,
+    reset_runtime_capabilities,
+)
 from utils.state_dir import StateDirectoryError
 from utils.transcript_reader import ResourceLimitError, ResourceNotFoundError, read_resource, resource_thread_id
 from utils.transcripts import TranscriptError, prune_transcripts, transcripts_enabled
@@ -375,7 +382,7 @@ def filter_disabled_tools(all_tools: dict[str, Any]) -> dict[str, Any]:
 # Initialize the tool registry with all available AI-powered tools
 # Each tool provides specialized functionality for different development tasks
 # These instances are schema prototypes; execution gets a fresh instance per call.
-TOOLS = {
+ALL_TOOLS = {
     "jules": JulesTool(),  # Optional provider-free background coding actions
     "chat": ChatTool(),  # Interactive development chat and brainstorming
     "clink": CLinkTool(),  # Bridge requests to configured AI CLIs
@@ -396,7 +403,7 @@ TOOLS = {
     "listmodels": ListModelsTool(),  # List all available AI models by provider
     "version": VersionTool(),  # Display server version and system information
 }
-TOOLS = filter_disabled_tools(TOOLS)
+TOOLS = filter_disabled_tools(ALL_TOOLS)
 
 # Rich prompt templates for all tools
 PROMPT_TEMPLATES = {
@@ -531,13 +538,28 @@ def configure_providers():
             for factory in provider_classes()
         ]
         logger.warning("No model providers configured. Model calls require:\n%s", "\n".join(hints))
-        return
+        return configured
     get_restriction_service().validate_against_known_models(configured)
 
     from config import IS_AUTO_MODE
 
     if IS_AUTO_MODE and not ModelProviderRegistry.get_available_models(respect_restrictions=True):
         logger.warning("No models available for auto mode after restrictions; provider-free tools remain available.")
+    return configured
+
+
+def initialize_runtime():
+    """Publish capabilities only after provider bootstrap and CLI discovery succeed."""
+    from providers.configuration import provider_setup_diagnostics
+
+    reset_runtime_capabilities()
+    configured = configure_providers()
+    return initialize_runtime_capabilities(
+        configured_providers=configured,
+        enabled_tools=TOOLS,
+        provider_setup=provider_setup_diagnostics().values(),
+        cli_statuses=discover_cli_availability(get_cli_registry()),
+    )
 
 
 @server.list_tools()
@@ -611,7 +633,10 @@ async def handle_call_tool(name: str, arguments: dict[str, Any]) -> list[TextCon
     # Invalid input remains the request model's responsibility, not a lock key.
     try:
         async with request_progress(context) as progress:
-            if name == "clink":
+            _check_call_availability(name)
+            if name not in TOOLS:
+                result = [TextContent(type="text", text=f"Unknown tool: {name}")]
+            elif name == "clink":
                 result = await _dispatch_tool(name, arguments)
             else:
                 async with coordinate_conversation(thread_id if isinstance(thread_id, str) else None):
@@ -619,6 +644,34 @@ async def handle_call_tool(name: str, arguments: dict[str, Any]) -> list[TextCon
     except ToolExecutionError as exc:
         raise ToolExecutionError(progress.annotate_error(exc.payload)) from exc
     return progress.annotate(result)
+
+
+def _check_call_availability(name: str) -> None:
+    """Reject disabled/provider-dependent calls before locks or conversation reads."""
+    if name not in TOOLS:
+        if name in ALL_TOOLS:
+            raise ToolExecutionError(
+                ToolOutput(
+                    status="error",
+                    content=f"Tool '{name}' is disabled via DISABLED_TOOLS.",
+                    metadata={"tool_name": name, "error_type": "tool_disabled"},
+                ).model_dump_json()
+            )
+        return
+    runtime = get_runtime_capabilities()
+    reason = runtime.unavailable_reason(name)
+    if reason:
+        raise ToolExecutionError(
+            ToolOutput(
+                status="error",
+                content=reason,
+                metadata={
+                    "tool_name": name,
+                    "error_type": "model_provider_required",
+                    "available_tools": sorted(runtime.available_tools),
+                },
+            ).model_dump_json()
+        )
 
 
 async def _dispatch_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
@@ -1290,7 +1343,7 @@ async def _serve():
     MCP protocol's JSON-RPC message format.
     """
     # Validate and configure providers based on available API keys
-    configure_providers()
+    initialize_runtime()
 
     # Audit retention is optional and cannot prevent startup or recover memory.
     await asyncio.to_thread(prune_transcripts)

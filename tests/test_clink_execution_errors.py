@@ -111,7 +111,7 @@ def execution(monkeypatch):
     monkeypatch.setattr(memory, "get_storage", lambda: storage)
     resolve_provider = Mock(side_effect=AssertionError("clink must not resolve an API provider"))
     monkeypatch.setattr("providers.registry.ModelProviderRegistry.get_provider_for_model", resolve_provider)
-    monkeypatch.setattr("clink.agents.base.shutil.which", lambda name, **kwargs: f"/usr/bin/{name}")
+    monkeypatch.setattr("clink.availability.shutil.which", lambda name, **kwargs: f"/usr/bin/{name}")
 
     launches = []
 

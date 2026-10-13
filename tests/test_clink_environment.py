@@ -81,7 +81,7 @@ def test_registry_passthrough_and_override_precedence():
 def test_windows_case_insensitive_runtime_and_overrides(monkeypatch):
     configured = client(env={"path": "operator-path"})
     monkeypatch.setattr(
-        "clink.agents.base.os",
+        "clink.availability.os",
         SimpleNamespace(
             name="nt",
             environ={
@@ -228,7 +228,7 @@ async def test_missing_configured_directory_never_spawns(tmp_path, monkeypatch):
 async def test_executable_lookup_uses_configured_child_path(monkeypatch):
     cfg = client(env={"PATH": "/synthetic/operator/bin"})
     lookup = Mock(return_value=None)
-    monkeypatch.setattr("clink.agents.base.shutil.which", lookup)
+    monkeypatch.setattr("clink.availability.shutil.which", lookup)
     with pytest.raises(CLIAgentError, match="not found in PATH"):
         await BaseCLIAgent(cfg).run(role=cfg.get_role(None), prompt="x", files=[], images=[])
     lookup.assert_called_once_with(sys.executable, path="/synthetic/operator/bin")

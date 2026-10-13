@@ -6,7 +6,6 @@ import asyncio
 import logging
 import os
 import shlex
-import shutil
 import tempfile
 import time
 from collections.abc import Sequence
@@ -14,7 +13,8 @@ from contextlib import ExitStack, nullcontext
 from dataclasses import dataclass
 from pathlib import Path
 
-from clink.constants import DEFAULT_CLEANUP_TIMEOUT_SECONDS, DEFAULT_STREAM_LIMIT, SHARED_ENV_PASSTHROUGH
+from clink.availability import build_cli_environment, resolve_executable
+from clink.constants import DEFAULT_CLEANUP_TIMEOUT_SECONDS, DEFAULT_STREAM_LIMIT
 from clink.models import ResolvedCLIClient, ResolvedCLIRole
 from clink.parsers import BaseParser, ParsedCLIResponse, ParserError, get_parser
 from utils.progress import progress_operation
@@ -117,11 +117,13 @@ class BaseCLIAgent:
         env = self._build_environment()
 
         # Resolve executable path for cross-platform compatibility (especially Windows)
-        executable_name = command[0]
-        resolved_executable = shutil.which(executable_name, path=env.get("PATH", os.defpath))
+        try:
+            resolved_executable = resolve_executable(self.client, environment=env)
+        except ValueError as exc:
+            raise CLIAgentError(str(exc)) from exc
         if resolved_executable is None:
             raise CLIAgentError(
-                f"Executable '{executable_name}' not found in PATH for CLI '{self.client.name}'. "
+                f"Executable '{self.client.executable[0]}' not found in PATH for CLI '{self.client.name}'. "
                 f"Ensure the command is installed and accessible."
             )
         command[0] = resolved_executable
@@ -283,15 +285,7 @@ class BaseCLIAgent:
         return []
 
     def _build_environment(self) -> dict[str, str]:
-        allowed = SHARED_ENV_PASSTHROUGH | set(self.client.env_passthrough)
-        if os.name == "nt":
-            allowed = {name.upper() for name in allowed}
-            env = {name.upper(): value for name, value in os.environ.items() if name.upper() in allowed}
-            env.update({name.upper(): value for name, value in self.client.env.items()})
-        else:
-            env = {name: value for name, value in os.environ.items() if name in allowed}
-            env.update(self.client.env)
-        return env
+        return build_cli_environment(self.client)
 
     @staticmethod
     async def _kill_and_reap(process: asyncio.subprocess.Process) -> None:

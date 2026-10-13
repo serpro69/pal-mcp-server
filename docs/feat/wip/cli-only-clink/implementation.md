@@ -1,6 +1,6 @@
 # Implementation: CLI-only conversations through clink
 
-> Status: Tasks 1–7 complete; Tasks 8–14 pending
+> Status: Tasks 1–8 complete; Tasks 9–14 pending
 > Created: 2026-10-10
 > Design: [design.md](design.md)
 > Tasks: [tasks.md](tasks.md)
@@ -397,3 +397,28 @@ Validation reused Python 3.10.12 in the existing `pal` environment, without depe
 The new bootstrap regressions distinguish complete input from empty Azure catalogues, empty auto-mode catalogues, and fatal malformed catalogues. No bootstrap exception or warning was reinterpreted as provider-free mode. The constructor-fallback adjustment is part of keeping placeholder filtering consistent; no new provider inventory, dependency, or scope change was needed. Live-check follow-ups remain assigned to Tasks 13–14.
 
 `kk:review-code:isolated` completed through its independent-reviewer fallback: the code-reviewer approved all four implementation/test/task files with no P0–P3 findings. External PAL `gemini-3.8-flash` review again failed authentication and supplied no expert findings. No systemic findings or new conventions required indexing. Final changes after review only record verification and task status.
+
+## Task 8 execution record (2026-10-13)
+
+`utils/runtime_capabilities.py` now owns an immutable startup snapshot: actually configured provider types, Task 7 input diagnostics, CLI executable observations, enabled tools, and a derived available-tool set. `configure_providers()` returns its successful bootstrap result; `initialize_runtime()` clears stale state and publishes a snapshot only after bootstrap and CLI discovery succeed. `_serve()` initializes it before stdio. No provider or executable is required to start; empty restricted model catalogues remain API-backed when a provider registered successfully, while malformed catalogues and existing restriction-validation exceptions remain fatal.
+
+`ALL_TOOLS` retains the registered inventory and `TOOLS` retains its enabled subset. Provider-free availability is the enabled intersection with clink/version/listmodels/planner/tracer/docgen/challenge/apilookup/jules. `handle_call_tool()` rejects unavailable calls before coordination, history access, or model resolution, including consensus despite its `requires_model=False` declaration. Errors preserve progress metadata, name available alternatives, and offer clink guidance only when enabled. Disabled tools receive a distinct disabled error; unknown names retain the unknown-tool response. Missing selected CLI executables and Jules service credentials affect only their own calls.
+
+`clink/availability.py` shares the existing filtered child-environment construction and `shutil.which()` lookup with the runner, including configured PATH overrides and explicit executable tokens. Discovery executes no command and retains only CLI names and found/missing observations; arguments and authentication remain unverified. An empty executable is a configuration error. Invocation resolves again and never substitutes another installed CLI.
+
+Validation reused Python 3.10.12 in the existing `pal` environment, without dependency changes:
+
+| Check | Result |
+| --- | --- |
+| Baseline | Reused the passing Task 7 quality checks at unchanged commit `fd942fa`: 2,436 passed, 16 skipped, 16 deselected, 19 subtests passed. |
+| Task 8 pytest command above | Passed: 203 tests, including 54 new startup/availability cases. Isolated tests remove declaration-derived credentials and personal CLI configuration, initialize runtime state explicitly, cover absence/incomplete settings and registration/catalogue distinctions, verify early guards and all nine independent capabilities, and obtain a first reply from a real fake CLI subprocess without provider lookup or API-backed model context. |
+| Related regressions | Passed: 191 tests across prompt stability, CLI environments/execution errors, provider shutdown, and provider-configuration errors. |
+| `./code_quality_checks.sh` | Passed outside the sandbox: 2,490 passed, 16 skipped, 16 deselected, 19 subtests passed; Ruff, Black, and isort passed. |
+| `./run_integration_tests.sh` | Failed: 3 failed, 2 passed, 11 skipped. Reproduced the Claude exact-output assertion (answer plus summary) and two OpenAI connection failures recorded for Tasks 1–7. |
+| `python communication_simulator_test.py --quick` | Failed: runner reported 4 passed and 2 failed (`basic_conversation`, `per_tool_deduplication`). Existing live-check limitations remain open. |
+
+General handler tests now explicitly seed the mock API runtime they exercise; focused startup tests reset that state and perform real isolated bootstrap. The standalone synthetic wire-capture harness also seeds its OpenAI snapshot, since it bypasses `_serve()`. The first full run identified that missing fixture initialization. Shared helper moves required updating existing monkeypatch targets and the shutdown fixture's bootstrap return value. Local workflows retain their read-only model-availability checks and handle absent models; tests prohibit inference and API context construction without replacing that validation with a synthetic error. No production behavior was weakened to satisfy fixtures.
+
+Task 9 still owns coherent tool/prompt listings, aliases, initialization guidance, and provider-free listmodels presentation. Those discovery surfaces intentionally remain at their previous behavior in this intermediate slice. Task 12 owns the real-stdio acceptance harness; the handler/fake-process result above does not claim that coverage. Live-check follow-ups remain with Tasks 13–14. No scope or dependency change was needed.
+
+`kk:review-code:isolated` completed through its independent-reviewer fallback: the code-reviewer approved all twelve implementation/test/task files with no P0–P3 findings. External PAL `gemini-3.8-flash` review again failed authentication and supplied no expert findings. No systemic findings or new conventions required indexing. Final changes after review only record verification and task status.

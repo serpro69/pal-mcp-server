@@ -157,7 +157,7 @@ async def test_mcp_without_provider_keys_keeps_local_tools_available(
     monkeypatch.setattr(server, "DEFAULT_MODEL", "auto")
     monkeypatch.setattr(config, "IS_AUTO_MODE", True)
     monkeypatch.setenv("PAL_WORKSPACE_ROOT", str(tmp_path))
-    server.configure_providers()
+    server.initialize_runtime()
     local_cli = AsyncMock(return_value=[TextContent(type="text", text="local CLI answer")])
     monkeypatch.setattr(CLinkTool, "execute", local_cli)
     async with create_connected_server_and_client_session(server.server, timedelta(seconds=5)) as client:

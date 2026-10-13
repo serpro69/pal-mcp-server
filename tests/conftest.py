@@ -222,6 +222,22 @@ def mock_provider_availability(request, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def initialized_runtime_snapshot(monkeypatch):
+    """Most unit tests call handlers with mocked API clients, without startup.
+
+    Seed that lifecycle explicitly. Provider-free/startup tests replace it with
+    a real bootstrap snapshot; do not infer mode from fixture-injected keys.
+    """
+    import server
+    from utils import runtime_capabilities
+
+    monkeypatch.setattr(runtime_capabilities, "_runtime", None)
+    runtime_capabilities.initialize_runtime_capabilities(
+        configured_providers=(ProviderType.GOOGLE,), enabled_tools=server.TOOLS
+    )
+
+
+@pytest.fixture(autouse=True)
 def clear_model_restriction_env(monkeypatch):
     """Ensure per-test isolation from user-defined model restriction env vars."""
 
