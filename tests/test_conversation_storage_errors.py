@@ -34,6 +34,11 @@ class FaultStorage:
             return False
         self.data[key] = value
 
+    def compare_and_setex(self, key, ttl, expected, value):
+        if self.data.get(key) != expected:
+            return False
+        return self.setex(key, ttl, value) is not False
+
 
 @pytest.fixture
 def storage(monkeypatch):

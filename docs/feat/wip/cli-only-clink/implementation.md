@@ -1,6 +1,6 @@
 # Implementation: CLI-only conversations through clink
 
-> Status: Tasks 1–2 complete; Tasks 3–14 pending
+> Status: Tasks 1–3 complete; Tasks 4–14 pending
 > Created: 2026-10-10
 > Design: [design.md](design.md)
 > Tasks: [tasks.md](tasks.md)
@@ -11,7 +11,7 @@
 
 Implement the approved [design](design.md), not a CLI backend for `chat`. Read `AGENTS.md` and applicable nested instructions before changes. The project is Python, uses Pydantic request/configuration models, exposes MCP over stdio, and keeps conversation state in one process. No dependency change is planned.
 
-`server.py` owns bootstrap, availability, dispatch, and prompts. `tools/clink.py` currently uses the admission/persistence decorator in `utils/conversation_context.py`; MCP calls also use `utils/conversation_coordination.py`. `clink/registry.py` resolves configuration; agents execute subprocesses and parsers interpret output. Shared thread types and transcript hooks are in `utils/conversation_memory.py`, with the synchronized store in `utils/storage_backend.py`. Provider declarations in `providers/configuration.py` already drive bootstrap and test isolation.
+`server.py` owns bootstrap, availability, dispatch, and prompts. At the baseline, `tools/clink.py` used the admission/persistence decorator in `utils/conversation_context.py`; Task 3 replaces it with `clink/conversation.py`. MCP calls still use `utils/conversation_coordination.py`. `clink/registry.py` resolves configuration; agents execute subprocesses and parsers interpret output. Shared thread types and transcript hooks are in `utils/conversation_memory.py`, with the synchronized store in `utils/storage_backend.py`. Provider declarations in `providers/configuration.py` already drive bootstrap and test isolation.
 
 Do not use `requires_model()` as a runtime-availability test or reuse `ModelContext` for CLI history. Do not use inherited continuation helpers that create an empty thread and append messages separately for the new CLI commit path. Preserve API-tool behavior.
 
@@ -288,3 +288,24 @@ Validation reused the Python 3.10.12 `pal` environment and Task 1's passing base
 | `kk:review-code:isolated` | Independent code-reviewer approved with no P0–P3 findings. External PAL `gemini-3.8-flash` review again failed authentication and supplied no expert findings; the independent-review fallback completed. No systemic findings to index. |
 
 Live acceptance and external-review follow-ups remain assigned to Tasks 13–14 in the [Task 1 execution record](#task-1-execution-record-2026-10-13). Live Codex execution was not verified by these deterministic cases. Task 3 still owns removal of eager user writes and error continuation metadata; the new tests explicitly preserve that intermediate contract. No design divergence or additional deferred implementation issue was found.
+
+## Task 3 execution record (2026-10-13)
+
+`clink/conversation.py` now owns request validation/preparation, exact serialized snapshots, and atomic raw user/reply recording. `CLinkTool.execute()` no longer uses eager admission or the incremental response writer. `InMemoryStorage.compare_and_setex()` checks value and expiry under its existing lock, then updates both content and TTL once. CLI failure creates no record, appends no turn, refreshes no TTL, and returns no continuation metadata. Failed recording preserves the answer with `history_saved=false`, a persistence warning, and no offer. Successful recording offers another exchange only when two slots remain.
+
+Preparation retains current-request permissions, rejects caller-supplied internal state, expands `prompt.txt` once, and preserves attachment references without loading historical file contents. The current thread snapshot and bounded parent traversal feed the existing `CLIHistoryBudget` renderer; current input appears once. Raw output is stored even when presentation is reduced. Existing transcript schemas are emitted synchronously after CAS: a new thread event followed by its two turns, or only the appended turns for a follow-up. Disabled/failed audit does not affect memory or trigger another CLI call.
+
+Validation used the existing Python 3.10.12 `pal` environment, with no dependency changes:
+
+| Check | Result |
+| --- | --- |
+| Baseline `./code_quality_checks.sh` | Passed: 2,121 passed, 16 skipped, 16 deselected; lint/format checks passed. |
+| Task 3 pytest command above | Passed: 327 tests. Includes 78 new cases plus the earlier parser failure cases strengthened to compare exact stored bytes and expiry and require no error continuation. Covers direct/MCP sequential calls, one write per pair, storage faults, conflicts, expiry, two-slot limits, request-local overlap, threaded CAS, prompt-file handling, permissions, parent references, raw transcripts, and cancellation. |
+| Final `./code_quality_checks.sh` | Passed outside the sandbox: 2,199 passed, 16 skipped, 16 deselected, 19 subtests passed; Ruff, Black, and isort passed. A standalone sandboxed Black invocation stalled and was interrupted; the completed quality script performed formatting. |
+| `./run_integration_tests.sh` | Failed: 3 failed, 2 passed, 11 skipped. Reproduced the Claude exact-output assertion and two OpenAI connection failures recorded for Tasks 1–2. |
+| `python communication_simulator_test.py --quick` | Failed: runner reported 4 passed and 2 failed (`basic_conversation`, `per_tool_deduplication`), with invalid Gemini API-key errors and missing continuation IDs. |
+| `kk:review-code:isolated` | Independent code-reviewer approved all eight implementation/test/task files with no P0–P3 findings. External PAL `gemini-3.8-flash` review failed authentication; the independent-review fallback completed. No systemic findings to index. |
+
+The planned intermediate contract remains: Task 4 owns complete-exchange history selection, displayed-text projection, and saved CLI/role defaults; Task 5 owns immediate busy errors and internal coordination. MCP retains its waiting coordinator, direct concurrent callers still provide their own coordination, and CAS rejects an intervening uncoordinated write. Earlier ownership fixtures now support CAS, and clink's exhausted-capacity assertion requires no offer while preserving the planner assertion. No API/local-tool persistence behavior changed.
+
+The only implementation correction beyond the planned wiring was handling the prompt-file helper's `None` result when `prompt.txt` is the sole attachment, so it is consumed rather than forwarded again. The new regression verifies one read. Live verification and external-review follow-ups remain with Tasks 13–14 as recorded above; no new deferred implementation finding or design change was needed.

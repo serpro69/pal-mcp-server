@@ -11,10 +11,10 @@ from clink.parsers.claude import ClaudeJSONParser
 from clink.parsers.codex import CodexJSONLParser
 from clink.parsers.gemini import GeminiJSONParser
 from tests.test_clink_claude_agent import DummyProcess
-from tests.test_conversation_storage_errors import FaultStorage
 from tools.clink import CLinkTool
 from tools.shared.exceptions import ToolExecutionError
 from utils import conversation_memory as memory
+from utils.storage_backend import InMemoryStorage
 
 PARSERS = {"gemini": GeminiJSONParser, "claude": ClaudeJSONParser}
 
@@ -106,7 +106,8 @@ def test_parser_classifies_failure_and_retains_diagnostics(cli_name, payload, st
 
 @pytest.fixture
 def execution(monkeypatch):
-    storage = FaultStorage()
+    monkeypatch.setattr(InMemoryStorage, "_cleanup_worker", lambda self: None)
+    storage = InMemoryStorage()
     monkeypatch.setattr(memory, "get_storage", lambda: storage)
     resolve_provider = Mock(side_effect=AssertionError("clink must not resolve an API provider"))
     monkeypatch.setattr("providers.registry.ModelProviderRegistry.get_provider_for_model", resolve_provider)
@@ -123,7 +124,8 @@ def execution(monkeypatch):
 
         monkeypatch.setattr("clink.agents.base.asyncio.create_subprocess_exec", launch)
 
-    return storage, resolve_provider, launches, configure_process
+    yield storage, resolve_provider, launches, configure_process
+    storage.shutdown()
 
 
 @pytest.mark.asyncio
@@ -133,13 +135,12 @@ async def test_failed_cli_saves_no_assistant_turn(execution, cli_name, payload, 
     storage, resolve_provider, launches, configure_process = execution
     configure_process(json.dumps(payload), stderr)
     arguments = {"cli_name": cli_name, "prompt": "Current input"}
-    expected_turns = []
     if continuation:
         thread_id = memory.create_thread("clink", {"cli_name": cli_name})
         memory.add_turn(thread_id, "user", "Previous input")
         memory.add_turn(thread_id, "assistant", "Previous answer")
         arguments["continuation_id"] = thread_id
-        expected_turns = [("user", "Previous input"), ("assistant", "Previous answer")]
+    snapshot = storage._store.copy()
 
     with pytest.raises(ToolExecutionError) as error:
         await CLinkTool().execute(arguments)
@@ -156,10 +157,9 @@ async def test_failed_cli_saves_no_assistant_turn(execution, cli_name, payload, 
         assert metadata["stderr"] == stderr
     assert len(launches) == 1
     resolve_provider.assert_not_called()
-    assert len(storage.data) == 1
-    # Task 3 replaces eager admission. For now only the current user is saved.
-    thread = memory.get_thread(metadata["continuation_id"])
-    assert [(turn.role, turn.content) for turn in thread.turns] == expected_turns + [("user", "Current input")]
+    assert storage._store == snapshot  # Includes exact serialized content and TTL.
+    assert "continuation_id" not in metadata
+    assert output["continuation_offer"] is None
 
 
 @pytest.mark.asyncio
@@ -202,9 +202,9 @@ async def test_runner_recovery_does_not_turn_failure_into_success(
     assert output["metadata"]["return_code"] == returncode
     assert output["metadata"]["stderr"] == stderr
     assert len(launches) == 1
-    assert len(storage.data) == 1
-    thread = memory.get_thread(output["metadata"]["continuation_id"])
-    assert [turn.role for turn in thread.turns] == ["user"]
+    assert not storage._store
+    assert "continuation_id" not in output["metadata"]
+    assert output["continuation_offer"] is None
     resolve_provider.assert_not_called()
 
 
@@ -275,8 +275,9 @@ async def test_failure_rejected_before_pruning_or_presentation(execution, monkey
     assert diagnostic in output["content"]
     assert output["metadata"]["events"] == ["failure detail"]
     assert "output_summarized" not in output["metadata"]
-    thread = memory.get_thread(output["metadata"]["continuation_id"])
-    assert [turn.role for turn in thread.turns] == ["user"]
+    assert "continuation_id" not in output["metadata"]
+    assert output["continuation_offer"] is None
+    assert not execution[0]._store
 
 
 CODEX_ANSWER = {"type": "item.completed", "item": {"type": "agent_message", "text": "Codex answer"}}
@@ -362,7 +363,7 @@ async def test_codex_execution_classification_controls_assistant_persistence(
         memory.add_turn(thread_id, "assistant", "Previous answer")
         arguments["continuation_id"] = thread_id
         expected_turns = [("user", "Previous input"), ("assistant", "Previous answer")]
-    expected_turns.append(("user", "Current input"))
+    snapshot = storage._store.copy()
 
     if is_error or returncode != 0:
         with pytest.raises(ToolExecutionError) as error:
@@ -372,7 +373,9 @@ async def test_codex_execution_classification_controls_assistant_persistence(
         assert content in output["content"]
         assert output["metadata"]["events"] == events
         assert output["metadata"]["stdout"] == stdout
-        thread_id = output["metadata"]["continuation_id"]
+        assert "continuation_id" not in output["metadata"]
+        assert output["continuation_offer"] is None
+        assert storage._store == snapshot
     else:
         output = json.loads((await CLinkTool().execute(arguments))[0].text)
         assert output["status"] == "continuation_available"
@@ -381,12 +384,11 @@ async def test_codex_execution_classification_controls_assistant_persistence(
         if events[0]["type"] == "error":
             assert output["metadata"]["errors"] == ["Transient request failure"]
         thread_id = output["continuation_offer"]["continuation_id"]
-        expected_turns.append(("assistant", content))
+        expected_turns.extend([("user", "Current input"), ("assistant", content)])
+        assert [(turn.role, turn.content) for turn in memory.get_thread(thread_id).turns] == expected_turns
+        assert len(storage._store) == 1
 
     assert output["metadata"]["return_code"] == returncode
     assert output["metadata"]["stderr"] == "CLI diagnostic"
     assert len(launches) == 1
     resolve_provider.assert_not_called()
-    assert len(storage.data) == 1
-    # Task 3 will remove eager user writes and error continuation metadata.
-    assert [(turn.role, turn.content) for turn in memory.get_thread(thread_id).turns] == expected_turns

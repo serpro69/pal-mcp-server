@@ -247,7 +247,7 @@ async def test_local_and_cli_calls_use_pair_admission(setup, monkeypatch, throug
         else {"prompt": "CLI initial input", "cli_name": "gemini"}
     )
     result = await invoke(tool, args, through_server, monkeypatch)
-    thread_id = result["continuation_offer"]["continuation_id"]
+    thread_id = next(iter(setup[0].data)).removeprefix("thread:")
     turns = memory.get_thread(thread_id).turns
     assert [turn.role for turn in turns] == ["user", "assistant"]
     if kind == "planner":
@@ -257,6 +257,8 @@ async def test_local_and_cli_calls_use_pair_admission(setup, monkeypatch, throug
         assert result["next_steps"] == result["continuation_offer"]["note"]
     else:
         assert [turn.content for turn in turns] == ["CLI initial input", "CLI raw reply"]
+        assert result["continuation_offer"] is None
+        assert result["metadata"]["history_saved"] is True
     with pytest.raises(ToolExecutionError, match="two free message slots"):
         await invoke(tool, {**args, "continuation_id": thread_id}, through_server, monkeypatch)
     assert len(memory.get_thread(thread_id).turns) == 2

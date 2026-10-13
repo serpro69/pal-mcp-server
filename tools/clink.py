@@ -15,19 +15,14 @@ from pydantic import BaseModel, Field
 
 from clink import get_registry
 from clink.agents import AgentOutput, CLIAgentError, create_agent, get_agent_class
+from clink.conversation import CLIConversation, prepare_request
 from clink.models import ResolvedCLIClient, ResolvedCLIRole
 from config import TEMPERATURE_BALANCED
-from tools.models import ToolModelCategory, ToolOutput
+from tools.models import ContinuationOffer, ToolModelCategory, ToolOutput
 from tools.shared.base_models import COMMON_FIELD_DESCRIPTIONS
 from tools.shared.exceptions import ToolExecutionError
 from tools.simple.base import SchemaBuilder, SimpleTool
-from utils.conversation_context import (
-    conversation_request,
-    current_invocation,
-    invocation_attachments,
-    invocation_history,
-)
-from utils.conversation_memory import ConversationNotFoundError, get_thread
+from utils import conversation_memory as memory
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +80,7 @@ class CLinkTool(SimpleTool):
     """Bridge MCP requests to configured CLI agents.
 
     Schema metadata is cached at construction time and execution relies on the shared
-    SimpleTool hooks for conversation memory. Prompt preparation is customised so we
+    CLI-specific preparation and atomic conversation recording. Prompt preparation is customised so we
     pass instructions and file references suitable for another CLI agent.
     """
 
@@ -208,21 +203,12 @@ class CLinkTool(SimpleTool):
         """Unused by clink because we override the schema end-to-end."""
         return {}
 
-    @conversation_request()
     async def execute(self, arguments: dict[str, Any]) -> list[TextContent]:
-        self._current_arguments = arguments
-        request = self.get_request_model()(**arguments)
-
-        if request.editable_paths and not request.allow_edits:
-            self._raise_tool_error("editable_paths can only be used when allow_edits=true.")
-
-        editable_path_error = self._validate_editable_paths(request)
-        if editable_path_error:
-            self._raise_tool_error(editable_path_error)
-
-        path_error = self._validate_file_paths(request)
-        if path_error:
-            self._raise_tool_error(path_error)
+        try:
+            request = prepare_request(self, arguments)
+            conversation = CLIConversation.prepare(request)
+        except (memory.ConversationMemoryError, ValueError) as exc:
+            self._raise_tool_error(str(exc), metadata={"tool_name": "clink", "error_type": type(exc).__name__})
 
         selected_cli = request.cli_name or self._default_cli_name
         if not selected_cli:
@@ -244,18 +230,6 @@ class CLinkTool(SimpleTool):
                 "only 'claude' supports scoped edit allow-listing."
             )
 
-        invocation = current_invocation(self)
-        if invocation and not invocation.is_new:
-            request.absolute_file_paths, request.images = invocation_attachments(self)
-        absolute_file_paths = self.get_request_files(request)
-        images = self.get_request_images(request)
-        continuation_id = self.get_request_continuation_id(request)
-
-        if continuation_id and get_thread(continuation_id) is None:
-            raise ConversationNotFoundError("Conversation thread was not found or has expired")
-
-        self._model_context = arguments.get("_model_context")
-
         system_prompt_text = role_config.prompt_path.read_text(encoding="utf-8")
         include_system_prompt = not self._use_external_system_prompt(client_config)
 
@@ -266,6 +240,8 @@ class CLinkTool(SimpleTool):
                 system_prompt=system_prompt_text,
                 include_system_prompt=include_system_prompt,
                 cli_name=client_config.name,
+                user_content=conversation.user_content,
+                files=conversation.files,
             )
         except Exception as exc:
             logger.exception("Failed to prepare clink prompt")
@@ -277,8 +253,8 @@ class CLinkTool(SimpleTool):
                 role=role_config,
                 prompt=prompt_text,
                 system_prompt=system_prompt_text if system_prompt_text.strip() else None,
-                files=absolute_file_paths,
-                images=images,
+                files=conversation.files,
+                images=conversation.images,
                 allow_edits=request.allow_edits,
                 editable_paths=request.editable_paths,
             )
@@ -305,14 +281,32 @@ class CLinkTool(SimpleTool):
             metadata,
         )
 
-        model_info = {
-            "provider": client_config.name,
-            "model_name": result.parsed.metadata.get("model_used"),
-        }
+        model_name = result.parsed.metadata.get("model_used")
+        metadata.update(tool_name="clink", provider_used=client_config.name)
+        if model_name:
+            metadata["model_used"] = model_name
+        tool_output = ToolOutput(content=content)
+        model_metadata: dict[str, Any] = {"provider_calls": []}
+        for key in ("usage", "token_usage"):
+            if key in result.parsed.metadata:
+                model_metadata[key] = result.parsed.metadata[key]
+        try:
+            remaining = conversation.commit(
+                result.parsed.content, provider=client_config.name, model_name=model_name, model_metadata=model_metadata
+            )
+        except memory.ConversationMemoryError as exc:
+            metadata.update(memory.memory_persistence_warning(exc), history_saved=False)
+        else:
+            metadata.update(history_saved=True, conversation_ready=remaining >= 2)
+            if remaining >= 2:
+                tool_output.status = "continuation_available"
+                tool_output.continuation_offer = ContinuationOffer(
+                    continuation_id=conversation.thread.thread_id,
+                    remaining_turns=remaining,
+                    note=f"You can continue this conversation for {remaining // 2} more exchanges.",
+                )
 
-        tool_output = self._parse_response(content, request, model_info, recordable_content=result.parsed.content)
-        tool_output.metadata = self._merge_metadata(tool_output.metadata, metadata)
-
+        tool_output.metadata = metadata
         return [TextContent(type="text", text=tool_output.model_dump_json())]
 
     async def prepare_prompt(self, request) -> str:
@@ -336,17 +330,16 @@ class CLinkTool(SimpleTool):
         system_prompt: str,
         include_system_prompt: bool,
         cli_name: str,
+        user_content: str | None = None,
+        files: list[str] | None = None,
     ) -> str:
         """Load the role prompt and assemble the final user message."""
         token = _active_system_prompt.set(system_prompt)
         try:
-            invocation = current_invocation(self)
-            if invocation and not invocation.is_new:
-                user_content = invocation_history(self, text_only=True)
-            else:
+            if user_content is None:
                 user_content = self.handle_prompt_file_with_fallback(request).strip()
             guidance = self._agent_capabilities_guidance(cli_name)
-            file_section = self._format_file_references(self.get_request_files(request))
+            file_section = self._format_file_references(self.get_request_files(request) if files is None else files)
 
             sections: list[str] = []
             active_prompt = self.get_system_prompt().strip()
@@ -394,11 +387,6 @@ class CLinkTool(SimpleTool):
         if result.output_file_content and "raw" not in metadata:
             metadata["raw_output_file"] = result.output_file_content
         return metadata
-
-    def _merge_metadata(self, base: dict[str, Any] | None, extra: dict[str, Any]) -> dict[str, Any]:
-        merged = dict(base or {})
-        merged.update(extra)
-        return merged
 
     def _apply_output_limit(
         self,

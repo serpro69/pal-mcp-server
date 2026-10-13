@@ -9,7 +9,7 @@
 > Review: [review.md](review.md)
 > Not Doing: CLI-backed chat/providers, additional CLI-backed workflows, installation/login/billing management, shared remote deployments, native CLI sessions, durable history, multimodal parity, new filesystem sandbox, dependency upgrades
 
-Tasks 1–2 are done; Tasks 3–14 are pending. Review findings R1–R8 are addressed in these plans; implementation progress is tracked below. Deferred scope remains in [design.md](design.md#deferred-findings-and-verification-limits). Tasks 1–2 classify failures under current eager admission; Tasks 3–5 separately deliver atomic recording, bounded history/selection, and non-waiting coordination. Intermediate behavior is explicit in the implementation plan. A skipped live check is not completed coverage.
+Tasks 1–3 are done; Tasks 4–14 are pending. Review findings R1–R8 are addressed in these plans; implementation progress is tracked below. Deferred scope remains in [design.md](design.md#deferred-findings-and-verification-limits). Tasks 1–2 established failure classification; Task 3 replaced eager CLI admission with atomic recording. Tasks 4–5 separately deliver bounded history/selection and non-waiting coordination. Intermediate behavior is explicit in the implementation plan. A skipped live check is not completed coverage.
 
 ## Task 1: Surface Gemini and Claude execution failures
 
@@ -40,17 +40,19 @@ Completed 2026-10-13: 102 targeted tests passed; full quality checks passed with
 
 ## Task 3: Commit sequential CLI exchanges atomically
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 2
 - **Size:** M
 - **Slicing:** Risk-First — establish one persistence owner without also changing history selection or scheduling.
 - **Can run in parallel with:** —
 - **Docs:** [implementation.md#task-3-commit-sequential-cli-exchanges-atomically](implementation.md#task-3-commit-sequential-cli-exchanges-atomically)
 
-- [ ] 3.1 Create `clink/conversation.py` and replace clink's eager invocation decorator with request-local preparation → preserve request/path/size checks, prompt-file expansion once, attachments, internal-field filtering, and current-request permissions.
-- [ ] 3.2 Add `compare_and_setex` to `utils/storage_backend.py` and commit complete raw user/reply pairs → verify two-slot capacity, TTL refresh only after success, conflict/expiry protection, and reply/warning/no-offer on failed recording.
-- [ ] 3.3 Reuse current provider-independent snapshot rendering for sequential follow-ups and emit existing transcript thread/turn events only after commit → verify no historical file-content reads, raw audit content, event ordering, and disabled/failed audit behavior.
-- [ ] 3.4 Add `tests/test_clink_continuation.py` and run the Task 3 regressions → verify direct/MCP sequential parity and that every classified failure leaves memory/TTL unchanged with no continuation metadata. Keep existing MCP waiting and direct caller-coordination behavior until Task 5.
+- [x] 3.1 Create `clink/conversation.py` and replace clink's eager invocation decorator with request-local preparation → preserve request/path/size checks, prompt-file expansion once, attachments, internal-field filtering, and current-request permissions.
+- [x] 3.2 Add `compare_and_setex` to `utils/storage_backend.py` and commit complete raw user/reply pairs → verify two-slot capacity, TTL refresh only after success, conflict/expiry protection, and reply/warning/no-offer on failed recording.
+- [x] 3.3 Reuse current provider-independent snapshot rendering for sequential follow-ups and emit existing transcript thread/turn events only after commit → verify no historical file-content reads, raw audit content, event ordering, and disabled/failed audit behavior.
+- [x] 3.4 Add `tests/test_clink_continuation.py` and run the Task 3 regressions → verify direct/MCP sequential parity and that every classified failure leaves memory/TTL unchanged with no continuation metadata. Keep existing MCP waiting and direct caller-coordination behavior until Task 5.
+
+Completed 2026-10-13: all 327 targeted checks passed; full quality checks passed with 2,199 tests passed and 16 skipped. Independent code review found no issues. Live-check and external-review limitations are recorded in the [Task 3 execution record](implementation.md#task-3-execution-record-2026-10-13).
 
 ## Task 4: Bound history and restore CLI selection
 
