@@ -1,6 +1,6 @@
 # Implementation: CLI-only conversations through clink
 
-> Status: Tasks 1–10 complete; Tasks 11–14 pending
+> Status: Tasks 1–11 complete; Tasks 12–14 pending
 > Created: 2026-10-10
 > Design: [design.md](design.md)
 > Tasks: [tasks.md](tasks.md)
@@ -469,3 +469,26 @@ Validation used the existing Python 3.10.12 `pal` environment:
 No new automated tests were added for the documentation/message-only change; existing runtime coverage and direct example checks verify the documented contracts. The reviewer could not read the protected environment example file and instead checked provider declarations and setup source. No systemic findings or new project conventions required indexing. Final post-review edits only record verification and task/header status.
 
 Task 10's documented completion criteria are met. Task 11 owns PowerShell templates/messages and Windows clarification. Tasks 12–14 still own real-stdio acceptance, installed-version/live validation, and the full setup walkthrough. The feature remains in progress. Optional editorial follow-up: `$kk:clarify-docs` on `docs/getting-started.md`, `docs/tools/clink.md`, and `README.md`.
+
+## Task 11 execution record (2026-10-13)
+
+Both PowerShell workflows now show CLI/API setup guidance through `Show-SetupPaths`; the incomplete `Test-ApiKeys` validator and its mandatory-key wording are removed. Python startup remains the provider classification owner. Docker guidance explicitly requires the selected CLI and its authentication inside the container; native Python is the documented path for host CLIs. Setup completion points to `listmodels` for actual availability.
+
+Both generated environment templates leave provider and child-CLI credentials, custom endpoints, and optional routing/model settings commented out. This also prevents generated placeholders from replacing real inherited credentials during the existing import step. Existing files and explicit endpoint imports are unchanged. Windows guidance distinguishes native PowerShell and WSL environments, records PowerShell's import precedence, explains legacy placeholder cleanup, and removes the obsolete WSL-only requirement using the vendor's [current Windows setup guidance](https://code.claude.com/docs/en/setup#set-up-on-windows).
+
+Validation reused the existing Python 3.10.12 `pal` environment. A portable official [PowerShell 7.6.6 release](https://github.com/PowerShell/PowerShell/releases/tag/v7.6.6) was downloaded into `/tmp/clink-task11-pwsh`; no system installation or project dependency changed. The [ParseFile API](https://learn.microsoft.com/en-us/dotnet/api/system.management.automation.language.parser.parsefile?view=powershellsdk-7.6.0) parsed the script without invoking its entrypoint. PowerShell caches/configuration were directed to task-local temporary directories, with profiles disabled and telemetry opted out.
+
+| Check | Result |
+| --- | --- |
+| Baseline | Reused the passing Task 10 quality checks at unchanged commit `4bb7236`: 2,530 passed, 16 skipped, 16 deselected, 19 subtests passed. |
+| PowerShell syntax | Passed on PowerShell 7.6.6 after the final correction: 8,416 tokens, no parser errors, no setup entrypoint executed. |
+| Both templates and messages | Passed using the actual initializer, import, and message functions in an isolated PowerShell child with mocked `Test-Path`, `Get-Content`, and `Out-File`. Both default templates are identical; all declared PAL providers classify as absent. Existing files are not overwritten; supplied endpoint/provider/child keys survive defaults; explicit real endpoints still import. No configuration file or CLI login state was changed. |
+| Provider regressions | `python -m pytest tests/test_provider_configuration.py tests/test_provider_configuration_errors.py tests/test_custom_provider.py -q`: 197 passed. Additional template-derived checks confirmed legacy custom-URL placeholders remain absent and real custom endpoints remain configured without mandatory keys. |
+| Documentation and whitespace | All 25 relative links/anchors in getting-started passed; `git diff --check` passed. |
+| `./code_quality_checks.sh` | Passed outside the sandbox before and after the review correction: 2,530 passed, 16 skipped, 16 deselected, 19 subtests passed; Ruff, Black, and isort passed. |
+| `./run_integration_tests.sh` | Failed: 3 failed, 2 passed, 11 skipped. Reproduced the existing Claude exact-output assertion (answer plus summary) and two OpenAI connection failures. |
+| `python communication_simulator_test.py --quick` | Failed: runner reported 4 passed and 2 failed (`basic_conversation`, `per_tool_deduplication`), as recorded for prior tasks. |
+
+Independent review identified one P2 issue: the new Windows instructions repeated the existing `#Requires -Version 5.1` contract, but Qwen configuration status used a PowerShell 7 ternary. It now uses equivalent `if/else`; both outcomes of the actual source expression were checked in isolation. The reviewer approved the amended three-file diff with no remaining P0–P3 findings. External PAL `gemini-3.8-flash` review failed authentication and supplied no expert findings; `kk:review-code:isolated` completed through its independent-reviewer fallback. No systemic findings or new conventions required indexing.
+
+Native Windows PowerShell 5.1 execution, Docker/client setup, and vendor login were not exercised. Syntax parsing and mocked template checks do not establish the full setup walkthrough, which remains Task 14. Tasks 12–14 still own real-stdio acceptance and live verification; the feature remains in progress. Final post-review edits only record verification and task/header status. Optional editorial follow-up: `$kk:clarify-docs` on the Windows CLI setup section of `docs/getting-started.md`.
