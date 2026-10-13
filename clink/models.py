@@ -7,6 +7,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field, PositiveInt, field_validator, model_validator
 
+from clink.constants import DEFAULT_HISTORY_TOKEN_BUDGET
+
 
 class OutputCaptureConfig(BaseModel):
     """Optional configuration for CLIs that write output to disk."""
@@ -61,6 +63,12 @@ class CLIClientConfig(BaseModel):
         description="Additional inherited environment names; explicit env values take precedence.",
     )
     timeout_seconds: PositiveInt | None = Field(default=None)
+    history_token_budget: int = Field(
+        default=DEFAULT_HISTORY_TOKEN_BUDGET,
+        strict=True,
+        gt=0,
+        description="Estimated-token limit for rendered CLI conversation history, excluding the current request.",
+    )
     roles: dict[str, CLIRoleConfig] = Field(default_factory=dict)
     output_to_file: OutputCaptureConfig | None = None
 
@@ -149,6 +157,7 @@ class ResolvedCLIClient(BaseModel):
     env: dict[str, str] = Field(default_factory=dict)
     env_passthrough: list[str] = Field(default_factory=list)
     timeout_seconds: int
+    history_token_budget: int = Field(default=DEFAULT_HISTORY_TOKEN_BUDGET, strict=True, gt=0)
     parser: str
     runner: str | None = None
     roles: dict[str, ResolvedCLIRole]

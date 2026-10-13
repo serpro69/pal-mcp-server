@@ -186,7 +186,8 @@ class CLIConversation:
     history_metadata: dict[str, Any]
 
     @classmethod
-    def prepare(cls, request: CLinkRequest) -> CLIConversation:
+    def load(cls, request: CLinkRequest) -> CLIConversation:
+        """Load the snapshot and current input before resolving client defaults."""
         now = datetime.now(timezone.utc).isoformat()
         thread_id = canonical_continuation_id(request.continuation_id) or str(uuid4())
 
@@ -224,24 +225,38 @@ class CLIConversation:
             images=list(request.images),
             tool_name="clink",
         )
-        turns = list(thread.turns)
-        if thread.parent_thread_id:
-            parents = memory.get_thread_chain(thread.parent_thread_id, max_depth=19)
+        return cls(
+            storage,
+            thread,
+            expected,
+            user_turn,
+            list(request.absolute_file_paths),
+            list(request.images),
+            request.prompt.strip(),
+            {},
+        )
+
+    def prepare_history(self, *, token_budget: int) -> None:
+        """Render once with the selected client's budget, after selection succeeds."""
+        turns = list(self.thread.turns)
+        if self.thread.parent_thread_id:
+            parents = memory.get_thread_chain(self.thread.parent_thread_id, max_depth=19)
             # Retain the loaded child snapshot and the existing depth/cycle bound.
             for index, parent in enumerate(parents):
-                if parent.thread_id == thread.thread_id:
+                if parent.thread_id == self.thread.thread_id:
                     parents = parents[index + 1 :]
                     break
             turns = [turn for parent in parents for turn in parent.turns] + turns
-        history = render_history(thread.model_copy(update={"turns": turns, "parent_thread_id": None}))
-        combined = thread.model_copy(update={"turns": history.turns + [user_turn], "parent_thread_id": None})
-        files = memory.get_conversation_file_list(combined)
-        images = memory.get_conversation_image_list(combined)
-
-        user_content = request.prompt.strip()
+        history = render_history(
+            self.thread.model_copy(update={"turns": turns, "parent_thread_id": None}), token_budget=token_budget
+        )
+        combined = self.thread.model_copy(update={"turns": history.turns + [self.user_turn], "parent_thread_id": None})
+        self.files = memory.get_conversation_file_list(combined)
+        self.images = memory.get_conversation_image_list(combined)
+        self.history_metadata = history.metadata
+        self.user_content = self.user_turn.content.strip()
         if history.text:
-            user_content = f"{history.text}\n\n=== NEW USER INPUT ===\n{request.prompt}"
-        return cls(storage, thread, expected, user_turn, files, images, user_content, history.metadata)
+            self.user_content = f"{history.text}\n\n=== NEW USER INPUT ===\n{self.user_turn.content}"
 
     def resolve_selection(self, request: CLinkRequest, cli_names: list[str]) -> tuple[str, str]:
         """Inherit only successful CLI/role defaults, never request permissions."""

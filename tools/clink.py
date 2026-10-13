@@ -224,7 +224,7 @@ class CLinkTool(SimpleTool):
     async def _execute_coordinated(self, arguments: dict[str, Any]) -> list[TextContent]:
         try:
             request = prepare_request(self, arguments)
-            conversation = CLIConversation.prepare(request)
+            conversation = CLIConversation.load(request)
             selected_cli, selected_role = conversation.resolve_selection(request, self._cli_names)
         except (memory.ConversationMemoryError, ValueError) as exc:
             self._raise_tool_error(str(exc), metadata={"tool_name": "clink", "error_type": type(exc).__name__})
@@ -244,6 +244,11 @@ class CLinkTool(SimpleTool):
                 f"CLI '{client_config.name}' does not support editable_paths; "
                 "only 'claude' supports scoped edit allow-listing."
             )
+
+        try:
+            conversation.prepare_history(token_budget=client_config.history_token_budget)
+        except (memory.ConversationMemoryError, ValueError) as exc:
+            self._raise_tool_error(str(exc), metadata={"tool_name": "clink", "error_type": type(exc).__name__})
 
         system_prompt_text = role_config.prompt_path.read_text(encoding="utf-8")
         include_system_prompt = not self._use_external_system_prompt(client_config)

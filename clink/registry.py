@@ -167,6 +167,7 @@ class ClinkRegistry:
             env=env,
             env_passthrough=list(dict.fromkeys((*internal_defaults.env_passthrough, *raw.env_passthrough))),
             timeout_seconds=int(timeout_seconds),
+            history_token_budget=raw.history_token_budget,
             parser=parser_name,
             runner=runner_name,
             roles=roles,
