@@ -18,14 +18,15 @@ class SimulatorSession:
     SDK transport teardown closes stdin, waits, and terminates/reaps the child.
     """
 
-    def __init__(self, timeout: float = 3600):
+    def __init__(self, timeout: float = 3600, *, parameters: StdioServerParameters | None = None):
         self.timeout = timeout
+        self.parameters = parameters
         self._resources = ExitStack()
 
     @asynccontextmanager
     async def _connect(self):
         repo = Path(__file__).resolve().parents[1]
-        parameters = StdioServerParameters(
+        parameters = self.parameters or StdioServerParameters(
             command=sys.executable, args=[str(repo / "server.py")], cwd=str(repo), env=dict(os.environ)
         )
         async with stdio_client(parameters) as (read, write):

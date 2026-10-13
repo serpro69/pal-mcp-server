@@ -27,6 +27,21 @@ PAL inherits only shared runtime variables and the selected CLI's authentication
 
 When validating an installation, record the chosen CLI's `--version`, intended authentication method, and first-request/follow-up outcomes. PAL discovery runs no version, login, or inference probes. No live version compatibility claim follows from this documentation check.
 
+### Optional live conversation check
+
+From a development checkout with its virtual environment active, explicitly select an installed, authenticated CLI:
+
+```bash
+PAL_CLINK_LIVE_TEST=claude python -m pytest tests/test_clink_integration.py -q
+PAL_CLINK_LIVE_TEST=codex python communication_simulator_test.py --individual clink_cli_only
+```
+
+The accepted selectors are `claude`, `codex`, and `gemini`; use `$env:PAL_CLINK_LIVE_TEST = 'claude'` before the Python command in PowerShell. The check records the installed version, uses shipped clink arguments with safe default permissions, and requires a first reply plus a follow-up that recalls both earlier input and the CLI's reply. Role summaries may accompany the expected answer.
+
+Each check owns a temporary workspace and MCP session. It excludes PAL provider settings, checkout dotenv files, and personal PAL client manifests. It preserves home/configuration locations and the selected CLI's remaining environment allowlist, so existing CLI authentication remains accessible. Shared PAL credentials such as `OPENAI_API_KEY` and `GEMINI_API_KEY` are excluded; configure the intended CLI account outside PAL before testing. The harness does not install or sign in to a CLI, and successful output does not establish billing mode.
+
+With no selector, pytest skips and the simulator reports `SKIPPED` before setup or live execution. A skip-only invocation exits successfully with “No tests executed”; it does not establish coverage. Invalid selectors, missing executables, authentication errors, incompatible arguments, and failed requests fail an opted-in check. The scenario is excluded from `--quick` and `--ci`.
+
 ## First Request and Follow-up
 
 Ask your MCP client to call the **clink tool** with these arguments. These JSON objects are tool arguments, not shell commands. Replace `codex` with `claude` or `gemini` if that is your installed CLI.
