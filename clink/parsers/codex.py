@@ -18,6 +18,7 @@ class CodexJSONLParser(BaseParser):
         events: list[dict[str, Any]] = []
         agent_messages: list[str] = []
         errors: list[str] = []
+        turn_failed = False
         usage: dict[str, Any] | None = None
 
         for line in lines:
@@ -40,12 +41,25 @@ class CodexJSONLParser(BaseParser):
                 message = event.get("message")
                 if isinstance(message, str) and message.strip():
                     errors.append(message.strip())
+                else:
+                    errors.append("Codex CLI reported an error.")
+            elif event_type == "turn.failed":
+                turn_failed = True
+                error = event.get("error")
+                message = error.get("message") if isinstance(error, dict) else None
+                if isinstance(message, str) and message.strip():
+                    errors.append(message.strip())
+                else:
+                    errors.append("Codex CLI reported a failed turn.")
             elif event_type == "turn.completed":
                 turn_usage = event.get("usage")
                 if isinstance(turn_usage, dict):
                     usage = turn_usage
 
-        if not agent_messages and errors:
+        # A terminal failure wins over partial text. Recoverable error events
+        # may accompany a successful answer, so they alone do not reject it.
+        is_error = turn_failed or (not agent_messages and bool(errors))
+        if is_error:
             agent_messages.extend(errors)
 
         if not agent_messages:
@@ -60,4 +74,4 @@ class CodexJSONLParser(BaseParser):
         if stderr and stderr.strip():
             metadata["stderr"] = stderr.strip()
 
-        return ParsedCLIResponse(content=content, metadata=metadata)
+        return ParsedCLIResponse(content=content, metadata=metadata, is_error=is_error)

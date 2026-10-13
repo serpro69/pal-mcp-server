@@ -9,7 +9,7 @@
 > Review: [review.md](review.md)
 > Not Doing: CLI-backed chat/providers, additional CLI-backed workflows, installation/login/billing management, shared remote deployments, native CLI sessions, durable history, multimodal parity, new filesystem sandbox, dependency upgrades
 
-Task 1 is done; Tasks 2–14 are pending. Review findings R1–R8 are addressed in these plans; implementation progress is tracked below. Deferred scope remains in [design.md](design.md#deferred-findings-and-verification-limits). Tasks 1–2 classify failures under current eager admission; Tasks 3–5 separately deliver atomic recording, bounded history/selection, and non-waiting coordination. Intermediate behavior is explicit in the implementation plan. A skipped live check is not completed coverage.
+Tasks 1–2 are done; Tasks 3–14 are pending. Review findings R1–R8 are addressed in these plans; implementation progress is tracked below. Deferred scope remains in [design.md](design.md#deferred-findings-and-verification-limits). Tasks 1–2 classify failures under current eager admission; Tasks 3–5 separately deliver atomic recording, bounded history/selection, and non-waiting coordination. Intermediate behavior is explicit in the implementation plan. A skipped live check is not completed coverage.
 
 ## Task 1: Surface Gemini and Claude execution failures
 
@@ -27,14 +27,16 @@ Completed 2026-10-13: 66 targeted tests passed; full quality checks passed with 
 
 ## Task 2: Surface Codex terminal failures
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 1
 - **Size:** S
 - **Can run in parallel with:** —
 - **Docs:** [implementation.md#task-2-codex-terminal-failures](implementation.md#task-2-codex-terminal-failures)
 
-- [ ] 2.1 Classify error-only streams, `turn.failed` with partial text, recovered nonzero exits, and successful warning-bearing replies in `clink/parsers/codex.py`.
-- [ ] 2.2 Extend `tests/test_clink_execution_errors.py` and run the Task 2 command → verify failures save no assistant turn; Task 3 owns the later no-write/no-continuation guarantees.
+- [x] 2.1 Classify error-only streams, `turn.failed` with partial text, recovered nonzero exits, and successful warning-bearing replies in `clink/parsers/codex.py`.
+- [x] 2.2 Extend `tests/test_clink_execution_errors.py` and run the Task 2 command → verify failures save no assistant turn; Task 3 owns the later no-write/no-continuation guarantees.
+
+Completed 2026-10-13: 102 targeted tests passed; full quality checks passed with 2,121 tests passed and 16 skipped. Independent review found no issues. Live-check and external-review limitations remain recorded in the [Task 2 execution record](implementation.md#task-2-execution-record-2026-10-13).
 
 ## Task 3: Commit sequential CLI exchanges atomically
 

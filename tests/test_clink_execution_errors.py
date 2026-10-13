@@ -8,6 +8,7 @@ import pytest
 from clink.agents import AgentOutput
 from clink.parsers.base import ParsedCLIResponse
 from clink.parsers.claude import ClaudeJSONParser
+from clink.parsers.codex import CodexJSONLParser
 from clink.parsers.gemini import GeminiJSONParser
 from tests.test_clink_claude_agent import DummyProcess
 from tests.test_conversation_storage_errors import FaultStorage
@@ -276,3 +277,116 @@ async def test_failure_rejected_before_pruning_or_presentation(execution, monkey
     assert "output_summarized" not in output["metadata"]
     thread = memory.get_thread(output["metadata"]["continuation_id"])
     assert [turn.role for turn in thread.turns] == ["user"]
+
+
+CODEX_ANSWER = {"type": "item.completed", "item": {"type": "agent_message", "text": "Codex answer"}}
+CODEX_COMPLETION = {"type": "turn.completed", "usage": {"input_tokens": 10, "output_tokens": 5}}
+CODEX_FAILURE = {"type": "turn.failed", "error": {"message": "Quota exhausted"}}
+CODEX_RESULTS = [
+    pytest.param(
+        [{"type": "error", "message": "Authentication failed"}], True, "Authentication failed", id="error-only"
+    ),
+    pytest.param([{"type": "error"}], True, "Codex CLI reported an error.", id="error-without-message"),
+    pytest.param([CODEX_FAILURE], True, "Quota exhausted", id="failed-turn-only"),
+    pytest.param([CODEX_ANSWER, CODEX_FAILURE], True, "Codex answer\n\nQuota exhausted", id="partial-failed-turn"),
+    pytest.param(
+        [CODEX_ANSWER, {"type": "turn.failed"}],
+        True,
+        "Codex answer\n\nCodex CLI reported a failed turn.",
+        id="failed-turn-without-message",
+    ),
+    pytest.param(
+        [CODEX_ANSWER, CODEX_FAILURE, CODEX_COMPLETION],
+        True,
+        "Codex answer\n\nQuota exhausted",
+        id="completion-does-not-hide-failed-turn",
+    ),
+    pytest.param(
+        [{"type": "error", "message": "Transient request failure"}, CODEX_ANSWER, CODEX_COMPLETION],
+        False,
+        "Codex answer",
+        id="recovered-warning",
+    ),
+    pytest.param(
+        [
+            {
+                "type": "item.completed",
+                "item": {
+                    "type": "command_execution",
+                    "exit_code": 1,
+                    "aggregated_output": "Permission denied",
+                    "status": "failed",
+                },
+            },
+            CODEX_ANSWER,
+            CODEX_COMPLETION,
+        ],
+        False,
+        "Codex answer",
+        id="permission-warning",
+    ),
+    pytest.param([CODEX_ANSWER, CODEX_COMPLETION], False, "Codex answer", id="successful-answer"),
+]
+
+
+@pytest.mark.parametrize("events,is_error,content", CODEX_RESULTS)
+def test_codex_parser_distinguishes_terminal_failures_from_warnings(events, is_error, content):
+    stdout = "\n".join(json.dumps(event) for event in events)
+    parsed = CodexJSONLParser().parse(stdout, "CLI diagnostic")
+
+    assert parsed.is_error is is_error
+    assert parsed.content == content
+    assert parsed.metadata["events"] == events
+    assert parsed.metadata["stderr"] == "CLI diagnostic"
+    if events[-1]["type"] == "turn.completed":
+        assert parsed.metadata["usage"] == {"input_tokens": 10, "output_tokens": 5}
+    if events[0]["type"] == "error" and not is_error:
+        assert parsed.metadata["errors"] == ["Transient request failure"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("events,is_error,content", CODEX_RESULTS)
+@pytest.mark.parametrize("returncode", [0, 124], ids=["zero-exit", "nonzero-recovered"])
+@pytest.mark.parametrize("continuation", [False, True], ids=["first-call", "follow-up"])
+async def test_codex_execution_classification_controls_assistant_persistence(
+    execution, events, is_error, content, returncode, continuation
+):
+    storage, resolve_provider, launches, configure_process = execution
+    stdout = "\n".join(json.dumps(event) for event in events)
+    configure_process(stdout, "CLI diagnostic", returncode)
+    arguments = {"cli_name": "codex", "prompt": "Current input"}
+    expected_turns = []
+    if continuation:
+        thread_id = memory.create_thread("clink", {"cli_name": "codex"})
+        memory.add_turn(thread_id, "user", "Previous input")
+        memory.add_turn(thread_id, "assistant", "Previous answer")
+        arguments["continuation_id"] = thread_id
+        expected_turns = [("user", "Previous input"), ("assistant", "Previous answer")]
+    expected_turns.append(("user", "Current input"))
+
+    if is_error or returncode != 0:
+        with pytest.raises(ToolExecutionError) as error:
+            await CLinkTool().execute(arguments)
+        output = json.loads(str(error.value))
+        assert output["status"] == "error"
+        assert content in output["content"]
+        assert output["metadata"]["events"] == events
+        assert output["metadata"]["stdout"] == stdout
+        thread_id = output["metadata"]["continuation_id"]
+    else:
+        output = json.loads((await CLinkTool().execute(arguments))[0].text)
+        assert output["status"] == "continuation_available"
+        assert output["content"] == content
+        assert output["metadata"]["events_removed_for_normal"] is True
+        if events[0]["type"] == "error":
+            assert output["metadata"]["errors"] == ["Transient request failure"]
+        thread_id = output["continuation_offer"]["continuation_id"]
+        expected_turns.append(("assistant", content))
+
+    assert output["metadata"]["return_code"] == returncode
+    assert output["metadata"]["stderr"] == "CLI diagnostic"
+    assert len(launches) == 1
+    resolve_provider.assert_not_called()
+    assert len(storage.data) == 1
+    # Task 3 will remove eager user writes and error continuation metadata.
+    assert [(turn.role, turn.content) for turn in memory.get_thread(thread_id).turns] == expected_turns

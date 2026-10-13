@@ -1,6 +1,6 @@
 # Implementation: CLI-only conversations through clink
 
-> Status: Task 1 complete; Tasks 2–14 pending
+> Status: Tasks 1–2 complete; Tasks 3–14 pending
 > Created: 2026-10-10
 > Design: [design.md](design.md)
 > Tasks: [tasks.md](tasks.md)
@@ -272,3 +272,19 @@ Deferred verification work is owned by Tasks 13–14, rather than changing live-
 - Task 14: retry the external PAL review when valid credentials are available. The completed independent review does not stand in for an external model result.
 
 No implementation scope change or new project convention was needed. These results supersede the design-session environment limitation above; they do not complete the remaining feature tasks.
+
+## Task 2 execution record (2026-10-13)
+
+Task 1 was committed as `63cd573` before this slice. Codex now marks error-only streams and `turn.failed` as failed parsed results. A terminal failure remains a failure when partial text or a later completion event exists; partial text and diagnostic messages are retained. Missing diagnostic messages receive an explicit fallback. Successful answers with recoverable error events or failed optional subtools remain successful. The Task 1 execution gate already rejects nonzero recovered exits, so no runner or tool change was needed.
+
+Validation reused the Python 3.10.12 `pal` environment and Task 1's passing baseline, with no dependency changes:
+
+| Check | Result |
+| --- | --- |
+| Task 2 pytest command above | Passed: 102 tests. Added 45 cases covering nine stream shapes, parser classification, zero/nonzero exits, first/follow-up calls, preserved diagnostics, no API resolution, and assistant persistence. |
+| `./code_quality_checks.sh` | Passed outside the sandbox: 2,121 passed, 16 skipped, 16 deselected, 19 subtests passed; Ruff, Black, and isort passed. A separate sandboxed Black invocation stalled and was interrupted; the completed quality script formatted and validated both files. |
+| `./run_integration_tests.sh` | Failed: 3 failed, 2 passed, 11 skipped. Reproduced the Claude exact-output assertion and two OpenAI connection failures documented for Task 1. |
+| `python communication_simulator_test.py --quick` | Failed: runner reported 4 passed and 2 failed (`basic_conversation`, `per_tool_deduplication`), again with invalid Gemini API-key errors and missing continuation IDs. |
+| `kk:review-code:isolated` | Independent code-reviewer approved with no P0–P3 findings. External PAL `gemini-3.8-flash` review again failed authentication and supplied no expert findings; the independent-review fallback completed. No systemic findings to index. |
+
+Live acceptance and external-review follow-ups remain assigned to Tasks 13–14 in the [Task 1 execution record](#task-1-execution-record-2026-10-13). Live Codex execution was not verified by these deterministic cases. Task 3 still owns removal of eager user writes and error continuation metadata; the new tests explicitly preserve that intermediate contract. No design divergence or additional deferred implementation issue was found.
