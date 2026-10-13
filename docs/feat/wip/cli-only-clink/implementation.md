@@ -1,6 +1,6 @@
 # Implementation: CLI-only conversations through clink
 
-> Status: Tasks 1–6 complete; Tasks 7–14 pending
+> Status: Tasks 1–7 complete; Tasks 8–14 pending
 > Created: 2026-10-10
 > Design: [design.md](design.md)
 > Tasks: [tasks.md](tasks.md)
@@ -377,3 +377,23 @@ Dependency handling verified `Field(strict=True, gt=0)` against installed Pydant
 The preparation split is the planned ordering needed for client-specific budgets, not a scope change. Task 7 is next. Real-stdio acceptance and live-check follow-ups remain assigned to Tasks 12–14; deterministic success does not establish live acceptance.
 
 `kk:review-code:isolated` completed through its independent-reviewer fallback: the code-reviewer approved all eight implementation/test/configuration-guide/task files with no P0–P3 findings. External PAL `gemini-3.8-flash` review again failed authentication and supplied no expert findings. No systemic findings required indexing. Final changes after review only record verification and task status.
+
+## Task 7 execution record (2026-10-13)
+
+`ProviderConfiguration` now provides a shared `effective_value()` lookup and per-required-setting `required_placeholders` metadata. Missing, blank, and declared placeholder settings count as absent; real values retain their original content. `api_key()`, `is_configured()`, and constructor arguments use that lookup. CustomProvider declares the legacy `your_custom_api_url_here` placeholder and uses the same filtering for constructor environment fallbacks, preventing absent URL/key placeholders from re-entering after declaration processing. Explicit real constructor arguments still win; a real custom endpoint can use the existing dummy credential when no effective key is supplied.
+
+`setup_diagnostics()` returns an immutable `ProviderSetupDiagnostics` record containing provider type/label, `status` (`absent`, `incomplete`, or `complete`), and supplied/missing setting names. `provider_setup_diagnostics()` derives the full inventory from `provider_configurations()`, including OpenCode Go. It inspects keys and required endpoints independently and excludes restriction/catalogue/default-model settings and child-only CLI keys. It retains no credential or endpoint values and constructs no provider clients or catalogues. `complete` means declared inputs are present; it does not establish successful bootstrap or authentication. Task 8 still owns runtime mode based on actual registration.
+
+Validation reused Python 3.10.12 in the existing `pal` environment, without dependency changes:
+
+| Check | Result |
+| --- | --- |
+| Baseline | Reused the passing Task 6 quality checks at unchanged commit `17393d2`: 2,392 passed, 16 skipped, 16 deselected, 19 subtests passed. |
+| Task 7 pytest command above | Passed outside the sandbox: 197 tests, including 44 new cases covering all declared providers, placeholders, partial Azure/custom settings, OpenCode-Go-only and valid-plus-partial input, metadata privacy, declaration extension, exact real-value preservation, dotenv precedence, constructor fallback, and bootstrap warnings/errors. An earlier sandboxed attempt stalled in an existing async test and was interrupted. |
+| `./code_quality_checks.sh` | Passed outside the sandbox: 2,436 passed, 16 skipped, 16 deselected, 19 subtests passed; Ruff, Black, and isort passed. |
+| `./run_integration_tests.sh` | Failed: 3 failed, 2 passed, 11 skipped. Reproduced the Claude exact-output assertion (answer plus summary) and two OpenAI connection failures recorded for Tasks 1–6. |
+| `python communication_simulator_test.py --quick` | Failed: runner reported 4 passed and 2 failed (`basic_conversation`, `per_tool_deduplication`). Existing live-check limitations remain open. |
+
+The new bootstrap regressions distinguish complete input from empty Azure catalogues, empty auto-mode catalogues, and fatal malformed catalogues. No bootstrap exception or warning was reinterpreted as provider-free mode. The constructor-fallback adjustment is part of keeping placeholder filtering consistent; no new provider inventory, dependency, or scope change was needed. Live-check follow-ups remain assigned to Tasks 13–14.
+
+`kk:review-code:isolated` completed through its independent-reviewer fallback: the code-reviewer approved all four implementation/test/task files with no P0–P3 findings. External PAL `gemini-3.8-flash` review again failed authentication and supplied no expert findings. No systemic findings or new conventions required indexing. Final changes after review only record verification and task status.
