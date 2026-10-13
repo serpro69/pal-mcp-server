@@ -9,7 +9,7 @@
 > Review: [review.md](review.md)
 > Not Doing: CLI-backed chat/providers, additional CLI-backed workflows, installation/login/billing management, shared remote deployments, native CLI sessions, durable history, multimodal parity, new filesystem sandbox, dependency upgrades
 
-Tasks 1–9 are done; Tasks 10–14 are pending. Review findings R1–R8 are addressed in these plans; implementation progress is tracked below. Deferred scope remains in [design.md](design.md#deferred-findings-and-verification-limits). Tasks 1–6 established reliable bounded CLI conversations. Tasks 7–9 added provider setup diagnostics, runtime capability snapshots, call guards, and coherent discovery/continuation guidance. Intermediate behavior is explicit in the implementation plan. A skipped live check is not completed coverage.
+Tasks 1–10 are done; Tasks 11–14 are pending. Review findings R1–R8 are addressed in these plans; implementation progress is tracked below. Deferred scope remains in [design.md](design.md#deferred-findings-and-verification-limits). Tasks 1–6 established reliable bounded CLI conversations. Tasks 7–9 added provider setup diagnostics, runtime capability snapshots, call guards, and coherent discovery/continuation guidance. Task 10 documents local setup and usage and aligns Bash setup messages. Intermediate behavior is explicit in the implementation plan. A skipped live check is not completed coverage.
 
 ## Task 1: Surface Gemini and Claude execution failures
 
@@ -141,15 +141,17 @@ Completed 2026-10-13: 194 targeted tests passed; full quality checks passed with
 
 ## Task 10: Document local setup and usage
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 6, Task 9
 - **Size:** M
 - **Can run in parallel with:** Task 12, Task 13
 - **Docs:** [implementation.md#task-10-document-local-setup-and-usage](implementation.md#task-10-document-local-setup-and-usage)
 
-- [ ] 10.1 Update `run-server.sh` and `docs/getting-started.md` with the API/CLI setup paths → verify syntax and source/example consistency; the acceptance-harness walkthrough belongs to Task 14.
-- [ ] 10.2 Update `docs/tools/clink.md` and `README.md` with requests, continuation, permissions, limits, and failures → verify links and implemented fields.
-- [ ] 10.3 Verify vendor authentication guidance and shipped arguments; remove the stale Gemini telemetry example → disclose version assumptions and make no subscription-billing claim from a successful reply.
+- [x] 10.1 Update `run-server.sh` and `docs/getting-started.md` with the API/CLI setup paths → verify syntax and source/example consistency; the acceptance-harness walkthrough belongs to Task 14.
+- [x] 10.2 Update `docs/tools/clink.md` and `README.md` with requests, continuation, permissions, limits, and failures → verify links and implemented fields.
+- [x] 10.3 Verify vendor authentication guidance and shipped arguments; remove the stale Gemini telemetry example → disclose version assumptions and make no subscription-billing claim from a successful reply.
+
+Completed 2026-10-13: Bash syntax, 95 relative links, 17 JSON examples, five clink request shapes, and all three shipped runner command shapes passed validation. Full quality checks passed with 2,530 tests passed and 16 skipped. Independent review found no issues. Live-check and external-review limitations are recorded in the [Task 10 execution record](implementation.md#task-10-execution-record-2026-10-13). PowerShell alignment is next; the acceptance-harness setup walkthrough remains Task 14.
 
 ## Task 11: Align PowerShell setup
 

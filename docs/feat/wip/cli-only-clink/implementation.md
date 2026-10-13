@@ -1,6 +1,6 @@
 # Implementation: CLI-only conversations through clink
 
-> Status: Tasks 1–9 complete; Tasks 10–14 pending
+> Status: Tasks 1–10 complete; Tasks 11–14 pending
 > Created: 2026-10-10
 > Design: [design.md](design.md)
 > Tasks: [tasks.md](tasks.md)
@@ -446,3 +446,26 @@ The no-provider MCP surface assertion now expects unavailable tools to be omitte
 Task 9 completes the discovery/call consistency deferred from Task 8. Setup documentation/scripts, real-stdio acceptance, and live-check follow-ups remain assigned to Tasks 10–14. The in-process handler and fake-transport coverage does not replace those checks. No dependency or scope change was needed.
 
 `kk:review-code:isolated` completed through its independent-reviewer fallback: the code-reviewer approved all eight implementation/test/navigation/task files with no P0–P3 findings. External PAL `gemini-3.8-flash` review again failed authentication and supplied no expert findings. No systemic findings or new conventions required indexing. Final changes after review only record verification and task status.
+
+## Task 10 execution record (2026-10-13)
+
+Bash setup now presents CLI and API paths without requiring provider keys for startup. The former partial shell credential inventory is replaced by informational setup guidance; Python startup remains the classification/validation owner. Setup distinguishes configured tool enablement from runtime availability, points to `listmodels`, and leaves the displayed Codex API-key entry commented. No CLI login/version probe, installation, credential mutation, or runtime argument change was added.
+
+Getting-started and README guidance now distinguish provider-free CLI conversations from API-backed tools, explain inherited environment/dotenv settings, and include first-request/follow-up examples. The clink guide documents the actual request fields, successful CLI/role inheritance, current-request edit permission, bounded/process-local history, capacity/TTL, immediate busy errors, and recording failures. It removes the stale Gemini telemetry example, implicit Gemini default, unbounded-history wording, and unsupported image/billing guarantees. The three base command examples match the shipped runner composition, including Codex's scratch-only repository-check flag.
+
+Vendor guidance was rechecked against [Codex authentication](https://learn.chatgpt.com/docs/auth), [noninteractive execution](https://learn.chatgpt.com/docs/non-interactive-mode), [CLI reference](https://learn.chatgpt.com/docs/cli/reference), [Claude authentication precedence](https://code.claude.com/docs/en/authentication#authentication-precedence), [Claude programmatic use](https://code.claude.com/docs/en/headless), [Gemini authentication](https://geminicli.com/docs/get-started/authentication/#running-in-headless-mode), and [Gemini headless output](https://geminicli.com/docs/cli/headless/). Documentation discloses that these checks establish neither a tested minimum vendor version nor subscription billing. The current Codex reference does not list the shipped `web_search_request` feature name; the guide identifies this version assumption for installed-version validation in Tasks 13–14. No dependency change was needed.
+
+Validation used the existing Python 3.10.12 `pal` environment:
+
+| Check | Result |
+| --- | --- |
+| Baseline `./code_quality_checks.sh` | Passed outside the sandbox: 2,530 passed, 16 skipped, 16 deselected, 19 subtests passed; Ruff, Black, and isort passed. |
+| Task 10 source/example checks | Passed: `bash -n run-server.sh`, 95 relative links/anchors in the three user guides, 17 parsed JSON examples, five clink argument objects checked against `CLinkRequest`, and all three safe/edit command shapes checked against isolated shipped manifests and actual runner builders. The new Bash message function ran in isolation with a minimal environment; no setup, login, or MCP configuration was executed. |
+| Final `./code_quality_checks.sh` | Passed outside the sandbox: 2,530 passed, 16 skipped, 16 deselected, 19 subtests passed; Ruff, Black, and isort passed. `git diff --check` passed. |
+| `./run_integration_tests.sh` | Failed: 3 failed, 2 passed, 11 skipped. Reproduced the Claude exact-output assertion (answer plus summary) and two OpenAI connection failures recorded for Tasks 1–9. |
+| `python communication_simulator_test.py --quick` | Failed: runner reported 4 passed and 2 failed (`basic_conversation`, `per_tool_deduplication`). These remain unmet live checks, not CLI-only acceptance evidence. |
+| `kk:review-code:isolated` | Independent reviewer approved all five implementation/navigation/task files with no P0–P3 findings. External PAL `gemini-3.8-flash` review failed authentication and supplied no expert findings; the documented independent-reviewer fallback completed. |
+
+No new automated tests were added for the documentation/message-only change; existing runtime coverage and direct example checks verify the documented contracts. The reviewer could not read the protected environment example file and instead checked provider declarations and setup source. No systemic findings or new project conventions required indexing. Final post-review edits only record verification and task/header status.
+
+Task 10's documented completion criteria are met. Task 11 owns PowerShell templates/messages and Windows clarification. Tasks 12–14 still own real-stdio acceptance, installed-version/live validation, and the full setup walkthrough. The feature remains in progress. Optional editorial follow-up: `$kk:clarify-docs` on `docs/getting-started.md`, `docs/tools/clink.md`, and `README.md`.
