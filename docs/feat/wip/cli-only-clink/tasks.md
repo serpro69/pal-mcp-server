@@ -3,25 +3,27 @@
 > Design: [design.md](design.md)
 > Implementation: [implementation.md](implementation.md)
 > Issue: [#402](https://github.com/BeehiveInnovations/pal-mcp-server/issues/402)
-> Status: pending
+> Status: in-progress
 > Created: 2026-10-10
 > Baseline: `2d821f1`; review corrections: 2026-10-12
 > Review: [review.md](review.md)
 > Not Doing: CLI-backed chat/providers, additional CLI-backed workflows, installation/login/billing management, shared remote deployments, native CLI sessions, durable history, multimodal parity, new filesystem sandbox, dependency upgrades
 
-All fourteen tasks are pending. Review findings R1–R8 are addressed in these plans, not implemented. Deferred scope remains in [design.md](design.md#deferred-findings-and-verification-limits). Tasks 1–2 classify failures under current eager admission; Tasks 3–5 separately deliver atomic recording, bounded history/selection, and non-waiting coordination. Intermediate behavior is explicit in the implementation plan. A skipped live check is not completed coverage.
+Task 1 is done; Tasks 2–14 are pending. Review findings R1–R8 are addressed in these plans; implementation progress is tracked below. Deferred scope remains in [design.md](design.md#deferred-findings-and-verification-limits). Tasks 1–2 classify failures under current eager admission; Tasks 3–5 separately deliver atomic recording, bounded history/selection, and non-waiting coordination. Intermediate behavior is explicit in the implementation plan. A skipped live check is not completed coverage.
 
 ## Task 1: Surface Gemini and Claude execution failures
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** —
 - **Size:** M
 - **Can run in parallel with:** —
 - **Docs:** [implementation.md#task-1-gemini-and-claude-execution-failures](implementation.md#task-1-gemini-and-claude-execution-failures)
 
-- [ ] 1.1 Add a backward-compatible failure indication in `clink/parsers/base.py` and classify Gemini/Claude terminal errors and diagnostic-only output → verify distinct success/failure classifications with diagnostic text retained.
-- [ ] 1.2 Reject failed parsed results/nonzero exits in `tools/clink.py` before metadata pruning, success formatting, or assistant persistence → verify no assistant turn/API fallback; current user/thread writes and error continuation metadata remain until Task 3.
-- [ ] 1.3 Add `tests/test_clink_execution_errors.py` and run the Task 1 command → verify successful answers with non-terminal warnings remain successful.
+- [x] 1.1 Add a backward-compatible failure indication in `clink/parsers/base.py` and classify Gemini/Claude terminal errors and diagnostic-only output → verify distinct success/failure classifications with diagnostic text retained.
+- [x] 1.2 Reject failed parsed results/nonzero exits in `tools/clink.py` before metadata pruning, success formatting, or assistant persistence → verify no assistant turn/API fallback; current user/thread writes and error continuation metadata remain until Task 3.
+- [x] 1.3 Add `tests/test_clink_execution_errors.py` and run the Task 1 command → verify successful answers with non-terminal warnings remain successful.
+
+Completed 2026-10-13: 66 targeted tests passed; full quality checks passed with 2,076 tests passed and 16 skipped. Independent code review found no issues. Live integration/simulator checks failed and external PAL review was unavailable; results and concrete follow-ups are in the [execution record](implementation.md#task-1-execution-record-2026-10-13). Task 1's deterministic contract is complete; feature-level live acceptance remains open under Tasks 13–14.
 
 ## Task 2: Surface Codex terminal failures
 

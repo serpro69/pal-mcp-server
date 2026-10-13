@@ -1,6 +1,6 @@
 # Implementation: CLI-only conversations through clink
 
-> Status: review corrections recorded; implementation pending
+> Status: Task 1 complete; Tasks 2–14 pending
 > Created: 2026-10-10
 > Design: [design.md](design.md)
 > Tasks: [tasks.md](tasks.md)
@@ -249,3 +249,26 @@ CLI authentication precedence and invocation flags vary by installed version. Re
 - The original five findings and the subsequent readiness findings R6–R8 are addressed in the plans, including the reopened R1 inventory gap. [review.md](review.md) records the corrections; all fourteen implementation tasks remain pending.
 - `./code_quality_checks.sh` exits 1 with “No virtual environment found!” before linting/tests. No environment was installed for these documentation changes; application and live integration/simulator validation remain unrun.
 - All implementation tasks remain pending. Document-only validation covers formatting, local links/anchors, task dependencies/parallel markers, and diff whitespace; results are recorded in the review's correction validation.
+
+## Task 1 execution record (2026-10-13)
+
+`ParsedCLIResponse.is_error` defaults to false for existing callers. Gemini and Claude parsers now classify terminal envelopes and diagnostic fallbacks as errors. Clink rejects either that flag or a nonzero exit before metadata pruning, output reduction, or assistant persistence, retaining diagnostic content and raw output. Successful replies with non-terminal warnings remain successful. Existing eager user/thread writes and error continuation metadata intentionally remain until Task 3.
+
+Validation used Python 3.10.12 in the existing `pal` virtualenv (`source /home/sergio/.virtualenvs/pal/bin/activate`), without dependency changes:
+
+| Check | Result |
+| --- | --- |
+| Baseline `./code_quality_checks.sh` | Passed: 2,024 passed, 16 skipped, 16 deselected; lint/format checks passed. Initial invocation lacked an active environment; the sandboxed retry stalled during async teardown, so the completed run used the existing environment outside the sandbox. |
+| Task 1 pytest command above | Passed: 66 tests, including 52 new cases covering parsing, actual runner recovery, first/follow-up failures, no API resolution, preserved diagnostics, and successful warnings. |
+| Final `./code_quality_checks.sh` | Passed: 2,076 passed, 16 skipped, 16 deselected, 19 subtests passed; Ruff, Black, and isort passed. |
+| `./run_integration_tests.sh` | Failed: 3 failed, 2 passed, 11 skipped. Claude returned `4` plus a summary where the existing test expects exactly `4`; both OpenAI consensus cases failed with connection errors. Gemini CLI was unavailable. |
+| `python communication_simulator_test.py --quick` | Failed: runner reported 4 passed and 2 failed (`basic_conversation`, `per_tool_deduplication`). Logs contain invalid Gemini API-key errors and missing continuation IDs. This is not successful live acceptance. |
+| `kk:review-code:isolated` | Independent code-reviewer approved with no P0–P3 findings after inspecting all six implementation/test/task files. PAL `gemini-3.8-flash` external review failed with an invalid API key; it supplied no expert findings. The workflow proceeded with the independent reviewer as specified by its fallback. No systemic findings to index. |
+
+Deferred verification work is owned by Tasks 13–14, rather than changing live-test policy or account configuration in this parser slice:
+
+- Task 13: reconcile the Claude live assertion with the role's summary contract, asserting the arithmetic answer while still rejecting CLI errors; do not weaken failure classification or count request errors as skips.
+- Task 14: rerun integration and quick simulator checks with valid credentials and reachable endpoints; investigate any remaining continuation failures with their exact payloads. Install/authenticate the intended CLI separately before claiming live Gemini coverage.
+- Task 14: retry the external PAL review when valid credentials are available. The completed independent review does not stand in for an external model result.
+
+No implementation scope change or new project convention was needed. These results supersede the design-session environment limitation above; they do not complete the remaining feature tasks.
