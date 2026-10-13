@@ -37,6 +37,7 @@ Available tests:
     refactor_validation         - Refactor tool validation with codesmells
     debug_validation            - Debug tool validation with actual bugs
     conversation_chain_validation - Conversation chain continuity validation
+    clink_cli_only              - Opt-in provider-free CLI conversation (PAL_CLINK_LIVE_TEST)
 
 Quick Test Mode (for time-limited testing):
     Use --quick to run the essential 6 tests that provide maximum coverage:
@@ -127,7 +128,11 @@ class CommunicationSimulator:
             self.logger.info(f"Quick mode enabled - running {len(self.quick_mode_tests)} essential tests")
 
         if ci_mode:
-            self.selected_tests = [name for name, cls in self.test_registry.items() if cls.provider_agnostic]
+            self.selected_tests = [
+                name
+                for name, cls in self.test_registry.items()
+                if cls.provider_agnostic and not getattr(cls, "live_selector_env", None)
+            ]
             if not self.selected_tests:
                 raise ValueError("No provider-agnostic scenarios registered")
 
@@ -141,7 +146,9 @@ class CommunicationSimulator:
         }
 
         # Test result tracking
-        self.test_results = dict.fromkeys(self.selected_tests or self.test_registry.keys())
+        self._candidate_tests = list(self.selected_tests or self.test_registry.keys())
+        self.test_results = dict.fromkeys(self._candidate_tests)
+        self.skipped_tests: dict[str, str] = {}
 
     def _get_python_path(self) -> str:
         return sys.executable
@@ -245,8 +252,31 @@ class CommunicationSimulator:
         return self._run_selected_tests()
 
     def _run_selected_tests(self) -> bool:
-        outcomes = [self._run_single_test(name) for name in self.test_results]
-        return bool(outcomes) and all(outcomes)
+        self._exclude_unselected_live_tests()
+        for name, result in self.test_results.items():
+            if result is None:
+                self._run_single_test(name)
+        return bool(self.test_results or self.skipped_tests) and all(
+            result is True for result in self.test_results.values()
+        )
+
+    def _exclude_unselected_live_tests(self) -> None:
+        """Resolve only candidate scenarios, before setup or scenario construction."""
+        for name, result in list(self.test_results.items()):
+            if result is not None:
+                continue
+            scenario = self.test_registry[name]
+            selector_env = getattr(scenario, "live_selector_env", None)
+            if selector_env is None:
+                continue
+            selector = os.environ.get(selector_env, "")
+            accepted = scenario.live_selector_values
+            if not selector:
+                self.skipped_tests[name] = f"Set {selector_env} to one of {', '.join(accepted)} to opt in."
+                del self.test_results[name]
+            elif selector not in accepted:
+                self.test_results[name] = False
+                self.logger.error("%s: invalid %s; expected one of %s", name, selector_env, ", ".join(accepted))
 
     def _run_single_test(self, test_name: str) -> bool:
         """Run a single test by name"""
@@ -277,7 +307,7 @@ class CommunicationSimulator:
         if test_name not in self.available_tests:
             self.logger.error("Unknown test: %s", test_name)
             return False
-        self.test_results = {test_name: None}
+        self._candidate_tests = [test_name]
         return self.run_full_test_suite()
 
     def get_available_tests(self) -> dict[str, str]:
@@ -295,31 +325,43 @@ class CommunicationSimulator:
         self.logger.info("PAL MCP COMMUNICATION SIMULATOR - TEST RESULTS SUMMARY")
         self.logger.info("=" * 70)
 
-        passed_count = sum(1 for result in self.test_results.values() if result)
+        passed_count = sum(result is True for result in self.test_results.values())
+        failed_count = sum(result is False for result in self.test_results.values())
         total_count = len(self.test_results)
 
         for test_name, result in self.test_results.items():
             status = "NOT RUN" if result is None else ("PASS" if result else "FAIL")
-            # Get test description
-            temp_instance = self.test_registry[test_name](verbose=False)
-            description = temp_instance.test_description
             if result:
-                self.logger.info(f"{description}: {status}")
+                self.logger.info(f"{test_name}: {status}")
             else:
-                self.logger.error(f"{description}: {status}")
+                self.logger.error(f"{test_name}: {status}")
 
-        if total_count and passed_count == total_count:
+        for test_name, reason in self.skipped_tests.items():
+            self.logger.info("%s: SKIPPED — %s", test_name, reason)
+
+        if not total_count and self.skipped_tests:
+            self.logger.info("\nNo tests executed; live checks were skipped.")
+        elif total_count and passed_count == total_count:
             self.logger.info("\nOVERALL RESULT: SUCCESS")
         else:
             self.logger.error("\nOVERALL RESULT: FAILURE")
-        self.logger.info(f"{passed_count}/{total_count} tests passed")
+        if total_count:
+            self.logger.info(f"{passed_count}/{total_count} tests passed")
+        self.logger.info("Passed: %d; failed: %d; skipped: %d", passed_count, failed_count, len(self.skipped_tests))
         self.logger.info("=" * 70)
-        return bool(total_count) and passed_count == total_count
+        return bool(total_count or self.skipped_tests) and passed_count == total_count
 
     def run_full_test_suite(self) -> bool:
         """Run the complete test suite"""
         try:
             self.logger.info("Starting PAL MCP Communication Simulator Test Suite")
+            self.test_results = dict.fromkeys(self._candidate_tests)
+            self.skipped_tests = {}
+            self._exclude_unselected_live_tests()
+
+            # Neither skipped cases nor invalid selectors need environment setup.
+            if not any(result is None for result in self.test_results.values()):
+                return self._run_selected_tests()
 
             # Setup
             if not self.setup_test_environment():
@@ -408,7 +450,10 @@ def run_individual_test(simulator, test_name):
     try:
         success = simulator.run_individual_test(test_name)
 
-        if success:
+        if success and test_name in simulator.skipped_tests:
+            logger.info("\nINDIVIDUAL TEST %s: SKIPPED — %s", test_name.upper(), simulator.skipped_tests[test_name])
+            return 0
+        elif success:
             logger.info(f"\nINDIVIDUAL TEST {test_name.upper()}: PASSED")
             return 0
         else:
@@ -431,7 +476,10 @@ def run_test_suite(simulator):
     try:
         success = simulator.run_full_test_suite()
 
-        if success:
+        if success and not simulator.test_results and simulator.skipped_tests:
+            logger.info("\nCOMPREHENSIVE MCP COMMUNICATION TEST: SKIPPED — No tests executed")
+            return 0
+        elif success:
             logger.info("\nCOMPREHENSIVE MCP COMMUNICATION TEST: PASSED")
             return 0
         else:

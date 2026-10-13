@@ -1,6 +1,6 @@
 # Implementation: CLI-only conversations through clink
 
-> Status: Tasks 1–12 complete; Tasks 13–14 pending
+> Status: Tasks 1–13 complete; Task 14 pending
 > Created: 2026-10-10
 > Design: [design.md](design.md)
 > Tasks: [tasks.md](tasks.md)
@@ -517,3 +517,32 @@ Validation used Python 3.10.12 in the existing `pal` environment, with no depend
 Independent review found a cleanup-order issue hidden by Python 3.10: [Python 3.12 `Server.wait_closed()`](https://docs.python.org/3.12/library/asyncio-eventloop.html#asyncio.Server.wait_closed) also waits for active accepted connections. The gate now records peers at acceptance, closes/awaits them before joining the listener, and bounds both joins. The amended four-file test/task diff was approved with no remaining P0–P3 findings. External PAL `gemini-3.8-flash` review failed authentication and supplied no expert findings; the isolated-review fallback completed through the independent reviewer. No systemic review findings required indexing; the cross-version cleanup lesson was indexed as `kk:test-patterns:asyncio-server-cleanup`.
 
 The implemented production behavior needed no change. Native Windows/macOS execution and installed-vendor compatibility remain unverified. The SDK's Windows selector-loop fallback was inspected, but that is not platform test coverage. Tasks 13–14 still own opted-in live checks, truthful skip reporting, and the full setup walkthrough; the feature remains in progress. Final post-review edits only record verification and task/header status.
+
+## Task 13 execution record (2026-10-13)
+
+The simulator now evaluates selector metadata only for candidate scenarios, before environment setup or scenario construction. An absent `PAL_CLINK_LIVE_TEST` removes the live case from `test_results` and records its reason in `skipped_tests`. Invalid selectors fail before live work; selected prerequisite/request errors remain failures. Individual, mixed, and skip-only suite wrappers report separate counts. Skip-only invocations exit 0 with `SKIPPED` and “No tests executed,” without a passing-test claim. The live case stays out of quick and CI selections. Summary rendering no longer constructs scenario instances.
+
+`simulator_tests/test_clink_cli_only.py` supplies the registered `clink_cli_only` scenario and the shared pytest acceptance path. `SimulatorSession` accepts explicit server parameters while retaining its existing portal/transport ownership. The harness owns a temporary workspace, bounds version and request execution, uses shipped arguments with safe default permissions, and reuses Task 12's guarded launcher. Parent PAL settings, dotenv reads, personal PAL manifests, provider registration/inference, and API model context are excluded. Home/configuration locations and the selected CLI's remaining environment allowlist remain available; the harness neither installs nor signs in to a CLI. Provider-overlapping credentials such as `OPENAI_API_KEY` and `GEMINI_API_KEY` are deliberately absent.
+
+The first request checks arithmetic and a fresh label plus a CLI-generated code. The follow-up supplies neither value and must recover both from the earlier exchange, retaining its ID and two history messages. This replaces the two legacy single-digit smoke tests with one explicitly selected provider-free conversation check: arithmetic validation remains, role-required summaries are accepted, and Claude errors can no longer turn into skips. The [clink guide](../../../tools/clink.md#optional-live-conversation-check) documents the commands, authentication prerequisites, isolation, and skip/failure contract.
+
+Validation used Python 3.10.12 and existing dependencies. The optional SDK parameter wiring was checked against installed MCP 1.30.0 and its exact-version [stdio implementation](https://github.com/modelcontextprotocol/python-sdk/blob/v1.30.0/src/mcp/client/stdio/__init__.py); Context7 did not list that version. No CLI flags or dependency versions changed.
+
+| Check | Result |
+| --- | --- |
+| Baseline `./code_quality_checks.sh` | Passed: 2,536 passed, 16 skipped, 16 deselected, 19 subtests passed. The sandboxed attempt stalled during existing async teardown; the completed run used the existing environment outside the sandbox. |
+| `python -m pytest tests/test_simulator_sessions.py -q` | Passed: 67 cases, including synthetic missing/invalid/valid selection, prerequisite/request failure, interruption, mixed/all-skipped summaries, candidate-only selection, pytest gating, owned sessions/workspaces, and credential isolation. No live inference in these tests. |
+| Final `./code_quality_checks.sh` | Passed outside the sandbox: 2,583 passed, 16 skipped, 15 deselected, 19 subtests passed; Ruff, Black, and isort passed. Includes all 67 simulator/session/gate tests. |
+| No-selector pytest | `tests/test_clink_integration.py`: one skip with opt-in guidance, no inference. |
+| No-selector individual simulator | Exit 0; zero passed/failed, one skipped; `SKIPPED` and “No tests executed,” with no environment setup or CLI execution. |
+| `PAL_CLINK_LIVE_TEST=claude python -m pytest tests/test_clink_integration.py -q --log-cli-level=INFO` | Passed: one real provider-free first/follow-up conversation using installed Claude Code **2.1.296**, existing CLI authentication access, and shipped safe arguments. |
+| `PAL_CLINK_LIVE_TEST=codex python communication_simulator_test.py --individual clink_cli_only` | Passed: one real provider-free first/follow-up conversation using **codex-cli 0.162.1**, existing CLI authentication access, and shipped safe arguments. |
+| Antigravity availability | `agy --version` reported **1.3.3**, but this checkout has no agy runner/parser/manifest. The separate [Antigravity tasks](../antigravity-clink/tasks.md) remain pending. No agy conversation or compatibility coverage is claimed. |
+| `./run_integration_tests.sh` without the live selector | Failed: 2 failed, 2 passed, 11 skipped. Both existing OpenAI consensus cases failed with connection errors; the new CLI case skipped as intended. The old Claude exact-output failure is replaced by the passing opted-in check above. |
+| `python communication_simulator_test.py --quick` | Failed: 4 passed, 2 failed, 0 skipped (`basic_conversation`, `per_tool_deduplication`), reproducing prior tasks' failures. |
+
+The user explicitly authorized Claude, Codex, and Antigravity live checks; Gemini was not selected. Successful Claude/Codex output establishes execution and continuity in this Linux environment, not a billing/account class, tested minimum version, or Windows/macOS support. Task 14 still owns the complete setup walkthrough and final feature/spec verification. The existing API suite failures remain unmet checks requiring valid/reachable provider configuration; they do not invalidate the separate provider-free live results.
+
+`kk:review-code:isolated` completed through its independent-reviewer fallback. The reviewer approved the eight implementation/test/guide/task files with no P0–P3 findings. External PAL `gemini-3.8-flash` review failed authentication and supplied no expert findings. No systemic findings or new conventions required indexing. Post-review changes only record final verification and task/header status. Relative link targets in the changed guide/implementation record were checked, excluding the existing absent `review.md`; whitespace checks passed with Python space indentation allowed.
+
+No feature scope or dependency change was needed. Sharing the live conversation across pytest and the simulator replaced the two legacy smoke cases, preserving their arithmetic check while adding provider-free isolation and dependent history. Optional editorial follow-up: `$kk:clarify-docs` on `docs/tools/clink.md`.

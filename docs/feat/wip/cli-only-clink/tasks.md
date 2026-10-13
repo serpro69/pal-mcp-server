@@ -9,7 +9,7 @@
 > Review: [review.md](review.md)
 > Not Doing: CLI-backed chat/providers, additional CLI-backed workflows, installation/login/billing management, shared remote deployments, native CLI sessions, durable history, multimodal parity, new filesystem sandbox, dependency upgrades
 
-Tasks 1–12 are done; Tasks 13–14 are pending. Review findings R1–R8 are addressed in these plans; implementation progress is tracked below. Deferred scope remains in [design.md](design.md#deferred-findings-and-verification-limits). Tasks 1–6 established reliable bounded CLI conversations. Tasks 7–9 added provider setup diagnostics, runtime capability snapshots, call guards, and coherent discovery/continuation guidance. Tasks 10–11 document local setup and usage and align Bash/PowerShell setup messages and templates. Task 12 proves conversations and immediate busy rejection through real MCP stdio with isolated fake CLIs. Intermediate behavior is explicit in the implementation plan. A skipped live check is not completed coverage.
+Tasks 1–13 are done; Task 14 is pending. Review findings R1–R8 are addressed in these plans; implementation progress is tracked below. Deferred scope remains in [design.md](design.md#deferred-findings-and-verification-limits). Tasks 1–6 established reliable bounded CLI conversations. Tasks 7–9 added provider setup diagnostics, runtime capability snapshots, call guards, and coherent discovery/continuation guidance. Tasks 10–11 document local setup and usage and align Bash/PowerShell setup messages and templates. Task 12 proves conversations and immediate busy rejection through real MCP stdio with isolated fake CLIs. Task 13 adds explicitly selected live checks with separate skip reporting; Claude and Codex completed real first/follow-up conversations. Intermediate behavior is explicit in the implementation plan. A skipped live check is not completed coverage.
 
 ## Task 1: Surface Gemini and Claude execution failures
 
@@ -182,16 +182,18 @@ Completed 2026-10-13: six real-stdio acceptance cases passed across Gemini, Clau
 
 ## Task 13: Add optional live checks with truthful skip reporting
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 12
 - **Size:** M
 - **Can run in parallel with:** Task 10, Task 11
 - **Docs:** [implementation.md#task-13-add-optional-live-checks-with-truthful-skip-reporting](implementation.md#task-13-add-optional-live-checks-with-truthful-skip-reporting)
 
-- [ ] 13.1 Implement pre-execution live-case exclusion and separate `skipped_tests` reporting in `communication_simulator_test.py`, including individual/suite wrappers and all-skipped exit behavior → verify no skipped case becomes a boolean pass.
-- [ ] 13.2 Extend `tests/test_simulator_sessions.py` with synthetic no-selector/invalid-selector/prerequisite-failure/request-failure/success cases and mixed/all-skipped summaries → run the deterministic runner command without live inference.
-- [ ] 13.3 Extend `tests/test_clink_integration.py` with explicit selector-gated provider-free first/follow-up tests → verify no selector skips, but opted-in prerequisite/request failures fail.
-- [ ] 13.4 Add and register `simulator_tests/test_clink_cli_only.py` with selector metadata and its own isolated session/workspace → verify `--individual clink_cli_only` reports SKIPPED with no selector and actual outcomes with a valid selector; record installed version/authentication prerequisites.
+- [x] 13.1 Implement pre-execution live-case exclusion and separate `skipped_tests` reporting in `communication_simulator_test.py`, including individual/suite wrappers and all-skipped exit behavior → verify no skipped case becomes a boolean pass.
+- [x] 13.2 Extend `tests/test_simulator_sessions.py` with synthetic no-selector/invalid-selector/prerequisite-failure/request-failure/success cases and mixed/all-skipped summaries → run the deterministic runner command without live inference.
+- [x] 13.3 Extend `tests/test_clink_integration.py` with explicit selector-gated provider-free first/follow-up tests → verify no selector skips, but opted-in prerequisite/request failures fail.
+- [x] 13.4 Add and register `simulator_tests/test_clink_cli_only.py` with selector metadata and its own isolated session/workspace → verify `--individual clink_cli_only` reports SKIPPED with no selector and actual outcomes with a valid selector; record installed version/authentication prerequisites.
+
+Completed 2026-10-13: 67 deterministic runner/session/gate tests passed; full quality checks passed with 2,583 tests passed and 16 skipped. Opted-in live first/follow-up conversations passed with Claude Code 2.1.296 and Codex 0.162.1. No-selector pytest/simulator checks reported skips without claiming coverage. Independent review approved with no findings. Antigravity is installed but its clink integration remains unimplemented; Gemini was not selected. Existing API suite failures and external-review limits remain in the [execution record](implementation.md#task-13-execution-record-2026-10-13). Task 14 is next.
 
 ## Task 14: Final verification and setup walkthrough
 
