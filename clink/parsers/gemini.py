@@ -20,6 +20,7 @@ def unsupported_client_response(*diagnostics: str) -> ParsedCLIResponse | None:
             "and report the diagnostic to the Gemini CLI project."
         ),
         metadata={"cli_error_code": "UNSUPPORTED_CLIENT", "unsupported_client": True},
+        is_error=True,
     )
 
 
@@ -55,6 +56,8 @@ class GeminiJSONParser(BaseParser):
         response_text = response.strip() if isinstance(response, str) else ""
 
         metadata: dict[str, Any] = {"raw": payload}
+        if stderr and stderr.strip():
+            metadata["stderr"] = stderr.strip()
 
         stats = payload.get("stats")
         if isinstance(stats, dict):
@@ -71,9 +74,15 @@ class GeminiJSONParser(BaseParser):
                 if isinstance(api_stats, dict):
                     metadata["latency_ms"] = api_stats.get("totalLatencyMs")
 
+        if payload.get("error"):
+            diagnostic = json.dumps(payload["error"], ensure_ascii=False)
+            return ParsedCLIResponse(
+                content=f"Gemini CLI reported an error: {diagnostic}",
+                metadata=metadata,
+                is_error=True,
+            )
+
         if response_text:
-            if stderr and stderr.strip():
-                metadata["stderr"] = stderr.strip()
             return ParsedCLIResponse(content=response_text, metadata=metadata)
 
         if failure := unsupported_client_response(stderr):
@@ -83,9 +92,7 @@ class GeminiJSONParser(BaseParser):
         fallback_message, extra_metadata = self._build_fallback_message(payload, stderr)
         if fallback_message:
             metadata.update(extra_metadata)
-            if stderr and stderr.strip():
-                metadata["stderr"] = stderr.strip()
-            return ParsedCLIResponse(content=fallback_message, metadata=metadata)
+            return ParsedCLIResponse(content=fallback_message, metadata=metadata, is_error=True)
 
         raise ParserError("Gemini CLI response is missing a textual 'response' field")
 

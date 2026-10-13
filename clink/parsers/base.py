@@ -12,6 +12,8 @@ class ParsedCLIResponse:
 
     content: str
     metadata: dict[str, Any]
+    # Readable diagnostic output is not necessarily a successful CLI answer.
+    is_error: bool = False
 
 
 class ParserError(RuntimeError):

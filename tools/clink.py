@@ -289,7 +289,14 @@ class CLinkTool(SimpleTool):
                 metadata=metadata,
             )
 
-        metadata = self._build_success_metadata(client_config, role_config, result)
+        metadata = self._build_execution_metadata(client_config, role_config, result)
+        if result.returncode != 0 or result.parsed.is_error:
+            if result.stdout.strip():
+                metadata["stdout"] = result.stdout.strip()
+            self._raise_tool_error(
+                f"CLI '{client_config.name}' execution failed (exit code {result.returncode}): {result.parsed.content}",
+                metadata=metadata,
+            )
         metadata = self._prune_metadata(metadata, client_config, reason="normal")
 
         content, metadata = self._apply_output_limit(
@@ -365,13 +372,13 @@ class CLinkTool(SimpleTool):
         runner_name = (client.runner or client.name).lower()
         return runner_name == "claude"
 
-    def _build_success_metadata(
+    def _build_execution_metadata(
         self,
         client: ResolvedCLIClient,
         role: ResolvedCLIRole,
         result: AgentOutput,
     ) -> dict[str, Any]:
-        """Capture execution metadata for successful CLI calls."""
+        """Capture execution diagnostics before classifying the CLI result."""
         metadata: dict[str, Any] = {
             "cli_name": client.name,
             "role": role.name,

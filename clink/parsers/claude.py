@@ -44,6 +44,12 @@ class ClaudeJSONParser(BaseParser):
             raise ParserError("Claude CLI returned unexpected JSON payload")
 
         metadata = self._build_metadata(payload, stderr)
+        subtype = payload.get("subtype")
+        is_error = (
+            metadata["is_error"]
+            or (isinstance(subtype, str) and (subtype == "error" or subtype.startswith("error_")))
+            or bool(payload.get("error"))
+        )
         if events is not None:
             metadata["raw_events"] = events
             metadata["raw"] = loaded
@@ -58,13 +64,22 @@ class ClaudeJSONParser(BaseParser):
             content = "\n".join(joined)
 
         if content:
-            return ParsedCLIResponse(content=content, metadata=metadata)
+            return ParsedCLIResponse(content=content, metadata=metadata, is_error=is_error)
 
         message = self._extract_message(payload)
         if message is None and assistant_entry and assistant_entry is not payload:
             message = self._extract_message(assistant_entry)
         if message:
-            return ParsedCLIResponse(content=message, metadata=metadata)
+            return ParsedCLIResponse(content=message, metadata=metadata, is_error=is_error)
+
+        if is_error:
+            errors = payload.get("errors")
+            diagnostic = json.dumps(errors, ensure_ascii=False) if errors else subtype or "is_error=true"
+            return ParsedCLIResponse(
+                content=f"Claude CLI reported a failed result: {diagnostic}",
+                metadata=metadata,
+                is_error=True,
+            )
 
         stderr_text = stderr.strip()
         if stderr_text:
@@ -72,6 +87,7 @@ class ClaudeJSONParser(BaseParser):
             return ParsedCLIResponse(
                 content="Claude CLI returned no textual result. Raw stderr was preserved for troubleshooting.",
                 metadata=metadata,
+                is_error=True,
             )
 
         raise ParserError("Claude CLI response did not contain a textual result")
