@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 
 from clink import get_registry
 from clink.agents import AgentOutput, CLIAgentError, create_agent, get_agent_class
-from clink.conversation import CLIConversation, prepare_request
+from clink.conversation import CLIConversation, canonical_continuation_id, prepare_request
 from clink.models import ResolvedCLIClient, ResolvedCLIRole
 from config import TEMPERATURE_BALANCED
 from tools.models import ContinuationOffer, ToolModelCategory, ToolOutput
@@ -23,6 +23,7 @@ from tools.shared.base_models import COMMON_FIELD_DESCRIPTIONS
 from tools.shared.exceptions import ToolExecutionError
 from tools.simple.base import SchemaBuilder, SimpleTool
 from utils import conversation_memory as memory
+from utils.conversation_coordination import ConversationBusyError, coordinate_conversation
 
 logger = logging.getLogger(__name__)
 
@@ -207,6 +208,20 @@ class CLinkTool(SimpleTool):
         return {}
 
     async def execute(self, arguments: dict[str, Any]) -> list[TextContent]:
+        """Own admission through commit for both direct and MCP invocations."""
+        try:
+            thread_id = canonical_continuation_id(arguments.get("continuation_id"))
+        except ValueError as exc:
+            self._raise_tool_error(str(exc), metadata={"tool_name": "clink", "error_type": type(exc).__name__})
+        try:
+            async with coordinate_conversation(thread_id, wait=False):
+                return await self._execute_coordinated(arguments)
+        except ConversationBusyError as exc:
+            self._raise_tool_error(
+                str(exc), metadata={"tool_name": "clink", "error_type": type(exc).__name__, "retryable": True}
+            )
+
+    async def _execute_coordinated(self, arguments: dict[str, Any]) -> list[TextContent]:
         try:
             request = prepare_request(self, arguments)
             conversation = CLIConversation.prepare(request)

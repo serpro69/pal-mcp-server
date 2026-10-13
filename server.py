@@ -600,7 +600,7 @@ async def handle_list_tools() -> list[Tool]:
 
 @server.call_tool()
 async def handle_call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
-    """Serialize continued MCP invocations before any conversation reads/writes."""
+    """Coordinate continuations, letting clink own its non-waiting admission."""
     from utils.conversation_coordination import coordinate_conversation
 
     thread_id = arguments.get("continuation_id")
@@ -611,8 +611,11 @@ async def handle_call_tool(name: str, arguments: dict[str, Any]) -> list[TextCon
     # Invalid input remains the request model's responsibility, not a lock key.
     try:
         async with request_progress(context) as progress:
-            async with coordinate_conversation(thread_id if isinstance(thread_id, str) else None):
+            if name == "clink":
                 result = await _dispatch_tool(name, arguments)
+            else:
+                async with coordinate_conversation(thread_id if isinstance(thread_id, str) else None):
+                    result = await _dispatch_tool(name, arguments)
     except ToolExecutionError as exc:
         raise ToolExecutionError(progress.annotate_error(exc.payload)) from exc
     return progress.annotate(result)

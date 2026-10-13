@@ -1,7 +1,7 @@
 """Request-local CLI preparation and success-only conversation recording.
 
-MCP callers retain the server's waiting coordinator. Direct concurrent callers
-must still coordinate themselves until the non-waiting admission slice lands.
+CLinkTool owns non-waiting coordination for direct and MCP callers, retaining
+the shared lock through snapshot preparation, execution, commit, and audit.
 """
 
 from __future__ import annotations
@@ -24,6 +24,18 @@ if TYPE_CHECKING:
 
 class ConversationConflictError(memory.ConversationStorageError):
     """The prepared thread changed or expired before the reply was recorded."""
+
+
+def canonical_continuation_id(value: Any) -> str | None:
+    """Validate a CLI continuation before using it as a coordination key."""
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError("continuation_id must be a valid, nonempty UUID")
+    try:
+        return str(UUID(value))
+    except ValueError as exc:
+        raise ValueError("continuation_id must be a valid, nonempty UUID") from exc
 
 
 @dataclass
@@ -176,12 +188,7 @@ class CLIConversation:
     @classmethod
     def prepare(cls, request: CLinkRequest) -> CLIConversation:
         now = datetime.now(timezone.utc).isoformat()
-        thread_id = str(uuid4())
-        if request.continuation_id is not None:
-            try:
-                thread_id = str(UUID(request.continuation_id))
-            except ValueError as exc:
-                raise ValueError("continuation_id must be a valid, nonempty UUID") from exc
+        thread_id = canonical_continuation_id(request.continuation_id) or str(uuid4())
 
         try:
             storage = memory.get_storage()
