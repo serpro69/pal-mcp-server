@@ -1,6 +1,6 @@
 # Implementation: CLI-only conversations through clink
 
-> Status: Tasks 1–4 complete; Tasks 5–14 pending
+> Status: Tasks 1–5 complete; Tasks 6–14 pending
 > Created: 2026-10-10
 > Design: [design.md](design.md)
 > Tasks: [tasks.md](tasks.md)
@@ -332,3 +332,24 @@ Validation reused Python 3.10.12 in the existing `pal` environment, without depe
 The renderer's standalone import exposed an existing circular import through `tools.__init__`; error-output imports now load only on the relevant validation failure. New parameterized tests construct thread models at execution time because the existing fixtures reload conversation modules. These corrections preserve the plan's scope. Per-client settings and immediate busy admission remain assigned to Tasks 6 and 5. Live verification and external-review follow-ups remain assigned to Tasks 13–14 as recorded above; passing deterministic tests do not establish live acceptance.
 
 `kk:review-code:isolated` completed through its independent-reviewer fallback: the code-reviewer approved all eight implementation/test/task files with no P0–P3 findings. External PAL `gemini-3.8-flash` review again failed authentication and supplied no expert findings. No systemic findings or new conventions required indexing. Final changes after review only record verification and task status.
+
+## Task 5 execution record (2026-10-13)
+
+`coordinate_conversation()` now accepts `wait=False` and rejects an existing holder or queued waiter without changing its reference count. The default waiting behavior is preserved. Checking the shared entry's users also covers the interval after lock release but before a queued caller resumes; checking only `lock.locked()` would miss that interval.
+
+`CLinkTool.execute()` validates and canonicalizes the continuation UUID before admission, then owns the shared coordinator through request preparation, snapshot reads, execution, atomic commit, and transcript emission. Busy results are structured errors with `error_type=ConversationBusyError` and `retryable=true`, without a continuation offer or history/TTL changes. Only clink bypasses the MCP boundary's outer waiting coordinator; API/local tools still queue and observe the preceding committed CLI reply. Direct clink callers must not pre-acquire coordination. New conversations use unpublished unique IDs and remain independent.
+
+Validation reused Python 3.10.12 in the existing `pal` environment, without dependency changes:
+
+| Check | Result |
+| --- | --- |
+| Baseline | Reused the passing Task 4 quality checks at unchanged commit `3ef04df`: 2,257 passed, 16 skipped, 16 deselected, 19 subtests passed. |
+| Task 5 pytest command above | Passed: 181 tests, including 53 new concurrency cases. Covers direct/MCP busy errors before preparation or storage access, normalized IDs, unlocked waiter handoff, API/local queuing and committed history, waiter cancellation, invalid/missing IDs, errors and retries, commit/audit lock ownership, progress metadata, and independent-thread overlap. |
+| Child cancellation | The targeted controlled-process cases verify repeated cancellation retains admission until the CLI child is killed/reaped and its scratch directory is removed. Storage and TTL remain unchanged. |
+| `./code_quality_checks.sh` | Passed outside the sandbox: 2,309 passed, 16 skipped, 16 deselected, 19 subtests passed; Ruff, Black, and isort passed. |
+| `./run_integration_tests.sh` | Failed: 3 failed, 2 passed, 11 skipped. Reproduced the Claude exact-output assertion (answer plus summary) and two OpenAI connection failures recorded for Tasks 1–4. |
+| `python communication_simulator_test.py --quick` | Failed: runner reported 4 passed and 2 failed (`basic_conversation`, `per_tool_deduplication`). Existing live-check limitations remain open. |
+
+The earlier test permitting overlapping direct same-thread calls to race at CAS was replaced by the immediate busy contract; its distinct-thread request-local checks remain. CAS protection against uncoordinated writes remains covered by the existing continuation tests. No second lock registry or dependency was introduced. The implementation followed the planned slice; Tasks 6–14 remain pending, including the real-stdio busy acceptance test in Task 12 and live-check follow-ups in Tasks 13–14.
+
+`kk:review-code:isolated` completed through its independent-reviewer fallback: the code-reviewer approved all seven implementation/test/task files with no P0–P3 findings. External PAL `gemini-3.8-flash` review again failed authentication and supplied no expert findings. No systemic findings or new conventions required indexing. Final changes after review only record verification and task status.

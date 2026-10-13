@@ -385,12 +385,11 @@ async def test_audit_cannot_change_memory_or_repeat_execution(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("same_thread", [False, True], ids=["different-threads", "uncoordinated-same-thread"])
-async def test_shared_tool_instance_owns_request_local_commits(storage, agent, monkeypatch, same_thread):
+async def test_shared_tool_instance_owns_request_local_commits_for_distinct_threads(storage, agent, monkeypatch):
     tool = CLinkTool()
     first = json.loads((await tool.execute({"cli_name": "gemini", "prompt": "seed"}))[0].text)
     thread_id = first["continuation_offer"]["continuation_id"]
-    second_id = thread_id if same_thread else memory.create_thread("clink", {})
+    second_id = memory.create_thread("clink", {})
     ready = asyncio.Event()
     count = 0
 
@@ -418,7 +417,7 @@ async def test_shared_tool_instance_owns_request_local_commits(storage, agent, m
         tool.execute({"cli_name": "claude", "prompt": "INPUT_B", "continuation_id": second_id}),
     )
     saved = [json.loads(output[0].text)["metadata"]["history_saved"] for output in outputs]
-    assert sum(saved) == (1 if same_thread else 2)
+    assert saved == [True, True]
     for current_id in {thread_id, second_id}:
         turns = memory.get_thread(current_id).turns
         assert turns[-1].content == f"reply to {turns[-2].content}"

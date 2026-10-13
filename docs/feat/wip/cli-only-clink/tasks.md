@@ -9,7 +9,7 @@
 > Review: [review.md](review.md)
 > Not Doing: CLI-backed chat/providers, additional CLI-backed workflows, installation/login/billing management, shared remote deployments, native CLI sessions, durable history, multimodal parity, new filesystem sandbox, dependency upgrades
 
-Tasks 1–4 are done; Tasks 5–14 are pending. Review findings R1–R8 are addressed in these plans; implementation progress is tracked below. Deferred scope remains in [design.md](design.md#deferred-findings-and-verification-limits). Tasks 1–2 established failure classification; Task 3 replaced eager CLI admission with atomic recording; Task 4 added bounded history and saved selection. Task 5 delivers non-waiting coordination. Intermediate behavior is explicit in the implementation plan. A skipped live check is not completed coverage.
+Tasks 1–5 are done; Tasks 6–14 are pending. Review findings R1–R8 are addressed in these plans; implementation progress is tracked below. Deferred scope remains in [design.md](design.md#deferred-findings-and-verification-limits). Tasks 1–2 established failure classification; Task 3 replaced eager CLI admission with atomic recording; Task 4 added bounded history and saved selection; Task 5 added non-waiting coordination. Intermediate behavior is explicit in the implementation plan. A skipped live check is not completed coverage.
 
 ## Task 1: Surface Gemini and Claude execution failures
 
@@ -71,14 +71,16 @@ Completed 2026-10-13: 209 targeted and 14 tool-surface tests passed; full qualit
 
 ## Task 5: Reject overlapping CLI continuations immediately
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 4
 - **Size:** M
 - **Can run in parallel with:** Task 6
 - **Docs:** [implementation.md#task-5-reject-overlapping-cli-continuations-immediately](implementation.md#task-5-reject-overlapping-cli-continuations-immediately)
 
-- [ ] 5.1 Add `wait=False` admission to `utils/conversation_coordination.py`, skip only clink's outer waiting lock in `server.py`, and acquire once inside `CLinkTool.execute()` through commit/audit.
-- [ ] 5.2 Add `tests/test_clink_concurrency.py` and run the Task 5 command → verify immediate busy results through direct/MCP-handler calls, API/local queuing, mixed-tool ordering, distinct-thread overlap, and cleanup on errors/cancellation. Direct clink callers no longer pre-acquire coordination.
+- [x] 5.1 Add `wait=False` admission to `utils/conversation_coordination.py`, skip only clink's outer waiting lock in `server.py`, and acquire once inside `CLinkTool.execute()` through commit/audit.
+- [x] 5.2 Add `tests/test_clink_concurrency.py` and run the Task 5 command → verify immediate busy results through direct/MCP-handler calls, API/local queuing, mixed-tool ordering, distinct-thread overlap, and cleanup on errors/cancellation. Direct clink callers no longer pre-acquire coordination.
+
+Completed 2026-10-13: 181 targeted tests passed; full quality checks passed with 2,309 tests passed and 16 skipped. Independent code review found no issues. Live-check and external-review limitations are recorded in the [Task 5 execution record](implementation.md#task-5-execution-record-2026-10-13).
 
 ## Task 6: Configure history budgets per CLI
 
