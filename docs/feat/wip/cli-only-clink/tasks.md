@@ -9,7 +9,7 @@
 > Review: [review.md](review.md)
 > Not Doing: CLI-backed chat/providers, additional CLI-backed workflows, installation/login/billing management, shared remote deployments, native CLI sessions, durable history, multimodal parity, new filesystem sandbox, dependency upgrades
 
-Tasks 1–5 are done; Tasks 6–14 are pending. Review findings R1–R8 are addressed in these plans; implementation progress is tracked below. Deferred scope remains in [design.md](design.md#deferred-findings-and-verification-limits). Tasks 1–2 established failure classification; Task 3 replaced eager CLI admission with atomic recording; Task 4 added bounded history and saved selection; Task 5 added non-waiting coordination. Intermediate behavior is explicit in the implementation plan. A skipped live check is not completed coverage.
+Tasks 1–6 are done; Tasks 7–14 are pending. Review findings R1–R8 are addressed in these plans; implementation progress is tracked below. Deferred scope remains in [design.md](design.md#deferred-findings-and-verification-limits). Tasks 1–2 established failure classification; Task 3 replaced eager CLI admission with atomic recording; Task 4 added bounded history and saved selection; Task 5 added non-waiting coordination; Task 6 made history budgets configurable per CLI. Intermediate behavior is explicit in the implementation plan. A skipped live check is not completed coverage.
 
 ## Task 1: Surface Gemini and Claude execution failures
 
@@ -84,15 +84,17 @@ Completed 2026-10-13: 181 targeted tests passed; full quality checks passed with
 
 ## Task 6: Configure history budgets per CLI
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 4
 - **Size:** M
 - **Can run in parallel with:** Task 5, Task 7, Task 8, Task 9
 - **Docs:** [implementation.md#task-6-configure-history-budgets-per-cli](implementation.md#task-6-configure-history-budgets-per-cli)
 
-- [ ] 6.1 Add/forward `history_token_budget` through `clink/models.py` and `clink/registry.py` into the renderer → verify strict positive-integer validation, the default, and client-specific bounds.
-- [ ] 6.2 Extend `tests/test_clink_history_budget.py` and run the Task 6 command → verify adjustable bounds still account for complete groups and final wrappers.
-- [ ] 6.3 Document heuristic history-only accounting and restart effects in `docs/configuration.md` → verify examples match configuration fields.
+- [x] 6.1 Add/forward `history_token_budget` through `clink/models.py` and `clink/registry.py` into the renderer → verify strict positive-integer validation, the default, and client-specific bounds.
+- [x] 6.2 Extend `tests/test_clink_history_budget.py` and run the Task 6 command → verify adjustable bounds still account for complete groups and final wrappers.
+- [x] 6.3 Document heuristic history-only accounting and restart effects in `docs/configuration.md` → verify examples match configuration fields.
+
+Completed 2026-10-13: 223 targeted tests passed; full quality checks passed with 2,392 tests passed and 16 skipped. Independent code review found no issues. Live-check and external-review limitations are recorded in the [Task 6 execution record](implementation.md#task-6-execution-record-2026-10-13).
 
 ## Task 7: Classify provider settings from shared declarations
 

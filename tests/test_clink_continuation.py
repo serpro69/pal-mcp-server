@@ -634,7 +634,8 @@ def test_parent_history_depth_and_cycles_remain_bounded(storage):
         memory.add_turn(parent, "user", f"INPUT_{index:02}")
         memory.add_turn(parent, "assistant", f"REPLY_{index:02}")
         ids.append(parent)
-    conversation = CLIConversation.prepare(CLinkRequest(prompt="current", continuation_id=parent))
+    conversation = CLIConversation.load(CLinkRequest(prompt="current", continuation_id=parent))
+    conversation.prepare_history(token_budget=16_384)
     assert conversation.history_metadata["retained_messages"] == 40
     assert "INPUT_00" not in conversation.user_content and "INPUT_01" not in conversation.user_content
     for index in range(2, 22):
@@ -642,7 +643,8 @@ def test_parent_history_depth_and_cycles_remain_bounded(storage):
     oldest = memory.get_thread(ids[0])
     oldest.parent_thread_id = ids[1]
     storage.setex(f"thread:{ids[0]}", 100, oldest.model_dump_json())
-    cycle = CLIConversation.prepare(CLinkRequest(prompt="current", continuation_id=ids[1]))
+    cycle = CLIConversation.load(CLinkRequest(prompt="current", continuation_id=ids[1]))
+    cycle.prepare_history(token_budget=16_384)
     assert cycle.history_metadata["retained_messages"] == 4
     assert cycle.user_content.count("INPUT_00") == cycle.user_content.count("INPUT_01") == 1
 

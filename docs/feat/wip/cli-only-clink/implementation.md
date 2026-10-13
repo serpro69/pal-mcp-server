@@ -1,6 +1,6 @@
 # Implementation: CLI-only conversations through clink
 
-> Status: Tasks 1–5 complete; Tasks 6–14 pending
+> Status: Tasks 1–6 complete; Tasks 7–14 pending
 > Created: 2026-10-10
 > Design: [design.md](design.md)
 > Tasks: [tasks.md](tasks.md)
@@ -353,3 +353,27 @@ Validation reused Python 3.10.12 in the existing `pal` environment, without depe
 The earlier test permitting overlapping direct same-thread calls to race at CAS was replaced by the immediate busy contract; its distinct-thread request-local checks remain. CAS protection against uncoordinated writes remains covered by the existing continuation tests. No second lock registry or dependency was introduced. The implementation followed the planned slice; Tasks 6–14 remain pending, including the real-stdio busy acceptance test in Task 12 and live-check follow-ups in Tasks 13–14.
 
 `kk:review-code:isolated` completed through its independent-reviewer fallback: the code-reviewer approved all seven implementation/test/task files with no P0–P3 findings. External PAL `gemini-3.8-flash` review again failed authentication and supplied no expert findings. No systemic findings or new conventions required indexing. Final changes after review only record verification and task status.
+
+## Task 6 execution record (2026-10-13)
+
+Raw and resolved CLI configuration now expose `history_token_budget`, defaulting to 16,384. Both enforce strict positive integers: zero, negatives, booleans, floats (including whole-number floats), strings, and null are rejected. Registry resolution forwards each client's value unchanged, including overrides through the existing manifest precedence. The request schema gains no budget parameter.
+
+Conversation setup now loads the snapshot, resolves the successful saved or explicit CLI/role selection, and renders history once using that client's budget. This ordering lets a larger selected budget admit an exchange that the default would reject. All steps remain inside clink's existing coordinator. Complete-exchange selection, final wrapper/reference/notice accounting, raw/displayed reply handling, and atomic persistence are preserved; current request text stays outside the history budget.
+
+[Configuration guidance](../../../configuration.md#cli-conversation-history-budgets) covers adding the field to a complete manifest, precedence, strict values, heuristic history-only accounting, metadata, limits, and restart behavior. Restart applies configuration changes and discards existing process-local continuation IDs.
+
+Validation reused Python 3.10.12 in the existing `pal` environment, without dependency upgrades:
+
+| Check | Result |
+| --- | --- |
+| Baseline | Reused the passing Task 5 quality checks at unchanged commit `fd22c7d`: 2,309 passed, 16 skipped, 16 deselected, 19 subtests passed. |
+| Task 6 pytest command above | Passed: 223 tests, including 83 new cases for raw/resolved Python and JSON validation, registry loading/precedence, default and explicit per-client budgets, saved/explicit selection, above-default admission, complete-group omission, final budget accounting, and no launch/write/TTL change on oversized history. Direct and MCP-handler paths are covered without provider/model-context resolution. |
+| `./code_quality_checks.sh` | Passed outside the sandbox: 2,392 passed, 16 skipped, 16 deselected, 19 subtests passed; Ruff, Black, and isort passed. |
+| `./run_integration_tests.sh` | Failed: 3 failed, 2 passed, 11 skipped. Reproduced the Claude exact-output assertion (answer plus summary) and two OpenAI connection failures recorded for Tasks 1–5. |
+| `python communication_simulator_test.py --quick` | Failed: runner reported 4 passed and 2 failed (`basic_conversation`, `per_tool_deduplication`). Existing live-check limitations remain open. |
+
+Dependency handling verified `Field(strict=True, gt=0)` against installed Pydantic 2.13.4 and its exact-version upstream [strict-mode documentation](https://github.com/pydantic/pydantic/blob/v2.13.4/docs/concepts/strict_mode.md#at-the-field-level) and [integer constraints](https://github.com/pydantic/pydantic/blob/v2.13.4/docs/api/standard_library_types.md#integers). Context7 lacked this version, so the lookup used those primary sources. No new dependency or project convention was introduced.
+
+The preparation split is the planned ordering needed for client-specific budgets, not a scope change. Task 7 is next. Real-stdio acceptance and live-check follow-ups remain assigned to Tasks 12–14; deterministic success does not establish live acceptance.
+
+`kk:review-code:isolated` completed through its independent-reviewer fallback: the code-reviewer approved all eight implementation/test/configuration-guide/task files with no P0–P3 findings. External PAL `gemini-3.8-flash` review again failed authentication and supplied no expert findings. No systemic findings required indexing. Final changes after review only record verification and task status.

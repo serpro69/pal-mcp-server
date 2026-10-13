@@ -1,6 +1,6 @@
 # Configuration Guide
 
-This guide covers all configuration options for the PAL MCP Server. The server is configured through environment variables defined in your `.env` file.
+This guide covers configuration options for the PAL MCP Server. Environment variables are defined in your `.env` file; CLI client settings use JSON manifests.
 
 Isolated launchers can set `PAL_SKIP_DOTENV=true` in the process environment to
 skip reading/loading dotenv entirely, including its force-override setting. This
@@ -104,6 +104,55 @@ DEFAULT_MODEL=llama3.2                              # Registered model or alias
 **Local Model Connection:**
 - Use standard localhost URLs since the server runs natively
 - Example: `http://localhost:11434/v1` for Ollama
+
+### CLI conversation history budgets
+
+Each [clink](tools/clink.md) client can set `history_token_budget` in its JSON
+manifest. It defaults to **16,384** and must be a positive integer. Zero, negative
+values, booleans, quoted numbers, decimals (including `8192.0`), and `null` fail
+configuration validation.
+
+To customize a client, copy its full manifest from `conf/cli_clients/` into
+`~/.pal/cli_clients/` and add or update this top-level field, keeping the existing
+name, command, argument buckets, roles, and other settings:
+
+```json
+{
+  "history_token_budget": 8192
+}
+```
+
+The block shows the field to add to the full manifest. Configuration loads in
+order: built-in manifests, `CLI_CLIENTS_CONFIG_PATH` (a file or directory), then
+`~/.pal/cli_clients/`. Later manifests replace the complete definition for the
+same client. Each selected client uses its own budget, including when a follow-up
+inherits its saved CLI selection or explicitly switches CLIs. This setting is
+not a clink request parameter or a PAL model-provider setting.
+
+PAL estimates history tokens using its character-based heuristic (roughly one
+token per four characters), without a provider tokenizer. The budget covers the
+rendered history block: complete user/assistant exchanges, message labels,
+file/image path references, omission notices, delimiters, and closing guidance.
+It excludes the current request and attachments, CLI system prompts, tool results,
+and the CLI's own context use. It is not a model context-window guarantee.
+
+Clink keeps the newest contiguous suffix of complete exchanges that fits. It
+omits older exchanges and incomplete legacy groups with a notice; it never cuts
+a message or keeps half an exchange. If the newest complete exchange cannot fit,
+the request fails before launching the CLI. Start a shorter conversation, or
+configure a larger budget for a future server session. Historical attachments
+remain path references; PAL does not reopen their contents for CLI history.
+When clink reduces a long reply for display, subsequent CLI history uses that
+displayed text; raw stored replies and optional audit transcripts remain intact.
+
+Response `metadata.history` reports `estimated_tokens`, `token_budget`,
+`retained_messages`, `omitted_messages`, `incomplete_messages`, and
+`incomplete_legacy_omitted`. Increasing the budget does not change the stored
+message limit or conversation TTL.
+
+Restart PAL after editing manifests. Restart also discards process-local
+conversation memory, so existing continuation IDs cannot be resumed afterward;
+start a new conversation using the updated budget.
 
 ### Model Configuration
 
