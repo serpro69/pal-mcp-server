@@ -16,6 +16,7 @@ from providers.registries.openrouter import OpenRouterModelRegistry
 from tools.models import ToolModelCategory, ToolOutput
 from tools.shared.base_models import ToolRequest
 from tools.shared.base_tool import BaseTool
+from utils.runtime_capabilities import RuntimeCapabilities, get_runtime_capabilities
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +82,10 @@ class ListModelsTool(BaseTool):
         Returns:
             Formatted list of models by provider
         """
+        runtime = get_runtime_capabilities()
+        if runtime.provider_free:
+            return self._provider_free_result(runtime)
+
         from providers.registry import ModelProviderRegistry
         from providers.shared import ProviderType
         from utils.model_restrictions import get_restriction_service
@@ -361,6 +366,73 @@ class ListModelsTool(BaseTool):
         )
 
         return [TextContent(type="text", text=tool_output.model_dump_json())]
+
+    def _provider_free_result(self, runtime: RuntimeCapabilities) -> list[TextContent]:
+        """Describe the startup snapshot without querying live provider catalogs."""
+        lines = [
+            "# Provider-free PAL\n",
+            "No PAL model providers are configured.",
+            "These are startup observations. Restart PAL after changing provider or CLI configuration.\n",
+            "## Available tools",
+            ", ".join(sorted(runtime.available_tools)),
+        ]
+        if "jules" in runtime.available_tools:
+            lines.append("Jules requires its own JULES_API_KEY.")
+        lines.append("\n## Provider setup")
+        setup = []
+        for diagnostic in runtime.provider_setup:
+            if diagnostic.status == "absent":
+                detail = "Absent settings; set " + " and ".join(diagnostic.missing_settings)
+            elif diagnostic.status == "incomplete":
+                detail = "Incomplete settings; missing " + " and ".join(diagnostic.missing_settings)
+            else:
+                detail = "Inputs present but provider not registered; check startup warnings and catalog configuration"
+            lines.append(f"- **{diagnostic.label}**: {detail}.")
+            setup.append(
+                {
+                    "provider": diagnostic.provider_type.value,
+                    "status": diagnostic.status,
+                    "supplied_settings": list(diagnostic.supplied_settings),
+                    "missing_settings": list(diagnostic.missing_settings),
+                }
+            )
+        lines.extend(
+            [
+                "\n## Configured CLI executables",
+                "Executable observations are from startup; invocation checks again. Authentication is unverified.",
+                "CLI names select installed commands; they are not PAL API model identifiers.",
+            ]
+        )
+        for cli in runtime.cli_statuses:
+            lines.append(
+                f"- `{cli.name}`: executable {'found' if cli.executable_found else 'missing'}; authentication unverified."
+            )
+        if not runtime.cli_statuses:
+            lines.append("No CLI clients were recorded at startup.")
+        if "clink" in runtime.available_tools:
+            lines.append(
+                "\nUse clink for CLI conversations. Select cli_name for a new conversation when multiple clients "
+                "are configured; follow-ups may reuse saved CLI/role selection with continuation_id."
+            )
+            if not any(cli.executable_found for cli in runtime.cli_statuses):
+                lines.append("Install or configure your selected CLI and authenticate it before invoking clink.")
+        lines.append("\n**Configured Providers**: 0")
+        output = ToolOutput(
+            content="\n".join(lines),
+            metadata={
+                "tool_name": self.name,
+                "mode": "provider-free",
+                "configured_providers": 0,
+                "observed_at": "startup",
+                "available_tools": sorted(runtime.available_tools),
+                "provider_setup": setup,
+                "cli_clients": [
+                    {"name": cli.name, "executable_found": cli.executable_found, "authentication": "unverified"}
+                    for cli in runtime.cli_statuses
+                ],
+            },
+        )
+        return [TextContent(type="text", text=output.model_dump_json())]
 
     def get_model_category(self) -> ToolModelCategory:
         """Return the model category for this tool."""

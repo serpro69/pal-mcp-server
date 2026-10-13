@@ -7,6 +7,7 @@ from unittest.mock import patch
 import pytest
 from mcp.types import TextContent
 
+from providers.registry import ModelProviderRegistry
 from tools.listmodels import ListModelsTool
 
 
@@ -14,8 +15,10 @@ class TestListModelsTool:
     """Test the ListModels tool functionality"""
 
     @pytest.fixture
-    def tool(self):
+    def tool(self, monkeypatch):
         """Create a ListModelsTool instance"""
+        # Each test's environment must determine its providers, not prior calls.
+        monkeypatch.setattr(ModelProviderRegistry(), "_initialized_providers", {})
         return ListModelsTool()
 
     def test_tool_metadata(self, tool):
@@ -25,11 +28,14 @@ class TestListModelsTool:
         assert tool.get_request_model().__name__ == "ToolRequest"
 
     @pytest.mark.asyncio
-    async def test_execute_with_no_providers(self, tool):
+    async def test_execute_with_no_providers(self, tool, isolated_provider_environment):
         """Test listing models with no providers configured"""
         with patch.dict(os.environ, {}, clear=True):
             # Set auto mode
             os.environ["DEFAULT_MODEL"] = "auto"
+            from server import initialize_runtime
+
+            initialize_runtime()
 
             result = await tool.execute({})
 
@@ -42,12 +48,11 @@ class TestListModelsTool:
 
             content = response["content"]
 
-            # Check that providers show as not configured
-            assert "Google Gemini ❌" in content
-            assert "OpenAI ❌" in content
-            assert "X.AI (Grok) ❌" in content
-            assert "OpenRouter ❌" in content
-            assert "Custom/Local API ❌" in content
+            # Provider-free output describes input settings and local capabilities.
+            assert "No PAL model providers are configured" in content
+            for label in ("Google Gemini", "OpenAI", "X.AI (Grok)", "OpenRouter", "Custom/Local API", "OpenCode Go"):
+                assert f"**{label}**: Absent settings" in content
+            assert "authentication unverified" in content
 
             # Check summary shows 0 configured
             assert "**Configured Providers**: 0" in content

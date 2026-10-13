@@ -162,7 +162,9 @@ async def test_mcp_without_provider_keys_keeps_local_tools_available(
     monkeypatch.setattr(CLinkTool, "execute", local_cli)
     async with create_connected_server_and_client_session(server.server, timedelta(seconds=5)) as client:
         listing = await client.list_tools()
-        assert {"version", "listmodels", "planner", "clink", "chat"} <= {tool.name for tool in listing.tools}
+        names = {tool.name for tool in listing.tools}
+        assert {"version", "listmodels", "planner", "clink"} <= names
+        assert not {"chat", "consensus"} & names
         for name, arguments in [
             ("version", {}),
             ("listmodels", {}),
@@ -177,5 +179,6 @@ async def test_mcp_without_provider_keys_keeps_local_tools_available(
             )
             assert result.isError
             assert "Configure provider credentials" in result.content[0].text
+            assert json.loads(result.content[0].text)["metadata"]["error_type"] == "model_provider_required"
     local_cli.assert_awaited_once()
     assert not ModelProviderRegistry()._initialized_providers

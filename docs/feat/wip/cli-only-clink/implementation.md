@@ -1,6 +1,6 @@
 # Implementation: CLI-only conversations through clink
 
-> Status: Tasks 1–8 complete; Tasks 9–14 pending
+> Status: Tasks 1–9 complete; Tasks 10–14 pending
 > Created: 2026-10-10
 > Design: [design.md](design.md)
 > Tasks: [tasks.md](tasks.md)
@@ -422,3 +422,27 @@ General handler tests now explicitly seed the mock API runtime they exercise; fo
 Task 9 still owns coherent tool/prompt listings, aliases, initialization guidance, and provider-free listmodels presentation. Those discovery surfaces intentionally remain at their previous behavior in this intermediate slice. Task 12 owns the real-stdio acceptance harness; the handler/fake-process result above does not claim that coverage. Live-check follow-ups remain with Tasks 13–14. No scope or dependency change was needed.
 
 `kk:review-code:isolated` completed through its independent-reviewer fallback: the code-reviewer approved all twelve implementation/test/task files with no P0–P3 findings. External PAL `gemini-3.8-flash` review again failed authentication and supplied no expert findings. No systemic findings or new conventions required indexing. Final changes after review only record verification and task status.
+
+## Task 9 execution record (2026-10-13)
+
+Tool and prompt listings now use the runtime snapshot's available-tool set. Prompt aliases resolve to their underlying tool before the shared availability guard, so unavailable or disabled tools cannot be reached through an alias. All nine enabled independent tools remain discoverable in provider-free mode; unavailable consensus and other model-backed tools are omitted and rejected. README navigation links to the implemented CLI history-budget configuration.
+
+Provider-free initialization lists the actual independent capabilities and directs CLI conversations to clink, with explicit new-conversation selection and saved selection on follow-up. It reports missing executables when applicable and leaves authentication unverified. Local prompt templates no longer suggest unavailable PAL models. `/pal:continue` instructs the caller to retain the previous available conversation tool and latest continuation ID; targets are derived from available tools' actual continuation schema. Challenge, apilookup, Jules, version, and listmodels are excluded. No continuation prompt is offered when no eligible target is enabled. API-mode model templates, handshake text, and valid chat continuation wording are preserved; disabled chat/aliases are consistently hidden or rejected.
+
+Provider-free `listmodels` uses only the startup snapshot, with available tools, absent/incomplete input hints, complete-input-but-unregistered guidance, CLI executable observations, and unverified authentication. It retains no credential/endpoint values and does not query current catalogs or executables. Metadata includes `mode=provider-free`, `configured_providers=0`, `observed_at=startup`, `available_tools`, `provider_setup`, and `cli_clients`. CLI names are explicitly identified as command selectors rather than PAL API model identities. API-mode model listing remains on its existing path, including registered providers with an empty eligible catalog.
+
+Validation reused Python 3.10.12 in the existing `pal` environment, without dependency changes:
+
+| Check | Result |
+| --- | --- |
+| Baseline | Reused the passing Task 8 quality checks at unchanged commit `07da703`: 2,490 passed, 16 skipped, 16 deselected, 19 subtests passed. |
+| Task 9 pytest command above | Passed: 194 tests, including 40 new cases across discovery and surface tests. Covers all nine actual independent calls, fake CLI subprocess and Jules HTTP transport, docgen first/forced follow-up/completion with six stored turns and no inference, alias/disabled/essential-tool behavior, continuation target filtering, snapshot-only diagnostics, and exact API-mode guidance regressions. |
+| `./code_quality_checks.sh` | Passed outside the sandbox: 2,530 passed, 16 skipped, 16 deselected, 19 subtests passed; Ruff, Black, and isort passed. |
+| `./run_integration_tests.sh` | Failed: 3 failed, 2 passed, 11 skipped. Reproduced the Claude exact-output assertion (answer plus summary) and two OpenAI connection failures recorded for Tasks 1–8. |
+| `python communication_simulator_test.py --quick` | Failed: runner reported 4 passed and 2 failed (`basic_conversation`, `per_tool_deduplication`). Existing live-check limitations remain open. |
+
+The no-provider MCP surface assertion now expects unavailable tools to be omitted while retaining the independent tools and structured provider-required call error. Legacy listmodels tests isolate cached provider instances so each test's environment controls the API listing. The new docgen assertions use its published `documentation_analysis_*` status/flag mapping; production docgen behavior was not changed. Initial assertion failures were confined to these test assumptions.
+
+Task 9 completes the discovery/call consistency deferred from Task 8. Setup documentation/scripts, real-stdio acceptance, and live-check follow-ups remain assigned to Tasks 10–14. The in-process handler and fake-transport coverage does not replace those checks. No dependency or scope change was needed.
+
+`kk:review-code:isolated` completed through its independent-reviewer fallback: the code-reviewer approved all eight implementation/test/navigation/task files with no P0–P3 findings. External PAL `gemini-3.8-flash` review again failed authentication and supplied no expert findings. No systemic findings or new conventions required indexing. Final changes after review only record verification and task status.

@@ -14,9 +14,28 @@ from scripts.tool_surface import capture_surface
 from tools.planner import PlannerTool
 from tools.shared.base_tool import BaseTool
 from tools.tracer import TracerTool
+from utils.runtime_capabilities import initialize_runtime_capabilities
 
 BASELINE = Path(__file__).parent / "fixtures/tool_surface_baseline.json"
 pytestmark = pytest.mark.no_mock_provider
+
+
+@pytest.mark.asyncio
+async def test_provider_free_surface_retains_all_enabled_independent_tools():
+    runtime = initialize_runtime_capabilities(configured_providers=(), enabled_tools=server.TOOLS)
+    expected = {
+        "clink",
+        "version",
+        "listmodels",
+        "planner",
+        "tracer",
+        "docgen",
+        "challenge",
+        "apilookup",
+        "jules",
+    } & server.TOOLS.keys()
+    assert runtime.available_tools == expected
+    assert {tool.name for tool in await server.handle_list_tools()} == expected
 
 
 @pytest.fixture
