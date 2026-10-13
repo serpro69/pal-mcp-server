@@ -83,8 +83,9 @@ def test_registry_lists_roles():
 
 
 @pytest.mark.asyncio
-async def test_clink_tool_defaults_to_first_cli(monkeypatch):
+async def test_clink_tool_defaults_to_only_configured_cli(monkeypatch):
     tool = CLinkTool()
+    monkeypatch.setattr(tool, "_cli_names", ["gemini"])
 
     async def fake_run(**kwargs):
         return AgentOutput(

@@ -170,7 +170,7 @@ async def test_parent_history_and_attachments_do_not_restore_permissions(storage
     assert call["images"] == ["/new.png", "/old.png"]
     assert call["allow_edits"] is False and call["editable_paths"] == []
     updated = memory.get_thread(child)
-    assert updated.initial_context == original_context
+    assert updated.initial_context == {**original_context, "clink_defaults": {"cli_name": "claude", "role": "default"}}
     assert updated.parent_thread_id == parent and updated.tool_name == "chat"
     assert len(updated.turns) == 4
     assert updated.turns[-2].files == [str(current_file)]
@@ -447,3 +447,209 @@ def test_compare_and_setex_has_one_winner_across_threads(storage):
     with ThreadPoolExecutor(max_workers=8) as pool:
         results = list(pool.map(lambda index: storage.compare_and_setex("key", 100, "snapshot", str(index)), range(8)))
     assert results.count(True) == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("cli_name", ["gemini", "claude", "codex"])
+async def test_saved_selection_continues_without_cli_or_role_and_never_inherits_edits(
+    storage, agent, invoke, tmp_path, cli_name
+):
+    first_args = {"cli_name": cli_name, "role": "planner", "prompt": "first", "allow_edits": True}
+    if cli_name == "claude":
+        first_args["editable_paths"] = [str(tmp_path)]
+    first = await invoke(first_args)
+    thread_id = first["continuation_offer"]["continuation_id"]
+    second = await invoke({"prompt": "follow-up", "continuation_id": thread_id})
+    assert second["metadata"]["cli_name"] == cli_name
+    assert second["metadata"]["role"] == "planner"
+    assert agent.run.call_args.kwargs["allow_edits"] is False
+    assert agent.run.call_args.kwargs["editable_paths"] == []
+    assert "must NOT perform any filesystem modifications" in agent.run.call_args.kwargs["prompt"]
+    thread = memory.get_thread(thread_id)
+    assert thread.initial_context["cli_name"] == cli_name
+    assert thread.initial_context["allow_edits"] is True  # Original provenance is preserved.
+    assert thread.initial_context["clink_defaults"] == {"cli_name": cli_name, "role": "planner"}
+
+
+@pytest.mark.asyncio
+async def test_explicit_overrides_become_the_next_successful_defaults(storage, agent, invoke):
+    first = await invoke({"cli_name": "gemini", "role": "planner", "prompt": "first"})
+    thread_id = first["continuation_offer"]["continuation_id"]
+    for overrides, expected in [
+        ({"cli_name": "claude"}, {"cli_name": "claude", "role": "planner"}),
+        ({"role": "codereviewer"}, {"cli_name": "claude", "role": "codereviewer"}),
+        ({"cli_name": "codex", "role": "default"}, {"cli_name": "codex", "role": "default"}),
+        ({}, {"cli_name": "codex", "role": "default"}),
+    ]:
+        result = await invoke({"prompt": "next", "continuation_id": thread_id, **overrides})
+        assert {key: result["metadata"][key] for key in expected} == expected
+        assert memory.get_thread(thread_id).initial_context["clink_defaults"] == expected
+    assert memory.get_thread(thread_id).initial_context["cli_name"] == "gemini"
+    assert memory.get_thread(thread_id).initial_context["role"] == "planner"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("override", [{"cli_name": ""}, {"cli_name": "missing"}, {"role": ""}, {"role": "missing"}])
+async def test_invalid_explicit_selection_does_not_fall_back_to_saved_defaults(storage, agent, invoke, override):
+    first = await invoke({"cli_name": "gemini", "prompt": "first"})
+    snapshot = storage._store.copy()
+    with pytest.raises(ToolExecutionError):
+        await invoke({"prompt": "next", "continuation_id": first["continuation_offer"]["continuation_id"], **override})
+    assert agent.run.await_count == 1
+    assert storage._store == snapshot
+
+
+@pytest.mark.asyncio
+async def test_saved_role_missing_on_explicit_other_cli_requires_valid_override(storage, agent, invoke, monkeypatch):
+    first = await invoke({"cli_name": "gemini", "role": "planner", "prompt": "first"})
+    thread_id = first["continuation_offer"]["continuation_id"]
+    snapshot = storage._store.copy()
+    registry = CLinkTool()._registry
+    get_client = registry.get_client
+
+    def without_planner(name):
+        client = get_client(name)
+        if name == "claude":
+            return client.model_copy(
+                update={"roles": {key: value for key, value in client.roles.items() if key != "planner"}}
+            )
+        return client
+
+    monkeypatch.setattr(registry, "get_client", without_planner)
+    with pytest.raises(ToolExecutionError, match="Specify a valid role"):
+        await invoke({"cli_name": "claude", "prompt": "next", "continuation_id": thread_id})
+    assert storage._store == snapshot and agent.run.await_count == 1
+    result = await invoke({"cli_name": "claude", "role": "default", "prompt": "next", "continuation_id": thread_id})
+    assert result["metadata"]["role"] == "default"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("origin", ["new", "api", "legacy-cli"])
+async def test_ambiguous_selection_requires_explicit_cli(storage, agent, invoke, origin):
+    arguments = {"prompt": "next"}
+    if origin != "new":
+        # Neither an API model nor legacy initial cli_name/role is a saved successful selection.
+        thread_id = memory.create_thread(
+            "chat" if origin == "api" else "clink",
+            {"model": "gemini-2.5-pro", "cli_name": "codex", "role": "planner", "allow_edits": True},
+        )
+        memory.add_turn(thread_id, "user", "first")
+        memory.add_turn(thread_id, "assistant", "answer")
+        arguments["continuation_id"] = thread_id
+    snapshot = storage._store.copy()
+    with pytest.raises(ToolExecutionError, match="cli_name is required"):
+        await invoke(arguments)
+    agent.run.assert_not_awaited()
+    assert storage._store == snapshot
+    result = await invoke({**arguments, "cli_name": "claude"})
+    assert result["metadata"]["cli_name"] == "claude"
+    assert result["metadata"]["role"] == "default"
+    assert agent.run.call_args.kwargs["allow_edits"] is False
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure", ["cli", "commit"])
+async def test_selection_changes_only_after_successful_commit(storage, agent, invoke, failure):
+    first = await invoke({"cli_name": "gemini", "role": "planner", "prompt": "first"})
+    thread_id = first["continuation_offer"]["continuation_id"]
+    snapshot = storage._store.copy()
+    arguments = {"cli_name": "claude", "role": "default", "prompt": "next", "continuation_id": thread_id}
+    if failure == "cli":
+        agent.run.return_value.parsed.is_error = True
+        with pytest.raises(ToolExecutionError):
+            await invoke(arguments)
+    else:
+        storage.compare_and_setex.side_effect = lambda *args: False
+        result = await invoke(arguments)
+        assert result["metadata"]["history_saved"] is False
+        assert_no_offer(result)
+    assert storage._store == snapshot
+    assert memory.get_thread(thread_id).initial_context["clink_defaults"] == {"cli_name": "gemini", "role": "planner"}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("summary", [False, True])
+async def test_reduced_reply_is_next_cli_history_but_raw_storage_and_usage_survive(storage, agent, invoke, summary):
+    raw = "RAW_LARGE_BODY " * MAX_RESPONSE_CHARS
+    if summary:
+        raw += "<SUMMARY>VISIBLE_SUMMARY</SUMMARY>"
+    agent.run.return_value.parsed.content = raw
+    first = await invoke({"cli_name": "gemini", "prompt": "FIRST_INPUT"})
+    thread_id = first["continuation_offer"]["continuation_id"]
+    thread = memory.get_thread(thread_id)
+    assert thread.turns[1].content == raw
+    assert thread.turns[1].model_metadata["clink"]["visible_reply"] == first["content"]
+    assert thread.turns[1].model_metadata["usage"] == {"input_tokens": 12}
+    assert thread.turns[1].model_metadata["provider_calls"] == []
+    second = await invoke({"prompt": "SECOND_INPUT", "continuation_id": thread_id})
+    prompt = agent.run.call_args.kwargs["prompt"]
+    assert first["content"] in prompt and raw not in prompt
+    assert prompt.count("FIRST_INPUT") == prompt.count("SECOND_INPUT") == 1
+    assert second["metadata"]["history"]["retained_messages"] == 2
+    assert second["metadata"]["history"]["estimated_tokens"] <= 16_384
+    assert memory.get_thread(thread_id).turns[1].content == raw
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("legacy", [False, True], ids=["oversized-newest", "incomplete-only"])
+async def test_unusable_history_fails_before_launch_without_storage_or_ttl_changes(storage, agent, invoke, legacy):
+    thread_id = memory.create_thread("chat", {})
+    memory.add_turn(thread_id, "user", "OLD_INPUT")
+    if not legacy:
+        memory.add_turn(thread_id, "assistant", "x" * 70_000)
+    snapshot = storage._store.copy()
+    with pytest.raises(ToolExecutionError, match="no complete exchange" if legacy else "newest complete exchange"):
+        await invoke({"cli_name": "gemini", "prompt": "next", "continuation_id": thread_id})
+    agent.run.assert_not_awaited()
+    assert storage._store == snapshot
+    storage.compare_and_setex.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_omitted_history_references_do_not_escape_the_budget(storage, agent, invoke):
+    thread_id = memory.create_thread("chat", {})
+    memory.add_turn(thread_id, "user", "OLD_INPUT" + "x" * 70_000, files=["/old-file.py"], images=["/old-image.png"])
+    memory.add_turn(thread_id, "assistant", "OLD_REPLY")
+    memory.add_turn(thread_id, "user", "LATEST_INPUT", files=["/kept-file.py"], images=["/kept-image.png"])
+    memory.add_turn(thread_id, "assistant", "LATEST_REPLY")
+    result = await invoke({"cli_name": "gemini", "prompt": "CURRENT_INPUT", "continuation_id": thread_id})
+    call = agent.run.call_args.kwargs
+    assert "OLD_INPUT" not in call["prompt"] and "/old-" not in call["prompt"]
+    assert call["files"] == ["/kept-file.py"] and call["images"] == ["/kept-image.png"]
+    assert call["prompt"].count("/kept-file.py") == call["prompt"].count("/kept-image.png") == 1
+    history = call["prompt"].split("=== CONVERSATION HISTORY", 1)[1].split("\n\n=== NEW USER INPUT", 1)[0]
+    from utils.token_utils import estimate_tokens
+
+    assert result["metadata"]["history"]["estimated_tokens"] == estimate_tokens("=== CONVERSATION HISTORY" + history)
+    assert result["metadata"]["history"]["omitted_messages"] == 2
+
+
+def test_parent_history_depth_and_cycles_remain_bounded(storage):
+    from clink.conversation import CLIConversation
+    from tools.clink import CLinkRequest
+
+    parent = None
+    ids = []
+    for index in range(22):
+        parent = memory.create_thread("chat", {}, parent)
+        memory.add_turn(parent, "user", f"INPUT_{index:02}")
+        memory.add_turn(parent, "assistant", f"REPLY_{index:02}")
+        ids.append(parent)
+    conversation = CLIConversation.prepare(CLinkRequest(prompt="current", continuation_id=parent))
+    assert conversation.history_metadata["retained_messages"] == 40
+    assert "INPUT_00" not in conversation.user_content and "INPUT_01" not in conversation.user_content
+    for index in range(2, 22):
+        assert conversation.user_content.count(f"INPUT_{index:02}") == 1
+    oldest = memory.get_thread(ids[0])
+    oldest.parent_thread_id = ids[1]
+    storage.setex(f"thread:{ids[0]}", 100, oldest.model_dump_json())
+    cycle = CLIConversation.prepare(CLinkRequest(prompt="current", continuation_id=ids[1]))
+    assert cycle.history_metadata["retained_messages"] == 4
+    assert cycle.user_content.count("INPUT_00") == cycle.user_content.count("INPUT_01") == 1
+
+
+def test_multi_cli_schema_allows_continuation_instead_of_cli_selection():
+    schema = CLinkTool().get_input_schema()
+    assert schema["required"] == ["prompt"]
+    assert schema["anyOf"] == [{"required": ["cli_name"]}, {"required": ["continuation_id"]}]
+    assert "last successful" in schema["properties"]["cli_name"]["description"]

@@ -8,6 +8,7 @@ from pathlib import Path
 DEFAULT_TIMEOUT_SECONDS = 1800
 DEFAULT_STREAM_LIMIT = 10 * 1024 * 1024  # 10MB per stream
 DEFAULT_CLEANUP_TIMEOUT_SECONDS = 5
+DEFAULT_HISTORY_TOKEN_BUDGET = 16_384
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 BUILTIN_PROMPTS_DIR = PROJECT_ROOT / "systemprompts" / "clink"

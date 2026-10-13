@@ -1,6 +1,6 @@
 # Implementation: CLI-only conversations through clink
 
-> Status: Tasks 1–3 complete; Tasks 4–14 pending
+> Status: Tasks 1–4 complete; Tasks 5–14 pending
 > Created: 2026-10-10
 > Design: [design.md](design.md)
 > Tasks: [tasks.md](tasks.md)
@@ -309,3 +309,26 @@ Validation used the existing Python 3.10.12 `pal` environment, with no dependenc
 The planned intermediate contract remains: Task 4 owns complete-exchange history selection, displayed-text projection, and saved CLI/role defaults; Task 5 owns immediate busy errors and internal coordination. MCP retains its waiting coordinator, direct concurrent callers still provide their own coordination, and CAS rejects an intervening uncoordinated write. Earlier ownership fixtures now support CAS, and clink's exhausted-capacity assertion requires no offer while preserving the planner assertion. No API/local-tool persistence behavior changed.
 
 The only implementation correction beyond the planned wiring was handling the prompt-file helper's `None` result when `prompt.txt` is the sole attachment, so it is consumed rather than forwarded again. The new regression verifies one read. Live verification and external-review follow-ups remain with Tasks 13–14 as recorded above; no new deferred implementation finding or design change was needed.
+
+## Task 4 execution record (2026-10-13)
+
+Clink now renders the newest contiguous suffix of complete user/assistant exchanges within the 16,384-estimated-token default. Final accounting includes message labels, file/image references, omission notices, delimiters, and closing guidance. Multi-assistant exchanges stay intact; incomplete legacy groups are omitted with counts, and nonempty history without a complete exchange or an oversized newest exchange fails before execution. Parent traversal retains the existing depth/cycle limits. Historical references appear inside the measured block; the separate current-file section no longer repeats historical paths outside that budget.
+
+Responses expose `metadata.history` with `estimated_tokens`, `token_budget`, `retained_messages`, `omitted_messages`, `incomplete_messages`, and `incomplete_legacy_omitted`. The current request and CLI-generated context remain outside the history-only estimate. Reduced replies also save their exact displayed text in `model_metadata.clink.visible_reply`; CLI history prefers that projection, while raw storage, usage metadata, API consumers, and transcript content remain intact.
+
+Successful atomic commits update only `initial_context.clink_defaults` with the resolved CLI and role, retaining original provenance. Explicit request selection wins, followed by saved successful defaults, then the sole configured CLI and default role. Multiple clients without saved selection require `cli_name`; invalid explicit values or a saved role unavailable on the selected CLI fail. The schema accepts either `cli_name` or `continuation_id` when multiple clients exist. Edit authorization still comes only from the current request. Failed CLI execution or failed recording does not change defaults or TTL.
+
+Validation reused Python 3.10.12 in the existing `pal` environment, without dependency changes:
+
+| Check | Result |
+| --- | --- |
+| Baseline `./code_quality_checks.sh` | Passed: 2,199 passed, 16 skipped, 16 deselected, 19 subtests passed; lint/format checks passed. |
+| Task 4 pytest command above | Passed: 209 tests, including 58 new cases covering history boundaries, complete groups, incomplete legacy data, parent bounds/cycles, displayed/raw reply preservation, selection inheritance/overrides, failure atomicity, and direct/MCP-handler parity. |
+| `python -m pytest tests/test_tool_surface.py -q` | Passed: 14 tests after explicitly updating the expected selector schema/descriptions for Task 4. Existing safety contracts and the archived baseline fixture are preserved. |
+| Final `./code_quality_checks.sh` | Passed outside the sandbox: 2,257 passed, 16 skipped, 16 deselected, 19 subtests passed; Ruff, Black, and isort passed. The first full run identified the expected tool-surface assertion update above. |
+| `./run_integration_tests.sh` | Failed: 3 failed, 2 passed, 11 skipped. Reproduced the Claude exact-output assertion (answer plus summary) and two OpenAI connection failures recorded for Tasks 1–3. |
+| `python communication_simulator_test.py --quick` | Failed: runner reported 4 passed and 2 failed (`basic_conversation`, `per_tool_deduplication`), with invalid Gemini API-key errors and missing continuation IDs. |
+
+The renderer's standalone import exposed an existing circular import through `tools.__init__`; error-output imports now load only on the relevant validation failure. New parameterized tests construct thread models at execution time because the existing fixtures reload conversation modules. These corrections preserve the plan's scope. Per-client settings and immediate busy admission remain assigned to Tasks 6 and 5. Live verification and external-review follow-ups remain assigned to Tasks 13–14 as recorded above; passing deterministic tests do not establish live acceptance.
+
+`kk:review-code:isolated` completed through its independent-reviewer fallback: the code-reviewer approved all eight implementation/test/task files with no P0–P3 findings. External PAL `gemini-3.8-flash` review again failed authentication and supplied no expert findings. No systemic findings or new conventions required indexing. Final changes after review only record verification and task status.

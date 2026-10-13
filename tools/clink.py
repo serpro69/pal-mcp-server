@@ -41,11 +41,11 @@ class CLinkRequest(BaseModel):
     prompt: str = Field(..., description="Prompt forwarded to the target CLI.")
     cli_name: str | None = Field(
         default=None,
-        description="Configured CLI client name to invoke. Defaults to the first configured CLI if omitted.",
+        description="Configured CLI name. Reuses saved selection on continuation; otherwise required with multiple CLIs.",
     )
     role: str | None = Field(
         default=None,
-        description="Optional role preset defined in the CLI configuration (defaults to 'default').",
+        description="Role preset. Reuses the saved role on continuation, otherwise defaults to 'default'.",
     )
     absolute_file_paths: list[str] = Field(
         default_factory=list,
@@ -140,11 +140,14 @@ class CLinkTool(SimpleTool):
                 f" Default: {self._default_cli_name}." if self._default_cli_name and len(self._cli_names) <= 1 else ""
             )
             cli_description = (
-                "Configured CLI client name (from conf/cli_clients). Available: " + cli_available + default_text
+                "Configured CLI client name (from conf/cli_clients). Available: "
+                + cli_available
+                + default_text
+                + " May be omitted on continuation to reuse the last successful CLI selection."
             )
             role_description = (
-                "Optional role preset defined for the selected CLI (defaults to 'default'). Roles per CLI: "
-                + "; ".join(role_descriptions)
+                "Role preset for the selected CLI. Reuses the last successful role on continuation, "
+                "otherwise defaults to 'default'. Roles per CLI: " + "; ".join(role_descriptions)
             )
         else:
             cli_description = "Configured CLI client name (from conf/cli_clients)."
@@ -195,7 +198,7 @@ class CLinkTool(SimpleTool):
         }
 
         if len(self._cli_names) > 1:
-            schema["required"].append("cli_name")
+            schema["anyOf"] = [{"required": ["cli_name"]}, {"required": ["continuation_id"]}]
 
         return schema
 
@@ -207,12 +210,9 @@ class CLinkTool(SimpleTool):
         try:
             request = prepare_request(self, arguments)
             conversation = CLIConversation.prepare(request)
+            selected_cli, selected_role = conversation.resolve_selection(request, self._cli_names)
         except (memory.ConversationMemoryError, ValueError) as exc:
             self._raise_tool_error(str(exc), metadata={"tool_name": "clink", "error_type": type(exc).__name__})
-
-        selected_cli = request.cli_name or self._default_cli_name
-        if not selected_cli:
-            self._raise_tool_error("No CLI clients are configured for clink.")
 
         try:
             client_config = self._registry.get_client(selected_cli)
@@ -220,9 +220,9 @@ class CLinkTool(SimpleTool):
             self._raise_tool_error(str(exc))
 
         try:
-            role_config = client_config.get_role(request.role)
+            role_config = client_config.get_role(selected_role)
         except KeyError as exc:
-            self._raise_tool_error(str(exc))
+            self._raise_tool_error(f"{exc}. Specify a valid role for CLI '{client_config.name}'.")
 
         if request.editable_paths and not get_agent_class(client_config).supports_path_restrictions:
             self._raise_tool_error(
@@ -241,7 +241,8 @@ class CLinkTool(SimpleTool):
                 include_system_prompt=include_system_prompt,
                 cli_name=client_config.name,
                 user_content=conversation.user_content,
-                files=conversation.files,
+                # Historical references are already inside the measured block.
+                files=request.absolute_file_paths,
             )
         except Exception as exc:
             logger.exception("Failed to prepare clink prompt")
@@ -283,16 +284,23 @@ class CLinkTool(SimpleTool):
 
         model_name = result.parsed.metadata.get("model_used")
         metadata.update(tool_name="clink", provider_used=client_config.name)
+        metadata["history"] = conversation.history_metadata
         if model_name:
             metadata["model_used"] = model_name
         tool_output = ToolOutput(content=content)
         model_metadata: dict[str, Any] = {"provider_calls": []}
+        if content != result.parsed.content:
+            model_metadata["clink"] = {"visible_reply": content}
         for key in ("usage", "token_usage"):
             if key in result.parsed.metadata:
                 model_metadata[key] = result.parsed.metadata[key]
         try:
             remaining = conversation.commit(
-                result.parsed.content, provider=client_config.name, model_name=model_name, model_metadata=model_metadata
+                result.parsed.content,
+                provider=client_config.name,
+                role=role_config.name,
+                model_name=model_name,
+                model_metadata=model_metadata,
             )
         except memory.ConversationMemoryError as exc:
             metadata.update(memory.memory_persistence_warning(exc), history_saved=False)

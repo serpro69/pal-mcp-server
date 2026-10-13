@@ -36,9 +36,22 @@ def test_surface_preserves_names_parameters_types_defaults_and_safety(surface):
             expected["required"].remove("model")
             expected["properties"]["model"]["deprecated"] = True
             expected["properties"]["use_assistant_model"].update(default=False, deprecated=True)
+        if name == "clink":
+            # CLI-only Task 4 permits a follow-up to reuse committed selection.
+            expected["required"].remove("cli_name")
+            expected["anyOf"] = [{"required": ["cli_name"]}, {"required": ["continuation_id"]}]
         assert surface["tools"][name]["schema"] == expected, name
         assert surface["tools"][name]["annotations"] == old["annotations"], name
     for name, field in baseline["tools"]["clink"]["safety_schema"]["properties"].items():
+        field = copy.deepcopy(field)
+        if name == "cli_name":
+            field["description"] += " May be omitted on continuation to reuse the last successful CLI selection."
+        elif name == "role":
+            field["description"] = field["description"].replace(
+                "Optional role preset defined for the selected CLI (defaults to 'default').",
+                "Role preset for the selected CLI. Reuses the last successful role on continuation, "
+                "otherwise defaults to 'default'.",
+            )
         if name != "continuation_id":  # Only shared continuation prose is shortened.
             assert surface["tools"]["clink"]["safety_schema"]["properties"][name] == field
     assert surface["tools"]["clink"]["description"] == baseline["tools"]["clink"]["description"]
