@@ -1,6 +1,6 @@
 # Antigravity CLI support in clink
 
-> Status: fresh design review approved 2026-10-14; Tasks 1–2 done; Tasks 3–6 pending
+> Status: fresh design review approved 2026-10-14; Tasks 1–3 done; Tasks 4–6 pending
 > Created: 2026-10-10
 > Source: [PAL issue #465](https://github.com/BeehiveInnovations/pal-mcp-server/issues/465)
 > Reference CLI: `agy` 1.3.5
@@ -141,9 +141,13 @@ Preserve the response text rather than rebuilding it from progress deltas. Ignor
 
 Select metadata explicitly: `agy_status`, `agy_conversation_id`, `agy_duration_seconds`, `num_turns`, and validated numeric token counts under `usage`. Include `model_used` only if the CLI identifies it. Preserve the runner's own `duration_seconds`; external metadata must not overwrite clink's command, client, role, or return code. Missing optional metadata is acceptable; invalid optional values are omitted rather than coercing arbitrary payloads into the result.
 
+Task 3 selects the five documented usage counters (`input_tokens`, `output_tokens`, `thinking_tokens`, `cache_read_tokens`, `total_tokens`) as nonnegative integers, excluding booleans. `num_turns` follows the same rule; duration accepts finite nonnegative numbers. `model_used` comes from a nonblank `init.model`, not a configured-model guess or arbitrary result field. These optional fields follow the [headless metadata reference](https://antigravity.google/docs/cli/headless#streaming-json); the retained 1.3.5 fixture verifies duration/turn shape, not every optional field's live availability.
+
 ## Diagnostics and privacy
 
 For agy, normal responses omit raw event arrays, input events, raw stdout, and complete result envelopes. Keep stderr notices visible with a maximum of 2,048 characters and a truncation indicator when necessary. Scope this bound and the no-raw-stdout error behavior to agy so existing clients retain their response contracts. Error messages include the failure class, return code or result status when known, and bounded diagnostic text.
+
+Task 3 applies this policy to the resolved runner, including renamed agy configurations. Both `metadata.stderr` and error content are limited to 2,048 characters including the `\n[truncated]` suffix; `stderr_truncated` and `error_truncated` identify clipped fields. Failed result events contribute only their status and string `error` description. The agent uses the existing nonzero-exit hook to extract that description, never to recover a successful answer. Timeout cleanup and subprocess ownership stay in the shared runner.
 
 Permission denials may coexist with a usable final response. Preserve those notices; a successfully returned answer is not proof that every requested operation occurred. Do not infer new success/failure categories by matching arbitrary English stderr text.
 
@@ -217,4 +221,4 @@ Ship the preset only after the capability and acceptance evidence is complete, d
 
 Task 1 records the observed enterprise invocation contract and the unavailable authentication cases assigned to Task 6 by user approval. Completion of Task 1 permits adapter development, not release acceptance. The former permission blocker is removed by the approved revision; the stronger guarantee is deferred to [upstream #1233](https://github.com/google-antigravity/antigravity-cli/issues/1233). Existing Claude system-prompt exposure remains a separate follow-up in [verification.md](./verification.md#open-decisions-and-follow-up-work). Preserve the shared runner's existing cleanup regression coverage.
 
-The historical design report remains unavailable. A [fresh 2026-10-14 review](./review-design.md) approved the corrected plan before Task 2; it does not reconstruct that older report. Tasks 1–2 are done and Tasks 3–6 remain pending. The implemented slice supports the default role and rejects true edit requests until Task 4; the preceding permission/response sections describe the final feature contract. See [Task 2 verification](./capability-evidence.md#task-2-verification-2026-10-14).
+The historical design report remains unavailable. A [fresh 2026-10-14 review](./review-design.md) approved the corrected plan before Task 2; it does not reconstruct that older report. Tasks 1–3 are done and Tasks 4–6 remain pending. The implemented slice supports the default role, selected metadata, and bounded failure diagnostics, and rejects true edit requests until Task 4. The preceding permission sections describe the final feature contract. See [Task 2 verification](./capability-evidence.md#task-2-verification-2026-10-14) and [Task 3 verification](./capability-evidence.md#task-3-verification-2026-10-14).

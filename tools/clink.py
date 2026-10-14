@@ -28,6 +28,7 @@ from utils.conversation_coordination import ConversationBusyError, coordinate_co
 logger = logging.getLogger(__name__)
 
 MAX_RESPONSE_CHARS = 20_000
+AGY_DIAGNOSTIC_LIMIT = 2_048
 SUMMARY_PATTERN = re.compile(r"<SUMMARY>(.*?)</SUMMARY>", re.IGNORECASE | re.DOTALL)
 ALLOW_EDITS_DESCRIPTION = (
     "Opt in to native filesystem edits where supported. Defaults to false. "
@@ -279,16 +280,18 @@ class CLinkTool(SimpleTool):
             )
         except CLIAgentError as exc:
             metadata = self._build_error_metadata(client_config, exc)
-            self._raise_tool_error(
+            self._raise_cli_error(
+                client_config,
                 f"CLI '{client_config.name}' execution failed: {exc}",
                 metadata=metadata,
             )
 
         metadata = self._build_execution_metadata(client_config, role_config, result)
         if result.returncode != 0 or result.parsed.is_error:
-            if result.stdout.strip():
+            if result.stdout.strip() and not self._uses_agy_runner(client_config):
                 metadata["stdout"] = result.stdout.strip()
-            self._raise_tool_error(
+            self._raise_cli_error(
+                client_config,
                 f"CLI '{client_config.name}' execution failed (exit code {result.returncode}): {result.parsed.content}",
                 metadata=metadata,
             )
@@ -409,7 +412,10 @@ class CLinkTool(SimpleTool):
         metadata.update(result.parsed.metadata)
 
         if result.stderr.strip():
-            metadata.setdefault("stderr", result.stderr.strip())
+            if self._uses_agy_runner(client):
+                metadata["stderr"] = self._bound_agy_diagnostic(result.stderr.strip(), metadata, "stderr")
+            else:
+                metadata.setdefault("stderr", result.stderr.strip())
         if result.output_file_content and "raw" not in metadata:
             metadata["raw_output_file"] = result.output_file_content
         return metadata
@@ -512,11 +518,33 @@ class CLinkTool(SimpleTool):
             "cli_name": client.name,
             "return_code": exc.returncode,
         }
-        if exc.stdout:
+        if exc.stdout and not self._uses_agy_runner(client):
             metadata["stdout"] = exc.stdout.strip()
         if exc.stderr:
-            metadata["stderr"] = exc.stderr.strip()
+            if self._uses_agy_runner(client):
+                metadata["stderr"] = self._bound_agy_diagnostic(exc.stderr.strip(), metadata, "stderr")
+            else:
+                metadata["stderr"] = exc.stderr.strip()
         return metadata
+
+    @staticmethod
+    def _uses_agy_runner(client: ResolvedCLIClient) -> bool:
+        return (client.runner or client.name).lower() == "agy"
+
+    @staticmethod
+    def _bound_agy_diagnostic(text: str, metadata: dict[str, Any], key: str) -> str:
+        if len(text) <= AGY_DIAGNOSTIC_LIMIT:
+            return text
+        metadata[f"{key}_truncated"] = True
+        suffix = "\n[truncated]"
+        return text[: AGY_DIAGNOSTIC_LIMIT - len(suffix)] + suffix
+
+    def _raise_cli_error(self, client: ResolvedCLIClient, message: str, metadata: dict[str, Any]) -> None:
+        if self._uses_agy_runner(client):
+            if metadata.get("stderr"):
+                message += f"\n{metadata['stderr']}"
+            message = self._bound_agy_diagnostic(message, metadata, "error")
+        self._raise_tool_error(message, metadata)
 
     def _raise_tool_error(self, message: str, metadata: dict[str, Any] | None = None) -> None:
         error_output = ToolOutput(status="error", content=message, content_type="text", metadata=metadata)
