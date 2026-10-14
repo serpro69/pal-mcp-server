@@ -1,8 +1,9 @@
 # Antigravity clink capability evidence
 
 > Date: 2026-10-14
-> Outcome: permission blocker removed by approved contract revision; Task 1 verification in progress; no agy client enabled
+> Outcome: Task 1 done; unavailable authentication cases moved to Task 6 by user approval; no agy client enabled
 > Checkout tested: `3286d5f160014e162b183ab38ea826fd9a6ceab3`
+> Authentication follow-up checkout: `d7e52b568d36c8d3806b0a8cd0eada39f94b0406`
 > Reference: native agy 1.3.5, approved by the user on this date
 > Account: enterprise, identified by the user; credentials were not inspected
 > Platform: macOS 26.6.2 (25G83), arm64; Python 3.14.8
@@ -38,8 +39,12 @@ flag limitation, not a live test in this investigation or proof that all possibl
 downgrades are unavailable. No `auto`/`plan` behavior is assumed to enforce read-only.
 
 The former permission blocker is removed by an explicit requirement change, not
-by newly passing enforcement tests. Task 1's personal/ADC and missing/expired-login
-coverage remains unverified; Tasks 2–6 are still pending. Adapter-owned argument
+by newly passing enforcement tests. Personal login, successful ADC routing,
+and missing/expired cached-login coverage remain unverified; a synthetic missing-ADC
+case now verifies an explicit failure, as recorded below. The user approved moving
+those unavailable authentication cases to Task 6 as release requirements and
+finishing Task 1 on verified enterprise evidence. Task 1 is done;
+Tasks 2–6 are still pending. Adapter-owned argument
 validation and request-local flag selection will be tested during implementation.
 Enforced native downgrades are a deferred enhancement under upstream #1233, not an
 acceptance prerequisite. Revisit only after a documented release and tests of
@@ -63,12 +68,14 @@ blocked conclusions in the investigation/review history reflect the superseded A
   raw UTF-8 `communicate()` site. EOF, process capture, timeout, cleanup, and cwd were
   owned by the unchanged shared runner. This does not implement or test Task 2's
   proposed `_encode_stdin` hook.
-- Every model probe used `_build_environment()` with the proposed passthrough names
+- The initial capability probes and external-access reruns used `_build_environment()` with the proposed passthrough names
   `AGY_ADC_AUTH`, `GOOGLE_APPLICATION_CREDENTIALS`, `GOOGLE_CLOUD_QUOTA_PROJECT`, and
-  `GOOGLE_CLOUD_LOCATION`. None of those four names was present in this session.
+  `GOOGLE_CLOUD_LOCATION`. None of those four names was present in those runs.
   The actual inherited names were `COLORTERM`, `HOME`, `LANG`, `LANGUAGE`, `LC_ALL`,
   `LC_CTYPE`, `LOGNAME`, `PATH`, `SHELL`, `TERM`, `TMPDIR`, and `USER`.
-  No API-key variable was forwarded. No selector, provider, or model was forced.
+  No API-key variable was forwarded. No selector, provider, or model was forced in
+  those runs. The later A1a authentication probe deliberately supplied synthetic
+  ADC values only to its test process, as recorded below.
 - Account class is the user's identification. Successful calls demonstrate existing
   enterprise authentication in this environment, not ADC selection, personal-login
   compatibility, entitlement inspection, or coverage of other enterprise routes.
@@ -222,31 +229,84 @@ were exhaustively ruled out.
 
 The four proposed authentication names remain supported by the current
 [enterprise documentation](https://antigravity.google/docs/enterprise), but this
-non-ADC enterprise session cannot verify their 1.3.5 selection/routing semantics.
-Next: test synthetic forwarding/override precedence in Task 2 only after this gate,
-and run a prepared ADC environment for actual routing evidence.
+non-ADC enterprise session cannot verify successful ADC routing. The follow-up below
+checks synthetic forwarding and a missing-ADC failure on 1.3.5; it does not establish
+project/location consumption or routing precedence. Task 2 still owns durable
+forwarding/override tests; successful routing requires a prepared ADC environment.
+
+### Authentication follow-up, 2026-10-14
+
+The user confirmed that only the existing enterprise login is available. Personal
+and authenticated ADC acceptance cannot be completed in this environment. Current
+[installation documentation](https://antigravity.google/docs/cli/install) describes
+native OS keyring authentication; local 1.3.5 help exposes no credential-profile or
+authentication-directory isolation flag. No logout, credential copying, keyring
+changes, or saved-settings edits were used to manufacture missing/expired sessions.
+
+The disposable `/tmp/pal_agy_auth_probe.py` used the unchanged shared runner and
+the earlier temporary result validator. It checked version 1.3.5, then supplied
+test-only parent environment values through the four proposed passthrough names:
+`AGY_ADC_AUTH=true`, `GOOGLE_APPLICATION_CREDENTIALS` pointing at an intentionally
+nonexistent file inside a temporary fixture directory, a synthetic quota project,
+and location `global`. These values existed only during that probe and are not
+production defaults. An unrelated synthetic secret was excluded and no API-key
+name was forwarded. The credential-location variable follows the documented
+[ADC search order](https://docs.cloud.google.com/docs/authentication/application-default-credentials).
+
+| Case | Actual cwd | Observation | Evidence limit |
+| --- | --- | --- | --- |
+| A1a synthetic missing ADC | `$TMPDIR/pal-clink-hokx264l` | All four synthetic values survived `_build_environment()` unchanged; unrelated secret excluded. One invocation exited 1 after 0.450s with `authentication required`, instructions to run `agy` to log in, and `authentication failed or timed out`. Shared runner raised `CLIAgentError`; stdout was present but not retained. | Verifies an explicit failure for this missing-ADC setup. Does not prove successful ADC routing, exact credential lookup, missing cached login, or expiry handling. |
+| A1b cached enterprise recheck | `$TMPDIR/pal-clink-fsdhp20r` | After removing the synthetic variables, one EOF-terminated request exited 0 with one `SUCCESS` result and `PAL_AGY_TRANSPORT_OK`; runner 6.241s, CLI 3.016700s; stderr empty. No ADC selector or API-key name was forwarded. | Existing enterprise login still works. Does not cover another account class or expired credentials. |
+
+Both runs used `agy --input-format stream-json --output-format stream-json` with
+the prompt only on stdin, outside the Codex sandbox. The failure probe had a
+30-second outer deadline; the enterprise recheck retained 90 seconds. Neither
+deadline was reached. The settings SHA-256 remained
+`86af8921ec53abfe4ca868b0f932ab991e3077351c669b1d3f56e062f3924a0d`
+before and after each run. Scratch cwd and the empty credential-path fixture were
+removed by their owners. The enterprise login was not changed.
+
+To reproduce A1a, construct the same unregistered client and validator described
+above, set its timeout to 30 seconds, and temporarily populate the four passthrough
+names with those synthetic values in the probe process. Confirm the credential
+path does not exist, inspect only filtered names/value equality, then send one
+synthetic no-tool request plus EOF through `BaseCLIAgent.run()`. Record the exit,
+bounded diagnostic, actual cwd, and settings hash. Restore the probe environment
+and repeat T1 for A1b. Do not count a timeout, unexpected success, or another
+failure class as a passing missing-authentication case.
 
 | Acceptance | Evidence / gap |
 | --- | --- |
-| A1 | T1/T2: existing enterprise login without a forwarded API key. Personal, ADC routing, missing/expired-login cases unverified. |
+| A1 | T1/T2 and A1b: existing enterprise login without a forwarded API key. A1a: synthetic missing-ADC error. Personal, successful ADC routing, and missing/expired cached-login cases unverified. |
 | A2 | T1/T2 transport, R1 configured read, and R2b scratch-mode external read after user configuration. Actual roles remain Task 5. |
 | A3 | Pending Task 5; no PAL continuation tested. |
 | A4 (revised) | W1/W1b denial under current settings; E2/E3 native edit opt-in in both cwd modes with unchanged settings. False inherits native policy with no read-only guarantee. Production argv/description/argument-isolation tests remain Tasks 2/4/5; stronger native enforcement is deferred to #1233. |
 | A5 | Pending Task 4; no production agy agent or path validation added. |
 | A6 | Prompts stayed out of probe argv; E1–E3 additionally supplied `--mode accept-edits`. Production metadata/log assertions remain Task 3. |
-| A7 | R2/W1 show zero-exit output rejected by the temporary parser. No production agy error path, timeout, missing/expired authentication, or no-replay test yet. |
+| A7 | R2/W1 show zero-exit output rejected by the temporary parser; A1a adds an explicit missing-ADC error through the shared runner. Production agy errors, timeout/no-replay tests, and missing/expired cached-login coverage remain pending. |
 | A8 | Existing environment/safe-default regressions checked below. No production code changed; full quality baseline failed. |
 
-No personal account was made available. Missing/expired authentication was not
-manufactured by logging out or changing the user's credentials. Linux, Windows,
-and other enterprise authentication routes are unverified; these gaps stay assigned
-to Task 1 and final Task 6 acceptance. Stronger enforcement under permissive saved
+No personal or authenticated ADC environment was made available. Missing/expired
+cached authentication was not manufactured by logging out or changing the user's credentials. Linux, Windows,
+and other enterprise authentication routes are unverified. The user approved
+assigning the unavailable authentication cases to final Task 6 acceptance, without
+waiving their release requirements. Stronger enforcement under permissive saved
 settings is separately deferred upstream. None of these unrun cases is presented
 as a passing or skipped live test.
 
 ## Repository validation
 
 The active environment was `/Users/sergio/.virtualenvs/pal`.
+
+Authentication follow-up validation used that same environment. The required
+pre-change quality check again stopped at the sandbox's loopback-bind restriction
+after 251 passes. Outside the sandbox it reached 985 passes, then failed the same
+TLS hostname dependency regression below (15 deselected). A disposable environment
+installation from the existing lockfiles was attempted, but the PreToolUse security
+hook blocked the command with `Access to 'venv\/' is blocked by security policy`.
+No replacement environment or dependency repair is claimed. The focused clink
+environment/safe-default result and post-change check are recorded with the review
+below.
 
 - Before edits, `./code_quality_checks.sh` passed Ruff, Black (332 files unchanged),
   and isort. Sandboxed pytest stopped at a loopback socket bind restriction after
@@ -333,3 +393,41 @@ revision has user approval but has not received a new independent design review.
 Optional documentation follow-up: run `kk:clarify-docs` on this file and the updated
 `design.md`, `implementation.md`, and `tasks.md` if a shorter presentation is wanted;
 retain the evidence limits, accepted contract, and remaining verification gaps.
+
+### Task 1 completion checkpoint, 2026-10-14
+
+Task 1 is complete under the user's approved enterprise-evidence boundary. The
+personal-login, successful ADC routing, and missing/expired cached-session cases
+remain unchecked Task 6.3 release requirements. No runtime adapter was added.
+
+- A1a/A1b supplied the additional live authentication observations above; all six
+  revised Task 1 subtasks are complete. Tasks 2–6 remain pending.
+- `python -m pytest tests/test_clink_environment.py tests/test_clink_safe_default.py -q -m 'not integration'`:
+  52 passed, one existing SDK deprecation warning.
+- `./code_quality_checks.sh` before and after the documentation changes passed
+  Ruff, Black, and isort, then failed the existing TLS hostname regression after
+  985 passes (15 deselected). Installed AnyIO/idna/urllib3 still differ from the
+  lockfiles; the security-hook rejection above prevented disposable environment
+  setup. The repository baseline remains failed.
+- `./run_integration_tests.sh`: two passed, two failed, eleven skipped. The two
+  existing consensus failures report unmatched replay requests for OpenAI chat
+  completions and resulting connection errors. Ten prompt-regression cases lack
+  `CUSTOM_API_URL`; the existing live clink case lacks its opt-in.
+- `python communication_simulator_test.py --quick`: four passed, two failed,
+  zero skipped. `basic_conversation` and `per_tool_deduplication` failed; the log
+  again contains rejected Gemini API-key calls. These results do not validate agy.
+- Document validation checked five files and 65 local links/anchors: no new broken
+  links; four pre-existing references to the missing historical design review
+  remain. The retained fixture has five JSON events and one successful result.
+  `git diff --check` passed.
+- `kk:review-code:isolated` completed with the independent code-reviewer as the
+  available reviewer. It found no P0–P2 issue and one P3: the earlier environment
+  description needed to be limited to the initial probes/reruns because A1a uses
+  synthetic ADC variables. That wording is corrected; the reviewer's narrow
+  follow-up approved the final documents with no remaining findings. External PAL expert analysis
+  (`gemini-3.8-flash`) failed because its API key was invalid; it supplies no review
+  corroboration. Live results and upstream docs were not independently reproduced.
+
+No systemic findings or new project conventions require indexing. The broader
+dependency/replay/provider failures and missing fresh design review remain explicit
+follow-ups; task completion does not assert a green repository or release readiness.
