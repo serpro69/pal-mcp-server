@@ -1,6 +1,6 @@
 # Antigravity CLI support in clink
 
-> Status: revised contract approved 2026-10-14; permission blocker removed; Task 1 verification in progress
+> Status: revised contract approved 2026-10-14; Task 1 done; implementation pending
 > Created: 2026-10-10
 > Source: [PAL issue #465](https://github.com/BeehiveInnovations/pal-mcp-server/issues/465)
 > Reference CLI: `agy` 1.3.5
@@ -9,7 +9,7 @@
 > Work tracking: [tasks.md](./tasks.md)
 > Evidence: [verification.md](./verification.md)
 > Review: [review-design.md](./review-design.md)
-> Implementation prerequisite: Task 1 must establish the permission and authentication contract before the client is enabled
+> Implementation prerequisite: Task 1 establishes the enterprise capability contract; full authentication acceptance remains a Task 6 release requirement
 
 ## Problem and outcome
 
@@ -51,7 +51,7 @@ The shared runner filters inherited variables; saved credentials alone do not pr
 | `GOOGLE_CLOUD_QUOTA_PROJECT` | Retain the CLI's environment-based project selection |
 | `GOOGLE_CLOUD_LOCATION` | Retain the CLI's environment-based location selection |
 
-These names come from the current [enterprise authentication documentation](https://www.antigravity.google/docs/enterprise) and [ADC search-order documentation](https://docs.cloud.google.com/docs/authentication/application-default-credentials). Task 1 must verify their applicability to 1.3.5 and record any additional required names before Task 2. Do not set `AGY_ADC_AUTH` or select a provider on the user's behalf. Keep unrelated secrets excluded and retain the existing precedence: shared and client passthrough names, operator `env_passthrough` additions, then explicit `env` values. Tests use synthetic values; live cases use the same filtered environment as the runner, including a personal case with no ADC selector or API key supplied by PAL.
+These names come from the current [enterprise authentication documentation](https://www.antigravity.google/docs/enterprise) and [ADC search-order documentation](https://docs.cloud.google.com/docs/authentication/application-default-credentials). Task 1 checked their forwarding and an explicit synthetic missing-ADC failure on 1.3.5; this does not verify successful credential/project/location routing. On 2026-10-14 the user approved completing Task 1 with verified enterprise evidence and moving unavailable personal-login, successful ADC routing, and missing/expired cached-session checks to Task 6 as release requirements. Record any additional required names when that coverage becomes available. Do not set `AGY_ADC_AUTH` or select a provider on the user's behalf in production. Keep unrelated secrets excluded and retain the existing precedence: shared and client passthrough names, operator `env_passthrough` additions, then explicit `env` values. Tests use synthetic values; live acceptance uses the same filtered environment as the runner, including a personal case with no ADC selector or API key supplied by PAL.
 
 Google's published FAQ says embedding consumer-plan agy inside third-party agents/applications is unsupported. The user explicitly retained existing-login operation as a requirement after this finding. Document that upstream restriction accurately; do not claim official endorsement, silently substitute API-key-only access, or add an invented technical key requirement. No authentication or quota bypass is part of the feature. [Official FAQ](https://antigravity.google/docs/faq#can-i-use-antigravity-cli-headless-mode-in-third-party-coding-agents-or-automate-account-switching)
 
@@ -203,6 +203,6 @@ Follow [implementation.md](./implementation.md) and the ordered [tasks](./tasks.
 
 Ship the preset only after the capability and acceptance evidence is complete, documentation describes authentication and upstream support limitations, and the independent design/code/spec checks are satisfied. Rollback consists of removing the agy registration/preset and adapter; the default encoder and existing client behavior remain usable. No data migration is needed.
 
-Task 1 records the observed invocation contract and remaining authentication evidence. The former permission blocker is removed by the approved revision; the stronger guarantee is deferred to [upstream #1233](https://github.com/google-antigravity/antigravity-cli/issues/1233). Existing Claude system-prompt exposure remains a separate follow-up in [verification.md](./verification.md#open-decisions-and-follow-up-work). Preserve the shared runner's existing cleanup regression coverage.
+Task 1 records the observed enterprise invocation contract and the unavailable authentication cases assigned to Task 6 by user approval. Completion of Task 1 permits adapter development, not release acceptance. The former permission blocker is removed by the approved revision; the stronger guarantee is deferred to [upstream #1233](https://github.com/google-antigravity/antigravity-cli/issues/1233). Existing Claude system-prompt exposure remains a separate follow-up in [verification.md](./verification.md#open-decisions-and-follow-up-work). Preserve the shared runner's existing cleanup regression coverage.
 
-The existing documents report an earlier design review, but its linked `review-design.md` is absent from this checkout; see [capability-evidence.md](./capability-evidence.md#repository-validation). This contract revision has user approval and still needs a fresh design review; no historical review is claimed to cover it. Task 1 verification is in progress and Tasks 2–6 remain pending.
+The existing documents report an earlier design review, but its linked `review-design.md` is absent from this checkout; see [capability-evidence.md](./capability-evidence.md#repository-validation). This contract revision has user approval and still needs a fresh design review before Task 2; no historical review is claimed to cover it. Task 1 is done and Tasks 2–6 remain pending.
