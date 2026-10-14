@@ -1,0 +1,5 @@
+{"event":"init","init":{"cwd":"<scratch-cwd>","permission_mode":"request-review"}}
+{"event":"step_update","step_update":{"state":"DONE","step_type":"user_input"}}
+{"event":"step_update","step_update":{"state":"ACTIVE","step_type":"agent_response"}}
+{"event":"step_update","step_update":{"state":"DONE","step_type":"agent_response"}}
+{"event":"result","result":{"status":"SUCCESS","response":"PAL_AGY_TRANSPORT_OK\n","duration_seconds":3.06208,"num_turns":1}}
