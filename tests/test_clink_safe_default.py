@@ -5,14 +5,18 @@ from __future__ import annotations
 import asyncio
 import json
 from pathlib import Path
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
 from clink.agents.base import BaseCLIAgent
 from clink.agents.claude import ClaudeAgent
 from clink.models import ResolvedCLIClient, ResolvedCLIRole
+from clink.registry import ClinkRegistry
 from tools.clink import CLinkRequest, CLinkTool
 from tools.shared.exceptions import ToolExecutionError
+from utils import conversation_memory as memory
+from utils.storage_backend import InMemoryStorage
 
 
 def _fake_parser(monkeypatch):
@@ -175,6 +179,64 @@ def test_non_claude_agent_rejects_editable_paths_without_invoking_agent(monkeypa
     # The agent factory itself must not have been called either — the guard
     # fires before create_agent in the new placement.
     assert agent_factory_calls == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("continuation", [False, True], ids=["new", "continuation"])
+@pytest.mark.parametrize("prompt_file", [False, True], ids=["inline", "prompt-file"])
+async def test_agy_path_scope_rejected_before_role_loading_or_execution(
+    monkeypatch, tmp_path, continuation, prompt_file
+):
+    monkeypatch.setattr("clink.registry.USER_CONFIG_DIR", tmp_path / "no-user-config")
+    monkeypatch.setattr("clink.registry.get_env", lambda name: None)
+    registry = ClinkRegistry()
+    monkeypatch.setattr("tools.clink.get_registry", lambda: registry)
+    monkeypatch.setenv("PAL_TRANSCRIPTS", "false")
+    monkeypatch.setattr(InMemoryStorage, "_cleanup_worker", lambda self: None)
+    storage = InMemoryStorage()
+    monkeypatch.setattr(memory, "get_storage", lambda: storage)
+    try:
+        arguments = {
+            "cli_name": "agy",
+            "prompt": "CURRENT_INPUT",
+            "allow_edits": True,
+            "editable_paths": [str(tmp_path / "target.txt")],
+        }
+        if continuation:
+            thread_id = memory.create_thread("clink", {})
+            memory.add_turn(thread_id, "user", "PREVIOUS_INPUT")
+            memory.add_turn(thread_id, "assistant", "PREVIOUS_REPLY")
+            arguments["continuation_id"] = thread_id
+        if prompt_file:
+            path = tmp_path / "prompt.txt"
+            path.write_text("CURRENT_FILE_INPUT", encoding="utf-8")
+            arguments["absolute_file_paths"] = [str(path)]
+        tool = CLinkTool()
+        # Expansion remains real and may read prompt.txt before agy scope validation.
+        expand = Mock(wraps=tool.handle_prompt_file)
+        monkeypatch.setattr(tool, "handle_prompt_file", expand)
+        role_path = registry.get_client("agy").get_role(None).prompt_path
+        original_read_text = Path.read_text
+
+        def read_text(path, *args, **kwargs):
+            assert path != role_path, "role prompt must not be read for unsupported path scope"
+            return original_read_text(path, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "read_text", read_text)
+        factory = Mock(side_effect=AssertionError("agent creation must not be reached"))
+        spawn = AsyncMock(side_effect=AssertionError("subprocess must not be started"))
+        monkeypatch.setattr("tools.clink.create_agent", factory)
+        monkeypatch.setattr(asyncio, "create_subprocess_exec", spawn)
+        snapshot = storage._store.copy()
+        with pytest.raises(ToolExecutionError, match="does not support editable_paths"):
+            await tool.execute(arguments)
+        assert storage._store == snapshot
+        factory.assert_not_called()
+        spawn.assert_not_awaited()
+        if prompt_file:
+            expand.assert_called_once_with([str(path)])
+    finally:
+        storage.shutdown()
 
 
 def test_schema_exposes_new_fields():

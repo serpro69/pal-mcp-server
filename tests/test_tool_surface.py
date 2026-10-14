@@ -80,7 +80,7 @@ def test_surface_preserves_names_parameters_types_defaults_and_safety(surface):
             field["description"] = (
                 "Opt in to native filesystem edits where supported. Defaults to false. "
                 "For agy, false inherits saved permissions and does not guarantee read-only execution; "
-                "true is not yet supported."
+                "true requests --mode accept-edits. Agy does not support editable_paths."
             )
         if name != "continuation_id":  # Only shared continuation prose is shortened.
             assert surface["tools"]["clink"]["safety_schema"]["properties"][name] == field

@@ -46,8 +46,6 @@ class AgyAgent(BaseCLIAgent):
         allow_edits: bool = False,
         editable_paths: Sequence[str] = (),
     ) -> list[str]:
-        if allow_edits:
-            raise CLIAgentError("agy does not yet support allow_edits=true through clink")
         if editable_paths:
             raise CLIAgentError("agy does not support editable_paths")
         if self.client.output_to_file is not None:
@@ -70,12 +68,15 @@ class AgyAgent(BaseCLIAgent):
                     "agy configuration contains a reserved protocol, prompt, continuation, or mode option"
                 )
 
-        return super()._build_command(
+        command = super()._build_command(
             role=role,
             system_prompt=system_prompt,
             allow_edits=allow_edits,
             editable_paths=editable_paths,
         )
+        if allow_edits:
+            command.extend(["--mode", "accept-edits"])
+        return command
 
     def _recover_from_error(
         self,
