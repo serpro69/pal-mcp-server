@@ -1,6 +1,6 @@
 # Antigravity CLI support in clink
 
-> Status: fresh design review approved 2026-10-14; Tasks 1–4 done; Tasks 5–6 pending
+> Status: fresh design review approved 2026-10-14; Tasks 1–5 done; Task 6 pending
 > Created: 2026-10-10
 > Source: [PAL issue #465](https://github.com/BeehiveInnovations/pal-mcp-server/issues/465)
 > Reference CLI: `agy` 1.3.5
@@ -221,4 +221,4 @@ Ship the preset only after the capability and acceptance evidence is complete, d
 
 Task 1 records the observed enterprise invocation contract and the unavailable authentication cases assigned to Task 6 by user approval. Completion of Task 1 permits adapter development, not release acceptance. The former permission blocker is removed by the approved revision; the stronger guarantee is deferred to [upstream #1233](https://github.com/google-antigravity/antigravity-cli/issues/1233). Existing Claude system-prompt exposure remains a separate follow-up in [verification.md](./verification.md#open-decisions-and-follow-up-work). Preserve the shared runner's existing cleanup regression coverage.
 
-The historical design report remains unavailable. A [fresh 2026-10-14 review](./review-design.md) approved the corrected plan before Task 2; it does not reconstruct that older report. Tasks 1–4 are done and Tasks 5–6 remain pending. The implemented slice supports the default role, selected metadata, bounded failure diagnostics, native edit-mode requests, and explicit rejection of path restrictions. See [Task 2 verification](./capability-evidence.md#task-2-verification-2026-10-14), [Task 3 verification](./capability-evidence.md#task-3-verification-2026-10-14), and [Task 4 verification](./capability-evidence.md#task-4-verification-2026-10-14).
+The historical design report remains unavailable. A [fresh 2026-10-14 review](./review-design.md) approved the corrected plan before Task 2; it does not reconstruct that older report. Tasks 1–5 are done and Task 6 remains pending. The implemented slice supports all three roles, selected metadata, bounded failure diagnostics, native edit-mode requests, explicit rejection of path restrictions, and PAL continuation. Task 5 verifies roles and history through direct/MCP tests, six live enterprise cases, and the agy simulator. See [Task 2 verification](./capability-evidence.md#task-2-verification-2026-10-14), [Task 3 verification](./capability-evidence.md#task-3-verification-2026-10-14), [Task 4 verification](./capability-evidence.md#task-4-verification-2026-10-14), and [Task 5 verification](./capability-evidence.md#task-5-verification-2026-10-14). The remaining authentication matrix and final release checks are not waived.

@@ -1,6 +1,6 @@
 # Implementation plan: Antigravity clink
 
-> Status: fresh design review approved; Tasks 1–4 done; Tasks 5–6 pending
+> Status: fresh design review approved; Tasks 1–5 done; Task 6 pending
 > Created: 2026-10-10
 > Design: [design.md](./design.md)
 > Tasks: [tasks.md](./tasks.md)
@@ -106,6 +106,8 @@ Task 4 also updates the shared `allow_edits` schema description and its existing
 
 Focused verification: `python -m pytest tests/test_clink_agy_continuation.py tests/test_clink_tool.py tests/test_clink_continuation.py tests/test_clink_concurrency.py tests/test_clink_history_budget.py -m "not integration"`; then `python communication_simulator_test.py --individual clink_agy_validation` in the configured live environment.
 
+The simulator and dedicated live role tests share an opt-in harness (`PAL_RUN_AGY_INTEGRATION=1`) using an owned `SimulatorSession`, isolated PAL state/manifests, and the normal filtered agy authentication environment. Its test-only bootstrap records cwd and delegates the real lifecycle. Each case reads a random literal available only in a disposable file; the harness replaces that literal before the follow-up, which must recall it and the preceding user label. No native continuation flags or prompt rewrites are added. Role/cwd cases can be run under either prepared personal or enterprise login; the account class is recorded externally without inspecting tokens. Task 5 ran the available enterprise cases; Task 6.3 retains the missing authentication environments.
+
 ## Task 6 — Final verification and documentation
 
 This task depends on Tasks 1–5. It is a verification step, not permission to conceal missing evidence or silently fix unrelated findings.
@@ -129,4 +131,4 @@ Track stronger invocation-level permission downgrades under [agy #1233](https://
 
 Preserve the deferred Claude system-prompt command exposure in [verification.md](./verification.md#open-decisions-and-follow-up-work). The previously recorded general cancellation/output-file cleanup gaps were fixed in the shared runner before this review; retain its tests, not a duplicate repair task. If scope expands, update the design and split a new task rather than turning an M-sized slice into an unbounded refactor.
 
-The [fresh 2026-10-14 design review](./review-design.md) approved the corrected plan before Task 2. The historical report remains unavailable and is not reconstructed by that new review. The [capability evidence](./capability-evidence.md) separates observed behavior from user-approved task/contract changes. Tasks 1–4 are done and Tasks 5–6 are pending. Task 2's default-role transport passed focused tests, a production file-reading request, and independent code review. Task 3's failure/metadata/diagnostic slice passed 248 focused tests and independent review. Task 4 passed 331 focused tests, both live cwd cases, and independent review; full repository checks retain documented baseline failures. Unavailable authentication coverage remains a Task 6 release requirement.
+The [fresh 2026-10-14 design review](./review-design.md) approved the corrected plan before Task 2. The historical report remains unavailable and is not reconstructed by that new review. The [capability evidence](./capability-evidence.md) separates observed behavior from user-approved task/contract changes. Tasks 1–5 are done and Task 6 is pending. Task 2's default-role transport passed focused tests, a production file-reading request, and independent code review. Task 3's failure/metadata/diagnostic slice passed 248 focused tests and independent review. Task 4 passed 331 focused tests, both live cwd cases, and independent review. Task 5 passed 563 focused tests, six enterprise role/cwd cases, the individual agy simulator, and independent review; full repository checks retain documented baseline failures. Unavailable authentication coverage remains a Task 6 release requirement.

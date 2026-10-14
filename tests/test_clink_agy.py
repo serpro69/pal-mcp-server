@@ -104,7 +104,7 @@ def test_discovery_and_schema_preserve_selection_contract(registry):
     assert client.config_args == client.safe_args == client.edit_args == []
     assert client.env == {}
     assert client.working_dir is None
-    assert registry.list_roles("agy") == ["default"]
+    assert registry.list_roles("agy") == ["codereviewer", "default", "planner"]
     assert client.get_role(None).prompt_path == Path("systemprompts/clink/default.txt").resolve()
     tool = CLinkTool()
     assert tool._default_cli_name == "gemini"
