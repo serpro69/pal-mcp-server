@@ -4,14 +4,14 @@
 > Implementation: [implementation.md](./implementation.md)
 > Verification: [verification.md](./verification.md)
 > Review: [review-design.md](./review-design.md)
-> Status: in-progress; Tasks 1–4 done; Tasks 5–6 pending
+> Status: in-progress; Tasks 1–5 done; Task 6 pending
 > Created: 2026-10-10
 > Reference CLI: agy 1.3.5
 > Upstream improvement: [agy #1233](https://github.com/google-antigravity/antigravity-cli/issues/1233), not a release dependency
 > Authentication: existing login/subscription; no required API key
 > Not Doing: PAL-managed authentication, mandatory API keys, v1.0.16 compatibility, native session reuse, prompt templates/argv transport, per-path editing, new OS sandbox, persistent user-settings changes, enforced read-only agy execution, unrelated client fixes
 
-The user approved the initial walkthrough and, on 2026-10-14, revised the contract to inherit agy permissions: false omits PAL's edit-mode flag; true requests `--mode accept-edits`; false is not a read-only guarantee. Task 4 implements this mapping, replacing Task 2's temporary rejection of true. The stronger downgrade guarantee is deferred to upstream #1233. The user also approved finishing Task 1 on verified enterprise evidence and moving personal-login, successful ADC routing, and missing/expired cached-session checks to Task 6 as explicit release requirements. No unrun case is marked passed. Tasks 1–4 are done; Tasks 5–6 remain pending. See [capability-evidence.md](./capability-evidence.md). A [fresh design review](./review-design.md) approved the corrected plan before Task 2; the older historical report remains unavailable.
+The user approved the initial walkthrough and, on 2026-10-14, revised the contract to inherit agy permissions: false omits PAL's edit-mode flag; true requests `--mode accept-edits`; false is not a read-only guarantee. Task 4 implements this mapping, replacing Task 2's temporary rejection of true. The stronger downgrade guarantee is deferred to upstream #1233. The user also approved finishing Task 1 on verified enterprise evidence and moving personal-login, successful ADC routing, and missing/expired cached-session checks to Task 6 as explicit release requirements. No unrun case is marked passed. Tasks 1–5 are done; Task 6 remains pending. See [capability-evidence.md](./capability-evidence.md). A [fresh design review](./review-design.md) approved the corrected plan before Task 2; the older historical report remains unavailable.
 
 Size reflects substantive behavior; mechanical registry entries, manifest fields, and fixture data are excluded. Each implementation slice includes its own meaningful verification. Task 4 and Task 5 may run in parallel after Task 3 because they own separate behavioral/test surfaces.
 
@@ -91,7 +91,8 @@ Size reflects substantive behavior; mechanical registry entries, manifest fields
 
 ## Task 5: Support roles and PAL continuation
 
-- **Status:** pending
+- **Status:** done
+- **Verification:** [Task 5 results](./capability-evidence.md#task-5-verification-2026-10-14): 563 focused tests passed, six enterprise role/cwd cases passed, and `clink_agy_validation` passed. Independent review approved with no findings. Full unit suite: 2,940 passed and two known dependency-security failures; unavailable authentication coverage remains Task 6.3.
 - **Depends on:** Task 3
 - **Size:** M
 - **Can run in parallel with:** Task 4
@@ -99,12 +100,12 @@ Size reflects substantive behavior; mechanical registry entries, manifest fields
 
 ### Subtasks
 
-- [ ] 5.1 Add planner/codereviewer bindings to `conf/cli_clients/agy.json` using existing prompt files — verify: a fresh schema lists all three roles and encoded requests contain the corresponding role instructions.
-- [ ] 5.2 Add `tests/test_clink_agy_continuation.py` exercising `CLIConversation` through MCP dispatch and public direct execution, following the existing clink continuation/concurrency/history-budget tests — verify: two successful requests persist four raw turns once, failures persist no exchange, and the second stdin contains retained history/current input once using a new process without native continuation. Preserve existing client-selection rules. Fake only the external process boundary.
-- [ ] 5.3 Add `simulator_tests/test_clink_agy_validation.py` and register `clink_agy_validation` — verify: it is listed by the simulator and validates a role-based request plus a history-dependent follow-up.
-- [ ] 5.4 Add personal/enterprise live role cases with the integration marker and `PAL_RUN_AGY_INTEGRATION=1` opt-in through the filtered environment and both cwd modes — verify: no mandatory API-key guard is used; codereviewer reports a marker read only from a referenced file, configured CLI failures fail, and unavailable account coverage is explicitly recorded.
-- [ ] 5.5 Update `docs/tools/clink.md` and README examples/setup — verify: schema and docs agree on inherited permissions, possible false-request writes, true's native edit-mode flag, operator-managed external access, and unsupported path scope. Link upstream #1233 and future strengthening criteria; retain authentication/upstream-support caveats and content-dependent file-access evidence.
-- [ ] 5.6 Run the focused unit command and individual simulator from the implementation plan — verify: all-role discovery, PAL history, and response-limit behavior remain compatible.
+- [x] 5.1 Add planner/codereviewer bindings to `conf/cli_clients/agy.json` using existing prompt files — verify: a fresh schema lists all three roles and encoded requests contain the corresponding role instructions.
+- [x] 5.2 Add `tests/test_clink_agy_continuation.py` exercising `CLIConversation` through MCP dispatch and public direct execution, following the existing clink continuation/concurrency/history-budget tests — verify: two successful requests persist four raw turns once, failures persist no exchange, and the second stdin contains retained history/current input once using a new process without native continuation. Preserve existing client-selection rules. Fake only the external process boundary.
+- [x] 5.3 Add `simulator_tests/test_clink_agy_validation.py` and register `clink_agy_validation` — verify: it is listed by the simulator and validates a role-based request plus a history-dependent follow-up.
+- [x] 5.4 Add personal/enterprise live role cases with the integration marker and `PAL_RUN_AGY_INTEGRATION=1` opt-in through the filtered environment and both cwd modes — verify: no mandatory API-key guard is used; codereviewer reports a marker read only from a referenced file, configured CLI failures fail, and unavailable account coverage is explicitly recorded. **Evidence boundary:** the cases are reusable in either prepared login environment; only the available enterprise environment ran. Personal/ADC/missing-or-expired cached-session acceptance remains Task 6.3.
+- [x] 5.5 Update `docs/tools/clink.md` and README examples/setup — verify: schema and docs agree on inherited permissions, possible false-request writes, true's native edit-mode flag, operator-managed external access, and unsupported path scope. Link upstream #1233 and future strengthening criteria; retain authentication/upstream-support caveats and content-dependent file-access evidence.
+- [x] 5.6 Run the focused unit command and individual simulator from the implementation plan — verify: all-role discovery, PAL history, and response-limit behavior remain compatible.
 
 ## Task 6: Final verification and documentation
 

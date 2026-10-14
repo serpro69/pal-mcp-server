@@ -1,6 +1,6 @@
 # Clink Tool - CLI-to-CLI Bridge
 
-`clink` sends a request to an installed Codex, Claude Code, or Gemini CLI and returns its answer to your MCP client. You can hold an ongoing conversation without configuring a PAL model provider. PAL forwards bounded conversation history to a fresh CLI process on each call; the selected CLI handles authentication and inference.
+`clink` sends a request to an installed Codex, Claude Code, Gemini, or Antigravity (`agy`) CLI and returns its answer to your MCP client. You can hold an ongoing conversation without configuring a PAL model provider. PAL forwards bounded conversation history to a fresh CLI process on each call; the selected CLI handles authentication and inference.
 
 Use this path for local, single-user workflows. PAL does not install CLIs, sign you in, enforce subscription billing, or fall back to an API provider when a CLI request fails.
 
@@ -15,17 +15,54 @@ Provider-free mode exposes the enabled subset of `clink`, `version`, `listmodels
 
 ### Authentication and version assumptions
 
-Primary vendor guidance was checked on **2026-10-13**. It describes current vendor behavior, not a tested minimum CLI version or a guarantee that every installed release accepts PAL's shipped arguments.
+Primary vendor guidance was checked on **2026-10-13**, with agy guidance checked on **2026-10-14**. It describes current vendor behavior, not a tested minimum CLI version or a guarantee that every installed release accepts PAL's shipped arguments.
 
 | CLI | Local authentication before using clink | Noninteractive use |
 | --- | --- | --- |
 | Codex | Run `codex login` and follow the browser flow for ChatGPT sign-in; inspect the selected method with `codex login status`. API-key authentication is also supported. | `codex exec` reuses saved CLI authentication by default. See [authentication](https://learn.chatgpt.com/docs/auth) and [noninteractive mode](https://learn.chatgpt.com/docs/non-interactive-mode). |
 | Claude Code | Run `claude` and complete sign-in for the intended account. | PAL uses `--print`. Review [authentication precedence](https://code.claude.com/docs/en/authentication#authentication-precedence): in print mode, an inherited `ANTHROPIC_API_KEY` takes precedence over subscription login, subject to higher-priority routing/credentials. See [programmatic use](https://code.claude.com/docs/en/headless). |
 | Gemini | Run `gemini` and choose the intended authentication method, such as Google sign-in. Some account types require a Cloud project. | Headless mode can reuse cached authentication; without it, configure an API-key or Vertex AI method. See [authentication](https://geminicli.com/docs/get-started/authentication/#running-in-headless-mode). |
+| Antigravity (`agy`) | Install the native CLI, check `agy --version`, and authenticate interactively with `agy` outside PAL. Existing enterprise authentication stays configured in agy. | Reference version: **1.3.5**. Uses the existing login without a mandatory PAL API key; see [setup and limits below](#antigravity-agy) and [official installation/authentication](https://antigravity.google/docs/cli/install). |
 
 PAL inherits only shared runtime variables and the selected CLI's authentication allowlist, then applies operator overrides. The CLI can also read its own saved configuration and credentials. Review the [child environment](#child-environment-and-working-directory) and the vendor's active authentication method before relying on account-specific usage. A successful answer establishes execution, **not** which subscription or billing account paid for it. PAL provider-free mode does not mean the child CLI is offline or free.
 
 When validating an installation, record the chosen CLI's `--version`, intended authentication method, and first-request/follow-up outcomes. PAL discovery runs no version, login, or inference probes. No live version compatibility claim follows from this documentation check.
+
+### Antigravity (agy)
+
+The agy adapter uses the native **1.3.5** CLI, not an older IDE launcher named `agy`. Restart PAL after configuring the executable or its manifest. It supports the shared `default`, `planner`, and `codereviewer` roles and PAL continuation IDs. Existing-login operation is intentional; PAL does not initiate sign-in, copy tokens, change providers, or require `GEMINI_API_KEY` for agy.
+
+For an existing enterprise setup, the child environment preserves operator-supplied `AGY_ADC_AUTH`, `GOOGLE_APPLICATION_CREDENTIALS`, `GOOGLE_CLOUD_QUOTA_PROJECT`, and `GOOGLE_CLOUD_LOCATION`. PAL sets none of these on your behalf. Operator `env_passthrough` additions and explicit `env` overrides retain the normal precedence. Forwarding a variable does not by itself prove successful authentication or routing; configure those outside PAL using the [enterprise instructions](https://www.antigravity.google/docs/enterprise).
+
+Google documents that wrapping consumer-plan agy in third-party agents or applications is unsupported. Existing-login functionality does not imply upstream endorsement or subscription eligibility. See the [headless-mode FAQ](https://antigravity.google/docs/faq#can-i-use-antigravity-cli-headless-mode-in-third-party-coding-agents-or-automate-account-switching). Recorded live evidence covers the available enterprise account on macOS with 1.3.5. Personal login, successful ADC routing, and missing/expired cached-session cases remain unverified release requirements; other platforms and versions have not been validated. See the [acceptance evidence](../feat/wip/antigravity-clink/capability-evidence.md).
+
+By default every agy request runs in a fresh scratch directory; absolute project references are outside that directory. A complete agy manifest may instead set `working_dir` to your project. Both modes retain native permission checks. In the recorded 1.3.5 environment, scratch-mode reads required the operator to enable **Non-Workspace Access** (`allowNonWorkspaceAccess`). PAL does not enable it. It affects outside-workspace reads and writes and is not a read-only control. Use the [native permission settings](https://antigravity.google/docs/permissions?tab=cli) appropriate to your project. A completed answer alone does not prove a file was read: verify file-specific content and inspect permission notices.
+
+For agy, **false inherits saved permissions**: PAL adds no edit-enabling mode flag, and saved settings may still permit file or command writes. True requests exactly `--mode accept-edits`; other tool permissions remain agy's responsibility. Neither value supplies per-path enforcement; nonempty `editable_paths` is rejected before role loading or execution. A follow-up with false or omitted `allow_edits` does not downgrade saved permissions. Stronger permission downgrades are deferred under [agy #1233](https://github.com/google-antigravity/antigravity-cli/issues/1233). Before claiming stronger enforcement, a released mechanism must pass saved-policy precedence, direct/command/MCP-write, both-cwd, argument-conflict, and concurrency checks; acceptance of a new mode flag alone is insufficient.
+
+Example tool arguments for a review (replace the absolute path):
+
+```json
+{
+  "cli_name": "agy",
+  "role": "codereviewer",
+  "prompt": "Review this file for correctness. Cite specific symbols and findings.",
+  "absolute_file_paths": ["/absolute/path/to/project/module.py"]
+}
+```
+
+Use the returned PAL `continuation_offer.continuation_id` for follow-ups; each still launches a new agy process. Native `agy_conversation_id` metadata is diagnostic only. Prompts travel in one JSON stdin event followed by EOF. Configuration cannot override the protocol, pass prompt arguments, select native continuation, supply mode/bypass flags, or capture results to an output file. Model and CLI timeout options remain configurable.
+
+Agy stderr notices and error content are limited to 2,048 characters, with truncation indicators. Raw event arrays and stdout are not returned in agy error metadata. Nonzero exits, unsuccessful results, malformed/incomplete output, and empty answers fail without saving an exchange or replaying the invocation. For missing/expired login or locked-keyring diagnostics, sign in or restore native credential access outside PAL using the [CLI troubleshooting guide](https://antigravity.google/docs/cli/troubleshooting); retrying is a new request and can repeat effects completed before a failure.
+
+From a development checkout, run the opt-in checks in each prepared personal/enterprise environment and record the account class externally:
+
+```bash
+PAL_RUN_AGY_INTEGRATION=1 python -m pytest tests/test_clink_agy_continuation.py -m integration -v
+PAL_RUN_AGY_INTEGRATION=1 python communication_simulator_test.py --individual clink_agy_validation
+```
+
+The tests use disposable fixtures, the actual filtered environment, and isolated PAL manifests/state while retaining native login access. They verify roles in both cwd modes, then replace the source value before a history-dependent follow-up. No opt-in means a reported skip; an opted-in missing executable/session, incompatible version, or failed required operation fails the run. The simulator uses `codereviewer` with default scratch cwd and is excluded from `--quick` and `--ci`. Tests do not manufacture expired sessions or inspect tokens; missing account coverage stays unverified.
 
 ### Optional live conversation check
 
@@ -44,7 +81,7 @@ With no selector, pytest skips and the simulator reports `SKIPPED` before setup 
 
 ## First Request and Follow-up
 
-Ask your MCP client to call the **clink tool** with these arguments. These JSON objects are tool arguments, not shell commands. Replace `codex` with `claude` or `gemini` if that is your installed CLI.
+Ask your MCP client to call the **clink tool** with these arguments. These JSON objects are tool arguments, not shell commands. Replace `codex` with `claude`, `gemini`, or `agy` if that is your installed CLI.
 
 ```json
 {
@@ -72,13 +109,13 @@ The follow-up inherits the last successfully recorded CLI and role. Explicit `cl
 | Parameter | Behavior |
 | --- | --- |
 | `prompt` | Required current question or task. |
-| `cli_name` | Configured client name, such as `codex`, `claude`, or `gemini`; selection rules are above. CLI names are not PAL API model names. |
+| `cli_name` | Configured client name: `codex`, `claude`, `gemini`, or `agy`; selection rules are above. CLI names are not PAL API model names. |
 | `role` | Shipped roles: `default`, `planner`, `codereviewer`. Defaults to `default` on a new conversation, or the saved role on a continuation. |
 | `absolute_file_paths` | Optional absolute file paths. PAL forwards references; the CLI opens files using its own capabilities and permissions. |
 | `images` | Accepted image-path references. This does not guarantee image transport or multimodal support in the selected runner. |
 | `continuation_id` | Existing PAL conversation UUID. Expired or invalid IDs fail before CLI execution. |
-| `allow_edits` | Defaults to `false` on **every request**, including follow-ups. Set to `true` to apply the configured edit arguments. |
-| `editable_paths` | Optional absolute-path scope requiring `allow_edits=true`. Supported only by Claude through `--allowedTools Edit(path)/Write(path)`; Codex and Gemini reject it. |
+| `allow_edits` | Defaults to `false` on **every request**, including follow-ups. True applies edit arguments; for agy it requests `--mode accept-edits`. Agy false inherits saved permissions and cannot guarantee read-only execution. |
+| `editable_paths` | Optional absolute-path scope requiring `allow_edits=true`. Supported only by Claude through `--allowedTools Edit(path)/Write(path)`; Codex, Gemini, and agy reject it. |
 
 ### Edit permissions
 
@@ -96,7 +133,7 @@ For a scoped Claude edit, replace the example path with an existing absolute pat
 }
 ```
 
-If a later request also needs edits, supply `allow_edits` and any `editable_paths` again. PAL never inherits edit permission from the original call. Omitting them returns to the safe argument bucket; authorizing edits without a path list does not retain an earlier scope.
+If a later request also needs edits, supply `allow_edits` and any supported `editable_paths` again. PAL never inherits the edit opt-in from the original call. Omitting it selects the default argument behavior; for agy this leaves saved permissions in effect, without downgrading them. Authorizing edits without a path list does not retain an earlier scope.
 
 ## Conversation Limits
 
@@ -139,6 +176,7 @@ These are the current base commands for the shipped presets. PAL sends the promp
 | Gemini | `gemini -o json` | Append `--yolo`. No telemetry flag is shipped. |
 | Claude | `claude --print --output-format json --model sonnet --permission-mode default` | Replace the safe permission bucket with `--permission-mode acceptEdits`. |
 | Codex | `codex exec --json --enable web_search_request --skip-git-repo-check` | Add `--dangerously-bypass-approvals-and-sandbox` before the scratch-directory flag. |
+| Antigravity | `agy --input-format stream-json --output-format stream-json` | Append exactly `--mode accept-edits`. False inherits native policy; no read-only guarantee. |
 
 Codex receives `--skip-git-repo-check` only for PAL-created scratch directories. Configured working directories retain the CLI's repository policy. The shipped `--enable web_search_request` flag is version-sensitive: the current [Codex CLI reference](https://learn.chatgpt.com/docs/cli/reference) does not list that feature name. Check support in your installed release before relying on this preset; the table records PAL's configuration, not universal vendor compatibility. For the other command formats, see [Claude programmatic use](https://code.claude.com/docs/en/headless) and [Gemini headless output](https://geminicli.com/docs/cli/headless/).
 

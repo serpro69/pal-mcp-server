@@ -1,7 +1,7 @@
 # Antigravity clink capability evidence
 
 > Date: 2026-10-14
-> Outcome: Tasks 1–4 done; Tasks 5–6 and release acceptance pending
+> Outcome: Tasks 1–5 done; Task 6 and release acceptance pending
 > Checkout tested: `3286d5f160014e162b183ab38ea826fd9a6ceab3`
 > Authentication follow-up checkout: `d7e52b568d36c8d3806b0a8cd0eada39f94b0406`
 > Reference: native agy 1.3.5, approved by the user on this date
@@ -43,10 +43,10 @@ by newly passing enforcement tests. Personal login, successful ADC routing,
 and missing/expired cached-login coverage remain unverified; a synthetic missing-ADC
 case now verifies an explicit failure, as recorded below. The user approved moving
 those unavailable authentication cases to Task 6 as release requirements and
-finishing Task 1 on verified enterprise evidence. Tasks 1–4 are done;
-Tasks 5–6 remain pending. The production adapter now
-implements default-role transport, bounded diagnostics, native edit-mode selection,
-and request-local argument isolation.
+finishing Task 1 on verified enterprise evidence. Tasks 1–5 are done;
+Task 6 remains pending. The production adapter now
+implements all three roles, PAL continuation, bounded diagnostics, native edit-mode
+selection, and request-local argument isolation.
 Enforced native downgrades are a deferred enhancement under upstream #1233, not an
 acceptance prerequisite. Revisit only after a documented release and tests of
 saved-policy precedence, direct and command/MCP writes, both cwd modes, and
@@ -279,8 +279,8 @@ failure class as a passing missing-authentication case.
 | Acceptance | Evidence / gap |
 | --- | --- |
 | A1 | T1/T2 and A1b: existing enterprise login without a forwarded API key. A1a: synthetic missing-ADC error. Personal, successful ADC routing, and missing/expired cached-login cases unverified. |
-| A2 | T1/T2 transport, R1 configured read, R2b external read, and Task 2's production default-role file read below. Additional roles remain Task 5. |
-| A3 | Task 4 verifies a true-then-false PAL follow-up drops PAL's edit flag; complete history/role/MCP continuation acceptance remains Task 5. |
+| A2 | Task 5 verifies all three shared roles in direct/MCP unit tests and six live enterprise role/cwd cases, with content-dependent reads. Personal-login acceptance remains Task 6.3. |
+| A3 | Task 5 verifies atomic raw exchanges, retained history/current input once, bounds/display projection, and new CLI processes through direct/MCP tests. Six live cases and `clink_agy_validation` recall earlier input and a file-only value after the file changes. |
 | A4 (revised) | Task 4 verifies exactly one native edit flag for true and none for false, reserved overrides rejected, sequential/concurrent argument isolation, and live production-agent reads/edits in both cwd modes with unchanged user settings. Default writes were denied under the observed policy; stronger enforcement remains deferred to #1233. |
 | A5 | Task 4 public-call tests reject `editable_paths` before role-prompt loading, agent creation, or process launch, including actual `prompt.txt` inputs and existing continuations; storage remains unchanged. |
 | A6 | Task 3's controlled subprocess tests verify prompt absence from argv, command metadata, and PAL command logs on success, failure, and timeout. This does not cover native child logs or echoed model text. |
@@ -601,3 +601,81 @@ The full personal/enterprise authentication matrix, role-based acceptance, and
 final release checks remain Tasks 5–6. This task adds no dependency or credential
 change and does not claim release readiness. No new project conventions required
 indexing. Task 4 is done; Tasks 5–6 remain pending.
+
+## Task 5 verification, 2026-10-14
+
+The agy preset now binds `default`, `planner`, and `codereviewer` to the existing
+shared prompt files. Runtime conversation preparation, history rendering,
+success-only persistence, and process ownership were reused without changes.
+Direct and MCP tests fake only the external process boundary while using real
+storage/conversation flow. They cover role instructions, exactly-once raw turn
+storage, failures without history mutation, successful selection inheritance,
+explicit/sole-client selection, whole-exchange history bounds, and visible-reply
+projection after output reduction.
+
+The new `clink_agy_validation` scenario is registered and listed. It and the
+dedicated live tests use the actual MCP server and production agent in isolated
+PAL sessions. Each first call reads a random string present only in a disposable
+Python fixture. Before the follow-up, the harness overwrites that string; the
+follow-up must recall the original string and a label supplied in the preceding
+user input. Each case records two fresh CLI invocations, the inherited role,
+saved history, and absence of native continuation/edit flags.
+
+Live acceptance used native `/Users/sergio/.local/bin/agy` 1.3.5 on the same macOS
+enterprise-login environment identified by the user. No account tokens were
+inspected. The native filtered environment retained home/login access and
+excluded provider API keys. None of the four agy ADC/routing selectors was set in
+these runs. Synthetic tests separately verify their preservation by the harness;
+that is not live ADC-routing evidence. Non-Workspace Access remained enabled by
+the operator. The documented user settings file retained SHA-256
+`86af8921ec53abfe4ca868b0f932ab991e3077351c669b1d3f56e062f3924a0d` before/after
+every two-call case. This checks that file only, not credential files or every
+possible settings source.
+
+Command: `PAL_RUN_AGY_INTEGRATION=1 python -m pytest tests/test_clink_agy_continuation.py -m integration -v -s`.
+All six cases passed in 366.77 seconds (31 unit cases deselected). The table uses
+roots under `/private/tmp/`; every reference file is `<root>/project/fixture.py`.
+All roots were disposable and removed after session shutdown.
+
+| Role | Cwd mode | Root basename | First / follow-up cwd relative to root | Result |
+| --- | --- | --- | --- | --- |
+| default | scratch | `pal_agy_validation_64rjh269` | `pal-clink-j9_qn5ws` / `pal-clink-1a2rxdj2` | Read/history/settings passed |
+| planner | scratch | `pal_agy_validation_8bpxux9o` | `pal-clink-782l6_eh` / `pal-clink-ro2rjemo` | Read/history/settings passed |
+| codereviewer | scratch | `pal_agy_validation_emo6ghfn` | `pal-clink-7jxdqyn2` / `pal-clink-ymir1pih` | Read/history/settings passed |
+| default | project | `pal_agy_validation_l9cn1hq6` | `project` / `project` | Read/history/settings passed |
+| planner | project | `pal_agy_validation_dqhr4d49` | `project` / `project` | Read/history/settings passed |
+| codereviewer | project | `pal_agy_validation_dp1599go` | `project` / `project` | Read/history/settings passed |
+
+`PAL_RUN_AGY_INTEGRATION=1 python communication_simulator_test.py --individual clink_agy_validation`
+also passed (1 passed, 0 failed/skipped). Its root was
+`/private/var/folders/vv/lnz9c5h95pnbjzsz93qmr0n80000gn/T/pal_agy_validation_pmt9yopy`;
+the codereviewer read `<root>/project/fixture.py` from `<root>/pal-clink-5tjwcsvo`
+and continued from `<root>/pal-clink-uge3s7x2`. Original file content and the prior
+label were recalled with unchanged settings. The live sessions used freshly
+started server processes, not a restart claim about the user's active MCP host.
+
+| Verification | Result |
+| --- | --- |
+| Task 5 focused unit command plus agy transport and tool-surface regressions | 563 passed, 6 live cases deselected. |
+| Full unit suite, `python -m pytest tests/ -q -m 'not integration'` | 2,940 passed, 2 known TLS dependency-security failures, 16 skipped, 23 deselected. |
+| `./code_quality_checks.sh`, before/after | Ruff/Black/isort passed. Before: 1,271 passed before the existing TLS hostname failure (17 deselected); after: 1,302 passed before the same failure (23 deselected). |
+| `./run_integration_tests.sh` | 2 passed, 2 existing consensus replay failures, 19 skipped, 2,958 deselected. Skips: ten missing `CUSTOM_API_URL`, one existing live-clink selector absent, eight agy cases without the explicit opt-in. Dedicated agy role acceptance above ran all six Task 5 cases. |
+| Quick simulator | 4 passed, 2 known failures (`basic_conversation`, `per_tool_deduplication`), zero skips; invalid Gemini API key remains. The new agy scenario is deliberately outside quick mode. |
+
+README and the clink guide now document agy setup, role/continuation examples,
+all four auth passthrough names, both cwd modes, operator-managed external access,
+inherited permissions, native true mode, unsupported path scope, bounded failure
+diagnostics, the consumer-wrapper restriction, and upstream #1233 strengthening
+criteria. No dependency pins, native saved settings, or credentials were changed.
+The harness uses the existing MCP SDK/session APIs; the environment has MCP 1.27.0
+versus locked 1.30.0 and AnyIO 4.13.0 versus locked 4.14.2. Full acceptance should
+use the locked environment as already required by Task 6.
+
+`kk:review-code:isolated` approved through the independent code-reviewer with no
+P0–P3 findings. That reviewer did not independently run tests or live CLI cases.
+External PAL review (`gemini-3.8-flash`) failed with `API_KEY_INVALID` and supplies
+no corroboration. No systemic findings or new project conventions required
+indexing. Task 5 is done; Task 6 remains pending, including personal login,
+successful ADC routing, missing/expired cached sessions, and final release checks.
+Other native versions and platforms remain unvalidated, without being new release
+requirements for this reference environment.
