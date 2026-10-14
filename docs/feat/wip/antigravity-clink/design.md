@@ -1,6 +1,6 @@
 # Antigravity CLI support in clink
 
-> Status: revised contract approved 2026-10-14; Task 1 done; implementation pending
+> Status: fresh design review approved 2026-10-14; Tasks 1–2 done; Tasks 3–6 pending
 > Created: 2026-10-10
 > Source: [PAL issue #465](https://github.com/BeehiveInnovations/pal-mcp-server/issues/465)
 > Reference CLI: `agy` 1.3.5
@@ -27,7 +27,7 @@ The target users are individuals with an existing Google CLI login and organizat
 | --- | --- | --- |
 | A1 | Existing login works without a mandatory API key, PAL credential parameter, or provider switch | Live 1.3.5 personal and enterprise runs through PAL's filtered child environment; personal run has no API-key dependency |
 | A2 | Default, planner, and codereviewer requests return a completed answer | Role-specific transport tests and live acceptance, including content-dependent project-file reads in both working-directory modes |
-| A3 | A follow-up using PAL's continuation ID includes preceding conversation context | MCP and decorated direct-call tests plus clink simulator; a new CLI process serves each request |
+| A3 | A follow-up using PAL's continuation ID includes preceding conversation context | MCP and public direct-call tests plus clink simulator; a new CLI process serves each request |
 | A4 | Agy permissions remain owned by its configuration; false adds no edit-enabling mode flag, true requests `--mode accept-edits`; PAL does not change saved settings | Captured argv for both values, native opt-in evidence, settings-preservation and per-request argument-isolation checks; schema and docs explicitly disclaim a read-only guarantee |
 | A5 | Unsupported path restrictions fail before execution | No subprocess starts when agy receives `editable_paths` |
 | A6 | Forwarded prompts are absent from command argv, command metadata, and PAL command logs | Subprocess capture and log assertions using distinctive prompt markers |
@@ -57,13 +57,13 @@ Google's published FAQ says embedding consumer-plan agy inside third-party agent
 
 ## Existing system and proposed boundaries
 
-The following existing mechanisms were rechecked at checkout `2d821f14cb35869added0838827177dc957f6da6` during review. The earlier research record describes `c20d384a`; the agy components and encoding hook below remain proposed additions, not implemented mechanisms.
+The existing mechanisms below were rechecked at checkout `c1c2521` during the fresh 2026-10-14 design review. Earlier research describes older checkouts and a superseded conversation path. The agy components and encoding hook below are the planned additions.
 
 | Component | Responsibility |
 | --- | --- |
-| `server.py` | Existing MCP dispatch into the decorated tool execution path |
-| `utils/conversation_context.py`, `utils/conversation_memory.py` | Existing shared request admission, turn persistence, history rendering, and storage for both MCP and direct calls |
-| `tools/clink.py` | Existing client-specific validation, role/prompt preparation using `invocation_history`, continuation integration, and response limits |
+| `server.py` | Existing MCP dispatch into the public clink execution path |
+| `clink/conversation.py`, `utils/conversation_memory.py` | Existing request preparation, bounded history rendering, and atomic success-only exchange persistence for MCP and direct calls |
+| `tools/clink.py` | Existing non-waiting coordination, client-specific validation, role/prompt preparation using `CLIConversation.user_content`, continuation integration, and response limits |
 | `clink/registry.py` and `clink/constants.py` | Existing manifest loading, roles, and internal client defaults |
 | `clink/agents/base.py` | Existing filtered environment, working-directory lifecycle, process construction, cleanup, timeout, output collection, and parser dispatch; gains one input-encoding hook |
 | `clink/agents/agy.py` | New `AgyAgent`: protocol input encoding and the verified agy-specific execution constraints |
@@ -72,9 +72,9 @@ The following existing mechanisms were rechecked at checkout `2d821f14cb35869add
 
 ```mermaid
 flowchart LR
-    M[MCP dispatch] --> P[Shared conversation_request admission]
+    M[MCP dispatch] --> P[CLinkTool coordinated admission]
     D[Direct execute call] --> P
-    P --> T[CLinkTool validation and invocation_history prompt preparation]
+    P --> T[CLIConversation history and role prompt preparation]
     T --> R[Shared runner]
     A[AgyAgent input encoder] --> R
     R -->|one message on stdin, then EOF| C[agy process with existing login]
@@ -84,21 +84,33 @@ flowchart LR
 
 Each request has its own CLI process. There is no process pool, native session reuse, or new persistent store. `agy_conversation_id` is diagnostic metadata; it is not PAL's `continuation_id` and is never used to resume an agy process.
 
-The `conversation_request` wrapper admits and persists input before the body of `CLinkTool.execute()` runs. On continuation, `_prepare_prompt_for_role()` renders the shared invocation's history. Do not add server-side prompt rewriting or bypass the decorator in continuation tests.
+`CLinkTool.execute()` owns coordination for both MCP and direct calls. `prepare_request()` expands prompt files; `CLIConversation.load()` loads a snapshot without persisting the current turn. After client validation, `prepare_history()` uses the bounded `render_history()` and supplies `user_content` to `_prepare_prompt_for_role()`. `commit()` persists the raw user/assistant pair together only after success. Retain this path in tests; do not add server-side prompt rewriting or reintroduce the older `conversation_request` wrapper.
 
 ## Request and configuration contract
 
 The new client name is `agy`. No fields are added to `CLinkRequest`. Preserve `prompt`, `cli_name`, `role`, `absolute_file_paths`, `images`, `continuation_id`, `allow_edits`, and `editable_paths` and their existing validation. This change makes no new native image-transport promise.
 
-Register the client with runner `agy`, parser `agy_jsonl`, command `agy`, and the existing default, planner, and codereviewer prompt files. Retain the existing default-client selection; adding an alphabetically earlier name must not displace Gemini when configured. Do not pin a new model or change the user's authentication configuration.
+Register the client with runner `agy`, parser `agy_jsonl`, command `agy`, and the existing default, planner, and codereviewer prompt files. Preserve selection rules: a new request requires `cli_name` when multiple clients exist, a continuation inherits its last successful selection, and a sole client can be selected automatically. The cached `_default_cli_name` still prefers Gemini when configured; this is not an implicit multi-client execution default. Do not pin a new model or change the user's authentication configuration.
 
 The invariant protocol arguments are `--input-format stream-json` and `--output-format stream-json`. They belong in internal defaults rather than being repeated in each role. Command-prefix, role, and additional arguments must not override the transport, inject a print prompt, or enable native continuation. Validate the complete assembled command before launch, covering split and equals forms and the documented aliases; exactly one internal occurrence of each protocol flag is expected. Do not configure output-file capture for this client. Existing clients keep their configuration contracts.
 
 The adapter owns mode selection: reserve `--mode` in command-prefix/config/role arguments and both argument buckets, rejecting split and equals forms before launch. For true, the adapter adds exactly one `--mode accept-edits`; for false, it adds no mode flag. Reject `--dangerously-skip-permissions` in these user-supplied argument locations; neither path needs a blanket bypass. This protects PAL's argument-selection contract; agy's saved mode and permission rules can still permit edits on a false request. See the permission checkpoint below.
 
+The native 1.3.5 `--help` inventory, inspected on 2026-10-14, establishes this rejection table. Check command-prefix tokens after the executable, `additional_args`, both `safe_args` and `edit_args` (including the inactive bucket), and selected-role arguments. Reject split and equals forms; reserve single-dash long spellings defensively too. Never include a rejected argument's value in the diagnostic.
+
+| Reserved options | Reason |
+| --- | --- |
+| `--input-format`, `--output-format` | Only the exact internal pair of `stream-json` flags is permitted; even duplicate matching values are rejected. |
+| `--print`, `--prompt`, `-p`, `--prompt-interactive`, `-i` | Prompts belong only in the single stdin event. |
+| `--continue`, `-c`, `--conversation` | PAL owns continuation; each invocation starts a new process. |
+| `--mode`, `--dangerously-skip-permissions` | Mode selection belongs to the adapter; blanket bypass is not used. |
+| `--` | A command-prefix terminator could prevent internal protocol flags from being interpreted. |
+
+Reject configured `output_to_file` before launch. Validate that `internal_args` contains exactly the built-in protocol sequence. Unrelated arguments such as `--model` and `--print-timeout` remain configurable; a shared prefix such as `--print` must not accidentally match `--print-timeout`.
+
 Before agy becomes discoverable, `CLinkRequest.allow_edits` and the generated `CLinkTool.get_input_schema()` description must state this agy-specific limitation. Preserve the existing advisory execution-policy prompt for false requests without presenting it as enforcement. `readOnlyHint` remains false. Do not add a warning/confirmation workflow or a new request parameter. Existing clients retain their argument behavior.
 
-For A5, rejection occurs before role-prompt loading, agent creation, and subprocess launch. Shared request admission may already have read a user-supplied `prompt.txt` and persisted the user turn. A5 does not promise rejection before all file reads or conversation writes; this feature retains that shared ordering.
+For A5, rejection occurs before role-prompt loading, agent creation, and subprocess launch. Request preparation may already have read a user-supplied `prompt.txt`, but no current user turn is persisted on rejection. Retain the existing ordering and success-only exchange recording; A5 does not promise rejection before every file read.
 
 ### Working directory and project-file access
 
@@ -171,7 +183,7 @@ The shared encoder defaults to today's behavior, protecting Claude, Codex, and G
 | One input plus EOF returns exactly one complete result | Required | Captured protocol fixture and subprocess test, then live confirmation |
 | PAL can omit its mode flag for false and add native edit mode for true without shared argument state or saved-settings mutation | Required; native edit path observed, production adapter pending | Captured argv/continuation/concurrency tests plus stable-settings live opt-in cases |
 | Agy can read referenced project files in both cwd modes when the operator permits access | Required; observed in the enterprise environment | Content-dependent reads in configured cwd and outside scratch cwd with recorded operator settings |
-| Current role prompts and shared invocation history suffice | Important | Role assertions, two-request tests through MCP and decorated direct execution, simulator |
+| Current role prompts and CLIConversation history suffice | Important | Role assertions, two-request tests through MCP and public direct execution, simulator |
 | Stdlib JSON plus existing async subprocess support suffices | Important | Implementation passes without dependency changes |
 
 ## Not Doing
@@ -205,4 +217,4 @@ Ship the preset only after the capability and acceptance evidence is complete, d
 
 Task 1 records the observed enterprise invocation contract and the unavailable authentication cases assigned to Task 6 by user approval. Completion of Task 1 permits adapter development, not release acceptance. The former permission blocker is removed by the approved revision; the stronger guarantee is deferred to [upstream #1233](https://github.com/google-antigravity/antigravity-cli/issues/1233). Existing Claude system-prompt exposure remains a separate follow-up in [verification.md](./verification.md#open-decisions-and-follow-up-work). Preserve the shared runner's existing cleanup regression coverage.
 
-The existing documents report an earlier design review, but its linked `review-design.md` is absent from this checkout; see [capability-evidence.md](./capability-evidence.md#repository-validation). This contract revision has user approval and still needs a fresh design review before Task 2; no historical review is claimed to cover it. Task 1 is done and Tasks 2–6 remain pending.
+The historical design report remains unavailable. A [fresh 2026-10-14 review](./review-design.md) approved the corrected plan before Task 2; it does not reconstruct that older report. Tasks 1–2 are done and Tasks 3–6 remain pending. The implemented slice supports the default role and rejects true edit requests until Task 4; the preceding permission/response sections describe the final feature contract. See [Task 2 verification](./capability-evidence.md#task-2-verification-2026-10-14).

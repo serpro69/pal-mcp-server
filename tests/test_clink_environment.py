@@ -11,6 +11,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from clink.agents import create_agent
 from clink.agents.base import BaseCLIAgent, CLIAgentError
 from clink.constants import CONFIG_DIR, INTERNAL_DEFAULTS, SHARED_ENV_PASSTHROUGH
 from clink.models import CLIClientConfig, OutputCaptureConfig, ResolvedCLIClient, ResolvedCLIRole
@@ -97,6 +98,66 @@ def test_windows_case_insensitive_runtime_and_overrides(monkeypatch):
     assert env["SYSTEMROOT"] == "windows"
     assert "OPENAI_API_KEY" not in env
     assert sum(name.upper() == "PATH" for name in env) == 1
+
+
+AGY_AUTH_NAMES = (
+    "AGY_ADC_AUTH",
+    "GOOGLE_APPLICATION_CREDENTIALS",
+    "GOOGLE_CLOUD_QUOTA_PROJECT",
+    "GOOGLE_CLOUD_LOCATION",
+)
+
+
+def test_agy_absent_auth_selectors_are_not_invented():
+    cfg = client("agy")
+    assert set(cfg.env_passthrough) == set(AGY_AUTH_NAMES)
+    with patch.dict(
+        os.environ, {"GEMINI_API_KEY": "synthetic-unrelated", "DATABASE_PASSWORD": "synthetic"}, clear=True
+    ):
+        assert BaseCLIAgent(cfg)._build_environment() == {}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("configured_cwd", [False, True])
+async def test_agy_child_auth_forwarding_overrides_and_cwd(tmp_path, monkeypatch, configured_cwd):
+    observed_names = (*AGY_AUTH_NAMES, "EXTRA_AUTH", "EXPLICIT_ONLY", "GEMINI_API_KEY", "DATABASE_PASSWORD")
+    script = tmp_path / "agy_environment.py"
+    script.write_text(
+        "import json, os, sys\n"
+        "event = json.loads(sys.stdin.buffer.read())\n"
+        "assert event['event'] == 'user'\n"
+        f"observed = {{name: os.getenv(name) for name in {observed_names!r}}}\n"
+        "response = json.dumps({'env': observed, 'cwd': os.getcwd()})\n"
+        "print(json.dumps({'event': 'result', 'result': {'status': 'SUCCESS', 'response': response}}))\n"
+    )
+    raw = CLIClientConfig(
+        name="agy",
+        command="agy",
+        working_dir=str(tmp_path) if configured_cwd else None,
+        env_passthrough=["EXTRA_AUTH", "GOOGLE_CLOUD_LOCATION"],
+        env={"GOOGLE_CLOUD_LOCATION": "operator-location", "EXTRA_AUTH": "configured", "EXPLICIT_ONLY": "operator"},
+    )
+    registry = ClinkRegistry.__new__(ClinkRegistry)
+    resolved = registry._resolve_config(raw, source_path=CONFIG_DIR / "agy.json")
+    resolved.executable = [sys.executable, str(script)]
+    synthetic = {name: f"synthetic-{name}" for name in observed_names}
+    synthetic["AGY_ADC_AUTH"] = "true"
+    for name, value in synthetic.items():
+        monkeypatch.setenv(name, value)
+    result = await create_agent(resolved).run(
+        role=resolved.get_role(None), prompt="fixture request", files=[], images=[]
+    )
+    observed = json.loads(result.parsed.content)
+    expected = {name: synthetic[name] for name in AGY_AUTH_NAMES}
+    expected.update(GOOGLE_CLOUD_LOCATION="operator-location", EXTRA_AUTH="configured", EXPLICIT_ONLY="operator")
+    expected.update(GEMINI_API_KEY=None, DATABASE_PASSWORD=None)
+    assert observed["env"] == expected
+    assert resolved.env_passthrough.count("GOOGLE_CLOUD_LOCATION") == 1
+    cwd = Path(observed["cwd"])
+    if configured_cwd:
+        assert cwd == tmp_path.resolve() and cwd.exists()
+    else:
+        assert cwd.name.startswith("pal-clink-") and not cwd.exists()
 
 
 @pytest.mark.asyncio

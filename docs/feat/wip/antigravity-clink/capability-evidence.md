@@ -1,7 +1,7 @@
 # Antigravity clink capability evidence
 
 > Date: 2026-10-14
-> Outcome: Task 1 done; unavailable authentication cases moved to Task 6 by user approval; no agy client enabled
+> Outcome: Tasks 1–2 done; default-role agy adapter implemented; Tasks 3–6 and release acceptance pending
 > Checkout tested: `3286d5f160014e162b183ab38ea826fd9a6ceab3`
 > Authentication follow-up checkout: `d7e52b568d36c8d3806b0a8cd0eada39f94b0406`
 > Reference: native agy 1.3.5, approved by the user on this date
@@ -43,9 +43,9 @@ by newly passing enforcement tests. Personal login, successful ADC routing,
 and missing/expired cached-login coverage remain unverified; a synthetic missing-ADC
 case now verifies an explicit failure, as recorded below. The user approved moving
 those unavailable authentication cases to Task 6 as release requirements and
-finishing Task 1 on verified enterprise evidence. Task 1 is done;
-Tasks 2–6 are still pending. Adapter-owned argument
-validation and request-local flag selection will be tested during implementation.
+finishing Task 1 on verified enterprise evidence. Tasks 1–2 are done;
+Tasks 3–6 remain pending. Task 2 implements argument validation and default-role
+transport; native edit-mode selection and request-local isolation remain Task 4.
 Enforced native downgrades are a deferred enhancement under upstream #1233, not an
 acceptance prerequisite. Revisit only after a documented release and tests of
 saved-policy precedence, direct and command/MCP writes, both cwd modes, and
@@ -278,13 +278,13 @@ failure class as a passing missing-authentication case.
 | Acceptance | Evidence / gap |
 | --- | --- |
 | A1 | T1/T2 and A1b: existing enterprise login without a forwarded API key. A1a: synthetic missing-ADC error. Personal, successful ADC routing, and missing/expired cached-login cases unverified. |
-| A2 | T1/T2 transport, R1 configured read, and R2b scratch-mode external read after user configuration. Actual roles remain Task 5. |
+| A2 | T1/T2 transport, R1 configured read, R2b external read, and Task 2's production default-role file read below. Additional roles remain Task 5. |
 | A3 | Pending Task 5; no PAL continuation tested. |
-| A4 (revised) | W1/W1b denial under current settings; E2/E3 native edit opt-in in both cwd modes with unchanged settings. False inherits native policy with no read-only guarantee. Production argv/description/argument-isolation tests remain Tasks 2/4/5; stronger native enforcement is deferred to #1233. |
+| A4 (revised) | W1/W1b denial under current settings; E2/E3 native edit opt-in in both cwd modes with unchanged settings. Task 2 verifies false has no mode flag and qualifies the schema; true is explicitly rejected until Task 4. Native edit arguments/isolation remain Task 4; stronger enforcement is deferred to #1233. |
 | A5 | Pending Task 4; no production agy agent or path validation added. |
-| A6 | Prompts stayed out of probe argv; E1–E3 additionally supplied `--mode accept-edits`. Production metadata/log assertions remain Task 3. |
+| A6 | Prompts stayed out of probe argv; E1–E3 additionally supplied `--mode accept-edits`. Task 2 checks stdin-only prompt transport and command metadata on default success; failure/timeout/log checks remain Task 3. |
 | A7 | R2/W1 show zero-exit output rejected by the temporary parser; A1a adds an explicit missing-ADC error through the shared runner. Production agy errors, timeout/no-replay tests, and missing/expired cached-login coverage remain pending. |
-| A8 | Existing environment/safe-default regressions checked below. No production code changed; full quality baseline failed. |
+| A8 | Task 2's focused tests verify exact legacy UTF-8 stdin and existing client behavior; MCP discovery tests pass with agy added. Full unit validation retains two dependency-security failures. |
 
 No personal or authenticated ADC environment was made available. Missing/expired
 cached authentication was not manufactured by logging out or changing the user's credentials. Linux, Windows,
@@ -387,8 +387,9 @@ one P3 wording issue: A6 still described all argv as protocol-only after the edi
 probes added `--mode accept-edits`. That summary is corrected above. No P0–P2
 findings were reported; live observations were not independently reproduced.
 
-Those reviews predate the user's inherited-permissions contract revision. This
-revision has user approval but has not received a new independent design review.
+Those reviews predated the user's inherited-permissions contract revision. At that
+checkpoint, the revision had user approval but had not received a new independent
+design review; the later Task 2 review is recorded below.
 
 Optional documentation follow-up: run `kk:clarify-docs` on this file and the updated
 `design.md`, `implementation.md`, and `tasks.md` if a shorter presentation is wanted;
@@ -428,6 +429,52 @@ remain unchecked Task 6.3 release requirements. No runtime adapter was added.
   (`gemini-3.8-flash`) failed because its API key was invalid; it supplies no review
   corroboration. Live results and upstream docs were not independently reproduced.
 
-No systemic findings or new project conventions require indexing. The broader
-dependency/replay/provider failures and missing fresh design review remain explicit
-follow-ups; task completion does not assert a green repository or release readiness.
+No systemic findings or new project conventions required indexing. At the Task 1
+checkpoint, the broader dependency/replay/provider failures and missing fresh
+design review remained explicit follow-ups. Task completion did not assert a
+green repository or release readiness; the later Task 2 review is recorded below.
+
+## Task 2 verification, 2026-10-14
+
+The production default-role path is implemented: shared stdin encoder hook,
+`AgyAgent`, strict `AgyJSONLParser`, registered manifest/defaults, authentication
+passthrough, reserved argument checks, and schema qualification. False inherits
+saved permissions with no mode override; true is explicitly rejected until Task 4.
+Selected metadata and bounded diagnostics remain Task 3; additional roles and
+continuation acceptance remain Task 5. No dependency pins or credentials changed.
+
+The [fresh design review](./review-design.md) approved corrections to outdated
+conversation anchors, the exact rejection table, and client-selection wording.
+It is a new report, not a reconstruction of the missing historical review.
+
+| Verification | Result |
+| --- | --- |
+| Task 2 focused command plus `tests/test_tool_surface.py` | 247 passed; includes real Python subprocess fixtures waiting for EOF, both cwd modes, synthetic auth forwarding/precedence, parser failures, all argument sources, encoder-error cleanup, and unchanged legacy stdin bytes. |
+| `python -m pytest tests/test_cli_only_mcp.py -q` | 6 passed after updating the three-client discovery expectation. The fixture pins agy to a missing executable, so no host installation affects this check. |
+| `./code_quality_checks.sh` | Lint/Black/isort passed. Final run reached 1,176 passes before the existing TLS hostname dependency failure (15 deselected). |
+| `python -m pytest tests/ -q -m 'not integration'` | Final run: 2,814 passed, 2 failed, 16 skipped, 15 deselected. Both failures are in unchanged `tests/test_dependency_security.py`: IDNA2008 hostname encoding and rejecting an invalid hostname before transport I/O. Installed AnyIO 4.13.0 differs from locked 4.14.2. |
+| `./run_integration_tests.sh` | 2 passed, 2 existing consensus replay/connection failures, 11 skipped, 2,832 deselected. Ten skips lack `CUSTOM_API_URL`; one existing live-clink skip lacks its opt-in. |
+| `python communication_simulator_test.py --quick` | 4 passed, 2 failed (`basic_conversation`, `per_tool_deduplication`), no skips; invalid Gemini API-key errors remain. This suite does not cover agy. |
+
+Two separate requests exercised the production `CLinkTool.execute()` path in fresh
+Python processes with the existing enterprise login, default scratch cwd, and no
+forwarded API key. `/tmp/pal_agy_task2_smoke.py` is a disposable probe, not a CI test.
+
+| Live request | Observation |
+| --- | --- |
+| Synthetic no-tool answer | Failed explicitly. The shared default role instructs terminal inspection; agy attempted `ls -la`, which saved command policy denied. Native exit was 0 with `SUCCESS` and an empty response; the new parser correctly rejected it. This is not a successful role acceptance result. |
+| Separate native file-read request | Passed: exit 0, parser `agy_jsonl`, `continuation_available`, file-only marker returned, runner 17.055s. The fixture at `$TMPDIR/pal-agy-task2-read-_ydc31wx/marker.txt` was outside scratch cwd and removed afterward. PAL emitted a local dangerous-path notice while preparing the reference; the native CLI still returned the marker from the file. Exact scratch cwd was not retained. No follow-up was attempted. |
+
+Both used only `agy --input-format stream-json --output-format stream-json` in
+argv. The file-read request was a new caller-initiated probe, not automatic replay.
+Each retained settings SHA-256
+`86af8921ec53abfe4ca868b0f932ab991e3077351c669b1d3f56e062f3924a0d`.
+No command allow-rule or permission bypass was added to make the failed request
+pass. Role-driven tool use remains subject to operator policy and the Task 6
+acceptance matrix; a no-tools user request does not override the shared role prompt.
+
+`kk:review-code:isolated` approved this Task 2 slice with no P0–P3 findings through
+the independent code-reviewer. External PAL expert analysis again failed due to
+its invalid Gemini API key and supplies no corroboration. The reviewer did not
+independently run tests or reproduce the live evidence. No systemic findings or
+new project conventions required indexing. Full release acceptance remains pending.

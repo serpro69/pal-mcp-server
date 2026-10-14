@@ -59,17 +59,28 @@ def test_surface_preserves_names_parameters_types_defaults_and_safety(surface):
             # CLI-only Task 4 permits a follow-up to reuse committed selection.
             expected["required"].remove("cli_name")
             expected["anyOf"] = [{"required": ["cli_name"]}, {"required": ["continuation_id"]}]
+            # Antigravity Task 2 adds one client without changing existing roles.
+            expected["properties"]["cli_name"]["enum"].insert(0, "agy")
         assert surface["tools"][name]["schema"] == expected, name
         assert surface["tools"][name]["annotations"] == old["annotations"], name
     for name, field in baseline["tools"]["clink"]["safety_schema"]["properties"].items():
         field = copy.deepcopy(field)
         if name == "cli_name":
+            field["enum"].insert(0, "agy")
+            field["description"] = field["description"].replace("Available: ", "Available: agy, ")
             field["description"] += " May be omitted on continuation to reuse the last successful CLI selection."
         elif name == "role":
             field["description"] = field["description"].replace(
                 "Optional role preset defined for the selected CLI (defaults to 'default').",
                 "Role preset for the selected CLI. Reuses the last successful role on continuation, "
                 "otherwise defaults to 'default'.",
+            )
+            field["description"] = field["description"].replace("Roles per CLI: ", "Roles per CLI: agy: default; ")
+        elif name == "allow_edits":
+            field["description"] = (
+                "Opt in to native filesystem edits where supported. Defaults to false. "
+                "For agy, false inherits saved permissions and does not guarantee read-only execution; "
+                "true is not yet supported."
             )
         if name != "continuation_id":  # Only shared continuation prose is shortened.
             assert surface["tools"]["clink"]["safety_schema"]["properties"][name] == field

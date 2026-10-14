@@ -1,0 +1,10 @@
+{
+  "name": "agy",
+  "command": "agy",
+  "roles": {
+    "default": {
+      "prompt_path": "systemprompts/clink/default.txt",
+      "role_args": []
+    }
+  }
+}
