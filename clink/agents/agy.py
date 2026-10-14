@@ -7,6 +7,7 @@ from collections.abc import Sequence
 
 from clink.constants import INTERNAL_DEFAULTS
 from clink.models import ResolvedCLIRole
+from clink.parsers.base import ParserError
 
 from .base import BaseCLIAgent, CLIAgentError
 
@@ -75,3 +76,25 @@ class AgyAgent(BaseCLIAgent):
             allow_edits=allow_edits,
             editable_paths=editable_paths,
         )
+
+    def _recover_from_error(
+        self,
+        *,
+        returncode: int,
+        stdout: str,
+        stderr: str,
+        sanitized_command: list[str],
+        duration_seconds: float,
+        output_file_content: str | None,
+    ) -> None:
+        # Extract the parser's status/error description without exposing the stream.
+        # Even a valid SUCCESS payload must never rescue a nonzero process exit.
+        try:
+            self._parser.parse(stdout, stderr)
+        except ParserError as exc:
+            raise CLIAgentError(
+                f"CLI '{self.client.name}' exited with status {returncode}: {exc}",
+                returncode=returncode,
+                stdout=stdout,
+                stderr=stderr,
+            ) from exc

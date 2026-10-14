@@ -4,14 +4,14 @@
 > Implementation: [implementation.md](./implementation.md)
 > Verification: [verification.md](./verification.md)
 > Review: [review-design.md](./review-design.md)
-> Status: in-progress; Tasks 1–2 done; Tasks 3–6 pending
+> Status: in-progress; Tasks 1–3 done; Tasks 4–6 pending
 > Created: 2026-10-10
 > Reference CLI: agy 1.3.5
 > Upstream improvement: [agy #1233](https://github.com/google-antigravity/antigravity-cli/issues/1233), not a release dependency
 > Authentication: existing login/subscription; no required API key
 > Not Doing: PAL-managed authentication, mandatory API keys, v1.0.16 compatibility, native session reuse, prompt templates/argv transport, per-path editing, new OS sandbox, persistent user-settings changes, enforced read-only agy execution, unrelated client fixes
 
-The user approved the initial walkthrough and, on 2026-10-14, revised the contract to inherit agy permissions: false omits PAL's edit-mode flag; the final design maps true to `--mode accept-edits`; false is not a read-only guarantee. Task 2 explicitly rejects true until Task 4 implements that mapping. The stronger downgrade guarantee is deferred to upstream #1233. The user also approved finishing Task 1 on verified enterprise evidence and moving personal-login, successful ADC routing, and missing/expired cached-session checks to Task 6 as explicit release requirements. No unrun case is marked passed. Tasks 1–2 are done; Tasks 3–6 remain pending. See [capability-evidence.md](./capability-evidence.md). A [fresh design review](./review-design.md) approved the corrected plan before Task 2; the older historical report remains unavailable.
+The user approved the initial walkthrough and, on 2026-10-14, revised the contract to inherit agy permissions: false omits PAL's edit-mode flag; the final design maps true to `--mode accept-edits`; false is not a read-only guarantee. Task 2 explicitly rejects true until Task 4 implements that mapping. The stronger downgrade guarantee is deferred to upstream #1233. The user also approved finishing Task 1 on verified enterprise evidence and moving personal-login, successful ADC routing, and missing/expired cached-session checks to Task 6 as explicit release requirements. No unrun case is marked passed. Tasks 1–3 are done; Tasks 4–6 remain pending. See [capability-evidence.md](./capability-evidence.md). A [fresh design review](./review-design.md) approved the corrected plan before Task 2; the older historical report remains unavailable.
 
 Size reflects substantive behavior; mechanical registry entries, manifest fields, and fixture data are excluded. Each implementation slice includes its own meaningful verification. Task 4 and Task 5 may run in parallel after Task 3 because they own separate behavioral/test surfaces.
 
@@ -56,7 +56,8 @@ Size reflects substantive behavior; mechanical registry entries, manifest fields
 
 ## Task 3: Surface failures and bounded diagnostics
 
-- **Status:** pending
+- **Status:** done
+- **Verification:** [Task 3 results](./capability-evidence.md#task-3-verification-2026-10-14): 248 focused tests passed; independent code review approved with no findings. Full suite: 2,867 passed and two existing dependency-security failures; broader integration/provider failures remain documented.
 - **Depends on:** Task 2
 - **Size:** M
 - **Can run in parallel with:** —
@@ -64,12 +65,12 @@ Size reflects substantive behavior; mechanical registry entries, manifest fields
 
 ### Subtasks
 
-- [ ] 3.1 Exercise failure semantics through `tools/clink.py` and the agy parser — verify: nonzero exits, zero-exit unsuccessful results, malformed/incomplete streams, missing executables, and timeouts become tool errors.
-- [ ] 3.2 Select and namespace agy metadata in `clink/parsers/agy.py` — verify: no raw events or CLI fields overwrite PAL command/client/role/return-code/continuation metadata.
-- [ ] 3.3 Add agy-only diagnostic handling in the success/error metadata builders — verify: diagnostic text is limited to 2,048 characters with a truncation indicator, raw stdout is absent from error metadata, and existing clients retain their contracts.
-- [ ] 3.4 Preserve permission notices alongside usable results — verify: a notice is visible without guessed stderr-based success classification.
-- [ ] 3.5 Extend `tests/test_clink_agy.py` for command privacy and no automatic replay — verify: prompt markers stay out of argv, command metadata, and PAL command logs; failure/timeout starts the subprocess only once per invocation, without claiming deduplication across caller retries.
-- [ ] 3.6 Run the focused Task 3 command from the implementation plan — verify: error/metadata behavior and existing tool/parser regressions pass.
+- [x] 3.1 Exercise failure semantics through `tools/clink.py` and the agy parser — verify: nonzero exits, zero-exit unsuccessful results, malformed/incomplete streams, missing executables, and timeouts become tool errors.
+- [x] 3.2 Select and namespace agy metadata in `clink/parsers/agy.py` — verify: no raw events or CLI fields overwrite PAL command/client/role/return-code/continuation metadata.
+- [x] 3.3 Add agy-only diagnostic handling in the success/error metadata builders — verify: diagnostic text is limited to 2,048 characters with a truncation indicator, raw stdout is absent from error metadata, and existing clients retain their contracts.
+- [x] 3.4 Preserve permission notices alongside usable results — verify: a notice is visible without guessed stderr-based success classification.
+- [x] 3.5 Extend `tests/test_clink_agy.py` for command privacy and no automatic replay — verify: prompt markers stay out of argv, command metadata, and PAL command logs; failure/timeout starts the subprocess only once per invocation, without claiming deduplication across caller retries.
+- [x] 3.6 Run the focused Task 3 command from the implementation plan — verify: error/metadata behavior and existing tool/parser regressions pass.
 
 ## Task 4: Request native edit mode and reject unsupported path scope
 

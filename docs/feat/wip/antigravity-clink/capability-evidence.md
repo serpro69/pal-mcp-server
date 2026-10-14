@@ -281,10 +281,10 @@ failure class as a passing missing-authentication case.
 | A2 | T1/T2 transport, R1 configured read, R2b external read, and Task 2's production default-role file read below. Additional roles remain Task 5. |
 | A3 | Pending Task 5; no PAL continuation tested. |
 | A4 (revised) | W1/W1b denial under current settings; E2/E3 native edit opt-in in both cwd modes with unchanged settings. Task 2 verifies false has no mode flag and qualifies the schema; true is explicitly rejected until Task 4. Native edit arguments/isolation remain Task 4; stronger enforcement is deferred to #1233. |
-| A5 | Pending Task 4; no production agy agent or path validation added. |
-| A6 | Prompts stayed out of probe argv; E1–E3 additionally supplied `--mode accept-edits`. Task 2 checks stdin-only prompt transport and command metadata on default success; failure/timeout/log checks remain Task 3. |
-| A7 | R2/W1 show zero-exit output rejected by the temporary parser; A1a adds an explicit missing-ADC error through the shared runner. Production agy errors, timeout/no-replay tests, and missing/expired cached-login coverage remain pending. |
-| A8 | Task 2's focused tests verify exact legacy UTF-8 stdin and existing client behavior; MCP discovery tests pass with agy added. Full unit validation retains two dependency-security failures. |
+| A5 | Task 2 adds the production agent with path restrictions unsupported; public preflight-ordering acceptance remains Task 4. |
+| A6 | Task 3's controlled subprocess tests verify prompt absence from argv, command metadata, and PAL command logs on success, failure, and timeout. This does not cover native child logs or echoed model text. |
+| A7 | Task 3 verifies production tool errors for nonzero exit, unsuccessful status, invalid/incomplete output, missing executables, and timeout; failure/timeout launches once per invocation. A1a supplies a live synthetic missing-ADC failure. Missing/expired cached-login acceptance remains Task 6.3. |
+| A8 | Task 2 verifies exact legacy UTF-8 stdin and existing client/discovery behavior. Task 3 checks that other clients retain unbounded stderr and raw error stdout. Full unit validation retains dependency-security failures. |
 
 No personal or authenticated ADC environment was made available. Missing/expired
 cached authentication was not manufactured by logging out or changing the user's credentials. Linux, Windows,
@@ -478,3 +478,45 @@ the independent code-reviewer. External PAL expert analysis again failed due to
 its invalid Gemini API key and supplies no corroboration. The reviewer did not
 independently run tests or reproduce the live evidence. No systemic findings or
 new project conventions required indexing. Full release acceptance remains pending.
+
+## Task 3 verification, 2026-10-14
+
+The production tool now returns selected agy metadata and bounded diagnostics.
+`agy_status`, `agy_conversation_id`, and `agy_duration_seconds` stay separate from
+PAL execution/continuation fields. Optional turn/token counts reject booleans,
+negative values, and non-integers; duration accepts finite nonnegative numbers.
+Only the five documented token counters are copied. `model_used` is selected from
+`init.model` when supplied. The [official headless reference](https://antigravity.google/docs/cli/headless#streaming-json)
+and Context7 were checked for these optional fields; their complete live
+availability on 1.3.5 is not established by the sanitized transport fixture.
+
+Both error content and stderr metadata are limited to 2,048 characters, including
+the truncation suffix, with separate `error_truncated`/`stderr_truncated` flags.
+Permission notices remain visible beside usable answers. Failed results expose
+their status and string error description, without returning raw stdout/events.
+The agent's existing nonzero-exit hook extracts that description but never
+recovers success. No shared execution lifecycle or dependency pins changed.
+
+| Verification | Result |
+| --- | --- |
+| `python -m pytest tests/test_clink_agy.py tests/test_clink_tool.py tests/test_clink_parsers.py -q -m 'not integration'` | 248 passed, no skips. Includes 53 added cases for metadata selection/invalid values, diagnostic boundaries, resolved-runner scoping, success/failure/timeout command privacy, no automatic replay, missing executable, timeout kill/drain/reap, and unchanged legacy diagnostics. |
+| `./code_quality_checks.sh`, before/after | Ruff, Black, and isort passed. Before: 1,176 passed before the existing TLS hostname failure; after: 1,229 passed before the same failure (15 deselected). An initial sandboxed attempt stopped at a localhost bind restriction; the complete checks above ran with localhost access. |
+| `python -m pytest tests/ -q -m 'not integration'` | 2,867 passed, 2 failed, 16 skipped, 15 deselected. Both failures remain in unchanged `tests/test_dependency_security.py` (IDNA2008 hostname and invalid-hostname validation). Environment: macOS, existing `pal` virtualenv, Python 3.14.8, installed AnyIO 4.13.0 versus locked 4.14.2. |
+| `./run_integration_tests.sh` | 2 passed, 2 failed, 11 skipped, 2,885 deselected. Existing consensus replay fixtures lack matching OpenAI chat-completion requests. Ten prompt-regression skips lack `CUSTOM_API_URL`; the existing live-clink test lacks its opt-in. |
+| `python communication_simulator_test.py --quick` | 4 passed, 2 failed (`basic_conversation`, `per_tool_deduplication`), zero skips. Invalid Gemini API-key errors remain; this suite does not cover agy. |
+
+Task 3 verification uses controlled subprocess boundaries and the retained
+fixture, not new live agy acceptance runs. It proves one process start per failed
+or timed-out invocation, not cross-request deduplication or rollback. Native
+permission/edit coverage remains Task 4; roles/continuation remain Task 5; the
+deferred personal/ADC/missing-or-expired-session cases remain Task 6.3. The next
+repository-wide verification needs the locked dependency environment, repaired
+consensus cassettes, and a usable provider configuration; this slice does not
+change those unrelated dependencies, fixtures, or credentials.
+
+`kk:review-code:isolated` approved Task 3 through the independent code-reviewer
+with no P0–P3 findings. The reviewer inspected the final code and strengthened
+ASCII prompt-marker assertions but did not independently run tests or live agy.
+External PAL review (`gemini-3.8-flash`) failed with `API_KEY_INVALID` and supplies
+no corroboration. No systemic findings or new project conventions required
+indexing. Task 3 is done; Tasks 4–6 and full release acceptance remain pending.
