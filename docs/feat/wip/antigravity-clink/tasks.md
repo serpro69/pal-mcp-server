@@ -4,14 +4,14 @@
 > Implementation: [implementation.md](./implementation.md)
 > Verification: [verification.md](./verification.md)
 > Review: [review-design.md](./review-design.md)
-> Status: in-progress; Task 1 done; Tasks 2–6 pending
+> Status: in-progress; Tasks 1–2 done; Tasks 3–6 pending
 > Created: 2026-10-10
 > Reference CLI: agy 1.3.5
 > Upstream improvement: [agy #1233](https://github.com/google-antigravity/antigravity-cli/issues/1233), not a release dependency
 > Authentication: existing login/subscription; no required API key
 > Not Doing: PAL-managed authentication, mandatory API keys, v1.0.16 compatibility, native session reuse, prompt templates/argv transport, per-path editing, new OS sandbox, persistent user-settings changes, enforced read-only agy execution, unrelated client fixes
 
-The user approved the initial walkthrough and, on 2026-10-14, revised the contract to inherit agy permissions: false omits PAL's edit-mode flag; true requests `--mode accept-edits`; false is not a read-only guarantee. The stronger downgrade guarantee is deferred to upstream #1233. The user also approved finishing Task 1 on verified enterprise evidence and moving personal-login, successful ADC routing, and missing/expired cached-session checks to Task 6 as explicit release requirements. No unrun case is marked passed. Task 1 is done; Tasks 2–6 remain pending. See [capability-evidence.md](./capability-evidence.md). Earlier documents report a design review whose file is absent from this checkout; this revision needs a fresh design review before Task 2.
+The user approved the initial walkthrough and, on 2026-10-14, revised the contract to inherit agy permissions: false omits PAL's edit-mode flag; the final design maps true to `--mode accept-edits`; false is not a read-only guarantee. Task 2 explicitly rejects true until Task 4 implements that mapping. The stronger downgrade guarantee is deferred to upstream #1233. The user also approved finishing Task 1 on verified enterprise evidence and moving personal-login, successful ADC routing, and missing/expired cached-session checks to Task 6 as explicit release requirements. No unrun case is marked passed. Tasks 1–2 are done; Tasks 3–6 remain pending. See [capability-evidence.md](./capability-evidence.md). A [fresh design review](./review-design.md) approved the corrected plan before Task 2; the older historical report remains unavailable.
 
 Size reflects substantive behavior; mechanical registry entries, manifest fields, and fixture data are excluded. Each implementation slice includes its own meaningful verification. Task 4 and Task 5 may run in parallel after Task 3 because they own separate behavioral/test surfaces.
 
@@ -36,7 +36,8 @@ Size reflects substantive behavior; mechanical registry entries, manifest fields
 
 ## Task 2: Complete a default-role request through the shared runner
 
-- **Status:** pending
+- **Status:** done
+- **Verification:** [Task 2 results](./capability-evidence.md#task-2-verification-2026-10-14): 247 focused tests and 6 MCP regressions passed; production default-role file read passed; isolated code review approved. Broader repository checks retain documented dependency/provider failures.
 - **Depends on:** Task 1
 - **Size:** M
 - **Can run in parallel with:** —
@@ -44,14 +45,14 @@ Size reflects substantive behavior; mechanical registry entries, manifest fields
 
 ### Subtasks
 
-- [ ] 2.1 Add `_encode_stdin` at `_run_in_directory()`'s communication site in `clink/agents/base.py`, preserving raw UTF-8 by default — verify: existing client stdin bytes, working-directory/progress ownership, and cleanup regressions remain intact.
-- [ ] 2.2 Add `AgyAgent` in `clink/agents/agy.py` with one newline-terminated user event and no generated mode flag for false — verify: `CLinkTool.execute()` reaches the process with one correct message and no prompt/mode argv. Reject true until Task 4; false may still permit writes under saved agy policy.
-- [ ] 2.3 Add `AgyJSONLParser` in `clink/parsers/agy.py` — verify: only one valid successful result with nonempty text is accepted; malformed, absent, duplicate, empty, or unsuccessful results fail.
-- [ ] 2.4 Register agent/parser/internal defaults, including Task 1's documented and forwarding-checked authentication `env_passthrough`, and add `conf/cli_clients/agy.json` with the default role — verify: discovery works, protocol flags occur once, no selector/provider or project cwd is forced, and existing default selection is preserved. Successful ADC routing remains a Task 6.3 release requirement.
-- [ ] 2.5 Validate the complete command, including both argument buckets; reserve protocol flags and adapter-owned mode selection — verify: print aliases, extra formats, continuation, output-file mode, configured `--mode`, and `--dangerously-skip-permissions` split/equals conflicts fail before execution.
-- [ ] 2.6 Add `tests/test_clink_agy.py` with a default-request round trip and a subprocess fixture that waits for EOF; extend `tests/test_clink_environment.py` with agy cases — verify: Unicode, quotes, multiline text, and backslashes survive; synthetic auth/routing values and operator precedence are preserved, absent selectors stay absent, unrelated secrets stay excluded, and actual child cwd matches each mode. No real CLI is called in unit tests.
-- [ ] 2.7 Qualify `allow_edits` in both request-model and generated-schema descriptions in `tools/clink.py` before agy becomes discoverable — verify: agy false inherits permissions and has no read-only guarantee; existing-client behavior and `readOnlyHint=false` remain intact.
-- [ ] 2.8 Run the focused Task 2 command from the implementation plan — verify: the new default path, schema qualification, and existing client agent/tool regressions pass.
+- [x] 2.1 Add `_encode_stdin` at `_run_in_directory()`'s communication site in `clink/agents/base.py`, preserving raw UTF-8 by default — verify: existing client stdin bytes, working-directory/progress ownership, and cleanup regressions remain intact.
+- [x] 2.2 Add `AgyAgent` in `clink/agents/agy.py` with one newline-terminated user event and no generated mode flag for false — verify: `CLinkTool.execute()` reaches the process with one correct message and no prompt/mode argv. Reject true until Task 4; false may still permit writes under saved agy policy.
+- [x] 2.3 Add `AgyJSONLParser` in `clink/parsers/agy.py` — verify: only one valid successful result with nonempty text is accepted; malformed, absent, duplicate, empty, or unsuccessful results fail.
+- [x] 2.4 Register agent/parser/internal defaults, including Task 1's documented and forwarding-checked authentication `env_passthrough`, and add `conf/cli_clients/agy.json` with the default role — verify: discovery works, protocol flags occur once, no selector/provider or project cwd is forced, and existing default selection is preserved. Successful ADC routing remains a Task 6.3 release requirement.
+- [x] 2.5 Validate the complete command, including both argument buckets, against the design's 1.3.5 rejection table; reserve protocol flags and adapter-owned mode selection — verify: exact prompt aliases, formats, continuation, output-file capture, mode/bypass split/equals conflicts, and `--` fail before execution; unrelated model/timeout flags remain configurable.
+- [x] 2.6 Add `tests/test_clink_agy.py` with a default-request round trip and a subprocess fixture that waits for EOF; extend `tests/test_clink_environment.py` with agy cases — verify: Unicode, quotes, multiline text, and backslashes survive; synthetic auth/routing values and operator precedence are preserved, absent selectors stay absent, unrelated secrets stay excluded, and actual child cwd matches each mode. No real CLI is called in unit tests.
+- [x] 2.7 Qualify `allow_edits` in both request-model and generated-schema descriptions in `tools/clink.py` before agy becomes discoverable — verify: agy false inherits permissions and has no read-only guarantee; existing-client behavior and `readOnlyHint=false` remain intact.
+- [x] 2.8 Run the focused Task 2 command from the implementation plan — verify: the new default path, schema qualification, and existing client agent/tool regressions pass.
 
 ## Task 3: Surface failures and bounded diagnostics
 
@@ -82,7 +83,7 @@ Size reflects substantive behavior; mechanical registry entries, manifest fields
 
 - [ ] 4.1 Add adapter-owned `--mode accept-edits` for true, replacing Task 2's rejection — verify: false has no generated mode flag, true has exactly one, and neither path changes saved settings/authentication. Do not duplicate mode flags in the preset.
 - [ ] 4.2 Test reserved mode/bypass arguments from all configured sources — verify: overrides fail before execution, while a controlled false-request response may report a write allowed by saved agy policy without being misclassified as a PAL safety violation.
-- [ ] 4.3 Extend `tests/test_clink_safe_default.py` through the public decorated call, including an actual user `prompt.txt` input — verify: unsupported `editable_paths` fails before role-prompt loading, agent creation, or subprocess launch. Shared user-prompt admission and turn persistence may already have occurred, as specified by A5.
+- [ ] 4.3 Extend `tests/test_clink_safe_default.py` through the public call, including an actual user `prompt.txt` input — verify: unsupported `editable_paths` fails before role-prompt loading, agent creation, or subprocess launch. Prompt-file expansion may precede rejection, but no current exchange is persisted, as specified by A5.
 - [ ] 4.4 Add `tests/test_clink_agy_safety.py` for sequential true-then-false and concurrent calls — verify: PAL's generated edit flag stays request-local, false omits it on follow-ups, and existing-client gating passes. No native downgrade/isolation guarantee is asserted.
 - [ ] 4.5 Run opt-in live fixture tests in both cwd modes and update `capability-evidence.md` — verify: content-dependent reads and intended native opt-in edits succeed with stable saved settings. Record default denials or writes against operator-declared policy; do not require universal denial. Missing prerequisites or failures of the declared operation fail the opted-in run.
 
@@ -97,7 +98,7 @@ Size reflects substantive behavior; mechanical registry entries, manifest fields
 ### Subtasks
 
 - [ ] 5.1 Add planner/codereviewer bindings to `conf/cli_clients/agy.json` using existing prompt files — verify: a fresh schema lists all three roles and encoded requests contain the corresponding role instructions.
-- [ ] 5.2 Add `tests/test_clink_agy_continuation.py` exercising `conversation_request` and `invocation_history` through MCP dispatch and decorated direct execution, following `tests/test_conversation_ownership.py` — verify: two requests persist four raw turns once; the second stdin contains prior user/assistant content and the current input once, uses a new process, and does not use native agy continuation. Fake only the external process boundary.
+- [ ] 5.2 Add `tests/test_clink_agy_continuation.py` exercising `CLIConversation` through MCP dispatch and public direct execution, following the existing clink continuation/concurrency/history-budget tests — verify: two successful requests persist four raw turns once, failures persist no exchange, and the second stdin contains retained history/current input once using a new process without native continuation. Preserve existing client-selection rules. Fake only the external process boundary.
 - [ ] 5.3 Add `simulator_tests/test_clink_agy_validation.py` and register `clink_agy_validation` — verify: it is listed by the simulator and validates a role-based request plus a history-dependent follow-up.
 - [ ] 5.4 Add personal/enterprise live role cases with the integration marker and `PAL_RUN_AGY_INTEGRATION=1` opt-in through the filtered environment and both cwd modes — verify: no mandatory API-key guard is used; codereviewer reports a marker read only from a referenced file, configured CLI failures fail, and unavailable account coverage is explicitly recorded.
 - [ ] 5.5 Update `docs/tools/clink.md` and README examples/setup — verify: schema and docs agree on inherited permissions, possible false-request writes, true's native edit-mode flag, operator-managed external access, and unsupported path scope. Link upstream #1233 and future strengthening criteria; retain authentication/upstream-support caveats and content-dependent file-access evidence.

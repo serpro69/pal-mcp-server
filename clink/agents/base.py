@@ -174,7 +174,7 @@ class BaseCLIAgent:
 
             try:
                 stdout_bytes, stderr_bytes = await asyncio.wait_for(
-                    process.communicate(prompt.encode("utf-8")),
+                    process.communicate(self._encode_stdin(prompt)),
                     timeout=self.client.timeout_seconds,
                 )
             except asyncio.TimeoutError as exc:
@@ -239,6 +239,10 @@ class BaseCLIAgent:
                 parser_name=self._parser.name,
                 output_file_content=output_file_content,
             )
+
+    def _encode_stdin(self, prompt: str) -> bytes:
+        """Encode a prepared prompt for the CLI's stdin transport."""
+        return prompt.encode("utf-8")
 
     @staticmethod
     def _cleanup_output_file(path: Path) -> None:

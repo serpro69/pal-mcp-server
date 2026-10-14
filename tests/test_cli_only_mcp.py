@@ -58,6 +58,12 @@ class CLIOnlyServer:
             config["timeout_seconds"] = 20
             (manifests / f"{vendor}.json").write_text(json.dumps(config), encoding="utf-8")
 
+        # Discovery includes the new built-in client even when it is not installed.
+        # Pin this observation so the test never depends on a host agy executable.
+        agy = json.loads((REPO / "conf" / "cli_clients" / "agy.json").read_text(encoding="utf-8"))
+        agy["command"] = shlex.quote(str(self.root / "missing-agy"))
+        (manifests / "agy.json").write_text(json.dumps(agy), encoding="utf-8")
+
         # Do not copy os.environ: pytest and the developer's shell contain keys,
         # model overrides and paths that can silently turn this into an API test.
         # The SDK adds only its own documented platform-runtime allowlist.
@@ -129,8 +135,8 @@ async def test_stdio_cli_conversation_discovery_history_and_permissions(cli_serv
             diagnostics = payload(await session.call_tool("listmodels", {}))["metadata"]
             assert diagnostics["mode"] == "provider-free" and diagnostics["configured_providers"] == 0
             assert all(provider["status"] == "absent" for provider in diagnostics["provider_setup"])
-            assert {client["name"] for client in diagnostics["cli_clients"]} == set(VENDORS)
-            assert all(client["executable_found"] for client in diagnostics["cli_clients"])
+            availability = {client["name"]: client["executable_found"] for client in diagnostics["cli_clients"]}
+            assert availability == {**dict.fromkeys(VENDORS, True), "agy": False}
             assert not cli_server.stages(), "Discovery invoked a CLI"
             for unavailable in ("chat", "consensus"):
                 denied = payload(await session.call_tool(unavailable, {"continuation_id": str(uuid4())}), error=True)

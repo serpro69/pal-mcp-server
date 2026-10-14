@@ -29,6 +29,11 @@ logger = logging.getLogger(__name__)
 
 MAX_RESPONSE_CHARS = 20_000
 SUMMARY_PATTERN = re.compile(r"<SUMMARY>(.*?)</SUMMARY>", re.IGNORECASE | re.DOTALL)
+ALLOW_EDITS_DESCRIPTION = (
+    "Opt in to native filesystem edits where supported. Defaults to false. "
+    "For agy, false inherits saved permissions and does not guarantee read-only execution; "
+    "true is not yet supported."
+)
 
 # Request-scoped system prompt. Stored in a ContextVar so concurrent asyncio
 # invocations of CLinkTool.execute() can't cross-contaminate each other's
@@ -62,11 +67,7 @@ class CLinkRequest(BaseModel):
     )
     allow_edits: bool = Field(
         default=False,
-        description=(
-            "Explicitly allow the target CLI to modify the local filesystem. Disabled by "
-            "default: untrusted prompts forwarded to a CLI with filesystem-write flags can "
-            "create or overwrite arbitrary files on the host."
-        ),
+        description=ALLOW_EDITS_DESCRIPTION,
     )
     editable_paths: list[str] = Field(
         default_factory=list,
@@ -175,10 +176,7 @@ class CLinkTool(SimpleTool):
             "allow_edits": {
                 "type": "boolean",
                 "default": False,
-                "description": (
-                    "Allow the target CLI to modify the local filesystem. Defaults to false "
-                    "to prevent untrusted prompts from triggering arbitrary file writes."
-                ),
+                "description": ALLOW_EDITS_DESCRIPTION,
             },
             "editable_paths": {
                 "type": "array",

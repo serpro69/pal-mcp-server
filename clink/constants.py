@@ -90,6 +90,18 @@ class CLIInternalDefaults:
 
 
 INTERNAL_DEFAULTS: dict[str, CLIInternalDefaults] = {
+    "agy": CLIInternalDefaults(
+        parser="agy_jsonl",
+        additional_args=["--input-format", "stream-json", "--output-format", "stream-json"],
+        env_passthrough=(
+            "AGY_ADC_AUTH",
+            "GOOGLE_APPLICATION_CREDENTIALS",
+            "GOOGLE_CLOUD_QUOTA_PROJECT",
+            "GOOGLE_CLOUD_LOCATION",
+        ),
+        default_role_prompt="systemprompts/clink/default.txt",
+        runner="agy",
+    ),
     "gemini": CLIInternalDefaults(
         parser="gemini_json",
         env_passthrough=(
