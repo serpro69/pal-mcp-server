@@ -4,14 +4,14 @@
 > Implementation: [implementation.md](./implementation.md)
 > Verification: [verification.md](./verification.md)
 > Review: [review-design.md](./review-design.md)
-> Status: in-progress; Tasks 1–3 done; Tasks 4–6 pending
+> Status: in-progress; Tasks 1–4 done; Tasks 5–6 pending
 > Created: 2026-10-10
 > Reference CLI: agy 1.3.5
 > Upstream improvement: [agy #1233](https://github.com/google-antigravity/antigravity-cli/issues/1233), not a release dependency
 > Authentication: existing login/subscription; no required API key
 > Not Doing: PAL-managed authentication, mandatory API keys, v1.0.16 compatibility, native session reuse, prompt templates/argv transport, per-path editing, new OS sandbox, persistent user-settings changes, enforced read-only agy execution, unrelated client fixes
 
-The user approved the initial walkthrough and, on 2026-10-14, revised the contract to inherit agy permissions: false omits PAL's edit-mode flag; the final design maps true to `--mode accept-edits`; false is not a read-only guarantee. Task 2 explicitly rejects true until Task 4 implements that mapping. The stronger downgrade guarantee is deferred to upstream #1233. The user also approved finishing Task 1 on verified enterprise evidence and moving personal-login, successful ADC routing, and missing/expired cached-session checks to Task 6 as explicit release requirements. No unrun case is marked passed. Tasks 1–3 are done; Tasks 4–6 remain pending. See [capability-evidence.md](./capability-evidence.md). A [fresh design review](./review-design.md) approved the corrected plan before Task 2; the older historical report remains unavailable.
+The user approved the initial walkthrough and, on 2026-10-14, revised the contract to inherit agy permissions: false omits PAL's edit-mode flag; true requests `--mode accept-edits`; false is not a read-only guarantee. Task 4 implements this mapping, replacing Task 2's temporary rejection of true. The stronger downgrade guarantee is deferred to upstream #1233. The user also approved finishing Task 1 on verified enterprise evidence and moving personal-login, successful ADC routing, and missing/expired cached-session checks to Task 6 as explicit release requirements. No unrun case is marked passed. Tasks 1–4 are done; Tasks 5–6 remain pending. See [capability-evidence.md](./capability-evidence.md). A [fresh design review](./review-design.md) approved the corrected plan before Task 2; the older historical report remains unavailable.
 
 Size reflects substantive behavior; mechanical registry entries, manifest fields, and fixture data are excluded. Each implementation slice includes its own meaningful verification. Task 4 and Task 5 may run in parallel after Task 3 because they own separate behavioral/test surfaces.
 
@@ -74,7 +74,8 @@ Size reflects substantive behavior; mechanical registry entries, manifest fields
 
 ## Task 4: Request native edit mode and reject unsupported path scope
 
-- **Status:** pending
+- **Status:** done
+- **Verification:** [Task 4 results](./capability-evidence.md#task-4-verification-2026-10-14): 331 focused tests and both opt-in live cwd cases passed; saved user settings stayed unchanged. Independent review approved after narrowing the default empty-response observation. Full suite: 2,909 passed and two existing dependency-security failures; broader provider/replay failures remain documented.
 - **Depends on:** Task 3
 - **Size:** M
 - **Can run in parallel with:** Task 5
@@ -82,11 +83,11 @@ Size reflects substantive behavior; mechanical registry entries, manifest fields
 
 ### Subtasks
 
-- [ ] 4.1 Add adapter-owned `--mode accept-edits` for true, replacing Task 2's rejection — verify: false has no generated mode flag, true has exactly one, and neither path changes saved settings/authentication. Do not duplicate mode flags in the preset.
-- [ ] 4.2 Test reserved mode/bypass arguments from all configured sources — verify: overrides fail before execution, while a controlled false-request response may report a write allowed by saved agy policy without being misclassified as a PAL safety violation.
-- [ ] 4.3 Extend `tests/test_clink_safe_default.py` through the public call, including an actual user `prompt.txt` input — verify: unsupported `editable_paths` fails before role-prompt loading, agent creation, or subprocess launch. Prompt-file expansion may precede rejection, but no current exchange is persisted, as specified by A5.
-- [ ] 4.4 Add `tests/test_clink_agy_safety.py` for sequential true-then-false and concurrent calls — verify: PAL's generated edit flag stays request-local, false omits it on follow-ups, and existing-client gating passes. No native downgrade/isolation guarantee is asserted.
-- [ ] 4.5 Run opt-in live fixture tests in both cwd modes and update `capability-evidence.md` — verify: content-dependent reads and intended native opt-in edits succeed with stable saved settings. Record default denials or writes against operator-declared policy; do not require universal denial. Missing prerequisites or failures of the declared operation fail the opted-in run.
+- [x] 4.1 Add adapter-owned `--mode accept-edits` for true, replacing Task 2's rejection — verify: false has no generated mode flag, true has exactly one, and neither path changes saved settings/authentication. Do not duplicate mode flags in the preset.
+- [x] 4.2 Test reserved mode/bypass arguments from all configured sources — verify: overrides fail before execution, while a controlled false-request response may report a write allowed by saved agy policy without being misclassified as a PAL safety violation.
+- [x] 4.3 Extend `tests/test_clink_safe_default.py` through the public call, including an actual user `prompt.txt` input — verify: unsupported `editable_paths` fails before role-prompt loading, agent creation, or subprocess launch. Prompt-file expansion may precede rejection, but no current exchange is persisted, as specified by A5.
+- [x] 4.4 Add `tests/test_clink_agy_safety.py` for sequential true-then-false and concurrent calls — verify: PAL's generated edit flag stays request-local, false omits it on follow-ups, and existing-client gating passes. No native downgrade/isolation guarantee is asserted.
+- [x] 4.5 Run opt-in live fixture tests in both cwd modes and update `capability-evidence.md` — verify: content-dependent reads and intended native opt-in edits succeed with stable saved settings. Record default denials or writes against operator-declared policy; do not require universal denial. Missing prerequisites or failures of the declared operation fail the opted-in run.
 
 ## Task 5: Support roles and PAL continuation
 

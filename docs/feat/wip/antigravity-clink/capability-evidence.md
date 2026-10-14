@@ -1,7 +1,7 @@
 # Antigravity clink capability evidence
 
 > Date: 2026-10-14
-> Outcome: Tasks 1–2 done; default-role agy adapter implemented; Tasks 3–6 and release acceptance pending
+> Outcome: Tasks 1–4 done; Tasks 5–6 and release acceptance pending
 > Checkout tested: `3286d5f160014e162b183ab38ea826fd9a6ceab3`
 > Authentication follow-up checkout: `d7e52b568d36c8d3806b0a8cd0eada39f94b0406`
 > Reference: native agy 1.3.5, approved by the user on this date
@@ -43,9 +43,10 @@ by newly passing enforcement tests. Personal login, successful ADC routing,
 and missing/expired cached-login coverage remain unverified; a synthetic missing-ADC
 case now verifies an explicit failure, as recorded below. The user approved moving
 those unavailable authentication cases to Task 6 as release requirements and
-finishing Task 1 on verified enterprise evidence. Tasks 1–2 are done;
-Tasks 3–6 remain pending. Task 2 implements argument validation and default-role
-transport; native edit-mode selection and request-local isolation remain Task 4.
+finishing Task 1 on verified enterprise evidence. Tasks 1–4 are done;
+Tasks 5–6 remain pending. The production adapter now
+implements default-role transport, bounded diagnostics, native edit-mode selection,
+and request-local argument isolation.
 Enforced native downgrades are a deferred enhancement under upstream #1233, not an
 acceptance prerequisite. Revisit only after a documented release and tests of
 saved-policy precedence, direct and command/MCP writes, both cwd modes, and
@@ -279,9 +280,9 @@ failure class as a passing missing-authentication case.
 | --- | --- |
 | A1 | T1/T2 and A1b: existing enterprise login without a forwarded API key. A1a: synthetic missing-ADC error. Personal, successful ADC routing, and missing/expired cached-login cases unverified. |
 | A2 | T1/T2 transport, R1 configured read, R2b external read, and Task 2's production default-role file read below. Additional roles remain Task 5. |
-| A3 | Pending Task 5; no PAL continuation tested. |
-| A4 (revised) | W1/W1b denial under current settings; E2/E3 native edit opt-in in both cwd modes with unchanged settings. Task 2 verifies false has no mode flag and qualifies the schema; true is explicitly rejected until Task 4. Native edit arguments/isolation remain Task 4; stronger enforcement is deferred to #1233. |
-| A5 | Task 2 adds the production agent with path restrictions unsupported; public preflight-ordering acceptance remains Task 4. |
+| A3 | Task 4 verifies a true-then-false PAL follow-up drops PAL's edit flag; complete history/role/MCP continuation acceptance remains Task 5. |
+| A4 (revised) | Task 4 verifies exactly one native edit flag for true and none for false, reserved overrides rejected, sequential/concurrent argument isolation, and live production-agent reads/edits in both cwd modes with unchanged user settings. Default writes were denied under the observed policy; stronger enforcement remains deferred to #1233. |
+| A5 | Task 4 public-call tests reject `editable_paths` before role-prompt loading, agent creation, or process launch, including actual `prompt.txt` inputs and existing continuations; storage remains unchanged. |
 | A6 | Task 3's controlled subprocess tests verify prompt absence from argv, command metadata, and PAL command logs on success, failure, and timeout. This does not cover native child logs or echoed model text. |
 | A7 | Task 3 verifies production tool errors for nonzero exit, unsuccessful status, invalid/incomplete output, missing executables, and timeout; failure/timeout launches once per invocation. A1a supplies a live synthetic missing-ADC failure. Missing/expired cached-login acceptance remains Task 6.3. |
 | A8 | Task 2 verifies exact legacy UTF-8 stdin and existing client/discovery behavior. Task 3 checks that other clients retain unbounded stderr and raw error stdout. Full unit validation retains dependency-security failures. |
@@ -520,3 +521,83 @@ ASCII prompt-marker assertions but did not independently run tests or live agy.
 External PAL review (`gemini-3.8-flash`) failed with `API_KEY_INVALID` and supplies
 no corroboration. No systemic findings or new project conventions required
 indexing. Task 3 is done; Tasks 4–6 and full release acceptance remain pending.
+
+## Task 4 verification, 2026-10-14
+
+`AgyAgent` now generates exactly one `--mode accept-edits` for true, after checking
+every configured argument source. False adds no mode flag and keeps inherited
+native permissions. The preset remains unchanged. Both schema descriptions now
+state true's native-mode request and unsupported path scope. Public-call tests
+cover omitted/false follow-ups, overlapping true/false calls, reserved mode/bypass
+arguments, and a false request reporting a saved-policy write without PAL
+misclassifying the answer.
+
+`tests/test_clink_safe_default.py` covers fresh and existing conversations with
+inline prompts and real `prompt.txt` inputs. Unsupported path scope fails before
+role loading, agent creation, or subprocess launch and leaves storage unchanged.
+The request preparation helper still expands prompt files before this rejection.
+
+The opt-in tests use the production `AgyAgent` and unchanged shared process/env/cwd
+lifecycle directly, without a role prompt, to isolate native permission behavior.
+The native executable `/Users/sergio/.local/bin/agy` reported 1.3.5. Account class
+remains the user's enterprise identification; no credentials were inspected.
+The filtered environment contained only `COLORTERM`, `HOME`, `LANG`, `LANGUAGE`,
+`LC_ALL`, `LC_CTYPE`, `LOGNAME`, `PATH`, `SHELL`, `TERM`, `TMPDIR`, and `USER`.
+No API key or ADC selector was forwarded. The operator's existing
+`allowNonWorkspaceAccess=true` remained in place; no settings were edited.
+
+Command: `PAL_RUN_AGY_INTEGRATION=1 python -m pytest tests/test_clink_agy_safety.py -m integration -v -s`.
+The initial two cases passed in 100.58 seconds (30 unit cases deselected), before
+the review-driven assertion refinement below. Each case made
+three separate invocations: required file-only marker read, default write
+observation, and required native opt-in edit. Results came from fresh Python/CLI
+processes; no restart of an already-running MCP host is claimed.
+
+| Case | Reference project / child cwd | Result |
+| --- | --- | --- |
+| Scratch | Project: `/private/tmp/pytest-of-sergio/pytest-29/test_live_agy_reads_and_native0/project`. Read cwd: `/tmp/pal-clink-u5o0jke0`; default-write cwd: `/tmp/pal-clink-hpnll3ku`; edit cwd: `/tmp/pal-clink-lxp9vqic`. | File-only marker returned. Default write emitted native `write_file` auto-denial notice, exited zero with an empty response rejected by PAL, and left the sentinel unchanged. True changed the sentinel to `NATIVE_EDIT` plus newline and returned a usable result. |
+| Configured project | Project and all child cwd values: `/private/tmp/pytest-of-sergio/pytest-29/test_live_agy_reads_and_native1/project`. | Same required read/edit success, default denial/empty-response error, and unchanged default sentinel. |
+
+The sentinel files were outside all scratch cwd directories, so runner cleanup
+could not hide edits. Both cases retained the documented user settings file
+`~/.gemini/antigravity-cli/settings.json` SHA-256
+`86af8921ec53abfe4ca868b0f932ab991e3077351c669b1d3f56e062f3924a0d` before/after
+each action. Hashing covers that file only, not credentials or every potential
+configuration source. The default-write errors remain errors and are recorded as
+policy-specific observations, not successful writes or proof of universal denial.
+Required read/native-edit errors and other default execution/protocol failures
+fail the opted-in run. No bypass, mode downgrade, or persistent setting change was
+used to make the operations pass.
+
+Independent review found one P2 in the observation check: its original parser
+error match also accepted missing or non-string response values. The check now
+requires an explicit empty string in the single validated `SUCCESS` result.
+Eight regression cases cover that boundary, including missing/null/numeric/
+object/list/whitespace responses and `ERROR` status. The reviewer confirmed the
+fix and approved with no remaining findings; no P0/P1 indexing was needed.
+
+The narrowed live rerun passed both cases in 95.67 seconds (38 unit cases
+deselected), with the same read/edit/default-denial outcomes and unchanged user
+settings hash. Its scratch reference project was
+`/private/tmp/pytest-of-sergio/pytest-36/test_live_agy_reads_and_native0/project`;
+read/default-write/edit cwd values were `/tmp/pal-clink-mewgadhz`,
+`/tmp/pal-clink-di5m23ra`, and `/tmp/pal-clink-s1ddn6vv` respectively. Its configured
+project and all three cwd values were
+`/private/tmp/pytest-of-sergio/pytest-36/test_live_agy_reads_and_native1/project`.
+This was a separate test run against new disposable fixtures, not automatic replay.
+
+| Verification | Result |
+| --- | --- |
+| Focused safety, safe-default, agy, and tool-surface unit tests | Final: 331 passed, 2 live cases deselected. A stale tool-surface description was updated to the native edit-mode contract after the first full run exposed it. |
+| Full unit suite, `python -m pytest tests/ -q -m 'not integration'` | Final: 2,909 passed, 2 existing dependency-security failures, 16 skipped, 17 deselected. Both TLS hostname failures remain the documented installed AnyIO/lockfile mismatch; no clink or schema regression remains. |
+| `./code_quality_checks.sh`, before/after | Ruff, Black, and isort passed. Before: 1,229 passed before the existing TLS hostname failure (15 deselected); final: 1,271 passed before the same failure (17 deselected). |
+| `./run_integration_tests.sh` | 2 passed, 2 existing consensus replay failures, 13 skipped, 2,919 deselected. Ten skips lack `CUSTOM_API_URL`, one lacks the existing live-clink selector, and two new agy cases lack the explicit opt-in in this general run. The dedicated opted-in agy run above passed both. |
+| Quick simulator | 4 passed, 2 failed (`basic_conversation`, `per_tool_deduplication`), zero skips. Existing invalid Gemini API-key failures remain; this suite does not cover agy. |
+
+Independent review approved the final code/tests; the reviewer did not independently
+execute the tests or reproduce live behavior. External PAL review
+(`gemini-3.8-flash`) failed with `API_KEY_INVALID`, supplying no corroboration.
+The full personal/enterprise authentication matrix, role-based acceptance, and
+final release checks remain Tasks 5–6. This task adds no dependency or credential
+change and does not claim release readiness. No new project conventions required
+indexing. Task 4 is done; Tasks 5–6 remain pending.

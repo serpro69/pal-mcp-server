@@ -1,6 +1,6 @@
 # Antigravity CLI support in clink
 
-> Status: fresh design review approved 2026-10-14; Tasks 1–3 done; Tasks 4–6 pending
+> Status: fresh design review approved 2026-10-14; Tasks 1–4 done; Tasks 5–6 pending
 > Created: 2026-10-10
 > Source: [PAL issue #465](https://github.com/BeehiveInnovations/pal-mcp-server/issues/465)
 > Reference CLI: `agy` 1.3.5
@@ -167,7 +167,7 @@ The request boolean defaults to false on every request, including continuations.
 
 The user reported that 1.3.5 rejects `agy --mode default` and opened [upstream #1233](https://github.com/google-antigravity/antigravity-cli/issues/1233), which was open with no comments when inspected on 2026-10-14. This establishes the reported flag limitation, not proof that every possible restriction mechanism is unavailable. Do not guess that `--mode auto` or `plan` enforces read-only behavior. No downgrade mechanism is required for this version of PAL's agy integration.
 
-Existing [live evidence](./capability-evidence.md) covers default denial under the tested settings and successful native edit opt-in in both cwd modes, with unchanged settings during stable repeats. Those observations do not become broader guarantees under this revision. Remaining authentication/platform gaps, production argument checks, and runtime acceptance still need their planned verification.
+Existing [live evidence](./capability-evidence.md) covers default denial under the tested settings and successful native edit opt-in in both cwd modes, with unchanged settings during stable repeats. Task 4 adds production argument-isolation checks and live production-agent read/edit checks in both cwd modes. Those observations do not become broader permission guarantees. Remaining authentication/platform gaps, role/continuation acceptance, and final release checks retain their planned verification.
 
 ### Upstream permission improvement
 
@@ -185,7 +185,7 @@ The shared encoder defaults to today's behavior, protecting Claude, Codex, and G
 | --- | --- | --- |
 | Existing personal and enterprise sessions are usable from PAL's subprocess context | Required | Verify declared authentication passthrough and live 1.3.5 runs through the filtered environment, with no mandatory API key |
 | One input plus EOF returns exactly one complete result | Required | Captured protocol fixture and subprocess test, then live confirmation |
-| PAL can omit its mode flag for false and add native edit mode for true without shared argument state or saved-settings mutation | Required; native edit path observed, production adapter pending | Captured argv/continuation/concurrency tests plus stable-settings live opt-in cases |
+| PAL can omit its mode flag for false and add native edit mode for true without shared argument state or saved-settings mutation | Required; Task 4 verifies production arguments and stable user settings in live runs | Captured argv/continuation/concurrency tests plus stable-settings live opt-in cases |
 | Agy can read referenced project files in both cwd modes when the operator permits access | Required; observed in the enterprise environment | Content-dependent reads in configured cwd and outside scratch cwd with recorded operator settings |
 | Current role prompts and CLIConversation history suffice | Important | Role assertions, two-request tests through MCP and public direct execution, simulator |
 | Stdlib JSON plus existing async subprocess support suffices | Important | Implementation passes without dependency changes |
@@ -221,4 +221,4 @@ Ship the preset only after the capability and acceptance evidence is complete, d
 
 Task 1 records the observed enterprise invocation contract and the unavailable authentication cases assigned to Task 6 by user approval. Completion of Task 1 permits adapter development, not release acceptance. The former permission blocker is removed by the approved revision; the stronger guarantee is deferred to [upstream #1233](https://github.com/google-antigravity/antigravity-cli/issues/1233). Existing Claude system-prompt exposure remains a separate follow-up in [verification.md](./verification.md#open-decisions-and-follow-up-work). Preserve the shared runner's existing cleanup regression coverage.
 
-The historical design report remains unavailable. A [fresh 2026-10-14 review](./review-design.md) approved the corrected plan before Task 2; it does not reconstruct that older report. Tasks 1–3 are done and Tasks 4–6 remain pending. The implemented slice supports the default role, selected metadata, and bounded failure diagnostics, and rejects true edit requests until Task 4. The preceding permission sections describe the final feature contract. See [Task 2 verification](./capability-evidence.md#task-2-verification-2026-10-14) and [Task 3 verification](./capability-evidence.md#task-3-verification-2026-10-14).
+The historical design report remains unavailable. A [fresh 2026-10-14 review](./review-design.md) approved the corrected plan before Task 2; it does not reconstruct that older report. Tasks 1–4 are done and Tasks 5–6 remain pending. The implemented slice supports the default role, selected metadata, bounded failure diagnostics, native edit-mode requests, and explicit rejection of path restrictions. See [Task 2 verification](./capability-evidence.md#task-2-verification-2026-10-14), [Task 3 verification](./capability-evidence.md#task-3-verification-2026-10-14), and [Task 4 verification](./capability-evidence.md#task-4-verification-2026-10-14).

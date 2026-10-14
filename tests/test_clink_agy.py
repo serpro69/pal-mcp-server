@@ -119,7 +119,8 @@ def test_discovery_and_schema_preserve_selection_contract(registry):
         assert "agy" in description
         assert "false inherits saved permissions" in description
         assert "does not guarantee read-only" in description
-        assert "true is not yet supported" in description
+        assert "true requests --mode accept-edits" in description
+        assert "does not support editable_paths" in description
 
 
 @pytest.mark.asyncio
@@ -163,10 +164,16 @@ async def test_sole_agy_client_can_be_selected_automatically(registry, process):
 
 
 @pytest.mark.asyncio
-async def test_edit_request_is_rejected_before_spawn(registry, process):
-    with pytest.raises(ToolExecutionError, match="does not yet support allow_edits=true"):
-        await CLinkTool().execute({"cli_name": "agy", "prompt": "hello", "allow_edits": True})
-    assert not process.calls
+async def test_edit_request_adds_native_mode_once(registry, process):
+    payload = json.loads(
+        (await CLinkTool().execute({"cli_name": "agy", "prompt": "hello", "allow_edits": True}))[0].text
+    )
+    assert payload["status"] in {"success", "continuation_available"}
+    assert len(process.calls) == 1
+    command = process.calls[0][0]
+    assert command.count("--mode") == 1
+    assert command[-2:] == ("--mode", "accept-edits")
+    assert "=== EXECUTION POLICY ===" not in json.loads(process.inputs[0])["message"]["content"]
 
 
 RESERVED = [

@@ -33,7 +33,7 @@ SUMMARY_PATTERN = re.compile(r"<SUMMARY>(.*?)</SUMMARY>", re.IGNORECASE | re.DOT
 ALLOW_EDITS_DESCRIPTION = (
     "Opt in to native filesystem edits where supported. Defaults to false. "
     "For agy, false inherits saved permissions and does not guarantee read-only execution; "
-    "true is not yet supported."
+    "true requests --mode accept-edits. Agy does not support editable_paths."
 )
 
 # Request-scoped system prompt. Stored in a ContextVar so concurrent asyncio
