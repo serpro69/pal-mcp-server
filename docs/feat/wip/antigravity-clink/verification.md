@@ -1,6 +1,6 @@
 # Antigravity clink: isolated verification
 
-> Status: historical research complete; design review findings addressed; implementation pending
+> Status: historical research record; Tasks 1–5 now done; Task 6 acceptance incomplete
 > Verified: 2026-10-10
 > Checkout: `c20d384a9c5a38ab8d58c780d2e269c537e409fa`
 > Request: [PAL issue #465](https://github.com/BeehiveInnovations/pal-mcp-server/issues/465), originally supplied as a pull-request URL
@@ -10,7 +10,7 @@
 
 This is a research record for the ongoing `kk:design` workflow. It is not an approved design or an implementation plan. All five verification agents completed. No fallback to non-isolated verification was needed. Public documentation was retrieved on the verification date and may change; release notes supply the version distinctions below. The official `agy` executable was not found on the inspection shell's PATH.
 
-**Superseding decision, 2026-10-14:** the user selected installed 1.3.5 and approved inheriting agy's permissions. For agy, false omits PAL's edit-mode flag without guaranteeing read-only execution; the final design maps true to `--mode accept-edits` (implementation remains Task 4). The original no-edit prerequisite discussed below is historical and no longer gates implementation/release. Track stronger enforcement under [agy #1233](https://github.com/google-antigravity/antigravity-cli/issues/1233); use the current [permission contract](./design.md#permission-checkpoint), [tasks](./tasks.md), and [live evidence](./capability-evidence.md) for current state. Preserve the original research below as a dated record, not current requirements. The original historical review is unavailable; the current `review-design.md` is a fresh 2026-10-14 report.
+**Superseding decision, 2026-10-14:** the user selected installed 1.3.5 and approved inheriting agy's permissions. For agy, false omits PAL's edit-mode flag without guaranteeing read-only execution; true requests `--mode accept-edits`, implemented in completed Task 4. The original no-edit prerequisite discussed below is historical and no longer gates implementation/release. Track stronger enforcement under [agy #1233](https://github.com/google-antigravity/antigravity-cli/issues/1233); use the current [permission contract](./design.md#permission-checkpoint), [tasks](./tasks.md), and [live evidence](./capability-evidence.md) for current state. Preserve the original research below as a dated record, not current requirements. The original historical review is unavailable; the current `review-design.md` is a fresh 2026-10-14 report.
 
 **Task-boundary update, 2026-10-14:** the user approved finishing Task 1 on verified enterprise evidence and moving unavailable personal-login, successful ADC routing, and missing/expired cached-session checks to Task 6 as explicit release requirements. The [authentication follow-up](./capability-evidence.md#authentication-follow-up-2026-10-14) records synthetic forwarding, an explicit missing-ADC error, and continued enterprise-login success. It does not claim the moved checks passed.
 
@@ -18,7 +18,7 @@ This is a research record for the ongoing `kk:design` workflow. It is not an app
 
 The historical 2026-10-12 review reportedly checked HEAD `2d821f14cb35869added0838827177dc957f6da6`; its original report is unavailable. The original Q1–Q5 answers below retain their historical checkout context. A [fresh 2026-10-14 review](./review-design.md) now supersedes that baseline for implementation: public clink execution owns `CLIConversation` preparation, bounded history, and atomic success-only exchange recording. Use the current [design](./design.md) and [plan](./implementation.md); the older decorator and persistence descriptions below are historical, not implementation instructions. No review alone establishes agy runtime capability.
 
-Task 1 owns verification of authentication passthrough and useful referenced-file reads plus safe/edit behavior in both cwd modes. The existing no-edit gate remains unresolved. Shared prompt-file admission may precede an unsupported-path rejection; the accepted guarantee is no agent creation or subprocess launch. Lifecycle cleanup findings from the old checkout were fixed before this review and need regression coverage, not a duplicate repair task.
+Tasks 1–5 now verify enterprise transport, authentication-variable forwarding, useful reads, native edit requests, roles, and PAL history. The former no-edit gate was superseded, not passed. [Task 6 verification](./task-6-verification.md) owns the remaining authentication matrix and repository-wide checks. Shared prompt-file admission may precede an unsupported-path rejection; the accepted guarantee is no agent creation or subprocess launch. Lifecycle cleanup findings from the old checkout were fixed before this review and need regression coverage, not a duplicate repair task.
 
 ## Confirmed requirements entering verification
 

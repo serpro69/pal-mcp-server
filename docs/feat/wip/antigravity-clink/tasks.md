@@ -4,14 +4,14 @@
 > Implementation: [implementation.md](./implementation.md)
 > Verification: [verification.md](./verification.md)
 > Review: [review-design.md](./review-design.md)
-> Status: in-progress; Tasks 1–5 done; Task 6 pending
+> Status: in-progress; Tasks 1–5 done; Task 6 in-progress
 > Created: 2026-10-10
 > Reference CLI: agy 1.3.5
 > Upstream improvement: [agy #1233](https://github.com/google-antigravity/antigravity-cli/issues/1233), not a release dependency
 > Authentication: existing login/subscription; no required API key
 > Not Doing: PAL-managed authentication, mandatory API keys, v1.0.16 compatibility, native session reuse, prompt templates/argv transport, per-path editing, new OS sandbox, persistent user-settings changes, enforced read-only agy execution, unrelated client fixes
 
-The user approved the initial walkthrough and, on 2026-10-14, revised the contract to inherit agy permissions: false omits PAL's edit-mode flag; true requests `--mode accept-edits`; false is not a read-only guarantee. Task 4 implements this mapping, replacing Task 2's temporary rejection of true. The stronger downgrade guarantee is deferred to upstream #1233. The user also approved finishing Task 1 on verified enterprise evidence and moving personal-login, successful ADC routing, and missing/expired cached-session checks to Task 6 as explicit release requirements. No unrun case is marked passed. Tasks 1–5 are done; Task 6 remains pending. See [capability-evidence.md](./capability-evidence.md). A [fresh design review](./review-design.md) approved the corrected plan before Task 2; the older historical report remains unavailable.
+The user approved the initial walkthrough and, on 2026-10-14, revised the contract to inherit agy permissions: false omits PAL's edit-mode flag; true requests `--mode accept-edits`; false is not a read-only guarantee. Task 4 implements this mapping, replacing Task 2's temporary rejection of true. The stronger downgrade guarantee is deferred to upstream #1233. The user also approved finishing Task 1 on verified enterprise evidence and moving personal-login, successful ADC routing, and missing/expired cached-session checks to Task 6 as explicit release requirements. No unrun case is marked passed. Tasks 1–5 are done; Task 6 is in progress with [verification results and remaining gates](./task-6-verification.md). See [capability-evidence.md](./capability-evidence.md). A [fresh design review](./review-design.md) approved the corrected plan before Task 2; the older historical report remains unavailable.
 
 Size reflects substantive behavior; mechanical registry entries, manifest fields, and fixture data are excluded. Each implementation slice includes its own meaningful verification. Task 4 and Task 5 may run in parallel after Task 3 because they own separate behavioral/test surfaces.
 
@@ -109,7 +109,9 @@ Size reflects substantive behavior; mechanical registry entries, manifest fields
 
 ## Task 6: Final verification and documentation
 
-- **Status:** pending
+- **Status:** in-progress
+- **Environment update, 2026-10-15:** The user confirmed enterprise agy login and gcloud ADC credentials are available, but agy ADC has not been configured. Authorized test-only `AGY_ADC_AUTH=1` failed with a missing plan-model error. Personal login and isolated missing/expired cached sessions remain unavailable; explicit ADC credential-file/project/location overrides have not been supplied. No active credentials or saved settings may be changed to manufacture coverage.
+- **Verification:** [Task 6 report](./task-6-verification.md): all eight enterprise live cases and the individual agy simulator passed; 2,940 unit passes with two known AnyIO failures. Full acceptance remains blocked by the authentication gaps, repository-wide failures, and incomplete locked-environment/installed-wheel checks.
 - **Depends on:** Task 1, Task 2, Task 3, Task 4, Task 5
 - **Size:** S
 - **Can run in parallel with:** —
@@ -117,13 +119,13 @@ Size reflects substantive behavior; mechanical registry entries, manifest fields
 
 ### Subtasks
 
-- [ ] 6.1 Run `$kk:test` over the full feature and repository-required suites — verify: meaningful success/failure cases and all existing-client regressions pass.
-- [ ] 6.2 Run `./code_quality_checks.sh`, `./run_integration_tests.sh`, quick simulator mode, and individual `clink_agy_validation` — verify: outcomes and skip reasons are recorded; dedicated agy tests cover the API-key-free path independently of provider-key checks in helpers.
+- [ ] 6.1 Run `$kk:test` over the full feature and repository-required suites — verify: meaningful success/failure cases and all existing-client regressions pass. **Partial:** all clink regressions pass; two known TLS failures remain in the existing environment. Disposable locked-environment creation was blocked by local tool policy even after user approval. Prepare that environment and rerun; do not relax assertions.
+- [x] 6.2 Run `./code_quality_checks.sh`, `./run_integration_tests.sh`, quick simulator mode, and individual `clink_agy_validation` — verify: outcomes and skip reasons are recorded; dedicated agy tests cover the API-key-free path independently of provider-key checks in helpers. **Outcome:** commands completed and all failures/skips are recorded; this checkbox does not mark the failing suites passed.
 - [ ] 6.3 Complete the 1.3.5 personal/enterprise, filtered-environment, both-cwd, and inherited/explicit-edit evidence matrix. **Moved from Task 1 by user approval:** personal login without an API-key dependency; successful ADC selector, credential-location, project/location routing; actionable errors for missing and expired cached sessions. Use prepared operator-provided environments without changing the user's active credentials. Verify revised A1–A8 with traceable evidence; unavailable environments remain unverified release requirements, not passes or waivers. Upstream read-only enforcement is not a release prerequisite.
-- [ ] 6.4 Run `$kk:document` and reconcile design/plan/tasks/user docs — verify: inherited-permissions semantics, native mode selection, and upstream/deferred findings are consistently documented.
-- [ ] 6.5 Run `$kk:review-code` with Python input — verify: findings are resolved or durably recorded; blockers prevent completion.
-- [ ] 6.6 Run `$kk:review-spec` over the implementation and all feature documents — verify: no missing requirements, stale task state, or unsupported capability claims remain.
-- [ ] 6.7 Inspect final packaging/diff, restart the local MCP session for updated code, and confirm discovery — verify: the preset/roles ship, existing clients remain available, and `.capy/knowledge.db` is never committed.
+- [x] 6.4 Run `$kk:document` and reconcile design/plan/tasks/user docs — verify: inherited-permissions semantics, native mode selection, and upstream/deferred findings are consistently documented.
+- [x] 6.5 Run `$kk:review-code` with Python input — verify: findings are resolved or durably recorded; blockers prevent completion. **Outcome:** independent code-reviewer approved without findings; external PAL review failed with `API_KEY_INVALID`, so the documented single-reviewer fallback applies.
+- [x] 6.6 Run `$kk:review-spec` over the implementation and all feature documents — verify: no missing requirements, stale task state, or unsupported capability claims remain. **Outcome:** independent spec-reviewer found the implementation conformant with no findings; remaining acceptance gates are accurately incomplete, not waived.
+- [ ] 6.7 Inspect final packaging/diff, restart the local MCP session for updated code, and confirm discovery — verify: the preset/roles ship, existing clients remain available, and `.capy/knowledge.db` is never committed. **Partial:** wheel contents and fresh source-checkout discovery passed; test-owned MCP servers loaded current code. Local policy blocked installed-wheel smoke testing; the user's active MCP host was not restarted. Complete both checks before closing this item. No commit was made during verification.
 
 ## Deferred upstream improvement
 

@@ -1,6 +1,6 @@
 # Implementation plan: Antigravity clink
 
-> Status: fresh design review approved; Tasks 1–5 done; Task 6 pending
+> Status: Tasks 1–5 done; Task 6 in-progress; release acceptance incomplete
 > Created: 2026-10-10
 > Design: [design.md](./design.md)
 > Tasks: [tasks.md](./tasks.md)
@@ -131,4 +131,4 @@ Track stronger invocation-level permission downgrades under [agy #1233](https://
 
 Preserve the deferred Claude system-prompt command exposure in [verification.md](./verification.md#open-decisions-and-follow-up-work). The previously recorded general cancellation/output-file cleanup gaps were fixed in the shared runner before this review; retain its tests, not a duplicate repair task. If scope expands, update the design and split a new task rather than turning an M-sized slice into an unbounded refactor.
 
-The [fresh 2026-10-14 design review](./review-design.md) approved the corrected plan before Task 2. The historical report remains unavailable and is not reconstructed by that new review. The [capability evidence](./capability-evidence.md) separates observed behavior from user-approved task/contract changes. Tasks 1–5 are done and Task 6 is pending. Task 2's default-role transport passed focused tests, a production file-reading request, and independent code review. Task 3's failure/metadata/diagnostic slice passed 248 focused tests and independent review. Task 4 passed 331 focused tests, both live cwd cases, and independent review. Task 5 passed 563 focused tests, six enterprise role/cwd cases, the individual agy simulator, and independent review; full repository checks retain documented baseline failures. Unavailable authentication coverage remains a Task 6 release requirement.
+The [fresh 2026-10-14 design review](./review-design.md) approved the corrected plan before Task 2. The historical report remains unavailable and is not reconstructed by that new review. The [capability evidence](./capability-evidence.md) separates observed behavior from user-approved task/contract changes. Tasks 1–5 are done and Task 6 is in progress; [its verification record](./task-6-verification.md) records current outcomes and remaining gates. Task 2's default-role transport passed focused tests, a production file-reading request, and independent code review. Task 3's failure/metadata/diagnostic slice passed 248 focused tests and independent review. Task 4 passed 331 focused tests, both live cwd cases, and independent review. Task 5 passed 563 focused tests, six enterprise role/cwd cases, the individual agy simulator, and independent review; full repository checks retain documented baseline failures. Unavailable authentication coverage remains a Task 6 release requirement.
