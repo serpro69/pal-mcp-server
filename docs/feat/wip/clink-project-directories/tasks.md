@@ -3,80 +3,105 @@
 > Design: [design.md](design.md)
 > Implementation: [implementation.md](implementation.md)
 > Verification: [verification.md](verification.md)
+> Review corrections: [review-resolution.md](review-resolution.md)
+> Readiness: [fresh review](readiness.md) — SDK/model versus directory-error contract remains unresolved; complete Task 2.0 before implementing the public field.
 > Status: pending
 > Created: 2026-10-15
-> Not Doing: automatic project discovery, manifest generation, native permission changes, project switching within a conversation, filesystem sandboxing, project locks, relative attachments, persistent conversations, greeting-prompt changes, dependency repair
+> Not Doing: automatic project discovery, manifest generation, native permission changes, switching established projects within a conversation, filesystem sandboxing, project locks, relative attachments, persistent conversations, greeting-prompt changes, dependency repair
 
-## Task 1: Select and bind a conversation's project
+## Task 1: Define directory selection and identity
 
 - **Status:** pending
 - **Depends on:** —
-- **Size:** M
-- **Can run in parallel with:** —
-- **Docs:** [request and state implementation](implementation.md#task-1-select-and-bind-a-conversations-project)
+- **Size:** S
+- **Slicing:** Contract-first; define the new request boundary without exposing an incomplete public API.
+- **Can run in parallel with:** Task 4.1 and documentation drafting in Task 5.3
+- **Docs:** [selection and identity](implementation.md#task-1-define-directory-selection-and-identity)
 
-- [ ] 1.1 Add strict optional `working_dir` to `CLinkRequest` and the MCP schema in `tools/clink.py`; verify valid values and unchanged CLI/continuation requirements.
-- [ ] 1.2 Add `clink/working_directory.py` for immutable selections, canonical path validation and saved-binding validation; verify the design's selection table and error cases in `tests/test_clink_working_directory.py`.
-- [ ] 1.3 Resolve the invocation directory under existing coordination and pass a deep client copy to `create_agent()`; verify request precedence and no registry/server-cwd mutation.
-- [ ] 1.4 Extend `CLIConversation.commit()` to atomically save `clink_working_directory`; verify immutable continuation, scratch binding, CLI switching, failed calls and failed persistence.
-- [ ] 1.5 Add PAL-owned selection metadata after native metadata merging; verify spoof resistance, output reduction and post-selection errors without exposing scratch paths.
-- [ ] 1.6 Cover legacy/API-origin migration, parent-history non-inheritance and intervening API/local turns; update exact-context assertions while preserving provenance and success-only writes.
-- [ ] 1.7 Run the Task 1 focused command and record results.
+- [ ] 1.1 Add immutable selections/bindings and typed errors in `clink/working_directory.py`; verify malformed and missing state are distinct.
+- [ ] 1.2 Implement home expansion, lexical request normalization, preserved manifest spelling, canonical identity and selected-path validation; test the selection table in `tests/test_clink_working_directory.py`.
+- [ ] 1.3 Use `os.path.samefile()` for aliases/case variants and bound launch-target checks; verify retargeting, missing paths and comparison errors without string fallback.
+- [ ] 1.4 Run the Task 1 focused command and record results.
 
-## Task 2: Prove real child behavior and failure cleanup
+## Task 2: Integrate project selection and atomic continuation
 
 - **Status:** pending
 - **Depends on:** Task 1
 - **Size:** M
-- **Can run in parallel with:** —
-- **Docs:** [subprocess implementation](implementation.md#task-2-prove-real-child-behavior-and-failure-cleanup)
+- **Can run in parallel with:** Task 4.1 and documentation drafting in Task 5.3
+- **Docs:** [request and persistence](implementation.md#task-2-integrate-project-selection-and-atomic-continuation)
 
-- [ ] 2.1 Add the four-format child fixture in `tests/fixtures/clink_working_directory.py` and subprocess tests in `tests/test_clink_working_directory_subprocess.py`; verify cwd and relative marker reads through the production runner.
-- [ ] 2.2 Overlap different projects, bound continuations and fallback calls on the same registry client; verify independent directories, unchanged configuration and correct cleanup.
-- [ ] 2.3 Extend Codex repository-policy coverage and all-adapter permission/role argument assertions; verify skip-Git behavior is scratch-only and edit authorization remains current-request-only.
-- [ ] 2.4 Normalize directory-related spawn errors in `clink/agents/base.py`; verify missing/denied cwd errors, no commit, released admission and preserved cancellation cleanup.
+- [ ] 2.0 Reconcile the design's rejection contract and implementation plan with the [open readiness finding](readiness.md#p2-schema-rejection-cannot-return-the-promised-clink-error-envelope): preserve SDK/request-model errors for invalid types and reserve directory-specific metadata for directory-resolution failures. Complete this documentation prerequisite before Task 2.1.
+- [ ] 2.1 Add optional `working_directory_absolute_path` to the request/schema; verify chat-compatible naming/home expansion and unchanged CLI/continuation requirements. Follow the [schema/model validation boundary](readiness.md#p2-schema-rejection-cannot-return-the-promised-clink-error-envelope); keep SDK validation enabled.
+- [ ] 2.2 Resolve under existing coordination and pass a deep client copy with the launch path to the factory; verify no shared mutation or pre-rejection spawn.
+- [ ] 2.3 Atomically save both paths in `clink_working_directory`; verify established-project immutability, equivalent aliases, successful scratch-to-first-project promotion with history retained, failed promotion remaining scratch, and unchanged failure/CAS/TTL semantics.
+- [ ] 2.4 Cover missing-state migration, non-inheritance of chat's raw directory, parent history and API/local interleaving; preserve original provenance checks.
 - [ ] 2.5 Run the Task 2 focused command and record results.
 
-## Task 3: Exercise MCP clients and document the contract
+## Task 3: Return actionable directory diagnostics
 
 - **Status:** pending
-- **Depends on:** Task 1, Task 2
+- **Depends on:** Task 2
 - **Size:** M
-- **Can run in parallel with:** —
-- **Docs:** [MCP and documentation implementation](implementation.md#task-3-exercise-mcp-clients-and-document-the-contract)
+- **Can run in parallel with:** Task 4.1 and documentation drafting in Task 5.3
+- **Docs:** [directory diagnostics](implementation.md#task-3-return-actionable-directory-diagnostics)
 
-- [ ] 3.1 Add `tests/test_clink_working_directory_mcp.py` using isolated stdio servers and the real runner; verify schema, project A continuation, pre-spawn project B rejection and fresh-conversation selection for all four adapters.
-- [ ] 3.2 Cover manifest/scratch binding and distinct-conversation overlap through MCP; verify captured cwd, persistence, cleanup and isolation from developer manifests/providers.
-- [ ] 3.3 Update `docs/tools/clink.md` and `docs/configuration.md` for request selection, immutable bindings, validation, null semantics and permission limits; verify examples against the tested contract and check links.
-- [ ] 3.4 Run the Task 3 focused command and record results.
+- [ ] 3.1 Map directory-helper errors to stable types, validation stage, execution flag, requested/bound paths and new-conversation fields; verify exact payloads and zero state effects. Respect the [readiness finding](readiness.md#p2-schema-rejection-cannot-return-the-promised-clink-error-envelope): SDK/request-model rejections do not promise this directory-specific envelope.
+- [ ] 3.2 Add PAL-owned launch/identity/source metadata after native merging; test spoof resistance, response reduction, execution errors and null scratch paths.
+- [ ] 3.3 Replace manifest-only runner wording and classify directory-related spawn failures; verify deletion/access races, cancellation and admission release.
+- [ ] 3.4 Preserve specific native Codex Git-policy errors with the operator workaround; verify unrelated failures are not relabeled and no bypass/retry occurs.
+- [ ] 3.5 Run the Task 3 focused command and record results.
 
-## Task 4: Final verification
+## Task 4: Verify native adapters with the shared child fixture
 
 - **Status:** pending
-- **Depends on:** Task 1, Task 2, Task 3
+- **Depends on:** Task 2, Task 3 for completion; subtask 4.1 has no feature-task dependency
+- **Size:** M
+- **Can run in parallel with:** Tasks 1–3 for subtask 4.1; Task 5.3 documentation drafting
+- **Docs:** [shared fixture/subprocess coverage](implementation.md#task-4-verify-native-adapters-with-the-shared-child-fixture)
+
+- [ ] 4.1 Extend existing `tests/fixtures/cli_only_fake.py` with cwd/optional marker capture and Agy framing; preserve stage, duplicate-launch, history and socket-gate assertions and rerun existing MCP tests. Can start immediately.
+- [ ] 4.2 Add subprocess tests for launch spelling, child filesystem identity, and unchanged Claude edit arguments under symlinked request/manifest cwd.
+- [ ] 4.3 Overlap project A/B/fallback and bound threads on one client; verify unchanged registry/server cwd, independent launches and cleanup.
+- [ ] 4.4 Test automatic scratch-only Codex skip flags separately from explicit operator overrides; retain all vendor edit/role, failure and cancellation behavior.
+- [ ] 4.5 Run the Task 4 focused command and record results.
+
+## Task 5: Exercise MCP clients and explain operator choices
+
+- **Status:** pending
+- **Depends on:** Task 2, Task 3, Task 4 for completion; Task 5.3 drafting can start immediately
+- **Size:** M
+- **Can run in parallel with:** Tasks 1–4 for Task 5.3 drafting only
+- **Docs:** [MCP and operator documentation](implementation.md#task-5-exercise-mcp-clients-and-explain-operator-choices)
+
+- [ ] 5.1 Add isolated stdio cases in `tests/test_clink_working_directory_mcp.py` reusing the shared fake; verify four adapters, binding, conflicts, aliases and fresh projects with exact response fields. Cover the [two validation boundaries](readiness.md#p2-schema-rejection-cannot-return-the-promised-clink-error-envelope): wrong JSON types through the SDK's registered handler or real stdio, and directory-resolution errors through both direct and MCP calls; a direct `handle_call_tool()` call does not test SDK validation.
+- [ ] 5.2 Verify fallback, explicit scratch-to-first-project promotion, failed promotion and omitted scratch continuation, legacy/API-origin handling and overlap without developer settings/providers leaking into fixtures.
+- [ ] 5.3 Update `docs/tools/clink.md` and `docs/configuration.md` for field mapping, `~`, dual paths, transitions, errors, native-configuration activation, deferred operator policy and Codex's non-Git workaround. Draft in parallel; reconcile with tested behavior before completion.
+- [ ] 5.4 Run the Task 5 focused command and check document links.
+
+## Task 6: Final verification and documentation
+
+- **Status:** pending
+- **Depends on:** Task 1, Task 2, Task 3, Task 4, Task 5
 - **Size:** S
 - **Can run in parallel with:** —
-- **Docs:** [final verification plan](implementation.md#task-4-final-verification-and-documentation)
+- **Docs:** [final verification](implementation.md#task-6-final-verification-and-documentation)
 
-- [ ] 4.1 Run `$kk:test`, comprehensive quality checks, required integration tests and quick simulator checks; record failures/skips without weakening assertions.
-- [ ] 4.2 Extend the opt-in Agy validation harness with request-directory coverage and run native project/continuation smoke cases in prepared CLI environments; record versions, policy, file-read evidence and unavailable coverage.
-- [ ] 4.3 Run `$kk:document`; reconcile user-facing examples and verification limits with the implementation.
-- [ ] 4.4 Run `$kk:review-code` with Python as language input; resolve findings or record specific deferred work durably.
-- [ ] 4.5 Run `$kk:review-spec` against all feature documents; reconcile deviations and update evidence/statuses.
+- [ ] 6.1 Run `$kk:test`, comprehensive checks, integrations and quick simulator tests; record baseline failures/skips without weakening assertions.
+- [ ] 6.2 Extend the existing Agy opt-in harness and run controlled native project smoke cases in prepared environments; record unavailable coverage.
+- [ ] 6.3 Run `$kk:document` and reconcile examples/evidence with actual behavior.
+- [ ] 6.4 Run `$kk:review-code` with Python; resolve findings or record specific deferred work.
+- [ ] 6.5 Run `$kk:review-spec` against all feature documents and reconcile deviations/statuses.
 
-## Dependency Graph
+## Dependencies and parallel work
 
-```text
-Task 1 --> Task 2 --> Task 3 --> Task 4
-   |--------------------^         ^
-   |------------------------------|
-              Task 2 -------------|
-```
+- Completion order: Task 1 → Task 2 → Task 3 → Task 4 → Task 5 → Task 6.
+- Task 4.1 owns the shared fixture and compatibility checks; it can run alongside Tasks 1–3.
+- Task 5.3 owns the two user guides; drafting can overlap Tasks 1–4, with final validation after the MCP contract is tested.
+- Early fixture/docs work does not satisfy parent-task completion dependencies. No dangling graph edges or implicit shared-file ownership.
 
-## Known baseline
+## Deferred follow-up and known baseline
 
-The pre-design comprehensive check passed lint/format and 1,302 unit tests before
-an existing TLS hostname assertion failed. See
-[baseline evidence and next step](verification.md#baseline-quality-checks).
-No runtime implementation task has started, and design fact-checking does not
-replace independent design/code/spec review or native CLI acceptance tests.
+- **D1:** Possible operator directory allowlist for restricted MCP clients. See the [risk, deferral reason and next steps](implementation.md#deferred-follow-up-operator-directory-policy). This is not implemented by the current feature.
+- The existing TLS hostname assertion fails after 1,302 passing baseline tests; see [verification](verification.md#baseline-quality-checks).
+- All six implementation tasks are pending. The correction pass updates the design only, not runtime behavior.

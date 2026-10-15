@@ -2,177 +2,233 @@
 
 > Design: [design.md](design.md)
 > Tasks: [tasks.md](tasks.md)
+> Review corrections: [review-resolution.md](review-resolution.md)
 > Status: pending; no runtime changes made
 
 ## Starting points and constraints
 
-Read `tools/clink.py`'s custom request/schema and `_execute_coordinated()` together
-with `CLIConversation` in `clink/conversation.py`. The latter owns the thread
-snapshot and atomic success-only commit. `ResolvedCLIClient` is a Pydantic model,
-but instances returned by the singleton registry are shared and mutable.
-`create_agent()` constructs a fresh agent holding that client reference.
+Read `tools/clink.py`'s custom request/schema with `CLIConversation` in
+`clink/conversation.py`. The latter owns the snapshot and atomic successful
+commit. Registry clients are mutable and shared; fresh agents retain that client
+reference. Pass a deep request-local copy to the factory, never mutate the cached
+client or server cwd. Codex's Git-check hook and the shared runner must see the
+same selected launch path.
 
-`BaseCLIAgent.run()` owns configured/scratch directory lifetime and passes cwd to
-the subprocess. Codex builds its repository-check flag from the client's
-`working_dir`, not from a separate `run()` argument. Reuse this connection with a
-request-local client copy. Native argument and permission semantics are covered
-in the design and must not be generalized into a read-only guarantee.
+The public input is `working_directory_absolute_path`, matching chat and its
+home-expansion behavior. The manifest remains `working_dir`. Chat's directory
+controls artifact output, so do not reuse its containment validator or inherit
+its raw request field when continuing an API-origin thread. Persist a clink-only
+record with separate launch spelling and canonical identity. Follow the exact
+selection, comparison and error contracts in the design.
 
-Use existing Python, Pydantic, asyncio, pytest, and repository helpers; no new
-dependency is needed. Keep source changes scoped to this feature. All paths below
-are repository-relative. Tests must exercise observable cwd, persistence, and
-failure behavior rather than only asserting helper call structure.
+Use existing Python/Pydantic/asyncio/pytest dependencies. Paths below are relative
+to the repository. No native settings, manifest defaults, credentials or runtime
+source are changed by this design correction. The existing comprehensive-check
+failure is recorded in [verification.md](verification.md#baseline-quality-checks).
 
-## Task 1: Select and bind a conversation's project
+## Task 1: Define directory selection and identity
 
-**Size: M.** Primary files: `tools/clink.py`, new `clink/working_directory.py`,
-`clink/conversation.py`, new `tests/test_clink_working_directory.py`.
+**Size: S. Slicing: Contract-first.** Define the new public input boundary's
+selection contract before tool and persistence integration. Primary files:
+new `clink/working_directory.py` and `tests/test_clink_working_directory.py`.
+This task does not expose a half-implemented public field.
 
-1. Add optional strict-string-or-null `working_dir` to the request model and the
-   manually maintained MCP schema. Explain server-host paths, fallback,
-   inheritance, and immutable project selection. Preserve the existing schema's
-   CLI/continuation requirements. **Step → verify:** direct validation and schema
-   tests accept omission/null/absolute strings and reject invalid value types;
-   existing tool-schema tests still pass.
-2. Implement an immutable directory selection and path/binding validation in
-   `clink/working_directory.py`. Separate a missing binding from a malformed one.
-   Follow the design's table, canonicalization, and selected-path-only validation.
-   **Step → verify:** parameterized boundary cases cover explicit precedence,
-   configuration/scratch fallback, relative/empty/NUL/nonexistent/file inputs,
-   spaces, symlink aliases, changed symlink targets, and malformed stored data.
-3. In `_execute_coordinated()`, resolve the directory under existing admission
-   after the CLI is selected and before role/history preparation. Deep-copy the
-   client and pass the copy to `create_agent()`. Keep original request provenance
-   and shared registry objects unchanged. **Step → verify:** captured agent input
-   uses the selected directory for each CLI; a valid request overrides a missing
-   configured directory; rejection produces no spawn or conversation write.
-4. Extend `CLIConversation.commit()` to save `clink_working_directory` atomically
-   beside `clink_defaults`. Never persist the actual scratch directory or change
-   a binding after success. **Step → verify:** first call and follow-up use one
-   binding; same-directory repeats succeed; different projects and scratch-to-
-   project changes fail; CLI/role changes retain the directory. CLI failure,
-   cancellation and forced CAS/storage failure do not establish a binding or
-   refresh TTL. Preserve the returned answer on persistence failure.
-5. Add PAL-owned selection metadata to normal/reduced results and post-selection
-   CLI failures after native metadata is merged. **Step → verify:** directory,
-   source and mode are accurate; scratch has null path; spoofed native metadata
-   cannot replace them; failed validation never claims execution.
-6. Cover legacy/API-origin and parent-linked threads. Missing binding is migrated
-   only by a successful clink commit; raw historical fields and parent binding
-   do not select cwd. Existing API/local turns preserve the current thread's
-   binding. Update exact-context assertions in `tests/test_clink_continuation.py`
-   to expect the new sibling record, preserving their provenance checks.
-   **Step → verify:** failed migration leaves the snapshot unchanged; a successful
-   round trip through a local/API tool retains the bound directory.
+1. Define immutable selection/binding records with mode, launch path, canonical
+   path and invocation source. Directory mode requires both absolute paths;
+   scratch mode has neither. Distinguish absent state from malformed state.
+   **Step → verify:** strict record-shape and invalid-state tests fail explicitly.
+2. Implement current-input home expansion and lexical normalization; derive
+   identity from the resulting launch path. Preserve registry-resolved manifest
+   spelling as supplied, including symlinks and operator `..` semantics.
+   **Step → verify:** request `~`, spaces, relative/empty/NUL/non-string input,
+   nonexistent paths, files and symlinks follow the design. A valid explicit path
+   overrides a missing manifest directory without validating the losing value.
+3. Use `os.path.samefile()` for target comparison and saved launch/canonical
+   consistency. Preserve the original launch spelling on equivalent repeats.
+   **Step → verify:** aliases on a case-insensitive filesystem succeed; different
+   directories fail; inaccessible/deleted paths and comparison errors never fall
+   back to lexical equality. Host-specific case tests report unavailable coverage,
+   alongside deterministic helper tests of the comparison branch.
+4. Define typed directory validation/conflict/binding errors and structured data
+   without coupling the helper to storage or MCP response generation.
+   **Step → verify:** cover the design's selection table and error categories,
+   including bound-path retargeting and scratch behavior.
 
-Run `python -m pytest tests/test_clink_working_directory.py
+Run `python -m pytest tests/test_clink_working_directory.py -q`.
+
+## Task 2: Integrate project selection and atomic continuation
+
+**Size: M.** Depends on Task 1. Primary files: `tools/clink.py`,
+`clink/conversation.py`, new `tests/test_clink_working_directory_requests.py`,
+and relevant assertions in `tests/test_clink_continuation.py`.
+
+1. Expose optional strict-string-or-null `working_directory_absolute_path` in
+   `CLinkRequest` and the custom MCP schema. Describe host-side `~` expansion,
+   manifest/scratch fallback, inheritance and new-conversation requirements.
+   **Step → verify:** direct validation and schema tests accept the same inputs;
+   existing CLI/continuation requirements hold. No public `working_dir` alias is
+   introduced, and chat's existing input behavior remains unchanged.
+2. Under existing admission, resolve the directory after CLI lookup and before
+   role/history preparation. Pass a deep client copy with `working_dir=launch_path`
+   (or `None` for scratch) to `create_agent()`.
+   **Step → verify:** every adapter receives the selection, registry/server cwd
+   remain unchanged, and invalid requests fail before spawn.
+3. Extend `CLIConversation.commit()` to save `clink_working_directory` beside
+   `clink_defaults` in the two-turn CAS. Preserve original provenance; never
+   persist temporary paths or invocation source. **Step → verify:** omission
+   retains both paths, equivalent aliases preserve launch spelling, different
+   projects fail, CLI/role changes retain the project, and failure/CAS cases
+   leave binding/history/TTL unchanged. Include scratch-to-first-project success
+   with retained history, failed promotion remaining scratch, and omitted scratch
+   follow-ups ignoring a newly selected CLI's configured project.
+4. Migrate only missing clink binding state. Never adopt a raw chat
+   `working_directory_absolute_path`, old `working_dir`, attachment, or parent
+   binding. **Step → verify:** API-origin/legacy threads bind only on successful
+   clink calls, API/local interleaving preserves the binding, and malformed data
+   fails instead of being migrated.
+
+Run `python -m pytest tests/test_clink_working_directory_requests.py
 tests/test_clink_continuation.py tests/test_clink_concurrency.py
-tests/test_clink_tool.py -q -m 'not integration'` after this slice.
+tests/test_clink_tool.py -q -m 'not integration'`.
 
-## Task 2: Prove real child behavior and failure cleanup
+## Task 3: Return actionable directory diagnostics
 
-**Size: M.** Primary files: `clink/agents/base.py`, new
-`tests/test_clink_working_directory_subprocess.py`, `tests/test_clink_codex_agent.py`.
-Mechanical fixture: new `tests/fixtures/clink_working_directory.py`.
+**Size: M.** Depends on Task 2. Primary files: `tools/clink.py`,
+`clink/agents/base.py`, new `tests/test_clink_working_directory_errors.py`, and
+directory cases in `tests/test_clink_execution_errors.py`.
 
-1. Add a deterministic Python child fixture that accepts each adapter's input
-   framing, captures cwd/argv into a fixture-owned location, reads a relative
-   marker in the project, and emits the adapter's valid response format. It must
-   support Agy's stream-json input and output as well as the other three CLIs.
-   **Step → verify:** requests through production tool/factory/runner code return
-   different markers for projects A/B without any provider/network invocation.
-2. Exercise overlapping calls using the same registry client: project A, project
-   B, and a call without a directory. The latter must use its own configured or
-   scratch fallback. Also exercise continued calls on different bound threads.
-   **Step → verify:** each actual child reports its expected cwd; server cwd and
-   original client path/arguments are unchanged; configured projects survive and
-   scratch directories are removed. Preserve existing same-thread busy behavior.
-3. Keep Codex's existing repository policy tied to the effective choice. Do not
-   add `--skip-git-repo-check` for a request- or conversation-selected directory.
-   **Step → verify:** captured argv includes the flag only for scratch; repeat
-   after continuation and CLI switching. Assert other adapters' safe/edit and
-   role arguments remain unchanged, including Agy's reserved-option checks.
-4. Handle directory-related spawn failures in the runner as `CLIAgentError` with
-   the original cause. Distinguish missing cwd from executable-not-found when
-   possible; do not label every `FileNotFoundError` as an absent executable.
-   Do not catch cancellation as an ordinary error. **Step → verify:** delete a
-   selected directory between validation and spawn, simulate denied cwd access,
-   and verify explicit errors, no commit, and released admission. Existing
-   timeout/cancellation tests must still prove child reaping before scratch
-   cleanup; configured project directories are never removed.
+1. Map typed helper failures to the design's pre-spawn envelope: stable
+   `error_type`, validation stage, `execution_started=false`, bound record,
+   requested string, available normalized/canonical paths, and explicit
+   `new_conversation_required`. **Step → verify:** invalid values, project
+   conflicts, missing/retargeted paths and corrupt binding return exact fields
+   without spawn, history writes, TTL refresh or continuation offer.
+2. Add `metadata.working_directory` on selected execution paths with mode,
+   launch/canonical paths and source. Set PAL-owned fields after native metadata
+   merging and preserve them through output reduction and execution errors.
+   **Step → verify:** native output cannot spoof selection; scratch paths are
+   null; validation errors do not masquerade as successful selections.
+3. Replace the runner's "Configured working_dir" assumption with source-neutral
+   wording. Wrap directory-related spawn failures with the OS cause and specified
+   spawn-stage fields; distinguish absent executables when possible.
+   **Step → verify:** removal between validation/spawn and access denial return
+   explicit errors without commit; preserve cancellation, admission release and
+   child reaping rather than reclassifying cancellation as a path failure.
+4. Preserve Codex's native Git-policy rejection and add guidance for that specific
+   diagnostic: select an existing repository or deliberately put
+   `--skip-git-repo-check` in manifest `additional_args`, then restart PAL.
+   Do not infer rejection from every nonzero exit, require a `.git` directory
+   (worktrees may use files), bypass the check, or retry automatically.
+   **Step → verify:** a captured native rejection fixture gets the guidance,
+   unrelated errors do not, and existing operator skip flags survive.
+
+Run `python -m pytest tests/test_clink_working_directory_errors.py
+tests/test_clink_execution_errors.py tests/test_clink_environment.py -q
+-m 'not integration'`.
+
+## Task 4: Verify native adapters with the shared child fixture
+
+**Size: M.** Completion depends on Tasks 2–3; subtask 4.1 can start independently.
+Primary files: existing `tests/fixtures/cli_only_fake.py`, new
+`tests/test_clink_working_directory_subprocess.py`, and
+`tests/test_clink_codex_agent.py`.
+
+1. Extend `cli_only_fake.py` rather than creating a parallel vendor-wire fixture.
+   Add cwd capture, optional relative file-marker observation, and Agy stream-json
+   framing. Preserve stage, duplicate-launch, history and socket-gate checks;
+   select optional scenarios explicitly. **Step → verify:** all existing
+   `tests/test_cli_only_mcp.py` cases pass and standalone fixture checks cover
+   four wire formats. This subtask can run alongside Tasks 1–3.
+2. Exercise production tool/factory/runner calls with project markers, omitted
+   follow-ups and equivalent-path repeats. Capture literal subprocess cwd
+   separately from child `getcwd()`. **Step → verify:** Claude under symlinked
+   request/manifest cwd preserves launch spelling and existing non-realpath
+   `Edit(...)`/`Write(...)` arguments. Check actual child location with
+   filesystem equivalence and markers, not assumed native alias preservation.
+3. Overlap A/B/fallback calls on one registry client and distinct bound threads.
+   **Step → verify:** independent actual locations, unchanged global cwd/client
+   fields, stable saved launch spelling, preserved configured projects, and
+   scratch deletion only after direct-child reaping.
+4. Verify PAL automatically adds Codex's skip-Git flag only for scratch; an
+   operator-supplied flag remains present with a selected directory.
+   **Step → verify:** argv in both cases, all vendor safe/edit/role arguments,
+   current-request-only edit controls, failure propagation and timeout/cancellation
+   cleanup remain correct.
 
 Run `python -m pytest tests/test_clink_working_directory_subprocess.py
-tests/test_clink_environment.py tests/test_clink_codex_agent.py
+tests/test_clink_codex_agent.py tests/test_cli_only_mcp.py
 tests/test_clink_safe_default.py tests/test_clink_agy_safety.py -q
--m 'not integration'`. These are offline subprocess tests, not live model tests.
+-m 'not integration'`. These are offline child-process tests, not model calls.
 
-## Task 3: Exercise MCP clients and document the contract
+## Task 5: Exercise MCP clients and explain operator choices
 
-**Size: M.** Primary files: new `tests/test_clink_working_directory_mcp.py`,
-`docs/tools/clink.md`, `docs/configuration.md`. Reuse the fixture from Task 2 and
-the isolated server/bootstrap patterns in `tests/test_cli_only_mcp.py` and
-`tests/fixtures/cli_only_server.py`; avoid changing unrelated vendor tests.
+**Size: M.** Completion depends on Tasks 2–4; documentation drafting can start
+independently. Primary files: new `tests/test_clink_working_directory_mcp.py`,
+`docs/tools/clink.md`, and `docs/configuration.md`.
 
-1. Start an isolated provider-free MCP server with fake CLI manifests. Use a
-   real `ClientSession` to inspect the new schema, select project A, continue
-   with omission, repeat A, and reject project B. A fresh conversation may use B.
-   Parameterize all four adapters. **Step → verify:** actual child capture and
-   local markers prove the MCP arguments reach the runner; rejected changes
-   create no child capture, history write, or continuation-state change.
-2. Exercise manifest fallback and scratch binding through stdio as well as
-   distinct-conversation overlap. Existing helper conventions isolate HOME,
-   manifests, state, and provider calls. **Step → verify:** no developer override
-   or credential affects the test, source directories persist, and temporary
-   runner directories are cleaned up after shutdown/failure.
-3. Update the clink request table and examples, selection precedence, immutable
-   continuations, explicit null behavior, validation, diagnostics, and native
-   permission limitations. Update `docs/configuration.md` to distinguish static
-   per-client defaults from request selection, including user-override precedence.
-   Explain that MCP schema support does not automatically discover a caller's
-   project and that existing continuations become bound on their first successful
-   post-upgrade clink call. **Step → verify:** examples agree with stdio tests and
-   all local document links resolve; no example implies automatic command approval.
+1. Reuse the extended fake and isolated stdio-server patterns. Through
+   `ClientSession`, discover the schema, select A, continue by omission/equivalent
+   alias, reject B, and select B in a fresh conversation.
+   **Step → verify:** four adapters report the expected location/markers; rejected
+   changes return exact structured fields without child capture/state change.
+   Include scratch-to-first-project promotion with history retained, failed
+   promotion remaining scratch, and legacy/API-origin calls.
+2. Exercise manifest fallback, request override and distinct-thread overlap.
+   **Step → verify:** developer settings/providers cannot affect the isolated
+   server; launch spelling, binding, source metadata and cleanup match direct
+   calls. Loopback tests require localhost socket access.
+3. Draft the public-field/manifest/storage/metadata mapping, `~` handling, dual
+   paths, immutable projects, scratch behavior, errors and legacy migration in
+   both guides. Name project-local hooks/MCP/instructions activation, headless
+   limits, restricted-client exposure, and deferred operator policy below.
+   Explain Codex's non-Git rejection and explicit manifest workaround.
+   **Step → verify:** examples agree with MCP tests and links resolve; no text
+   promises automatic approval, native alias preservation or project discovery.
+   Drafting can overlap Tasks 1–4; final reconciliation waits for the tested API.
 
 Run `python -m pytest tests/test_clink_working_directory_mcp.py
 tests/test_cli_only_mcp.py tests/test_cli_only_discovery.py -q -m 'not integration'`.
-Loopback tests need an environment that permits localhost sockets.
 
-## Task 4: Final verification and documentation
+## Task 6: Final verification and documentation
 
-**Size: S.** Depends on Tasks 1–3. Record commands, outcomes, skips and limitations
-in [verification.md](verification.md), updating task statuses only with evidence.
+**Size: S.** Depends on Tasks 1–5. Record actual outcomes and limitations in
+[verification.md](verification.md); update task statuses only with evidence.
 
-- Run `$kk:test` for the full feature. Execute `./code_quality_checks.sh`,
-  `./run_integration_tests.sh`, and
+- Run `$kk:test`, `./code_quality_checks.sh`, `./run_integration_tests.sh`, and
   `python communication_simulator_test.py --quick` as required by AGENTS.md.
-  **Step → verify:** record actual exit statuses and distinguish baseline failures,
-  missing credentials/selectors, skips, and new regressions; do not waive failures.
-- In each prepared native CLI environment, use a disposable project with a
-  file-only marker to check a request-selected directory and an omitted-directory
-  follow-up. Record version, native policy, observed cwd and marker result. Start
-  with the existing Agy opt-in harness in
-  `simulator_tests/test_clink_agy_validation.py`, adding a request-selected mode
-  while retaining configured/scratch coverage. **Step → verify:** a file read is
-  evidenced by its marker and a project change is rejected before native execution.
-  Unavailable native environments remain explicit unverified coverage.
-- Run `$kk:document` to reconcile user docs and feature evidence.
-  **Step → verify:** no documentation claims project discovery, permission grants,
-  read-only confinement, or restart-persistent conversations.
-- Run `$kk:review-code` with Python as the implementation language, then
-  `$kk:review-spec` against this design, implementation plan and tasks.
-  **Step → verify:** resolve findings or record any remaining issue durably with
-  its impact, reason for deferral and concrete next step.
+  **Step → verify:** distinguish baseline failures, skips, unavailable setups and
+  new regressions; do not weaken assertions or waive failures.
+- Extend existing `simulator_tests/test_clink_agy_validation.py` with request
+  directory coverage while retaining configured/scratch cases. In prepared
+  native CLI environments, test a disposable project marker and omitted follow-up.
+  **Step → verify:** record version, policy, launch argument, actual location and
+  read evidence; unavailable native setups remain explicitly unverified. Use
+  controlled fixtures for native policy probes, not unreviewed project hooks.
+- Run `$kk:document`, `$kk:review-code` with Python, and `$kk:review-spec` against
+  all feature documents. **Step → verify:** reconcile implementation/docs and
+  resolve findings or record specific deferred work with impact and next steps.
 
-## Assumptions, exclusions and known baseline
+## Deferred follow-up: operator directory policy
 
-The [design assumptions](design.md#assumptions) are testable implementation bets,
-not verified vendor guarantees. The [scope exclusions](design.md#not-doing) and
-[rejected alternatives](design.md#rejected-alternatives) apply to every task.
-The project remains caller-selected for each new conversation; no client-side
-integration or automatic root discovery is part of this implementation.
+**D1 — possible follow-up, not implemented or approval to deploy to restricted
+clients.** Caller-selected cwd can activate native project hooks, MCP servers and
+instructions. This version retains trusted local CLI delegation. Restricted MCP
+callers need a separate operator-controlled policy contract rather than chat's
+artifact root or a restriction supplied by the caller itself.
 
-The pre-design quality run reproduced the existing TLS hostname failure after
-1,302 passing tests; details and the next step are in
-[verification.md](verification.md#baseline-quality-checks). Dependency repair is
-outside this design task. Final implementation verification must rerun the
-original assertion in the locked environment and report any remaining failure.
+Before supporting that deployment model, design an optional allowed-project-roots
+setting owned by the operator. Specify canonical containment, ancestor/project
+configuration discovery, manifest/request/continuation precedence, symlink
+retargeting, and pre-spawn denial. Validate controlled native hook/MCP fixtures
+showing rejected roots cannot start the vendor process. An allowed directory
+still would not confine later shell reads/writes; native/host isolation is
+separate. Keep D1 visible in operator docs and open a dedicated design when
+restricted-client deployment is requested; no hidden policy is promised here.
+
+## Assumptions and known baseline
+
+The [assumptions](design.md#assumptions), [scope exclusions](design.md#not-doing),
+and [rejected alternatives](design.md#rejected-alternatives) apply throughout.
+Dependency repair is outside this documentation work. Before final implementation
+verification, prepare the committed environment and rerun the unchanged TLS
+hostname assertion and full checks; retain any remaining failure in the evidence.

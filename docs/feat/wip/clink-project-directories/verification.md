@@ -5,6 +5,12 @@
 > Design: [design.md](design.md)
 > Status: isolated verification complete; implementation has not started
 
+This record preserves the original pre-review fact-check at `6e6ea4a`.
+Its initial naming, single-path binding and scratch decisions are historical,
+not the current implementation contract. See [review-resolution.md](review-resolution.md)
+for the subsequent review, corroboration at `6da3e2b`, corrections, and the user's
+first-project selection decision. The four agents did not review those revisions.
+
 ## Initial Answer
 
 Add an optional `working_dir` to shared clink requests so a caller can select a
@@ -99,8 +105,10 @@ descriptions of current manifest behavior.
 
 The knowledge-base cross-check for native workspace behavior found only older
 review guidance requiring file-content evidence under actual runner cwd modes.
-It supplies no missing native guarantee. No contradicted source-level claim
-requires redesign; the uncertainty is retained as a bounded acceptance test.
+It supplies no missing native guarantee. The original fact-check did not catch
+the inconsistent launch-path recommendation, missing chat precedent or undefined
+case equivalence. The later review identified those design gaps; its corrections
+supersede these initial recommendations without changing the historical evidence.
 
 ## Final verified answer
 
@@ -145,8 +153,9 @@ the behavior and versions stated in its own report.
 
 ## Documentation checks
 
-All 47 local file/section links across the four new documents resolve, and no
-trailing whitespace was found. Git status shows only this new feature directory;
-runtime code and configuration remain unchanged. All four implementation tasks
-are pending. The task sizes and dependencies were checked against the design
-skill's task format. Independent design review has not run.
+The initial pass checked 47 local links and found no trailing whitespace across
+four documents. It left runtime code/configuration unchanged and four tasks
+pending. The user subsequently supplied an independent design review;
+[review-resolution.md](review-resolution.md) tracks its findings. The corrected
+breakdown now has six pending tasks. New validation results are recorded with
+that correction pass rather than attributed to the old agents.
