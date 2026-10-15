@@ -1,7 +1,7 @@
 # Antigravity clink capability evidence
 
-> Date: 2026-10-14
-> Outcome: Tasks 1–5 done; Task 6 and release acceptance pending
+> Date: 2026-10-14; final-verification update 2026-10-15
+> Outcome: Tasks 1–5 done; Task 6 in-progress; release acceptance incomplete
 > Checkout tested: `3286d5f160014e162b183ab38ea826fd9a6ceab3`
 > Authentication follow-up checkout: `d7e52b568d36c8d3806b0a8cd0eada39f94b0406`
 > Reference: native agy 1.3.5, approved by the user on this date
@@ -44,7 +44,7 @@ and missing/expired cached-login coverage remain unverified; a synthetic missing
 case now verifies an explicit failure, as recorded below. The user approved moving
 those unavailable authentication cases to Task 6 as release requirements and
 finishing Task 1 on verified enterprise evidence. Tasks 1–5 are done;
-Task 6 remains pending. The production adapter now
+Task 6 is in progress; see the [final-verification record](./task-6-verification.md). The production adapter now
 implements all three roles, PAL continuation, bounded diagnostics, native edit-mode
 selection, and request-local argument isolation.
 Enforced native downgrades are a deferred enhancement under upstream #1233, not an
@@ -679,3 +679,35 @@ indexing. Task 5 is done; Task 6 remains pending, including personal login,
 successful ADC routing, missing/expired cached sessions, and final release checks.
 Other native versions and platforms remain unvalidated, without being new release
 requirements for this reference environment.
+
+## Task 6 verification, 2026-10-15
+
+See the [Task 6 report](./task-6-verification.md) for exact commands, environment,
+skip reasons, fixture/cwd paths, reviews, packaging, and remaining actions.
+Eight dedicated enterprise cases passed on native 1.3.5/macOS with no forwarded
+API keys and unchanged user settings. All clink unit regressions passed within
+the full suite (2,940 passed; two known AnyIO TLS failures; 16 skips).
+
+The user confirmed gcloud ADC credentials exist but agy ADC is not configured.
+An authorized test-only `AGY_ADC_AUTH=1` invocation failed before inference with
+a missing plan-model error. This verifies selector forwarding and explicit error
+propagation, not valid ADC authentication, routing, or invalid credentials.
+Personal and missing/expired-session environments remain unavailable.
+
+| Criterion | Traceable evidence | Result and remaining limit |
+| --- | --- | --- |
+| A1 existing login, no mandatory API key | Both live agy test files; `test_agy_child_auth_forwarding_overrides_and_cwd`; Task 6 authentication table | Cached enterprise verified on 1.3.5/macOS. Personal and successful ADC/routing remain open. |
+| A2 roles and useful file reads | `test_live_agy_role_read_and_history`, all three roles × two cwd modes | Six enterprise cases passed; file-only random markers prove reads. Personal coverage open. |
+| A3 PAL continuation | `test_roles_and_continuation_record_each_raw_exchange_once`; six live history cases | MCP/direct unit paths and live fresh-process continuation passed. |
+| A4 inherited/native edit arguments | `test_native_edit_mode_is_not_inherited_on_followup`, `test_overlapping_calls_keep_mode_flags_request_local`, two live native read/edit cases | Request-local modes and intended native edits passed, settings hash unchanged. Default denial is a policy-specific observation. |
+| A5 unsupported paths rejected | `tests/test_clink_safe_default.py`, `test_agent_defensively_rejects_path_scope` | Passed, including prompt-file preparation and no failed-exchange persistence. |
+| A6 prompt omission from command channels | `test_success_logs_only_command_and_keeps_prompt_on_stdin`, timeout/error tests in `test_clink_agy.py` | Passed for argv, returned command metadata, and PAL command logs; no wider child-storage secrecy claim. |
+| A7 explicit failure, no replay | `test_failures_are_tool_errors_without_raw_output_or_replay`, `test_timeout_reaps_one_process_without_replay_or_command_prompt`; failed ADC setup | Unit semantics and actual native setup-error propagation passed. Missing/expired cached-session guidance remains open. |
+| A8 existing clients and selection | Full clink unit suite, `test_existing_clients_keep_exact_utf8_stdin`, fresh source schema/registry discovery | Existing clients/default-selection regressions passed. Installed-wheel discovery and locked-environment checks remain incomplete. |
+
+The independent code reviewer approved the complete implementation with no
+findings; the independent spec reviewer found it conformant with no findings.
+The external PAL expert failed with `API_KEY_INVALID`. Repository-wide
+provider/replay failures and local policy blocks on disposable environment/wheel
+installation remain explicit in the report. Task 6 is not done and release
+acceptance is not claimed.
