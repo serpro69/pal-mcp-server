@@ -1,6 +1,6 @@
 # Design: per-request project directories for clink
 
-> Status: review findings corrected; ready for re-review, not implemented
+> Status: Task 1 helper implemented; public API/persistence pending, including Task 2.0 validation-contract correction
 > Created: 2026-10-15
 > Source baseline: `6e6ea4a`
 > Review correction baseline: `6da3e2b`

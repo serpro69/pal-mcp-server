@@ -5,23 +5,28 @@
 > Verification: [verification.md](verification.md)
 > Review corrections: [review-resolution.md](review-resolution.md)
 > Readiness: [fresh review](readiness.md) — SDK/model versus directory-error contract remains unresolved; complete Task 2.0 before implementing the public field.
-> Status: pending
+> Status: in-progress
 > Created: 2026-10-15
 > Not Doing: automatic project discovery, manifest generation, native permission changes, switching established projects within a conversation, filesystem sandboxing, project locks, relative attachments, persistent conversations, greeting-prompt changes, dependency repair
 
 ## Task 1: Define directory selection and identity
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** —
 - **Size:** S
 - **Slicing:** Contract-first; define the new request boundary without exposing an incomplete public API.
 - **Can run in parallel with:** Task 4.1 and documentation drafting in Task 5.3
 - **Docs:** [selection and identity](implementation.md#task-1-define-directory-selection-and-identity)
 
-- [ ] 1.1 Add immutable selections/bindings and typed errors in `clink/working_directory.py`; verify malformed and missing state are distinct.
-- [ ] 1.2 Implement home expansion, lexical request normalization, preserved manifest spelling, canonical identity and selected-path validation; test the selection table in `tests/test_clink_working_directory.py`.
-- [ ] 1.3 Use `os.path.samefile()` for aliases/case variants and bound launch-target checks; verify retargeting, missing paths and comparison errors without string fallback.
-- [ ] 1.4 Run the Task 1 focused command and record results.
+- [x] 1.1 Add immutable selections/bindings and typed errors in `clink/working_directory.py`; verify malformed and missing state are distinct.
+- [x] 1.2 Implement home expansion, lexical request normalization, preserved manifest spelling, canonical identity and selected-path validation; test the selection table in `tests/test_clink_working_directory.py`.
+- [x] 1.3 Use `os.path.samefile()` for aliases/case variants and bound launch-target checks; verify retargeting, missing paths and comparison errors without string fallback.
+- [x] 1.4 Run the Task 1 focused command and record results.
+
+Evidence: [Task 1 verification and isolated review](verification.md#task-1-directory-selection-and-identity-2026-10-17).
+Focused tests: 98 passed, one host-dependent skip. Comprehensive checks pass;
+broader integration/simulator failures and the unavailable external reviewer are
+recorded with follow-up steps. The helper is not yet connected to the public tool.
 
 ## Task 2: Integrate project selection and atomic continuation
 
@@ -87,7 +92,7 @@
 - **Can run in parallel with:** —
 - **Docs:** [final verification](implementation.md#task-6-final-verification-and-documentation)
 
-- [ ] 6.1 Run `$kk:test`, comprehensive checks, integrations and quick simulator tests; record baseline failures/skips without weakening assertions.
+- [ ] 6.1 Run `$kk:test`, comprehensive checks, integrations and quick simulator tests; record baseline failures/skips without weakening assertions. Follow up the [Task 1 verification gaps](verification.md#task-1-follow-up-verification-gaps), including consensus replay mismatches and simulator failures.
 - [ ] 6.2 Extend the existing Agy opt-in harness and run controlled native project smoke cases in prepared environments; record unavailable coverage.
 - [ ] 6.3 Run `$kk:document` and reconcile examples/evidence with actual behavior.
 - [ ] 6.4 Run `$kk:review-code` with Python; resolve findings or record specific deferred work.
@@ -103,5 +108,5 @@
 ## Deferred follow-up and known baseline
 
 - **D1:** Possible operator directory allowlist for restricted MCP clients. See the [risk, deferral reason and next steps](implementation.md#deferred-follow-up-operator-directory-policy). This is not implemented by the current feature.
-- The existing TLS hostname assertion fails after 1,302 passing baseline tests; see [verification](verification.md#baseline-quality-checks).
-- All six implementation tasks are pending. The correction pass updates the design only, not runtime behavior.
+- The earlier TLS hostname failure did not recur in the 2026-10-17 Task 1 baseline or post-change checks; preserve the [historical evidence](verification.md#baseline-quality-checks).
+- Task 1 is complete; Tasks 2–6 remain pending. The public request field and execution integration are not implemented yet.
