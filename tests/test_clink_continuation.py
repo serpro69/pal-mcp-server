@@ -170,7 +170,11 @@ async def test_parent_history_and_attachments_do_not_restore_permissions(storage
     assert call["images"] == ["/new.png", "/old.png"]
     assert call["allow_edits"] is False and call["editable_paths"] == []
     updated = memory.get_thread(child)
-    assert updated.initial_context == {**original_context, "clink_defaults": {"cli_name": "claude", "role": "default"}}
+    assert updated.initial_context == {
+        **original_context,
+        "clink_defaults": {"cli_name": "claude", "role": "default"},
+        "clink_working_directory": {"mode": "scratch"},
+    }
     assert updated.parent_thread_id == parent and updated.tool_name == "chat"
     assert len(updated.turns) == 4
     assert updated.turns[-2].files == [str(current_file)]

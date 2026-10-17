@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 from clink.constants import DEFAULT_HISTORY_TOKEN_BUDGET
+from clink.working_directory import WorkingDirectoryBinding
 from utils import conversation_memory as memory
 from utils.file_utils import expand_paths
 from utils.storage_backend import InMemoryStorage
@@ -285,7 +286,14 @@ class CLIConversation:
             raise memory.ConversationLimitError("Conversation requires two free message slots for an input and reply")
 
     def commit(
-        self, reply: str, *, provider: str, role: str, model_name: str | None, model_metadata: dict[str, Any]
+        self,
+        reply: str,
+        *,
+        provider: str,
+        role: str,
+        model_name: str | None,
+        model_metadata: dict[str, Any],
+        working_directory: WorkingDirectoryBinding,
     ) -> int:
         """Commit both raw turns once, then emit compatible audit events in order.
 
@@ -312,6 +320,7 @@ class CLIConversation:
                 "initial_context": {
                     **self.thread.initial_context,
                     "clink_defaults": {"cli_name": provider, "role": role},
+                    "clink_working_directory": working_directory.to_record(),
                 },
             }
         )

@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Tasks: [tasks.md](tasks.md)
 > Review corrections: [review-resolution.md](review-resolution.md)
-> Status: Task 1 complete; Tasks 2–6 pending, public tool integration not yet implemented
+> Status: Tasks 1–2 complete; Tasks 3–6 pending
 
 ## Starting points and constraints
 
@@ -65,8 +65,8 @@ and invocation `source`. Persist `binding.to_record()` only on successful commit
 use `to_metadata()` for the selection and typed errors' `to_details()` for domain
 diagnostics. These helpers neither persist state nor construct MCP envelopes.
 Scratch records contain only `mode`; selection metadata supplies null paths.
-Task 2 must wrap `binding.launch_path` as the request-local client's directory
-and preserve the Task 2.0 SDK/model validation boundary. See the
+The Task 2 integration wraps `binding.launch_path` as the request-local client's
+directory and preserves the Task 2.0 SDK/model validation boundary. See the
 [test and review evidence](verification.md#task-1-directory-selection-and-identity-2026-10-17).
 
 ## Task 2: Integrate project selection and atomic continuation
@@ -75,10 +75,17 @@ and preserve the Task 2.0 SDK/model validation boundary. See the
 `clink/conversation.py`, new `tests/test_clink_working_directory_requests.py`,
 and relevant assertions in `tests/test_clink_continuation.py`.
 
+0. Resolve the [readiness finding](readiness.md#p2-schema-rejection-cannot-return-the-promised-clink-error-envelope)
+   before exposing the field: preserve SDK errors for wrong JSON types and the
+   existing direct-call request-model validation envelope. Directory-specific
+   diagnostics apply only after string/null input reaches the directory helper;
+   do not load conversation state just to decorate an invalid type.
 1. Expose optional strict-string-or-null `working_directory_absolute_path` in
    `CLinkRequest` and the custom MCP schema. Describe host-side `~` expansion,
    manifest/scratch fallback, inheritance and new-conversation requirements.
-   **Step → verify:** direct validation and schema tests accept the same inputs;
+   **Step → verify:** direct validation and schema tests accept the same JSON types;
+   invoke the SDK's registered handler for wrong-type rejection, since calling
+   `handle_call_tool()` directly bypasses schema validation;
    existing CLI/continuation requirements hold. No public `working_dir` alias is
    introduced, and chat's existing input behavior remains unchanged.
 2. Under existing admission, resolve the directory after CLI lookup and before
@@ -104,6 +111,21 @@ Run `python -m pytest tests/test_clink_working_directory_requests.py
 tests/test_clink_continuation.py tests/test_clink_concurrency.py
 tests/test_clink_tool.py -q -m 'not integration'`.
 
+Implemented: the request and custom schema accept only string/null directory
+values. Resolution runs through `asyncio.to_thread()` under the existing
+conversation admission, before role/history preparation. The worker only reads
+filesystem and invocation-local binding data; cancellation discards its result
+without allowing it to launch a child or commit. A deep client copy receives the
+validated launch `Path` (or `None`), and `CLIConversation.commit()` requires the
+candidate binding and writes it beside `clink_defaults` in the successful CAS.
+
+The request suite covers real adapter construction with mocked execution and
+registered SDK validation. `tests/test_tool_surface.py` also records the exact
+intentional schema addition. Task 3 still owns the full directory-error envelope
+and selected-directory response metadata; Task 2 uses the existing generic
+error envelope with the helper's error type. Native child and stdio acceptance
+remain Tasks 4–5. See [Task 2 evidence](verification.md#task-2-request-and-atomic-continuation-2026-10-17).
+
 ## Task 3: Return actionable directory diagnostics
 
 **Size: M.** Depends on Task 2. Primary files: `tools/clink.py`,
@@ -115,7 +137,9 @@ directory cases in `tests/test_clink_execution_errors.py`.
    requested string, available normalized/canonical paths, and explicit
    `new_conversation_required`. **Step → verify:** invalid values, project
    conflicts, missing/retargeted paths and corrupt binding return exact fields
-   without spawn, history writes, TTL refresh or continuation offer.
+   without spawn, history writes, TTL refresh or continuation offer. These are
+   directory-resolution failures; SDK/request-model type rejections retain their
+   existing envelopes and do not promise directory-specific fields.
 2. Add `metadata.working_directory` on selected execution paths with mode,
    launch/canonical paths and source. Set PAL-owned fields after native metadata
    merging and preserve them through output reduction and execution errors.
@@ -185,7 +209,9 @@ independently. Primary files: new `tests/test_clink_working_directory_mcp.py`,
    **Step → verify:** four adapters report the expected location/markers; rejected
    changes return exact structured fields without child capture/state change.
    Include scratch-to-first-project promotion with history retained, failed
-   promotion remaining scratch, and legacy/API-origin calls.
+   promotion remaining scratch, and legacy/API-origin calls. Wrong JSON types
+   must also be tested through the registered SDK handler or real stdio: they
+   receive SDK errors before directory resolution, without its metadata.
 2. Exercise manifest fallback, request override and distinct-thread overlap.
    **Step → verify:** developer settings/providers cannot affect the isolated
    server; launch spelling, binding, source metadata and cleanup match direct

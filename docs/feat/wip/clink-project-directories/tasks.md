@@ -4,7 +4,7 @@
 > Implementation: [implementation.md](implementation.md)
 > Verification: [verification.md](verification.md)
 > Review corrections: [review-resolution.md](review-resolution.md)
-> Readiness: [fresh review](readiness.md) — SDK/model versus directory-error contract remains unresolved; complete Task 2.0 before implementing the public field.
+> Readiness: [fresh review](readiness.md) — Task 2.0 resolves the SDK/model versus directory-error contract; keep both validation boundaries covered.
 > Status: in-progress
 > Created: 2026-10-15
 > Not Doing: automatic project discovery, manifest generation, native permission changes, switching established projects within a conversation, filesystem sandboxing, project locks, relative attachments, persistent conversations, greeting-prompt changes, dependency repair
@@ -26,22 +26,30 @@
 Evidence: [Task 1 verification and isolated review](verification.md#task-1-directory-selection-and-identity-2026-10-17).
 Focused tests: 98 passed, one host-dependent skip. Comprehensive checks pass;
 broader integration/simulator failures and the unavailable external reviewer are
-recorded with follow-up steps. The helper is not yet connected to the public tool.
+recorded with follow-up steps. At Task 1 completion the helper was not connected
+to the public tool; Task 2 supplies that integration.
 
 ## Task 2: Integrate project selection and atomic continuation
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 1
 - **Size:** M
 - **Can run in parallel with:** Task 4.1 and documentation drafting in Task 5.3
 - **Docs:** [request and persistence](implementation.md#task-2-integrate-project-selection-and-atomic-continuation)
 
-- [ ] 2.0 Reconcile the design's rejection contract and implementation plan with the [open readiness finding](readiness.md#p2-schema-rejection-cannot-return-the-promised-clink-error-envelope): preserve SDK/request-model errors for invalid types and reserve directory-specific metadata for directory-resolution failures. Complete this documentation prerequisite before Task 2.1.
-- [ ] 2.1 Add optional `working_directory_absolute_path` to the request/schema; verify chat-compatible naming/home expansion and unchanged CLI/continuation requirements. Follow the [schema/model validation boundary](readiness.md#p2-schema-rejection-cannot-return-the-promised-clink-error-envelope); keep SDK validation enabled.
-- [ ] 2.2 Resolve under existing coordination and pass a deep client copy with the launch path to the factory; verify no shared mutation or pre-rejection spawn.
-- [ ] 2.3 Atomically save both paths in `clink_working_directory`; verify established-project immutability, equivalent aliases, successful scratch-to-first-project promotion with history retained, failed promotion remaining scratch, and unchanged failure/CAS/TTL semantics.
-- [ ] 2.4 Cover missing-state migration, non-inheritance of chat's raw directory, parent history and API/local interleaving; preserve original provenance checks.
-- [ ] 2.5 Run the Task 2 focused command and record results.
+- [x] 2.0 Reconcile the design's rejection contract and implementation plan with the [readiness finding](readiness.md#p2-schema-rejection-cannot-return-the-promised-clink-error-envelope): preserve SDK/request-model errors for invalid types and reserve directory-specific metadata for directory-resolution failures. Documentation prerequisite completed before Task 2.1.
+- [x] 2.1 Add optional `working_directory_absolute_path` to the request/schema; verify chat-compatible naming/home expansion and unchanged CLI/continuation requirements. Follow the [schema/model validation boundary](readiness.md#p2-schema-rejection-cannot-return-the-promised-clink-error-envelope); keep SDK validation enabled.
+- [x] 2.2 Resolve under existing coordination and pass a deep client copy with the launch path to the factory; verify no shared mutation or pre-rejection spawn.
+- [x] 2.3 Atomically save both paths in `clink_working_directory`; verify established-project immutability, equivalent aliases, successful scratch-to-first-project promotion with history retained, failed promotion remaining scratch, and unchanged failure/CAS/TTL semantics.
+- [x] 2.4 Cover missing-state migration, non-inheritance of chat's raw directory, parent history and API/local interleaving; preserve original provenance checks.
+- [x] 2.5 Run the Task 2 focused command and record results.
+
+Evidence: [Task 2 verification and isolated review](verification.md#task-2-request-and-atomic-continuation-2026-10-17).
+Focused suite: 360 passed. Final comprehensive checks: 3,225 passed, 17 skipped.
+Independent reviewer approved without findings. Existing integration/simulator
+failures and unavailable external review remain documented. Detailed directory
+metadata and spawn diagnostics remain Task 3; native execution acceptance remains
+Tasks 4–6.
 
 ## Task 3: Return actionable directory diagnostics
 
@@ -109,4 +117,4 @@ recorded with follow-up steps. The helper is not yet connected to the public too
 
 - **D1:** Possible operator directory allowlist for restricted MCP clients. See the [risk, deferral reason and next steps](implementation.md#deferred-follow-up-operator-directory-policy). This is not implemented by the current feature.
 - The earlier TLS hostname failure did not recur in the 2026-10-17 Task 1 baseline or post-change checks; preserve the [historical evidence](verification.md#baseline-quality-checks).
-- Task 1 is complete; Tasks 2–6 remain pending. The public request field and execution integration are not implemented yet.
+- Tasks 1–2 are complete; Tasks 3–6 remain pending. The public field and atomic binding are implemented; richer diagnostics and native/MCP acceptance remain.

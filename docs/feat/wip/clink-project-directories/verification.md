@@ -3,14 +3,91 @@
 > Date: 2026-10-15
 > Source baseline: `6e6ea4a`
 > Design: [design.md](design.md)
-> Status: historical fact-check retained; Task 1 implemented and reviewed (2026-10-17)
+> Status: historical fact-check retained; Tasks 1–2 implemented and reviewed (2026-10-17)
 
 This record preserves the original pre-review fact-check at `6e6ea4a`.
 Its initial naming, single-path binding and scratch decisions are historical,
 not the current implementation contract. See [review-resolution.md](review-resolution.md)
 for the subsequent review, corroboration at `6da3e2b`, corrections, and the user's
 first-project selection decision. The four agents did not review those revisions.
-Current implementation evidence is in [Task 1 verification](#task-1-directory-selection-and-identity-2026-10-17).
+Current implementation evidence is in [Task 2 verification](#task-2-request-and-atomic-continuation-2026-10-17),
+following [Task 1](#task-1-directory-selection-and-identity-2026-10-17).
+
+## Task 2: request and atomic continuation (2026-10-17)
+
+Baseline: `42895f6`. Implemented the strict optional directory field in
+[`tools/clink.py`](../../../../tools/clink.py), request-local deep client copies,
+and binding persistence in [`CLIConversation.commit()`](../../../../clink/conversation.py).
+The candidate binding joins the existing defaults and successful input/reply in
+one CAS. Failed calls, cancellation and failed/stale writes cannot establish or
+promote a project. Missing legacy state migrates on success; existing provenance,
+parent linkage and other tools' state remain intact.
+
+Task 2.0 corrected the design before exposing the field: wrong JSON types retain
+SDK errors before PAL, direct calls retain request-model validation errors, and
+accepted path types reach directory resolution. No SDK validation is disabled.
+Task 3 still supplies the complete directory-specific error/selection metadata
+and spawn diagnostics; this task preserves the generic tool-error envelope and
+helper error type. Actual project subprocesses and end-to-end stdio acceptance
+remain Tasks 4–5.
+
+The new [request suite](../../../../tests/test_clink_working_directory_requests.py)
+adds 185 cases. It covers the registered SDK handler for both type rejection and
+accepted string/null input, all four real adapter classes with execution mocked,
+nested client isolation, launch spelling, continuation and CLI/role changes,
+scratch promotion, failure/TTL/CAS behavior, parent/raw-field non-inheritance,
+API/local interleaving, and overlapping calls on a shared registry client.
+A deterministic blocked-resolution test establishes event-loop responsiveness
+and that cancellation cannot let the read-only worker spawn or commit later.
+
+`kk:test` Python/async guidance was applied. Checks ran in the existing `pal`
+virtualenv (Python 3.10.12, pytest 9.0.3) from the repository root. Commands needing
+localhost sockets used approved execution outside the sandbox.
+
+| Check | Observed outcome |
+| --- | --- |
+| Before edits: `./code_quality_checks.sh` | Exit 0; lint/format passed; 3,040 passed, 17 skipped, 23 deselected, 19 subtests passed. |
+| Task 2 focused command in implementation.md | Exit 0; 360 passed. |
+| `python -m pytest tests/test_tool_surface.py -q` | Exit 0; 15 passed after explicitly adding the new optional field to the expected schema delta. |
+| Final `./code_quality_checks.sh` | Exit 0; Ruff, Black and isort passed; 3,225 passed, 17 skipped, 23 deselected, 19 subtests passed. |
+| `./run_integration_tests.sh` | Exit 1; two passed, two failed, 19 skipped, 3,242 deselected. The same `gpt-5`/`gpt-5.2` consensus replay cases from Task 1 lack a matching recorded OpenAI chat-completions request. |
+| `python communication_simulator_test.py --quick` | Exit 1; four reported passed, two failed. The same basic-conversation and precommit-deduplication missing-continuation failures from Task 1 recur. |
+
+The first full post-change run stopped at the tool-surface snapshot after 2,986
+passes. Its expected schema lacked the intentional new field; the test now asserts
+exactly string/null with a null default, retaining all surrounding assertions.
+The final comprehensive run above passed. Integration/simulator fixture and
+setup work remains as described in the [Task 1 follow-up gaps](#task-1-follow-up-verification-gaps);
+these checks are not presented as passing or as live project acceptance.
+
+### Task 2 isolated review and remaining scope
+
+The independent `code-reviewer` applied the Python security, SOLID, code-quality
+and removal checklists to the production changes, tests, schema expectation and
+Task 2.0 documentation. Verdict: **APPROVE**, no P0–P3 findings. It checked the
+success-only storage contract, cancellation, isolation, migration and validation
+boundaries; it inspected tests without running them. No findings require indexing.
+
+PAL's second review step with `gemini-3.8-flash` again failed with
+`400 INVALID_ARGUMENT / API_KEY_INVALID`; no external expert findings were
+produced. The isolated workflow used its documented single-reviewer fallback.
+External corroboration still requires a working credential; do not infer it from
+the review setup step.
+
+No dependencies changed. The API lookup checked the installed/pinned Pydantic
+2.13.4 [copy implementation](https://github.com/pydantic/pydantic/blob/v2.13.4/pydantic/main.py)
+and [strict-field contract](https://github.com/pydantic/pydantic/blob/v2.13.4/docs/concepts/strict_mode.md),
+plus Python 3.10's [thread offload API](https://docs.python.org/3.10/library/asyncio-task.html#asyncio.to_thread).
+The copied directory update is already validated and converted to `Path`/`None`,
+since model-copy updates are not revalidated. No new project convention needs
+separate indexing: the choices and worker cancellation limitation are documented
+in the implementation plan.
+
+Task 2 matches its plan. The only additional production mechanism is offloading
+filesystem resolution to avoid blocking other requests; the worker owns no
+storage or subprocess effects. The additional schema-snapshot assertion was
+needed for the intended API change. Broader verification remains incomplete
+until the pending tasks and previously recorded integration/simulator gaps close.
 
 ## Task 1: directory selection and identity (2026-10-17)
 
