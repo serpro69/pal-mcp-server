@@ -3,13 +3,95 @@
 > Date: 2026-10-15
 > Source baseline: `6e6ea4a`
 > Design: [design.md](design.md)
-> Status: isolated verification complete; implementation has not started
+> Status: historical fact-check retained; Task 1 implemented and reviewed (2026-10-17)
 
 This record preserves the original pre-review fact-check at `6e6ea4a`.
 Its initial naming, single-path binding and scratch decisions are historical,
 not the current implementation contract. See [review-resolution.md](review-resolution.md)
 for the subsequent review, corroboration at `6da3e2b`, corrections, and the user's
 first-project selection decision. The four agents did not review those revisions.
+Current implementation evidence is in [Task 1 verification](#task-1-directory-selection-and-identity-2026-10-17).
+
+## Task 1: directory selection and identity (2026-10-17)
+
+Checkout baseline: `66dcf86`. Scope: the new
+[`clink/working_directory.py`](../../../../clink/working_directory.py) helper and
+[`tests/test_clink_working_directory.py`](../../../../tests/test_clink_working_directory.py).
+Public request/schema, conversation persistence, subprocess and MCP integration
+remain Tasks 2–5. This contract-first slice does not change live tool behavior.
+
+The helper implements immutable bindings/selections, strict stored shapes,
+request/manifest/scratch precedence, scratch promotion candidates, preserved
+launch spelling, canonical identity, `samefile()` comparison/revalidation, and
+typed path diagnostics. It never writes state or changes cwd. Existing standard
+library APIs and pytest suffice; no dependencies were added or upgraded.
+
+Commands ran from the repository root in `/home/sergio/.virtualenvs/pal`, using
+Python 3.10.12 and pytest 9.0.3, outside the read-only sandbox for temporary files
+and localhost test sockets. `kk:test` Python guidance was applied. Packaging
+requires Python 3.10+, while AGENTS.md/linter targets still name 3.9; this helper
+uses postponed annotations and no API requiring a runtime-floor change. Other
+interpreter versions and operating systems were not executed.
+
+| Check | Observed outcome |
+| --- | --- |
+| Before edits: `./code_quality_checks.sh` | Exit 0; Ruff, Black and isort passed; 2,942 passed, 16 skipped, 23 integration cases deselected, 19 subtests passed. |
+| `python -m pytest tests/test_clink_working_directory.py -q` | Exit 0; 98 passed, one skipped. The real case-insensitive alias test is unavailable on this case-sensitive host; deterministic comparison-branch tests pass. |
+| After code changes: `./code_quality_checks.sh` | Exit 0; Ruff, Black and isort passed; 3,040 passed, 17 skipped, 23 deselected, 19 subtests passed. |
+| `./run_integration_tests.sh` | Exit 1; two passed, two failed, 19 skipped. Both consensus replay cases (`gpt-5`, `gpt-5.2`) fail because the recorder finds no matching interaction for `POST https://api.openai.com/v1/chat/completions`. |
+| `python communication_simulator_test.py --quick` | Exit 1; four reported passed, two failed, none skipped. `basic_conversation` did not obtain its initial continuation; `per_tool_deduplication` did not obtain the step-1 precommit continuation. |
+
+The previous TLS hostname assertion passes in both comprehensive runs. Black
+reported its existing Python 3.10/3.13 target warning, then completed successfully.
+The integration skips cover opt-in native CLI tests and unavailable local-model
+configuration. Simulator passes are the harness's reported results: some passing
+scenarios also log failed operations, so they are not proof of live acceptance.
+The new helper has no production import/caller yet; these broader failed paths
+were not changed by Task 1. Their causes were not reproduced on a clean baseline
+in this session and are not claimed as fully diagnosed.
+
+### Isolated code review
+
+`kk:review-code:isolated` applied the Python security, SOLID, code-quality and
+removal checklists. The independent `code-reviewer` reviewed the two new files,
+task status diff, design contract and adjacent registry/runner contracts. Verdict:
+**APPROVE**, no P0–P3 findings. Tests were inspected by the reviewer; execution
+results above belong to the implementing session. No findings require indexing.
+
+The second reviewer, PAL `codereview` with `gemini-3.8-flash`, completed setup but
+its expert step failed with `400 INVALID_ARGUMENT / API_KEY_INVALID`. It produced
+no expert findings. The isolated skill's single-reviewer fallback applies; there
+is no claim of external-model approval. Existing design decisions already cover
+the implementation choices, so no duplicate project-convention indexing was added.
+
+### Task 1 follow-up verification gaps
+
+- **Consensus recordings:** left unchanged because provider replay repair is
+  outside the directory-helper task. Before Task 6 acceptance, reproduce both
+  cases on the baseline, inspect the recorded/current request mismatch, and
+  repair the fixture or request contract in its owning scope; rerun the unchanged
+  assertions and integration suite.
+- **Quick simulator:** left unchanged because it exercises existing chat and
+  precommit flows rather than this unintegrated helper. Reproduce the two failed
+  scenarios individually, capture their MCP validation/error responses in an
+  approved local environment, correct fixture inputs or provider setup as needed,
+  then rerun `--quick`. Do not count missing continuations as success.
+- **External review:** configure a valid Gemini credential and rerun the expert
+  review when available. The independent sub-agent review is complete; external
+  corroboration remains unavailable.
+- **Host-dependent coverage:** exercise the real alias test on a case-insensitive
+  filesystem and directory access behavior on other supported platforms. Current
+  permission-denial coverage uses deterministic stat/access failures.
+
+The attempted additional server-log extraction was rejected by automatic approval
+review because log lines could contain sensitive data. No alternate extraction
+was attempted; the outcomes above use the test output already returned.
+
+The implementation matches Task 1's contract. The main subtlety was preserving
+manifest symlink/`..` traversal while normalizing request `..` lexically before
+identity resolution; one real filesystem test establishes both behaviors. Overall
+feature verification remains incomplete until the pending tasks and gaps above
+are resolved.
 
 ## Initial Answer
 

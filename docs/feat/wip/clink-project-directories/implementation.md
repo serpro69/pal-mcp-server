@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Tasks: [tasks.md](tasks.md)
 > Review corrections: [review-resolution.md](review-resolution.md)
-> Status: pending; no runtime changes made
+> Status: Task 1 complete; Tasks 2–6 pending, public tool integration not yet implemented
 
 ## Starting points and constraints
 
@@ -22,9 +22,10 @@ record with separate launch spelling and canonical identity. Follow the exact
 selection, comparison and error contracts in the design.
 
 Use existing Python/Pydantic/asyncio/pytest dependencies. Paths below are relative
-to the repository. No native settings, manifest defaults, credentials or runtime
-source are changed by this design correction. The existing comprehensive-check
-failure is recorded in [verification.md](verification.md#baseline-quality-checks).
+to the repository. Native settings, manifest defaults and credentials remain
+unchanged. The historical comprehensive-check failure is recorded in
+[verification.md](verification.md#baseline-quality-checks); it did not recur in
+the [Task 1 checks](verification.md#task-1-directory-selection-and-identity-2026-10-17).
 
 ## Task 1: Define directory selection and identity
 
@@ -55,6 +56,18 @@ This task does not expose a half-implemented public field.
    including bound-path retargeting and scratch behavior.
 
 Run `python -m pytest tests/test_clink_working_directory.py -q`.
+
+Implemented in `clink/working_directory.py`: `resolve_working_directory()` takes
+the current `requested` value, registry-resolved `configured` path and raw
+`saved_binding`. Pass `MISSING_BINDING` only when the namespaced storage key is
+absent; a present null is malformed. The result contains an immutable `binding`
+and invocation `source`. Persist `binding.to_record()` only on successful commit;
+use `to_metadata()` for the selection and typed errors' `to_details()` for domain
+diagnostics. These helpers neither persist state nor construct MCP envelopes.
+Scratch records contain only `mode`; selection metadata supplies null paths.
+Task 2 must wrap `binding.launch_path` as the request-local client's directory
+and preserve the Task 2.0 SDK/model validation boundary. See the
+[test and review evidence](verification.md#task-1-directory-selection-and-identity-2026-10-17).
 
 ## Task 2: Integrate project selection and atomic continuation
 
