@@ -4,7 +4,12 @@
 > Reviewed checkout: `7cd82ee`
 > Scope: reread all five feature documents, relevant execution/validation code,
 > and the original nine findings; no new skill or reviewer agent used
-> Verdict: architecture is sound; one narrow contract correction remains
+> Historical verdict: architecture is sound; one narrow contract correction remained
+
+**2026-10-17 Task 2.0 resolution:** the design's rejection contract and
+implementation/test plan now distinguish SDK/model type rejection from directory
+resolution. SDK validation remains enabled; no clink directory envelope is
+promised for wrong types. The original finding and evidence below are historical.
 
 ## Overall assessment
 

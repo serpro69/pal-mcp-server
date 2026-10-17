@@ -1,6 +1,6 @@
 # Design: per-request project directories for clink
 
-> Status: Task 1 helper implemented; public API/persistence pending, including Task 2.0 validation-contract correction
+> Status: Tasks 1–2 implemented; validation-contract correction resolved; diagnostics and full execution acceptance pending
 > Created: 2026-10-15
 > Source baseline: `6e6ea4a`
 > Review correction baseline: `6da3e2b`
@@ -35,11 +35,11 @@ change before any child starts. A generated answer alone is insufficient evidenc
 
 ## Existing mechanisms
 
-The following are source observations, independently checked in
+The following are observations of the design baseline, independently checked in
 [isolated verification](verification.md#isolated-verification), not claims that
 the new feature already exists.
 
-| Mechanism | Current source and behavior |
+| Mechanism | Source and behavior before implementation |
 | --- | --- |
 | Request boundary | [CLinkRequest and CLinkTool](../../../../tools/clink.py) define a custom MCP schema without a directory field; direct and MCP calls enter the same execution path. |
 | Configuration | [registry](../../../../clink/registry.py) loads built-ins, `CLI_CLIENTS_CONFIG_PATH`, then user manifests. Later client definitions replace earlier definitions. Cached client objects are mutable and shared. |
@@ -217,7 +217,15 @@ Do not expose or persist the disposable scratch pathname.
 
 ### Rejection contract
 
-Directory validation/rejection uses the existing `ToolOutput(status="error")`
+There are two validation boundaries. Wrong JSON types are rejected by the MCP
+SDK's enabled input-schema validation before PAL's handler runs; they retain the
+SDK's ordinary error result, with no clink-specific metadata promised. Direct
+Python calls reject wrong types in `CLinkRequest` and retain the existing generic
+request-validation envelope. Neither path loads a conversation to decorate an
+invalid type with saved directory information. Keep SDK validation enabled.
+
+Accepted string/null inputs reach directory resolution. Its path and saved-state
+rejections use the existing `ToolOutput(status="error")`
 and `ToolExecutionError` envelope, with no continuation offer. Metadata includes
 `tool_name="clink"`, `stage="validation"`, `execution_started=false`,
 `retryable=false`, and the stable `error_type` below. False means do not blindly
@@ -225,14 +233,15 @@ retry unchanged input; restoring a missing directory can make a later call valid
 
 | Condition | `error_type` | `new_conversation_required` |
 | --- | --- | --- |
-| Invalid current request path/type | `InvalidWorkingDirectoryError` | false |
+| Invalid current request path string or selected configuration path | `InvalidWorkingDirectoryError` | false |
 | Valid requested directory differs from the bound project | `WorkingDirectoryConflictError` | true |
 | Saved launch/canonical path missing, inaccessible or no longer equivalent | `BoundWorkingDirectoryUnavailableError` | false |
 | Malformed saved binding | `InvalidWorkingDirectoryBindingError` | true |
 
 For all these errors, `bound_working_directory` is the saved directory record or
 null when absent, scratch, or undecodable. `requested_working_directory` is the
-caller's original string or null for omission/null/invalid non-string input.
+caller's original string or null for omission/null. Invalid types rejected at the
+earlier SDK/model boundary do not receive these directory-specific fields.
 `normalized_requested_path` and `canonical_requested_path` are strings when
 validation reached those stages, otherwise null. Do not echo an invalid object
 or invent a resolved path. Conflict prose explicitly instructs starting a new
@@ -337,5 +346,6 @@ Live vendor observations must state their version and prepared permission policy
 
 Restart PAL to expose the new schema. Callers must supply the field to opt into
 explicit project selection; the server does not automatically learn their active
-project. No new dependency or configuration migration is planned. Independent
-design review remains the next gate; isolated fact-checking is not that review.
+project. No new dependency or configuration migration is planned. Tasks 3–6
+remain responsible for detailed diagnostics and native/subprocess/MCP acceptance;
+Task 2's request and storage tests do not establish those remaining guarantees.

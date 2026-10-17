@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import re
@@ -17,6 +18,7 @@ from clink import get_registry
 from clink.agents import AgentOutput, CLIAgentError, create_agent, get_agent_class
 from clink.conversation import CLIConversation, canonical_continuation_id, prepare_request
 from clink.models import ResolvedCLIClient, ResolvedCLIRole
+from clink.working_directory import MISSING_BINDING, WorkingDirectoryError, resolve_working_directory
 from config import TEMPERATURE_BALANCED
 from tools.models import ContinuationOffer, ToolModelCategory, ToolOutput
 from tools.shared.base_models import COMMON_FIELD_DESCRIPTIONS
@@ -34,6 +36,13 @@ ALLOW_EDITS_DESCRIPTION = (
     "Opt in to native filesystem edits where supported. Defaults to false. "
     "For agy, false inherits saved permissions and does not guarantee read-only execution; "
     "true requests --mode accept-edits. Agy does not support editable_paths."
+)
+WORKING_DIRECTORY_DESCRIPTION = (
+    "Optional project directory on the PAL server's filesystem. Host-side '~' expansion is supported; "
+    "the resulting path must be absolute and name an existing directory. On the first clink call, "
+    "omission or null uses the CLI manifest working_dir, then scratch. Continuations inherit the saved choice. "
+    "An explicit directory may select the first project from scratch; changing an established project "
+    "requires a new conversation. Omission or null never clears the saved project."
 )
 
 # Request-scoped system prompt. Stored in a ContextVar so concurrent asyncio
@@ -65,6 +74,11 @@ class CLinkRequest(BaseModel):
     continuation_id: str | None = Field(
         default=None,
         description=COMMON_FIELD_DESCRIPTIONS["continuation_id"],
+    )
+    working_directory_absolute_path: str | None = Field(
+        default=None,
+        strict=True,
+        description=WORKING_DIRECTORY_DESCRIPTION,
     )
     allow_edits: bool = Field(
         default=False,
@@ -174,6 +188,11 @@ class CLinkTool(SimpleTool):
             "absolute_file_paths": SchemaBuilder.SIMPLE_FIELD_SCHEMAS["absolute_file_paths"],
             "images": SchemaBuilder.COMMON_FIELD_SCHEMAS["images"],
             "continuation_id": SchemaBuilder.COMMON_FIELD_SCHEMAS["continuation_id"],
+            "working_directory_absolute_path": {
+                "type": ["string", "null"],
+                "default": None,
+                "description": WORKING_DIRECTORY_DESCRIPTION,
+            },
             "allow_edits": {
                 "type": "boolean",
                 "default": False,
@@ -232,6 +251,24 @@ class CLinkTool(SimpleTool):
             client_config = self._registry.get_client(selected_cli)
         except KeyError as exc:
             self._raise_tool_error(str(exc))
+
+        try:
+            # Resolution is read-only. Cancellation can abandon the worker's
+            # result without permitting it to launch a child or commit history.
+            working_directory = await asyncio.to_thread(
+                resolve_working_directory,
+                requested=request.working_directory_absolute_path,
+                configured=client_config.working_dir,
+                saved_binding=conversation.thread.initial_context.get("clink_working_directory", MISSING_BINDING),
+            )
+        except WorkingDirectoryError as exc:
+            # Task 3 adds the full directory-specific diagnostic envelope.
+            self._raise_tool_error(str(exc), metadata={"tool_name": "clink", "error_type": type(exc).__name__})
+
+        launch_path = working_directory.binding.launch_path
+        client_config = client_config.model_copy(
+            deep=True, update={"working_dir": Path(launch_path) if launch_path is not None else None}
+        )
 
         try:
             role_config = client_config.get_role(selected_role)
@@ -322,6 +359,7 @@ class CLinkTool(SimpleTool):
                 role=role_config.name,
                 model_name=model_name,
                 model_metadata=model_metadata,
+                working_directory=working_directory.binding,
             )
         except memory.ConversationMemoryError as exc:
             metadata.update(memory.memory_persistence_warning(exc), history_saved=False)

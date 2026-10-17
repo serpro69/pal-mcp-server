@@ -61,6 +61,11 @@ def test_surface_preserves_names_parameters_types_defaults_and_safety(surface):
             expected["anyOf"] = [{"required": ["cli_name"]}, {"required": ["continuation_id"]}]
             # Antigravity adds one client with the existing shared role names.
             expected["properties"]["cli_name"]["enum"].insert(0, "agy")
+            # Project-directory Task 2 adds an optional string/null selection.
+            expected["properties"]["working_directory_absolute_path"] = {
+                "type": ["string", "null"],
+                "default": None,
+            }
         assert surface["tools"][name]["schema"] == expected, name
         assert surface["tools"][name]["annotations"] == old["annotations"], name
     for name, field in baseline["tools"]["clink"]["safety_schema"]["properties"].items():
