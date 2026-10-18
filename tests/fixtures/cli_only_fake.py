@@ -41,7 +41,7 @@ def main() -> None:
 
     first_user = f"FIRST_USER_MARKER_{vendor}"
     first_reply = f"FIRST_ASSISTANT_MARKER_{vendor}"
-    if scenario == "failure":
+    if scenario == "failure" or stage == os.environ.get("CLINK_TEST_FAILURE_STAGE"):
         print("Requested fixture failure", file=sys.stderr)
         sys.exit(7)
     if scenario != "history":

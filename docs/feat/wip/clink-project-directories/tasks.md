@@ -94,16 +94,23 @@ operator guides and live native CLI observations remain Tasks 5–6.
 
 ## Task 5: Exercise MCP clients and explain operator choices
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 2, Task 3, Task 4 for completion; Task 5.3 drafting can start immediately
 - **Size:** M
 - **Can run in parallel with:** Tasks 1–4 for Task 5.3 drafting only
 - **Docs:** [MCP and operator documentation](implementation.md#task-5-exercise-mcp-clients-and-explain-operator-choices)
 
-- [ ] 5.1 Add isolated stdio cases in `tests/test_clink_working_directory_mcp.py` reusing the shared fake; verify four adapters, binding, conflicts, aliases and fresh projects with exact response fields. Cover the [two validation boundaries](readiness.md#p2-schema-rejection-cannot-return-the-promised-clink-error-envelope): wrong JSON types through the SDK's registered handler or real stdio, and directory-resolution errors through both direct and MCP calls; a direct `handle_call_tool()` call does not test SDK validation.
-- [ ] 5.2 Verify fallback, explicit scratch-to-first-project promotion, failed promotion and omitted scratch continuation, legacy/API-origin handling and overlap without developer settings/providers leaking into fixtures.
-- [ ] 5.3 Update `docs/tools/clink.md` and `docs/configuration.md` for field mapping, `~`, dual paths, transitions, errors, native-configuration activation, deferred operator policy and Codex's non-Git workaround. Draft in parallel; reconcile with tested behavior before completion.
-- [ ] 5.4 Run the Task 5 focused command and check document links.
+- [x] 5.1 Add isolated stdio cases in `tests/test_clink_working_directory_mcp.py` reusing the shared fake; verify four adapters, binding, conflicts, aliases and fresh projects with exact response fields. Cover the [two validation boundaries](readiness.md#p2-schema-rejection-cannot-return-the-promised-clink-error-envelope): wrong JSON types through the SDK's registered handler or real stdio, and directory-resolution errors through both direct and MCP calls; a direct `handle_call_tool()` call does not test SDK validation.
+- [x] 5.2 Verify fallback, explicit scratch-to-first-project promotion, failed promotion and omitted scratch continuation, legacy/API-origin handling and overlap without developer settings/providers leaking into fixtures.
+- [x] 5.3 Update `docs/tools/clink.md` and `docs/configuration.md` for field mapping, `~`, dual paths, transitions, errors, native-configuration activation, deferred operator policy and Codex's non-Git workaround. Draft in parallel; reconcile with tested behavior before completion.
+- [x] 5.4 Run the Task 5 focused command and check document links.
+
+Evidence: [Task 5 verification and isolated review](verification.md#task-5-mcp-acceptance-and-operator-guides-2026-10-18).
+Focused suite: 65 passed. Final comprehensive checks: 3,401 passed, 17 skipped.
+The guides' 39 local links/anchors and four directory-request examples validate.
+Independent reviewer approved without findings. Existing integration/simulator
+failures and unavailable external review remain documented. Task 6 still owns
+prepared live-native observations, remaining verification gaps and final review.
 
 ## Task 6: Final verification and documentation
 
@@ -130,4 +137,4 @@ operator guides and live native CLI observations remain Tasks 5–6.
 
 - **D1:** Possible operator directory allowlist for restricted MCP clients. See the [risk, deferral reason and next steps](implementation.md#deferred-follow-up-operator-directory-policy). This is not implemented by the current feature.
 - The earlier TLS hostname failure did not recur in the 2026-10-17 Task 1 baseline or post-change checks; preserve the [historical evidence](verification.md#baseline-quality-checks).
-- Tasks 1–4 are complete; Tasks 5–6 remain pending. The public field, atomic binding, directory diagnostics and shared-fixture subprocess matrix are implemented; full MCP directory acceptance, live native observations and operator guides remain.
+- Tasks 1–5 are complete; Task 6 remains pending. The request, binding, diagnostics, subprocess/MCP acceptance and operator guides are implemented; live native observations, remaining verification gaps and final feature review remain.

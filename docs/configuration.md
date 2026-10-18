@@ -154,6 +154,80 @@ Restart PAL after editing manifests. Restart also discards process-local
 conversation memory, so existing continuation IDs cannot be resumed afterward;
 start a new conversation using the updated budget.
 
+### CLI project directories
+
+Use clink's optional `working_directory_absolute_path` tool argument to select a
+project per conversation. Paths refer to the PAL server's filesystem, including
+when the caller is remote. `~` expands using the server account's home directory;
+the result must be an absolute, existing, accessible directory. PAL does not
+expand environment variables, create the directory, or infer it from MCP roots,
+prompts or attachments. See the [clink guide](tools/clink.md#project-directory-selection).
+
+| Name | Purpose |
+| --- | --- |
+| Request `working_directory_absolute_path` | Current caller selection; there is no public clink `working_dir` alias. |
+| Manifest `working_dir` | Default for an unbound conversation with no explicit request. Add it to a complete copied client manifest. |
+| `initial_context.clink_working_directory` | Success-only stored binding: `mode`, plus `launch_path` and `canonical_path` for a project. |
+| `metadata.working_directory` | Selected mode, both paths, and invocation source (`request`, `configuration`, `conversation`, or `scratch`). Scratch paths are null. |
+
+For a conversation without a binding, an explicit valid request wins over the
+manifest, even if its directory is missing. Otherwise the manifest wins over
+scratch. For example, these are **tool arguments**, not a manifest:
+
+```json
+{
+  "cli_name": "claude",
+  "prompt": "Review this project's structure without changing files.",
+  "working_directory_absolute_path": "~/work/project"
+}
+```
+
+A successful recorded call saves its choice atomically with the exchange.
+Omission/null on follow-ups inherits that choice across CLI and role changes;
+changing an established project requires a new conversation without the old
+`continuation_id`. Equivalent filesystem aliases retain the saved launch
+spelling. Scratch continuations create a fresh temporary directory per call and
+ignore a newly selected CLI's configured project. An explicit first project may
+replace scratch mode while retaining history, but failed execution or recording
+leaves the prior binding and TTL unchanged.
+
+`launch_path` preserves normalized request symlink spelling, or the registry's
+existing manifest spelling; `canonical_path` records the resolved identity.
+PAL revalidates both paths and compares filesystem identity on continuation.
+The OS or CLI may report a different cwd spelling. The saved choice contains no
+temporary pathname or invocation source. Legacy/API-origin threads with no
+namespaced binding migrate only on a successful clink exchange; raw historical
+chat directory fields, old `working_dir` values and parent bindings do not select
+cwd. Restarting PAL loses these process-local bindings along with continuation IDs.
+
+Directory errors fail explicitly instead of falling back: correct invalid input
+for `InvalidWorkingDirectoryError`; start a new conversation for
+`WorkingDirectoryConflictError` or `InvalidWorkingDirectoryBindingError`; restore
+the saved target/access for `BoundWorkingDirectoryUnavailableError`. These
+pre-spawn errors include requested/bound path details, validation stage and
+`execution_started=false`, without selection metadata or a continuation offer.
+Wrong JSON types retain the SDK's earlier validation error. Directory races
+during preparation/spawn use `WorkingDirectoryLaunchError` with the selected
+directory metadata and OS diagnostic. See [exact fields](tools/clink.md#directory-errors).
+
+Directory selection can load native project instructions, hooks, plugins and
+MCP-server configuration. Review the selected project and native headless policy;
+an interactive trust prompt is not a reliable boundary for a noninteractive call.
+Clink adds no directory allowlist or filesystem confinement, and
+`PAL_WORKSPACE_ROOT` remains a chat-artifact setting. Restricted MCP clients
+must not be treated as confined by cwd selection. An operator-owned allowed-roots
+policy is deferred as [D1](feat/wip/clink-project-directories/implementation.md#deferred-follow-up-operator-directory-policy):
+it needs canonical containment, configuration discovery and pre-spawn denial
+tests before such deployments can rely on it. Native/host isolation remains a
+separate requirement even with an allowed launch directory.
+
+Codex's native repository check may reject a selected non-Git project. Choose an
+existing repository, or deliberately append `--skip-git-repo-check` to the copied
+Codex manifest's existing `additional_args`, preserving the other arguments and
+fields, then restart PAL. PAL automatically supplies this flag only for scratch;
+it preserves explicit operator overrides for selected directories and never
+automatically retries the rejection. See [the diagnostic](tools/clink.md#codex-repository-check).
+
 ### Model Configuration
 
 File allowances reuse the effective response reservation and remaining input
