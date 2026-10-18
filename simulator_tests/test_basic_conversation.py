@@ -38,11 +38,12 @@ class BasicConversationTest(BaseSimulatorTest):
                     "prompt": "Please use low thinking mode. Analyze this Python code and explain what it does",
                     "absolute_file_paths": [self.test_files["python"]],
                     "model": "flash",
+                    "working_directory_absolute_path": self.test_dir,
                 },
             )
 
-            if not response1 or not continuation_id:
-                self.logger.error("Failed to get initial response with continuation_id")
+            if not response1 or not continuation_id or self.last_result.isError:
+                self.logger.error("Failed to get initial response with continuation_id: %s", response1)
                 return False
 
             self.logger.info(f"  ✅ Got continuation_id: {continuation_id}")
@@ -56,11 +57,12 @@ class BasicConversationTest(BaseSimulatorTest):
                     "absolute_file_paths": [self.test_files["python"]],  # Same file - should be deduplicated
                     "continuation_id": continuation_id,
                     "model": "flash",
+                    "working_directory_absolute_path": self.test_dir,
                 },
             )
 
-            if not response2:
-                self.logger.error("Failed to continue conversation")
+            if not response2 or self.last_result.isError:
+                self.logger.error("Failed to continue conversation: %s", response2)
                 return False
 
             # Continue with additional file
@@ -72,11 +74,12 @@ class BasicConversationTest(BaseSimulatorTest):
                     "absolute_file_paths": [self.test_files["python"], self.test_files["config"]],
                     "continuation_id": continuation_id,
                     "model": "flash",
+                    "working_directory_absolute_path": self.test_dir,
                 },
             )
 
-            if not response3:
-                self.logger.error("Failed to continue with additional file")
+            if not response3 or self.last_result.isError:
+                self.logger.error("Failed to continue with additional file: %s", response3)
                 return False
 
             self.logger.info("  ✅ Basic conversation flow working")
