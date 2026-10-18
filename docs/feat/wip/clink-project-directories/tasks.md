@@ -5,7 +5,7 @@
 > Verification: [verification.md](verification.md)
 > Review corrections: [review-resolution.md](review-resolution.md)
 > Readiness: [fresh review](readiness.md) — Task 2.0 resolves the SDK/model versus directory-error contract; keep both validation boundaries covered.
-> Status: in-progress
+> Status: done; unavailable live coverage and credential failures recorded
 > Created: 2026-10-15
 > Not Doing: automatic project discovery, manifest generation, native permission changes, switching established projects within a conversation, filesystem sandboxing, project locks, relative attachments, persistent conversations, greeting-prompt changes, dependency repair
 
@@ -114,26 +114,28 @@ prepared live-native observations, remaining verification gaps and final review.
 
 ## Task 6: Final verification and documentation
 
-- **Status:** in-progress
+- **Status:** done
 - **Depends on:** Task 1, Task 2, Task 3, Task 4, Task 5
 - **Size:** S
 - **Can run in parallel with:** —
 - **Docs:** [final verification](implementation.md#task-6-final-verification-and-documentation)
 
 - [x] 6.1 Run `$kk:test`, comprehensive checks, integrations and quick simulator tests; record baseline failures/skips without weakening assertions. Follow up the [Task 1 verification gaps](verification.md#task-1-follow-up-verification-gaps), including consensus replay mismatches and simulator failures.
-- [ ] 6.2 Extend the existing Agy opt-in harness and run controlled native project smoke cases in prepared environments; record unavailable coverage.
+- [x] 6.2 Extend the existing Agy opt-in harness and run controlled native project smoke cases in prepared environments; record unavailable coverage.
 - [x] 6.3 Run `$kk:document` and reconcile examples/evidence with actual behavior.
 - [x] 6.4 Run `$kk:review-code` with Python; resolve findings or record specific deferred work.
 - [x] 6.5 Run `$kk:review-spec` against all feature documents and reconcile deviations/statuses.
 
 Current evidence: [Task 6 verification](verification.md#task-6-final-verification-2026-10-18).
-The Agy request-directory harness is implemented and tested offline. Codex native
-marker/history/actual-cwd validation passed; Claude's prepared smoke test awaits
-explicit approval after automatic review rejected external transmission of its
-test payload. Agy 1.3.5 and Gemini CLI setups are unavailable. Comprehensive and
-integration checks pass; the default quick suite still needs a valid Gemini API
-key. Full-feature code review approved and spec review found no deviations. Task 6 remains open; these limitations
-are not represented as successful live coverage.
+The Agy request-directory harness is implemented and tested offline. Codex and
+Claude native marker/history/actual-cwd validation passed; Claude's prepared
+probe ran with approval on resumption. Agy 1.3.5 and Gemini CLI setups remain
+unavailable. Repeated comprehensive checks passed (3,430 tests); integrations
+passed (four tests, 22 skips). The default quick suite still fails two cases
+with `API_KEY_INVALID`. Full-feature code review approved and spec review found
+no deviations. Task 6 is complete under its explicit unavailable-coverage
+reporting requirement; this does not establish full live coverage or release
+readiness. See the [resumption evidence and follow-ups](verification.md#task-6-resumption-2026-10-18).
 
 ## Dependencies and parallel work
 
@@ -146,4 +148,4 @@ are not represented as successful live coverage.
 
 - **D1:** Possible operator directory allowlist for restricted MCP clients. See the [risk, deferral reason and next steps](implementation.md#deferred-follow-up-operator-directory-policy). This is not implemented by the current feature.
 - The earlier TLS hostname failure did not recur in the 2026-10-17 Task 1 baseline or post-change checks; preserve the [historical evidence](verification.md#baseline-quality-checks).
-- Tasks 1–5 are complete; Task 6 remains pending. The request, binding, diagnostics, subprocess/MCP acceptance and operator guides are implemented; live native observations, remaining verification gaps and final feature review remain.
+- Tasks 1–6 are complete. Native Codex/Claude observations supplement the four-adapter subprocess/MCP coverage. Agy 1.3.5, Gemini CLI, the API-backed quick suite and external expert review still need prepared environments/credentials; concrete follow-ups remain in [verification.md](verification.md#remaining-validation-actions).

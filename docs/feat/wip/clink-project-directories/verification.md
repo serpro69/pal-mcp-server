@@ -3,7 +3,7 @@
 > Date: 2026-10-15
 > Source baseline: `6e6ea4a`
 > Design: [design.md](design.md)
-> Status: Tasks 1–5 complete; Task 6 implementation, offline checks and reviews complete; live Claude approval pending (2026-10-18)
+> Status: Tasks 1–6 complete; native Codex/Claude verified; unavailable coverage and credential failures recorded (2026-10-18)
 
 This record preserves the original pre-review fact-check at `6e6ea4a`.
 Its initial naming, single-path binding and scratch decisions are historical,
@@ -19,9 +19,12 @@ following [Task 5](#task-5-mcp-acceptance-and-operator-guides-2026-10-18),
 
 ## Task 6: final verification (2026-10-18)
 
-Baseline: `3ddbb2e`. Implementation, offline checks and independent reviews are complete.
-Native Claude execution needs explicit approval after automatic approval review
-rejected the test. The feature is not represented as fully verified or released.
+Initial Task 6 baseline: `3ddbb2e`; resumption baseline: `757324f`.
+Implementation, offline checks and independent reviews are complete. The initial
+automatic approval rejection of Claude's probe was resolved on resumption; the
+approved run passed. Task 6 includes recording unavailable coverage, so it is
+complete with the limitations below. The feature is not represented as fully
+verified or released.
 
 ### Harness and baseline repairs
 
@@ -65,7 +68,7 @@ spawn calls and records literal cwd separately from Linux `/proc` observations.
 | CLI | Observed prerequisite and result |
 | --- | --- |
 | Codex | `codex-cli 0.163.0`, saved ChatGPT login. **Passed**: native read returned the random marker; after replacing the file, an omitted-directory follow-up retained the original marker/history and the saved launch alias. Both child cwd observations matched the disposable Git project; shutdown completed. |
-| Claude | `2.1.296`; auth status reports logged in via `claude.ai`/first-party, with inference unverified. Automatic approval review rejected the live smoke command because sending file content to Anthropic was not explicitly authorized for this payload/destination. No Claude inference was run. |
+| Claude | `2.1.296 (Claude Code)`, saved Claude login. **Passed on resumption**: approved native read returned the generated marker; an omitted-directory follow-up retained the original marker/history and launch alias. Both actual child cwd observations matched the disposable project; shutdown completed. The initial attempt had been blocked by automatic approval review before inference. |
 | Agy | Installed `1.4.0`; the existing live acceptance contract requires `1.3.5`. No version assertion was relaxed, native settings were not changed and no live agy inference was attempted. |
 | Gemini CLI | Executable unavailable on PATH; native CLI coverage remains unverified. |
 
@@ -116,16 +119,51 @@ deviation, doc inconsistency or ambiguity. Its read-only review did not rerun
 tests or native commands. Both reviewers distinguish implementation conformance
 from the still-open live validation and release-readiness limits.
 
+### Task 6 resumption (2026-10-18)
+
+The prepared `/tmp/clink-task6-native-probe.py claude` ran with the `pal`
+interpreter after command approval covering generated marker text, test prompts
+and normal clink role instructions sent through the saved Claude login to
+Anthropic. No application source was attached. Claude retained its existing
+user policy and shipped arguments: `--permission-mode default`, `--model sonnet`,
+and `allow_edits=false`. Native settings and permission flags were unchanged.
+
+The request selected `/tmp/pal_directory_native_hngcx0mi/launch alias` over a
+fresh Git project containing only `project.marker`. The first response included
+the random file marker and exact `request` directory metadata. After the probe
+replaced the marker, the follow-up omitted the directory and returned the
+original marker from its two retained messages, with `conversation` source and
+the same launch/canonical paths. Both subprocess cwd arguments retained the
+alias; Linux `/proc` observations identified
+`/tmp/pal_directory_native_hngcx0mi/project` for both children. The CLI did not
+change the fixture. Server shutdown and temporary-project cleanup completed;
+the probe exited 0 with all three read/history/actual-location checks true.
+
+| Repeated check at `757324f` | Observed outcome |
+| --- | --- |
+| `./code_quality_checks.sh` with the `pal` virtualenv, before and after documentation updates | Both runs exited 0; Ruff, Black and isort passed; 3,430 passed, 17 skipped, 26 deselected, 19 subtests passed in each run. |
+| `./run_integration_tests.sh` | Exit 0; four passed, 22 skipped, 3,447 deselected. |
+| `python communication_simulator_test.py --quick` | Exit 1; four reported passed, two failed (`basic_conversation`, `per_tool_deduplication`). Both failures still report Gemini `API_KEY_INVALID`. |
+| Native prerequisites | `agy --version` still reports 1.4.0; Gemini CLI remains absent from PATH. The strict Agy 1.3.5 acceptance contract was not changed. |
+| Local documentation links/anchors | 171 passed across all six feature documents and both operator guides. |
+| Independent resumption review | APPROVE; no P0–P3 findings in the four changed documents. The reviewer checked the task/spec contract, probe assertions and test logs; no native commands were rerun. |
+| PAL external resumption review | `gemini-3.8-flash` failed with `API_KEY_INVALID`; the isolated workflow used the independent-reviewer fallback. No external approval is claimed. |
+
+This resumption changes only evidence and task statuses. The preceding full-feature
+code/spec reviews remain the implementation review evidence. Completion follows
+Task 6.2's explicit requirement to record unavailable setups; it does not turn
+skipped native tests or failing API checks into passes. The remaining work needs
+operator-provided environments/credentials, with concrete actions below.
+The resumption review found no issues to index, and this cycle established no
+new project convention beyond the already documented contract.
+
+Reflection: the implementation followed the planned directory contract. Native
+acceptance required separate proof of launch spelling, actual cwd, a real marker
+read and retained history; an answer alone was insufficient. The final delay
+was approval/environment availability, not an additional directory-code change.
+
 ### Remaining validation actions
 
-- **Claude approval:** the prepared probe is `/tmp/clink-task6-native-probe.py`.
-  Approval is required to run its `claude` case, sending the generated marker,
-  probe prompts and normal clink role instructions through the saved Claude
-  session to Anthropic. The child is asked to read only the generated marker;
-  no application source files are attached. The native CLI may also load its
-  existing user configuration. Once
-  approved, run with the `pal` interpreter and record both marker/history and
-  actual-cwd outcomes before closing this item.
 - **Agy:** prepare authenticated native 1.3.5 and run the existing opt-in matrix,
   including the new request mode; alternatively review support for 1.4.0 as a
   separate adapter/version change before updating its strict acceptance contract.
