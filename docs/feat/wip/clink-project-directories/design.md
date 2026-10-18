@@ -1,6 +1,6 @@
 # Design: per-request project directories for clink
 
-> Status: Tasks 1–4 implemented; subprocess matrix verified with shared fixture; full MCP/live native acceptance pending
+> Status: Tasks 1–5 implemented; subprocess/MCP acceptance and operator guides complete; live native observations and final verification pending
 > Created: 2026-10-15
 > Source baseline: `6e6ea4a`
 > Review correction baseline: `6da3e2b`
@@ -348,6 +348,7 @@ Restart PAL to expose the new schema. Callers must supply the field to opt into
 explicit project selection; the server does not automatically learn their active
 project. No new dependency or configuration migration is planned. Directory
 diagnostics are implemented in Task 3. Task 4 verifies the subprocess matrix
-with the shared fake CLI fixture. Tasks 5–6 remain responsible for full MCP
-directory acceptance, operator guides and live native observations; the current
-tests do not establish those remaining guarantees.
+with the shared fake CLI fixture. Task 5 verifies MCP directory acceptance and
+documents operator choices. Task 6 remains responsible for prepared live-native
+observations, outstanding verification gaps and final feature review; fake-child
+tests do not establish live vendor behavior.

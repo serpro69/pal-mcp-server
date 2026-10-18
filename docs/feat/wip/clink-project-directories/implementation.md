@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Tasks: [tasks.md](tasks.md)
 > Review corrections: [review-resolution.md](review-resolution.md)
-> Status: Tasks 1–4 complete; Tasks 5–6 pending
+> Status: Tasks 1–5 complete; Task 6 pending
 
 ## Starting points and constraints
 
@@ -262,6 +262,25 @@ independently. Primary files: new `tests/test_clink_working_directory_mcp.py`,
 
 Run `python -m pytest tests/test_clink_working_directory_mcp.py
 tests/test_cli_only_mcp.py tests/test_cli_only_discovery.py -q -m 'not integration'`.
+
+Implemented with 20 new real-stdio cases using the existing isolated launcher
+and shared fake child. The launcher can opt into four-vendor manifest overrides,
+an isolated home for `~` expansion, seeded legacy/API-origin records, and exact
+before/after storage/TTL observations. Its observer wraps the registered SDK
+handler, preserving input validation, and forwards the real spawn call to
+record literal cwd. None of these hooks are enabled in the production server.
+The fake supports an explicitly configured failure stage so a valid project
+attempt can fail without replacing scratch state.
+
+The MCP suite covers discovery, inherited/equivalent projects, conflicts and
+fresh conversations, both validation boundaries, manifest/request precedence,
+successful/failed promotion, migration and malformed state, and concurrent
+bound threads across all four adapters. API-origin state is seeded without a
+provider call; native responses come from the fake executable. The two operator
+guides now document the field mapping, path/binding/error contracts, native
+configuration activation, headless limits, D1 and the Codex workaround. Local
+links and directory-request JSON examples were validated. See
+[Task 5 evidence](verification.md#task-5-mcp-acceptance-and-operator-guides-2026-10-18).
 
 ## Task 6: Final verification and documentation
 

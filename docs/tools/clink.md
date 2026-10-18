@@ -38,7 +38,7 @@ Google documents that wrapping consumer-plan agy in third-party agents or applic
 
 Having gcloud ADC credentials alone does not establish that agy's ADC mode is ready. In the 2026-10-15 check, test-only `AGY_ADC_AUTH=1` reached agy but failed with a missing plan-model error. Configure and verify the intended native model/project/location outside PAL before treating ADC as working; PAL does not select them or change saved settings. See the [failed attempt and remaining checks](../feat/wip/antigravity-clink/task-6-verification.md#authentication-coverage).
 
-By default every agy request runs in a fresh scratch directory; absolute project references are outside that directory. A complete agy manifest may instead set `working_dir` to your project. Both modes retain native permission checks. In the recorded 1.3.5 environment, scratch-mode reads required the operator to enable **Non-Workspace Access** (`allowNonWorkspaceAccess`). PAL does not enable it. It affects outside-workspace reads and writes and is not a read-only control. Use the [native permission settings](https://antigravity.google/docs/permissions?tab=cli) appropriate to your project. A completed answer alone does not prove a file was read: verify file-specific content and inspect permission notices.
+Set `working_directory_absolute_path` to launch agy in a project. Without a request or saved choice, PAL uses the manifest's `working_dir`, then a fresh scratch directory. Follow-ups inherit the saved project or scratch mode. Both modes retain native permission checks. In the recorded 1.3.5 environment, scratch-mode reads required the operator to enable **Non-Workspace Access** (`allowNonWorkspaceAccess`). PAL does not enable it. It affects outside-workspace reads and writes and is not a read-only control. Use the [native permission settings](https://antigravity.google/docs/permissions?tab=cli) appropriate to your project. A completed answer alone does not prove a file was read: verify file-specific content and inspect permission notices.
 
 For agy, **false inherits saved permissions**: PAL adds no edit-enabling mode flag, and saved settings may still permit file or command writes. True requests exactly `--mode accept-edits`; other tool permissions remain agy's responsibility. Neither value supplies per-path enforcement; nonempty `editable_paths` is rejected before role loading or execution. A follow-up with false or omitted `allow_edits` does not downgrade saved permissions. Stronger permission downgrades are deferred under [agy #1233](https://github.com/google-antigravity/antigravity-cli/issues/1233). Before claiming stronger enforcement, a released mechanism must pass saved-policy precedence, direct/command/MCP-write, both-cwd, argument-conflict, and concurrency checks; acceptance of a new mode flag alone is insufficient.
 
@@ -48,6 +48,7 @@ Example tool arguments for a review (replace the absolute path):
 {
   "cli_name": "agy",
   "role": "codereviewer",
+  "working_directory_absolute_path": "/absolute/path/to/project",
   "prompt": "Review this file for correctness. Cite specific symbols and findings.",
   "absolute_file_paths": ["/absolute/path/to/project/module.py"]
 }
@@ -83,12 +84,13 @@ With no selector, pytest skips and the simulator reports `SKIPPED` before setup 
 
 ## First Request and Follow-up
 
-Ask your MCP client to call the **clink tool** with these arguments. These JSON objects are tool arguments, not shell commands. Replace `codex` with `claude`, `gemini`, or `agy` if that is your installed CLI.
+Ask your MCP client to call the **clink tool** with these arguments. These JSON objects are tool arguments, not shell commands. Replace the project path with an existing directory on the PAL host, and `codex` with `claude`, `gemini`, or `agy` if that is your installed CLI. Codex normally requires a Git repository; see [its repository check](#codex-repository-check).
 
 ```json
 {
   "cli_name": "codex",
   "role": "default",
+  "working_directory_absolute_path": "/absolute/path/to/project",
   "prompt": "Remember the project codeword ORCHID-42 and suggest one short release checklist."
 }
 ```
@@ -104,6 +106,8 @@ After a successful, recorded reply with room for another exchange, copy the retu
 
 The follow-up inherits the last successfully recorded CLI and role. Explicit `cli_name` or `role` values override them. New conversations require `cli_name` when multiple clients are configured, as in the shipped configuration. If exactly one is configured, it can be selected implicitly. There is no implicit Gemini choice among multiple clients. Invalid selections fail; changing CLI while retaining a role the new CLI lacks also fails until you supply a supported role.
 
+The follow-up also inherits the saved directory choice, including across CLI or role changes. Changing an established project requires a new conversation: omit `continuation_id` and supply the new directory. A conversation that began in scratch mode may select its first project while retaining its history.
+
 `/pal:continue` in provider-free mode instructs your client to reuse the previous available conversation tool and latest PAL continuation ID. A CLI conversation stays on clink. These IDs belong to PAL; native vendor session IDs are diagnostic metadata, not resume handles used by clink.
 
 ## Tool Parameters
@@ -116,8 +120,79 @@ The follow-up inherits the last successfully recorded CLI and role. Explicit `cl
 | `absolute_file_paths` | Optional absolute file paths. PAL forwards references; the CLI opens files using its own capabilities and permissions. |
 | `images` | Accepted image-path references. This does not guarantee image transport or multimodal support in the selected runner. |
 | `continuation_id` | Existing PAL conversation UUID. Expired or invalid IDs fail before CLI execution. |
+| `working_directory_absolute_path` | Optional project directory on the PAL host. Expands host-side `~`, then requires an absolute existing directory. Omission/null inherits the saved choice; without one, uses manifest `working_dir`, then scratch. |
 | `allow_edits` | Defaults to `false` on **every request**, including follow-ups. True applies edit arguments; for agy it requests `--mode accept-edits`. Agy false inherits saved permissions and cannot guarantee read-only execution. |
 | `editable_paths` | Optional absolute-path scope requiring `allow_edits=true`. Supported only by Claude through `--allowedTools Edit(path)/Write(path)`; Codex, Gemini, and agy reject it. |
+
+## Project directory selection
+
+The field selects the child's **launch directory**. PAL does not discover your
+project from MCP roots, the prompt, attachments, or the client machine's cwd.
+Remote callers must supply a path meaningful on the PAL server. `~/work/app`
+expands using that server account's home directory; environment variables are
+not expanded. Empty/relative paths, files, missing directories, broken links and
+inaccessible paths fail explicitly. PAL does not create the requested directory.
+
+| Saved choice | Current request | Result |
+| --- | --- | --- |
+| None | Explicit valid directory | Use it, even if the manifest directory is missing. |
+| None | Omitted/null | Use manifest `working_dir`, otherwise scratch. |
+| Project A | Omitted/null or a filesystem-equivalent alias | Reuse A's saved launch spelling. |
+| Project A | Different project B | Reject before spawn; start a new conversation for B. |
+| Scratch | Omitted/null | Use a fresh scratch directory, even if the newly selected CLI has a configured project. |
+| Scratch | Explicit valid directory A | Run in A with existing history; bind A only after the exchange is successfully saved. |
+
+The first choice is recorded atomically with the successful user/reply pair.
+Execution failure, cancellation or a failed memory commit cannot establish or
+replace a binding. A failed scratch-to-project attempt leaves the conversation
+in scratch mode. Omission/null never clears a project; a new conversation is
+required to return to scratch or choose another project.
+
+PAL preserves two paths: `launch_path` keeps the normalized request's symlink
+spelling, while `canonical_path` records its resolved identity. Manifest paths
+retain the registry's resolved spelling. Equivalent aliases are compared by
+filesystem identity and do not replace the original launch path. Both saved
+paths are revalidated on every call; deletion, access loss or symlink retargeting
+fails without falling back to another path. This is not an inode/content lock,
+and the OS or native CLI may report a different spelling from `getcwd()`.
+
+| Name | Role |
+| --- | --- |
+| `working_directory_absolute_path` | Public clink request field; no public `working_dir` alias. |
+| Manifest `working_dir` | Operator default for a conversation without a saved choice or explicit request. |
+| `initial_context.clink_working_directory` | Stored `mode` and, for a project, both paths; contains no temporary pathname or per-call source. |
+| `metadata.working_directory` | Selected `mode`, `launch_path`, `canonical_path`, and `source`: `request`, `configuration`, `conversation`, or `scratch`. Scratch paths are null. |
+
+Selection metadata survives output reduction and post-selection execution errors;
+its presence on an error does not imply execution succeeded or the choice was
+saved. An equivalent explicit repeat still reports source `conversation`.
+Legacy or API-origin threads without the namespaced binding choose a directory
+on their first successful clink call. Historical chat directory fields, old raw
+`working_dir` values, attachments and parent bindings are not inherited as cwd.
+API/local-tool interleaving preserves the clink binding without adopting it.
+Bindings expire with process-local conversation memory and are lost on restart.
+
+### Project configuration and headless execution
+
+Selecting a directory can activate native project instructions, hooks, plugins
+or MCP-server definitions. Those may affect behavior or start processes under
+the CLI's policy. For example, Claude documents project-scoped
+[settings and hooks](https://code.claude.com/docs/en/settings) and
+[MCP configuration](https://code.claude.com/docs/en/mcp#project-scope).
+Review the selected project's configuration and the installed CLI's headless
+behavior; do not rely on an interactive trust or permission prompt protecting a
+noninteractive call. PAL neither approves those prompts nor retries with bypass
+flags. CLI options can also change the native workspace after launch.
+
+Clink retains trusted local delegation. Giving a restricted MCP caller arbitrary
+cwd selection can add access to project configuration it could not otherwise
+activate. There is no operator directory allowlist in this version;
+`PAL_WORKSPACE_ROOT` controls chat artifacts, not clink cwd. An operator-owned
+allowed-project-roots policy is deferred as
+[D1](../feat/wip/clink-project-directories/implementation.md#deferred-follow-up-operator-directory-policy).
+That work needs canonical containment, configuration-discovery and pre-spawn
+denial rules before restricted-client deployments can rely on it. Even an
+allowlisted launch directory would not confine subsequent reads or writes.
 
 ### Edit permissions
 
@@ -129,6 +204,7 @@ For a scoped Claude edit, replace the example path with an existing absolute pat
 {
   "cli_name": "claude",
   "prompt": "Fix the typo in this file.",
+  "working_directory_absolute_path": "/absolute/path/to/project",
   "absolute_file_paths": ["/absolute/path/to/project/README.md"],
   "allow_edits": true,
   "editable_paths": ["/absolute/path/to/project/README.md"]
@@ -165,6 +241,44 @@ A non-terminal subtool warning alongside a successful final answer can remain su
 
 For Gemini `UNSUPPORTED_CLIENT`, check the vendor's [installation/update instructions](https://geminicli.com/docs/get-started/installation/) and [troubleshooting guide](https://geminicli.com/docs/resources/troubleshooting/). The marker alone does not establish an account-policy cause.
 
+### Directory errors
+
+Path and binding rejections return `status="error"`, no continuation offer,
+`stage="validation"`, `execution_started=false`, and `retryable=false`.
+They leave history, defaults, binding and TTL unchanged. `retryable=false` means
+not to blindly repeat unchanged input; restoring a directory can make a later
+call valid.
+
+| `error_type` | Action | `new_conversation_required` |
+| --- | --- | --- |
+| `InvalidWorkingDirectoryError` | Correct the request or selected manifest path. | false |
+| `WorkingDirectoryConflictError` | Start a new conversation for the different project. | true |
+| `BoundWorkingDirectoryUnavailableError` | Restore access and the saved launch target, or start a new conversation. | false |
+| `InvalidWorkingDirectoryBindingError` | Saved state is malformed; start a new conversation. | true |
+
+Metadata includes `bound_working_directory` (the saved directory record, or null
+for absent/scratch/undecodable state), the original `requested_working_directory`,
+and `normalized_requested_path` / `canonical_requested_path` when those stages
+were reached. These errors have no success-shaped `working_directory` selection.
+Wrong JSON types are rejected earlier by the MCP SDK and retain its ordinary
+input-validation error without this directory-specific envelope.
+
+A directory preparation or spawn race returns `WorkingDirectoryLaunchError`,
+`stage="spawn"`, `execution_started=false`, the selected `working_directory`
+metadata and the OS diagnostic. It saves nothing. Executable failures and
+cancellation are not relabeled as cwd errors.
+
+### Codex repository check
+
+Codex can reject a selected non-repository directory with
+`Not inside a trusted directory and --skip-git-repo-check was not specified.`
+PAL preserves that diagnostic and adds guidance: select an existing repository,
+or deliberately append `--skip-git-repo-check` to the existing `additional_args`
+in a complete copied Codex manifest, then restart PAL. Preserve the other
+manifest fields and arguments. This is an operator choice; PAL does not add the
+flag for a selected directory or automatically retry the failed invocation.
+PAL itself does not require a `.git` directory; worktrees may use `.git` files.
+
 ## Configuration
 
 The shipped manifests live in [`conf/cli_clients/`](../../conf/cli_clients/); role prompts live in [`systemprompts/clink/`](../../systemprompts/clink/). Copy a **complete** manifest to `~/.pal/cli_clients/` to customize it. Later manifests replace a client's full definition, rather than patching individual fields. See [configuration precedence](../configuration.md#cli-conversation-history-budgets).
@@ -180,7 +294,7 @@ These are the current base commands for the shipped presets. PAL sends the promp
 | Codex | `codex exec --json --enable web_search_request --skip-git-repo-check` | Add `--dangerously-bypass-approvals-and-sandbox` before the scratch-directory flag. |
 | Antigravity | `agy --input-format stream-json --output-format stream-json` | Append exactly `--mode accept-edits`. False inherits native policy; no read-only guarantee. |
 
-Codex receives `--skip-git-repo-check` only for PAL-created scratch directories. Configured working directories retain the CLI's repository policy. The shipped `--enable web_search_request` flag is version-sensitive: the current [Codex CLI reference](https://learn.chatgpt.com/docs/cli/reference) does not list that feature name. Check support in your installed release before relying on this preset; the table records PAL's configuration, not universal vendor compatibility. For the other command formats, see [Claude programmatic use](https://code.claude.com/docs/en/headless) and [Gemini headless output](https://geminicli.com/docs/cli/headless/).
+PAL automatically adds Codex's `--skip-git-repo-check` only for scratch directories. Request-selected and configured directories retain the native repository policy unless the operator explicitly supplied the flag in the manifest. The shipped `--enable web_search_request` flag is version-sensitive: the current [Codex CLI reference](https://learn.chatgpt.com/docs/cli/reference) does not list that feature name. Check support in your installed release before relying on this preset; the table records PAL's configuration, not universal vendor compatibility. For the other command formats, see [Claude programmatic use](https://code.claude.com/docs/en/headless) and [Gemini headless output](https://geminicli.com/docs/cli/headless/).
 
 ### Child environment and working directory
 
@@ -198,7 +312,7 @@ Operator configuration can add inherited names using `env_passthrough`, then sup
 
 Explicit values take precedence, including Windows case-insensitive names. Executable lookup uses the child's configured `PATH`. Keep credentials in the launch environment when possible; `env_passthrough` contains names, not values. These are operator settings, not tool parameters.
 
-A configured `working_dir` must exist and is preserved. Without it, each call uses a private temporary directory, removed after success, failure, timeout, or cancellation. Immediate-child termination/reaping precedes scratch cleanup; draining output pipes is bounded. Concurrent calls use different directories. Supply absolute file references, or configure `working_dir` when the CLI needs project-local settings and repository context. Relative configured paths retain the registry's configuration/project resolution rules.
+An explicit request directory takes precedence over `working_dir` for an unbound conversation; follow-ups inherit the saved choice. The selected directory must exist and is preserved. Scratch mode uses a fresh private temporary directory per call, removed after success, failure, timeout, or cancellation. Immediate-child termination/reaping precedes scratch cleanup; draining output pipes is bounded. Different conversations can overlap, including in the same project; PAL adds no project lock. Relative manifest paths retain the registry's configuration/project resolution rules. See [project selection](#project-directory-selection) and [operator configuration](../configuration.md#cli-project-directories).
 
 Home/auth locations remain available, so a scratch directory does not prevent access elsewhere. File reads and edits still depend on the selected CLI's native controls; this feature adds no filesystem sandbox or process-tree supervision guarantee.
 

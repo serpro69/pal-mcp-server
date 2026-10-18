@@ -6,7 +6,7 @@ import os
 import shlex
 import sys
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import timedelta
 from pathlib import Path
 from uuid import UUID, uuid4
@@ -37,6 +37,9 @@ class CLIOnlyServer:
     root: Path
     vendor: str
     provider_settings: set[str]
+    vendors: tuple[str, ...] = VENDORS
+    client_overrides: dict[str, dict] = field(default_factory=dict)
+    observe_directories: bool = False
 
     def capture(self, stage):
         return json.loads((self.root / "captures" / self.vendor / f"{stage}.json").read_text(encoding="utf-8"))
@@ -48,10 +51,11 @@ class CLIOnlyServer:
     async def connect(self, *, gate_port=0):
         manifests = self.root / "clients"
         manifests.mkdir()
-        for vendor in VENDORS:
+        for vendor in self.vendors:
             captures = self.root / "captures" / vendor
             captures.mkdir(parents=True)
             config = json.loads((REPO / "conf" / "cli_clients" / f"{vendor}.json").read_text(encoding="utf-8"))
+            config.update(self.client_overrides.get(vendor, {}))
             config["command"] = shlex.join(
                 [sys.executable, str(FIXTURES / "cli_only_fake.py"), vendor, str(captures), str(gate_port)]
             )
@@ -60,9 +64,10 @@ class CLIOnlyServer:
 
         # Discovery includes the new built-in client even when it is not installed.
         # Pin this observation so the test never depends on a host agy executable.
-        agy = json.loads((REPO / "conf" / "cli_clients" / "agy.json").read_text(encoding="utf-8"))
-        agy["command"] = shlex.quote(str(self.root / "missing-agy"))
-        (manifests / "agy.json").write_text(json.dumps(agy), encoding="utf-8")
+        if "agy" not in self.vendors:
+            agy = json.loads((REPO / "conf" / "cli_clients" / "agy.json").read_text(encoding="utf-8"))
+            agy["command"] = shlex.quote(str(self.root / "missing-agy"))
+            (manifests / "agy.json").write_text(json.dumps(agy), encoding="utf-8")
 
         # Do not copy os.environ: pytest and the developer's shell contain keys,
         # model overrides and paths that can silently turn this into an API test.
@@ -83,6 +88,9 @@ class CLIOnlyServer:
             DISABLED_TOOLS="",
             LOG_LEVEL="WARNING",
         )
+        if self.observe_directories:
+            (self.root / "home").mkdir(exist_ok=True)
+            env.update(CLINK_TEST_OBSERVE="true", HOME=str(self.root / "home"))
         parameters = StdioServerParameters(
             command=sys.executable,
             args=[str(FIXTURES / "cli_only_server.py"), str(self.root)],

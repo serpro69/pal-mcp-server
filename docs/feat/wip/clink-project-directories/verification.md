@@ -3,17 +3,104 @@
 > Date: 2026-10-15
 > Source baseline: `6e6ea4a`
 > Design: [design.md](design.md)
-> Status: historical fact-check retained; Tasks 1–4 implemented and reviewed (latest: 2026-10-18)
+> Status: historical fact-check retained; Tasks 1–5 implemented and reviewed (latest: 2026-10-18)
 
 This record preserves the original pre-review fact-check at `6e6ea4a`.
 Its initial naming, single-path binding and scratch decisions are historical,
 not the current implementation contract. See [review-resolution.md](review-resolution.md)
 for the subsequent review, corroboration at `6da3e2b`, corrections, and the user's
 first-project selection decision. The four agents did not review those revisions.
-Current implementation evidence is in [Task 4 verification](#task-4-shared-fixture-and-subprocess-acceptance-2026-10-18),
-following [Task 3](#task-3-directory-diagnostics-2026-10-18),
+Current implementation evidence is in [Task 5 verification](#task-5-mcp-acceptance-and-operator-guides-2026-10-18),
+following [Task 4](#task-4-shared-fixture-and-subprocess-acceptance-2026-10-18),
+[Task 3](#task-3-directory-diagnostics-2026-10-18),
 [Task 2](#task-2-request-and-atomic-continuation-2026-10-17) and
 [Task 1](#task-1-directory-selection-and-identity-2026-10-17).
+
+## Task 5: MCP acceptance and operator guides (2026-10-18)
+
+Baseline: `9af43cc`. Added 20 cases in
+[`test_clink_working_directory_mcp.py`](../../../../tests/test_clink_working_directory_mcp.py)
+using real `ClientSession` stdio discovery/calls against the isolated server and
+the shared fake child. No production code, native permissions or dependencies
+changed. The server helper's new vendor/manifest/observation options are opt-in;
+existing discovery and CLI-only acceptance cases retain their default behavior.
+
+Four cases cover schema discovery, host-side `~`, A/alias inheritance, rejection
+of B, a fresh conversation in B, wrong JSON types, invalid strings and unchanged
+post-rejection history. Four cover manifest fallback/request override, scratch
+inheritance across CLI changes, a failed valid project attempt, successful first
+project selection with retained history, and continued project inheritance.
+Four cover legacy/API-origin missing-binding migration and corrupt-state
+rejection. Eight hold distinct bound A/B/fallback threads concurrently across
+four adapters, checking locations, markers, history isolation and cleanup.
+
+The optional launcher observer wraps the original registered SDK handler rather
+than bypassing its schema validation. Wrong JSON types retain the SDK's ordinary
+error, while path/conflict/binding failures assert the exact directory fields.
+Before/after snapshots contain serialized storage payloads and expiry timestamps,
+so failure checks cover history, defaults, binding and TTL. Child capture files
+establish whether execution occurred; forwarded spawn observations preserve the
+literal cwd argument separately from child `getcwd()` and marker reads. Registry
+snapshots and server cwd are unchanged. Parent provider/settings poisoning and
+the launcher's forbidden-call checks establish isolation.
+
+Legacy/API-origin records are seeded test data, not live API responses. Native
+answers come from the fake executable. This establishes MCP transport, SDK
+validation and production adapter behavior without vendor/model calls; it does
+not establish native hooks, trust prompts, authentication or live project reads.
+
+Updated [clink usage](../../../tools/clink.md) and
+[configuration](../../../configuration.md) for public/manifest/storage/metadata
+mapping, home expansion, dual paths, continuation transitions, diagnostics and
+migration. Both explain project-local configuration activation, headless limits,
+restricted-client exposure, deferred D1 and Codex's deliberate operator override.
+The existing agy/default-cwd and Codex scratch-only wording was reconciled with
+the tested request field and explicit manifest flags.
+
+`kk:test` and `kk:document` guidance was applied in the existing `pal` virtualenv
+(Python 3.10.12, pytest 9.0.3, MCP 1.30.0). Test commands used approved execution
+outside the sandbox for stdio processes and localhost synchronization gates.
+
+| Check | Observed outcome |
+| --- | --- |
+| Before edits: `./code_quality_checks.sh` | Exit 0; lint/format passed; 3,381 passed, 17 skipped, 23 deselected, 19 subtests passed. |
+| Task 5 focused command in implementation.md | Exit 0; 65 passed, including existing MCP/discovery compatibility. |
+| Final `./code_quality_checks.sh` | Exit 0; Ruff, Black and isort passed; 3,401 passed, 17 skipped, 23 deselected, 19 subtests passed. |
+| Local guide links and directory-request examples | 39 relative links/anchors resolve; four JSON requests validate against `CLinkRequest`. |
+| `./run_integration_tests.sh` | Exit 1; two passed, two failed, 19 skipped, 3,418 deselected. The same `gpt-5`/`gpt-5.2` consensus replay cases lack a matching recorded OpenAI chat-completions request. |
+| `python communication_simulator_test.py --quick` | Exit 1; four reported passed, two failed, none skipped. The same basic-conversation and precommit-deduplication missing-continuation failures recur. |
+
+These broader failures match the previously recorded gaps and remain outside
+Task 5's changed paths. Task 6 must follow the
+[existing repair/verification steps](#task-1-follow-up-verification-gaps): inspect
+the consensus request/recording mismatch and individual simulator responses,
+repair the fixtures or setup in their owning scope, then rerun unchanged
+assertions. Neither suite is represented as passing.
+
+### Task 5 review and remaining scope
+
+The independent `code-reviewer` applied the Python security, SOLID, code-quality
+and removal checklists. Verdict: **APPROVE**, no P0–P3 findings and no findings
+to index. It inspected the tests and guide consistency without executing tests;
+runtime evidence belongs to the implementing session. PAL's `gemini-3.8-flash`
+external expert step again failed with `400 INVALID_ARGUMENT / API_KEY_INVALID`.
+The isolated workflow used its single-reviewer fallback; no external review
+approval is claimed. The existing
+[credential follow-up](#task-1-follow-up-verification-gaps) remains open.
+
+The SDK observation point was checked against the installed/pinned MCP 1.30.0
+implementation and its [tagged source](https://github.com/modelcontextprotocol/python-sdk/blob/v1.30.0/src/mcp/server/lowlevel/server.py).
+Current Context7 results described a different SDK major version and were not
+used for that contract. The guide's native-configuration explanation references
+Claude's [project settings](https://code.claude.com/docs/en/settings) and
+[MCP documentation](https://code.claude.com/docs/en/mcp#project-scope), checked on
+2026-10-18; it makes no uniform cross-vendor approval or discovery guarantee.
+
+Task 5 follows its planned scope. No new project convention requires indexing:
+the fixture observation hooks and evidence limitations are recorded here and
+in the implementation plan. Task 6 remains responsible for prepared native
+smoke tests, the outstanding integration/simulator gaps, and the final feature
+review. Other platforms/interpreters and live vendor behavior remain unverified.
 
 ## Task 4: shared fixture and subprocess acceptance (2026-10-18)
 
