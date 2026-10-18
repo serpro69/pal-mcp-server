@@ -3,16 +3,98 @@
 > Date: 2026-10-15
 > Source baseline: `6e6ea4a`
 > Design: [design.md](design.md)
-> Status: historical fact-check retained; Tasks 1–3 implemented and reviewed (latest: 2026-10-18)
+> Status: historical fact-check retained; Tasks 1–4 implemented and reviewed (latest: 2026-10-18)
 
 This record preserves the original pre-review fact-check at `6e6ea4a`.
 Its initial naming, single-path binding and scratch decisions are historical,
 not the current implementation contract. See [review-resolution.md](review-resolution.md)
 for the subsequent review, corroboration at `6da3e2b`, corrections, and the user's
 first-project selection decision. The four agents did not review those revisions.
-Current implementation evidence is in [Task 3 verification](#task-3-directory-diagnostics-2026-10-18),
-following [Task 2](#task-2-request-and-atomic-continuation-2026-10-17) and
+Current implementation evidence is in [Task 4 verification](#task-4-shared-fixture-and-subprocess-acceptance-2026-10-18),
+following [Task 3](#task-3-directory-diagnostics-2026-10-18),
+[Task 2](#task-2-request-and-atomic-continuation-2026-10-17) and
 [Task 1](#task-1-directory-selection-and-identity-2026-10-17).
+
+## Task 4: shared fixture and subprocess acceptance (2026-10-18)
+
+Baseline: `b7ec0cc`. This task changes test infrastructure and acceptance tests;
+no production code, dependency pins or native permission flags changed.
+The shared [`cli_only_fake.py`](../../../../tests/fixtures/cli_only_fake.py)
+retains its default history and duplicate-launch checks and existing socket gate.
+It additionally records cwd/PID/raw stdin, optionally reads a relative project
+marker, and supports Agy's stream-JSON input/output. Directory, held-directory
+and failure scenarios require explicit fixture configuration, so existing MCP
+tests keep their original history-dependent behavior.
+
+The new [subprocess suite](../../../../tests/test_clink_working_directory_subprocess.py)
+adds 57 cases:
+
+- 12 sequential cases exercise all four adapters with request, manifest and
+  scratch selection, omitted/equivalent continuations, saved launch spelling,
+  history, and current-request edit/role arguments. Claude's symlinked cwd and
+  `Edit(...)`/`Write(...)` arguments are checked independently of child `getcwd()`.
+- 16 overlap cases hold A/B/fallback children concurrently on one cached client,
+  for both new and distinct bound threads and configured/scratch fallback. A TCP
+  barrier proves the children overlap; registry fields and server cwd stay fixed.
+- 24 failure/timeout/cancellation cases cover four adapters in project/scratch
+  execution. They verify unchanged serialized state/TTL, admission release,
+  child reaping, preservation of selected directories and scratch cleanup order.
+- One real-child Codex case preserves an explicit manifest skip-Git flag in a
+  selected project; the sequential cases separately check automatic scratch-only
+  behavior. The existing Codex unit test gains an operator-override parameter.
+- Four standalone wire-format cases check first/follow-up replies, missing-history
+  rejection and duplicate-launch refusal, including Agy. Existing MCP cases pass
+  without being rewritten to fit the extended fixture.
+
+These tests run the real tool/factory/runner/parsers and Python subprocesses
+with disposable manifests/projects. The spawn observer forwards the actual OS
+call and records literal cwd; child observations are checked with `samefile()`
+and relative marker contents. Assertions establish transport, argument
+construction and lifecycle behavior. They do not establish live vendor project
+configuration, trust-policy or model-read behavior; that remains Task 6.
+
+`kk:test` Python/async guidance was applied. Commands run from the repository root
+in `/home/sergio/.virtualenvs/pal` (Python 3.10.12, pytest 9.0.3), using approved
+execution outside the sandbox for real child processes and localhost gates.
+
+| Check | Observed outcome |
+| --- | --- |
+| Before edits: `./code_quality_checks.sh` | Exit 0; lint/format passed; 3,323 passed, 17 skipped, 23 deselected, 19 subtests passed. |
+| Task 4 focused command in implementation.md | Exit 0; 142 passed, two opt-in integration cases deselected. |
+| Final `./code_quality_checks.sh` | Exit 0; Ruff, Black and isort passed; 3,381 passed, 17 skipped, 23 deselected, 19 subtests passed. |
+| `./run_integration_tests.sh` | Exit 1; two passed, two failed, 19 skipped, 3,398 deselected. The same `gpt-5`/`gpt-5.2` consensus replay cases lack a matching recorded OpenAI chat-completions request. |
+| `python communication_simulator_test.py --quick` | Exit 1; four reported passed, two failed, none skipped. The same basic-conversation and precommit-deduplication missing-continuation failures recur. |
+
+The integration and simulator failures match the earlier verification gaps and
+are outside Task 4's changed paths. They remain assigned to Task 6's prerequisite
+work: inspect recorded/current request mismatches and individual simulator
+validation responses, repair the fixtures or setup in their owning scope, and
+rerun unchanged assertions. See the
+[specific follow-up steps](#task-1-follow-up-verification-gaps); these suites are
+not represented as passing.
+
+### Task 4 review and remaining scope
+
+The independent `code-reviewer` applied the Python security, SOLID, code-quality
+and removal checklists. Verdict: **APPROVE**, no P0–P3 findings and no findings
+to index. It inspected tests without executing them; the run evidence above
+belongs to the implementing session. PAL's `gemini-3.8-flash` expert step again
+failed with `400 INVALID_ARGUMENT / API_KEY_INVALID`, yielding no external
+findings. The isolated workflow used its single-reviewer fallback. The credential follow-up in
+[Task 1's gaps](#task-1-follow-up-verification-gaps) remains open; external review
+is not represented as successful.
+
+Python 3.10's documented subprocess and temporary-directory cleanup contracts
+were checked. The TCP gate follows the existing peer-first join pattern from
+`test_cli_only_mcp.py`; tests own and close accepted streams before joining the
+listener. Linux/Python 3.10 was exercised; other platforms/interpreters and native
+vendor binaries remain unverified. No new conventions require separate indexing:
+the fixture protocol and evidence limitations are recorded here and in the plan.
+
+The task follows its planned scope. Full MCP directory acceptance and public
+operator guides remain Task 5; native smoke tests and feature-wide final review
+remain Task 6. Existing integration/simulator verification gaps must still be
+closed as described in [the earlier follow-up](#task-1-follow-up-verification-gaps).
 
 ## Task 3: directory diagnostics (2026-10-18)
 

@@ -73,17 +73,24 @@ The full subprocess matrix, MCP acceptance and operator guides remain Tasks 4–
 
 ## Task 4: Verify native adapters with the shared child fixture
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 2, Task 3 for completion; subtask 4.1 has no feature-task dependency
 - **Size:** M
 - **Can run in parallel with:** Tasks 1–3 for subtask 4.1; Task 5.3 documentation drafting
 - **Docs:** [shared fixture/subprocess coverage](implementation.md#task-4-verify-native-adapters-with-the-shared-child-fixture)
 
-- [ ] 4.1 Extend existing `tests/fixtures/cli_only_fake.py` with cwd/optional marker capture and Agy framing; preserve stage, duplicate-launch, history and socket-gate assertions and rerun existing MCP tests. Can start immediately.
-- [ ] 4.2 Add subprocess tests for launch spelling, child filesystem identity, and unchanged Claude edit arguments under symlinked request/manifest cwd.
-- [ ] 4.3 Overlap project A/B/fallback and bound threads on one client; verify unchanged registry/server cwd, independent launches and cleanup.
-- [ ] 4.4 Test automatic scratch-only Codex skip flags separately from explicit operator overrides; retain all vendor edit/role, failure and cancellation behavior.
-- [ ] 4.5 Run the Task 4 focused command and record results.
+- [x] 4.1 Extend existing `tests/fixtures/cli_only_fake.py` with cwd/optional marker capture and Agy framing; preserve stage, duplicate-launch, history and socket-gate assertions and rerun existing MCP tests. Can start immediately.
+- [x] 4.2 Add subprocess tests for launch spelling, child filesystem identity, and unchanged Claude edit arguments under symlinked request/manifest cwd.
+- [x] 4.3 Overlap project A/B/fallback and bound threads on one client; verify unchanged registry/server cwd, independent launches and cleanup.
+- [x] 4.4 Test automatic scratch-only Codex skip flags separately from explicit operator overrides; retain all vendor edit/role, failure and cancellation behavior.
+- [x] 4.5 Run the Task 4 focused command and record results.
+
+Evidence: [Task 4 verification and isolated review](verification.md#task-4-shared-fixture-and-subprocess-acceptance-2026-10-18).
+Focused suite: 142 passed, two opt-in cases deselected. Final comprehensive checks:
+3,381 passed, 17 skipped. Independent reviewer approved without findings. Existing
+integration/simulator failures and unavailable external review remain documented.
+The subprocess matrix uses fake vendor executables; full MCP directory acceptance,
+operator guides and live native CLI observations remain Tasks 5–6.
 
 ## Task 5: Exercise MCP clients and explain operator choices
 
@@ -123,4 +130,4 @@ The full subprocess matrix, MCP acceptance and operator guides remain Tasks 4–
 
 - **D1:** Possible operator directory allowlist for restricted MCP clients. See the [risk, deferral reason and next steps](implementation.md#deferred-follow-up-operator-directory-policy). This is not implemented by the current feature.
 - The earlier TLS hostname failure did not recur in the 2026-10-17 Task 1 baseline or post-change checks; preserve the [historical evidence](verification.md#baseline-quality-checks).
-- Tasks 1–3 are complete; Tasks 4–6 remain pending. The public field, atomic binding and directory diagnostics are implemented; full native/MCP acceptance and operator guides remain.
+- Tasks 1–4 are complete; Tasks 5–6 remain pending. The public field, atomic binding, directory diagnostics and shared-fixture subprocess matrix are implemented; full MCP directory acceptance, live native observations and operator guides remain.
