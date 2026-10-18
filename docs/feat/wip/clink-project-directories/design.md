@@ -1,6 +1,6 @@
 # Design: per-request project directories for clink
 
-> Status: Tasks 1–2 implemented; validation-contract correction resolved; diagnostics and full execution acceptance pending
+> Status: Tasks 1–3 implemented; validation-contract correction resolved; full execution acceptance pending
 > Created: 2026-10-15
 > Source baseline: `6e6ea4a`
 > Review correction baseline: `6da3e2b`
@@ -346,6 +346,7 @@ Live vendor observations must state their version and prepared permission policy
 
 Restart PAL to expose the new schema. Callers must supply the field to opt into
 explicit project selection; the server does not automatically learn their active
-project. No new dependency or configuration migration is planned. Tasks 3–6
-remain responsible for detailed diagnostics and native/subprocess/MCP acceptance;
-Task 2's request and storage tests do not establish those remaining guarantees.
+project. No new dependency or configuration migration is planned. Directory
+diagnostics are implemented in Task 3. Tasks 4–6 remain responsible for full
+native/subprocess/MCP acceptance; the request, storage and diagnostic tests do
+not establish those remaining guarantees.

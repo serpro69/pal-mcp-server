@@ -53,17 +53,23 @@ Tasks 4–6.
 
 ## Task 3: Return actionable directory diagnostics
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 2
 - **Size:** M
 - **Can run in parallel with:** Task 4.1 and documentation drafting in Task 5.3
 - **Docs:** [directory diagnostics](implementation.md#task-3-return-actionable-directory-diagnostics)
 
-- [ ] 3.1 Map directory-helper errors to stable types, validation stage, execution flag, requested/bound paths and new-conversation fields; verify exact payloads and zero state effects. Respect the [readiness finding](readiness.md#p2-schema-rejection-cannot-return-the-promised-clink-error-envelope): SDK/request-model rejections do not promise this directory-specific envelope.
-- [ ] 3.2 Add PAL-owned launch/identity/source metadata after native merging; test spoof resistance, response reduction, execution errors and null scratch paths.
-- [ ] 3.3 Replace manifest-only runner wording and classify directory-related spawn failures; verify deletion/access races, cancellation and admission release.
-- [ ] 3.4 Preserve specific native Codex Git-policy errors with the operator workaround; verify unrelated failures are not relabeled and no bypass/retry occurs.
-- [ ] 3.5 Run the Task 3 focused command and record results.
+- [x] 3.1 Map directory-helper errors to stable types, validation stage, execution flag, requested/bound paths and new-conversation fields; verify exact payloads and zero state effects. Respect the [readiness finding](readiness.md#p2-schema-rejection-cannot-return-the-promised-clink-error-envelope): SDK/request-model rejections do not promise this directory-specific envelope.
+- [x] 3.2 Add PAL-owned launch/identity/source metadata after native merging; test spoof resistance, response reduction, execution errors and null scratch paths.
+- [x] 3.3 Replace manifest-only runner wording and classify directory-related spawn failures; verify deletion/access races, cancellation and admission release.
+- [x] 3.4 Preserve specific native Codex Git-policy errors with the operator workaround; verify unrelated failures are not relabeled and no bypass/retry occurs.
+- [x] 3.5 Run the Task 3 focused command and record results.
+
+Evidence: [Task 3 verification and isolated review](verification.md#task-3-directory-diagnostics-2026-10-18).
+Focused suite: 255 passed. Final comprehensive checks: 3,323 passed, 17 skipped.
+Independent reviewer approved without findings. Existing integration/simulator
+failures and unavailable external review are recorded with follow-up steps.
+The full subprocess matrix, MCP acceptance and operator guides remain Tasks 4–6.
 
 ## Task 4: Verify native adapters with the shared child fixture
 
@@ -117,4 +123,4 @@ Tasks 4–6.
 
 - **D1:** Possible operator directory allowlist for restricted MCP clients. See the [risk, deferral reason and next steps](implementation.md#deferred-follow-up-operator-directory-policy). This is not implemented by the current feature.
 - The earlier TLS hostname failure did not recur in the 2026-10-17 Task 1 baseline or post-change checks; preserve the [historical evidence](verification.md#baseline-quality-checks).
-- Tasks 1–2 are complete; Tasks 3–6 remain pending. The public field and atomic binding are implemented; richer diagnostics and native/MCP acceptance remain.
+- Tasks 1–3 are complete; Tasks 4–6 remain pending. The public field, atomic binding and directory diagnostics are implemented; full native/MCP acceptance and operator guides remain.
