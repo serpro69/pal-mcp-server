@@ -75,8 +75,11 @@ async def test_codex_agent_propagates_invalid_json(monkeypatch, codex_agent):
         await _run_agent_with_process(monkeypatch, agent, role, process)
 
 
-def test_codex_repository_policy_depends_on_scratch_directory(codex_agent, tmp_path):
+@pytest.mark.parametrize("operator_skip", [False, True])
+def test_codex_repository_policy_depends_on_scratch_directory(codex_agent, tmp_path, operator_skip):
     agent, role = codex_agent
+    if operator_skip:
+        agent.client.config_args.append("--skip-git-repo-check")
     assert "--skip-git-repo-check" in agent._build_command(role=role, system_prompt=None)
     agent.client.working_dir = tmp_path
-    assert "--skip-git-repo-check" not in agent._build_command(role=role, system_prompt=None)
+    assert ("--skip-git-repo-check" in agent._build_command(role=role, system_prompt=None)) is operator_skip

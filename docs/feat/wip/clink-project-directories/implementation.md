@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Tasks: [tasks.md](tasks.md)
 > Review corrections: [review-resolution.md](review-resolution.md)
-> Status: Tasks 1–3 complete; Tasks 4–6 pending
+> Status: Tasks 1–4 complete; Tasks 5–6 pending
 
 ## Starting points and constraints
 
@@ -213,6 +213,24 @@ Run `python -m pytest tests/test_clink_working_directory_subprocess.py
 tests/test_clink_codex_agent.py tests/test_cli_only_mcp.py
 tests/test_clink_safe_default.py tests/test_clink_agy_safety.py -q
 -m 'not integration'`. These are offline child-process tests, not model calls.
+
+Implemented with the existing `cli_only_fake.py`: its default `history` scenario
+retains the original history, duplicate-launch and held-stage gate assertions.
+`CLINK_TEST_SCENARIO` explicitly selects `directory`, `held-directory`, or
+`failure` behavior. `CLINK_TEST_MARKER` optionally names a relative marker file;
+captures record decoded prompt, raw stdin, argv, cwd, PID, and observed marker.
+The same fixture now accepts and emits Agy stream-JSON envelopes.
+
+The subprocess suite loads temporary manifest overrides and uses the production
+tool, factory, adapters, runner and parsers. A forwarding spawn observer records
+literal cwd/argv; child observations establish actual directory identity and
+marker contents. Tests cover request/manifest/scratch selection, saved symlink
+spelling on omitted/equivalent continuations, current-request edit controls,
+same-client A/B/fallback overlap for new and bound threads, and failure/timeout/
+cancellation with unchanged stored bytes and TTL. Scratch cleanup checks that
+tracked children have been reaped before deleting their directories. No production
+code or native permission flags changed. See
+[Task 4 evidence](verification.md#task-4-shared-fixture-and-subprocess-acceptance-2026-10-18).
 
 ## Task 5: Exercise MCP clients and explain operator choices
 
