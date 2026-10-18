@@ -3,18 +3,142 @@
 > Date: 2026-10-15
 > Source baseline: `6e6ea4a`
 > Design: [design.md](design.md)
-> Status: historical fact-check retained; Tasks 1–5 implemented and reviewed (latest: 2026-10-18)
+> Status: Tasks 1–5 complete; Task 6 implementation, offline checks and reviews complete; live Claude approval pending (2026-10-18)
 
 This record preserves the original pre-review fact-check at `6e6ea4a`.
 Its initial naming, single-path binding and scratch decisions are historical,
 not the current implementation contract. See [review-resolution.md](review-resolution.md)
 for the subsequent review, corroboration at `6da3e2b`, corrections, and the user's
 first-project selection decision. The four agents did not review those revisions.
-Current implementation evidence is in [Task 5 verification](#task-5-mcp-acceptance-and-operator-guides-2026-10-18),
-following [Task 4](#task-4-shared-fixture-and-subprocess-acceptance-2026-10-18),
+Current implementation evidence is in [Task 6 verification](#task-6-final-verification-2026-10-18),
+following [Task 5](#task-5-mcp-acceptance-and-operator-guides-2026-10-18),
+[Task 4](#task-4-shared-fixture-and-subprocess-acceptance-2026-10-18),
 [Task 3](#task-3-directory-diagnostics-2026-10-18),
 [Task 2](#task-2-request-and-atomic-continuation-2026-10-17) and
 [Task 1](#task-1-directory-selection-and-identity-2026-10-17).
+
+## Task 6: final verification (2026-10-18)
+
+Baseline: `3ddbb2e`. Implementation, offline checks and independent reviews are complete.
+Native Claude execution needs explicit approval after automatic approval review
+rejected the test. The feature is not represented as fully verified or released.
+
+### Harness and baseline repairs
+
+The existing Agy harness now covers scratch, manifest and request selection for
+all three roles. Request mode uses a launch symlink over a different configured
+fallback, reads a relative fixture, replaces its contents and verifies the old
+marker on a directory-omitting follow-up. It checks saved selection metadata,
+settings hashes, native argument policy and cleanup. Linux child-cwd observations
+use filesystem identity while the child is alive; unsupported/unavailable
+observations are recorded explicitly. The native **1.3.5** version assertion is
+unchanged. Offline tests exercise success, metadata/cwd/history failures,
+unavailable OS observations and missing/incompatible prerequisites.
+
+The two consensus integration failures were reproduced before edits. Comparing
+actual requests with all three recordings showed the same unchanged stance block
+had moved to the end of the system prompt, and explicit output caps had been
+added (OpenAI 80,000; Gemini 65,536). Assertions checked the main prompt, stance,
+question and all other generation parameters before migrating the request
+envelopes. Recorded responses are identical to `HEAD`, exact request matching is
+unchanged, and both consensus replay tests now pass. This was an offline fixture
+migration, not a new model recording; see
+[provenance notes](../../../../tests/consensus_cassette_notes.md).
+
+Real SDK probes identified the quick scenarios' earlier missing-continuation
+causes: chat omitted required `working_directory_absolute_path`; precommit sent
+`total_steps=2` below its minimum of three. The scenarios now submit those required
+inputs, finish the third precommit step, and reject MCP error results even when
+text is nonempty. Regression tests validate outgoing arguments against the real
+tool schemas and inject tool errors without weakening existing success checks.
+The configured Gemini key is also invalid; live API checks still need valid
+operator credentials, separate from these fixture repairs.
+
+### Native observations
+
+All native probes used disposable projects, unchanged shipped argument buckets
+and `allow_edits=false`. The probe did not edit native settings/login files or
+add bypass flags; each CLI retained its normal authentication behavior. The
+probe invokes the same isolated stdio launcher, forwards actual
+spawn calls and records literal cwd separately from Linux `/proc` observations.
+
+| CLI | Observed prerequisite and result |
+| --- | --- |
+| Codex | `codex-cli 0.163.0`, saved ChatGPT login. **Passed**: native read returned the random marker; after replacing the file, an omitted-directory follow-up retained the original marker/history and the saved launch alias. Both child cwd observations matched the disposable Git project; shutdown completed. |
+| Claude | `2.1.296`; auth status reports logged in via `claude.ai`/first-party, with inference unverified. Automatic approval review rejected the live smoke command because sending file content to Anthropic was not explicitly authorized for this payload/destination. No Claude inference was run. |
+| Agy | Installed `1.4.0`; the existing live acceptance contract requires `1.3.5`. No version assertion was relaxed, native settings were not changed and no live agy inference was attempted. |
+| Gemini CLI | Executable unavailable on PATH; native CLI coverage remains unverified. |
+
+Codex's successful run used a new Git repository with an empty template and only
+`project.marker`, requested through `/tmp/pal_directory_native_5brjsjlp/launch alias`.
+Both observed child paths were `/tmp/pal_directory_native_5brjsjlp/project`.
+The first call used source `request`; the follow-up used `conversation` with two
+retained messages. Native saved user policy remained in force; safe arguments
+were empty and existing `--json --enable web_search_request` arguments were
+preserved. No automatic skip-Git flag was added for the selected project.
+The temporary project was removed after the test. Earlier probes prohibited
+shell commands and did not prove a read; a corrected prompt allowed a read-only
+file command, matching Codex's tool interface. Those failed probes are not
+reported as successful acceptance.
+
+### Checks and reviews
+
+Commands use the existing `pal` virtualenv (Python 3.10.12, pytest 9.0.3), with
+approved execution outside the sandbox for stdio/localhost tests. No dependency
+pins changed. `kk:test` and `kk:document` guidance applies.
+
+| Check | Observed outcome |
+| --- | --- |
+| Before edits: `./code_quality_checks.sh` | Exit 0; 3,401 passed, 17 skipped, 23 deselected, 19 subtests passed; lint/format passed. |
+| Unchanged consensus replay baseline | Exit 1; both `gpt-5` and `gpt-5.2` cases failed on missing recorded requests. |
+| Migrated consensus replay cases | Exit 0; two passed, one deselected; recorded responses unchanged. |
+| Agy harness and simulator contract focused tests | Exit 0; 60 passed, nine live Agy cases deselected. |
+| Final `./code_quality_checks.sh` | Exit 0; Ruff, Black and isort passed; 3,430 passed, 17 skipped, 26 deselected, 19 subtests passed. |
+| `./run_integration_tests.sh` | Exit 0; four passed, 22 skipped, 3,447 deselected. The prior consensus replay failures are resolved. |
+| `python communication_simulator_test.py --quick` | Exit 1; four reported passed, two failed. Both basic chat and codereview within per-tool deduplication now reach the provider and return `API_KEY_INVALID`; the stale-schema failures are resolved. |
+| `./run_integration_tests.sh --stub` | Exit 0; all three isolated local contract scenarios passed, no skips. |
+| Full-feature code review | APPROVE, no P0–P3 findings. Read-only review covered 35 files and the complete feature diff. |
+| Full-feature spec review | CONFORMANT; Tasks 1–6, all six feature documents and public guides reviewed. No findings or intentional deviations to index. |
+| Local documentation links/anchors | 131 passed across public guides and feature implementation/task/evidence documents. |
+
+The code reviewer inspected selection/identity, atomic persistence, metadata,
+cancellation and the direct/subprocess/MCP acceptance tests. It also confirmed
+the cassette migrations preserve prompts/stance/question content and recorded
+responses while updating placement/caps. No findings require indexing. PAL's
+external `gemini-3.8-flash` expert step again failed with `API_KEY_INVALID`; the
+isolated workflow used its independent-reviewer fallback, not an external
+approval. Code review approval does not close the live validation limitations.
+
+The independent spec reviewer checked precedence, identity, persistence,
+migration, diagnostics, adapter arguments, test fixtures and the Task 6 harness
+against the complete feature specification. It found no missing implementation,
+deviation, doc inconsistency or ambiguity. Its read-only review did not rerun
+tests or native commands. Both reviewers distinguish implementation conformance
+from the still-open live validation and release-readiness limits.
+
+### Remaining validation actions
+
+- **Claude approval:** the prepared probe is `/tmp/clink-task6-native-probe.py`.
+  Approval is required to run its `claude` case, sending the generated marker,
+  probe prompts and normal clink role instructions through the saved Claude
+  session to Anthropic. The child is asked to read only the generated marker;
+  no application source files are attached. The native CLI may also load its
+  existing user configuration. Once
+  approved, run with the `pal` interpreter and record both marker/history and
+  actual-cwd outcomes before closing this item.
+- **Agy:** prepare authenticated native 1.3.5 and run the existing opt-in matrix,
+  including the new request mode; alternatively review support for 1.4.0 as a
+  separate adapter/version change before updating its strict acceptance contract.
+- **Gemini:** install/authenticate the CLI in a prepared environment before
+  claiming native project-read coverage. Configure a valid PAL Gemini API key
+  separately before expecting the default API-backed quick simulator to pass.
+- **External review:** the previously documented invalid Gemini credential still
+  needs operator repair before an external PAL expert review can be obtained.
+
+These limitations are not waived. Offline transport/schema/storage coverage is
+distinct from live vendor policy/authentication coverage and full release
+readiness. D1's restricted-client directory policy remains a separate deferred
+design, as specified in the implementation plan.
 
 ## Task 5: MCP acceptance and operator guides (2026-10-18)
 
@@ -402,6 +526,12 @@ is no claim of external-model approval. Existing design decisions already cover
 the implementation choices, so no duplicate project-convention indexing was added.
 
 ### Task 1 follow-up verification gaps
+
+Task 6 has now repaired the consensus request fixtures and the two stale simulator
+schema inputs; see [current results](#task-6-final-verification-2026-10-18).
+The notes below preserve why those repairs were deferred at Task 1. Live API
+credentials, external review and platform/native coverage remain limited as
+specified in Task 6's current action list.
 
 - **Consensus recordings:** left unchanged because provider replay repair is
   outside the directory-helper task. Before Task 6 acceptance, reproduce both

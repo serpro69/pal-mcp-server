@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Tasks: [tasks.md](tasks.md)
 > Review corrections: [review-resolution.md](review-resolution.md)
-> Status: Tasks 1–5 complete; Task 6 pending
+> Status: Tasks 1–5 complete; Task 6 implementation/offline checks/reviews complete, live approval pending
 
 ## Starting points and constraints
 
@@ -300,6 +300,23 @@ links and directory-request JSON examples were validated. See
 - Run `$kk:document`, `$kk:review-code` with Python, and `$kk:review-spec` against
   all feature documents. **Step → verify:** reconcile implementation/docs and
   resolve findings or record specific deferred work with impact and next steps.
+
+Implemented the Agy harness extension: existing scratch/configuration cases stay
+available, and request mode selects a symlinked project over a different manifest
+fallback, reads a relative fixture, then omits the directory on continuation.
+The native 1.3.5 prerequisite remains strict. Evidence includes selection source,
+native policy, literal cwd and optional Linux child-cwd identity observations;
+unavailable OS observations are explicit. Offline harness tests cover all three
+selection modes, mismatches, lost history and prerequisite failures.
+
+Task 6 also reproduced and repaired the previously recorded verification defects
+in their owning test fixtures: consensus request envelopes had stale stance
+placement/token caps; the quick chat scenario omitted its required directory,
+and precommit supplied only two steps where the current schema requires three.
+Recorded responses, exact replay matching and success assertions are retained.
+See [cassette provenance](../../../../tests/consensus_cassette_notes.md) and
+[Task 6 evidence](verification.md#task-6-final-verification-2026-10-18) for the
+native observations, remaining environment/approval gaps and review outcomes.
 
 ## Deferred follow-up: operator directory policy
 

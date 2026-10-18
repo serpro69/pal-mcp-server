@@ -1,4 +1,8 @@
-"""Integration test for ConsensusTool using OpenAI and Gemini recordings."""
+"""Integration test for ConsensusTool using OpenAI and Gemini recordings.
+
+See consensus_cassette_notes.md for the offline request-envelope migration;
+recorded responses and exact matching remain unchanged.
+"""
 
 from __future__ import annotations
 

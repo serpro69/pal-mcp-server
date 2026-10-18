@@ -25,7 +25,9 @@ REPO = Path(__file__).resolve().parents[1]
 # Isolate PAL manifests/state while preserving the native CLI's home/login.
 # Observe cwd without changing the production process or conversation lifecycle.
 SERVER_BOOTSTRAP = """
+import asyncio
 import json
+import os
 import sys
 from pathlib import Path
 import clink.registry as registry
@@ -38,6 +40,19 @@ async def observe(self, **kwargs):
         stream.write(json.dumps({'cwd': kwargs['cwd'], 'allow_edits': kwargs['allow_edits']}) + '\\n')
     return await original(self, **kwargs)
 BaseCLIAgent._run_in_directory = observe
+spawn = asyncio.create_subprocess_exec
+async def observe_child(*args, **kwargs):
+    process = await spawn(*args, **kwargs)
+    record = {'launch_path': kwargs.get('cwd'), 'actual_cwd': None, 'actual_matches_launch': None}
+    try:
+        record['actual_cwd'] = os.readlink('/proc/%d/cwd' % process.pid)
+        record['actual_matches_launch'] = os.path.samefile(record['actual_cwd'], kwargs['cwd'])
+    except OSError as exc:
+        record['observation_unavailable'] = type(exc).__name__
+    with (root / 'children.jsonl').open('a', encoding='utf-8') as stream:
+        stream.write(json.dumps(record) + '\\n')
+    return process
+asyncio.create_subprocess_exec = observe_child
 import server
 try:
     server.run()
@@ -75,12 +90,16 @@ def successful_payload(result) -> dict:
     return payload
 
 
-def run_agy_validation(logger: logging.Logger, *, role: str = "codereviewer", configured_cwd: bool = False) -> dict:
+def run_agy_validation(
+    logger: logging.Logger, *, role: str = "codereviewer", configured_cwd: bool = False, requested_cwd: bool = False
+) -> dict:
     """Run unchanged roles over real MCP; missing prerequisites and CLI errors fail."""
     if os.environ.get(LIVE_ENV) != "1":
         raise ValueError(f"Set {LIVE_ENV}=1 to opt in to the installed agy check")
     if role not in {"default", "planner", "codereviewer"}:
         raise ValueError(f"Unsupported agy validation role: {role}")
+    if configured_cwd and requested_cwd:
+        raise ValueError("Select either configured_cwd or requested_cwd for the live scenario")
     with tempfile.TemporaryDirectory(prefix="pal_agy_validation_") as directory:
         root = Path(directory).resolve()
         env = agy_server_environment(root)
@@ -93,6 +112,9 @@ def run_agy_validation(logger: logging.Logger, *, role: str = "codereviewer", co
         assert version == "1.3.5", f"Live acceptance requires agy 1.3.5; got {version!r}"
         project = root / "project"
         project.mkdir()
+        launch = root / "requested project" if requested_cwd else project
+        if requested_cwd:
+            launch.symlink_to(project, target_is_directory=True)
         source = project / "fixture.py"
         marker, label = "AGY_FILE_" + uuid4().hex, "AGY_LABEL_" + uuid4().hex
         source.write_text(f'def fixture_value():\n    return "{marker}"\n', encoding="utf-8")
@@ -102,6 +124,10 @@ def run_agy_validation(logger: logging.Logger, *, role: str = "codereviewer", co
         config.update(command=shlex.join([executable]), timeout_seconds=90)
         if configured_cwd:
             config["working_dir"] = str(project)
+        elif requested_cwd:
+            fallback = root / "manifest fallback"
+            fallback.mkdir()
+            config["working_dir"] = str(fallback)
         (manifests / "agy.json").write_text(json.dumps(config), encoding="utf-8")
         settings = Path(env.get("HOME", str(Path.home()))) / ".gemini/antigravity-cli/settings.json"
 
@@ -114,6 +140,7 @@ def run_agy_validation(logger: logging.Logger, *, role: str = "codereviewer", co
         )
         try:
             with SimulatorSession(timeout=120, parameters=parameters) as session:
+                directory_fields = {"working_directory_absolute_path": f"{launch}/./"} if requested_cwd else {}
                 first = successful_payload(
                     session.call_tool(
                         "clink",
@@ -121,11 +148,13 @@ def run_agy_validation(logger: logging.Logger, *, role: str = "codereviewer", co
                             "cli_name": "agy",
                             "role": role,
                             "prompt": (
-                                f"Read the referenced Python fixture using a native file-reading tool. Its tracking label is {label}. "
+                                f"Read {'fixture.py in your current project directory' if requested_cwd else 'the referenced Python fixture'} "
+                                f"using a native file-reading tool. Its tracking label is {label}. "
                                 "Report the exact string returned by fixture_value and include the tracking label in your answer. "
                                 "Give a concise review or plan appropriate to your role. Do not edit files or run commands."
                             ),
-                            "absolute_file_paths": [str(source)],
+                            "absolute_file_paths": [] if requested_cwd else [str(source)],
+                            **directory_fields,
                         },
                     )
                 )
@@ -154,29 +183,59 @@ def run_agy_validation(logger: logging.Logger, *, role: str = "codereviewer", co
                 assert followup["metadata"]["history_saved"] is True
                 assert followup["metadata"]["history"]["retained_messages"] == 2
                 assert followup["continuation_offer"]["continuation_id"] == thread_id
-                for result in (first, followup):
+                for index, result in enumerate((first, followup)):
                     assert result["metadata"]["cli_name"] == "agy" and result["metadata"]["role"] == role
                     command = result["metadata"]["command"]
                     assert not {"--mode", "--continue", "-c", "--conversation"}.intersection(command)
                     assert not any(marker in argument or label in argument for argument in command)
+                    assert result["metadata"]["working_directory"] == {
+                        "mode": "directory" if configured_cwd or requested_cwd else "scratch",
+                        "launch_path": str(launch) if configured_cwd or requested_cwd else None,
+                        "canonical_path": str(project) if configured_cwd or requested_cwd else None,
+                        "source": (
+                            "conversation"
+                            if index
+                            else "request" if requested_cwd else "configuration" if configured_cwd else "scratch"
+                        ),
+                    }
             assert (root / "server-stopped").exists(), "MCP server did not shut down cleanly"
             invocations = [json.loads(line) for line in (root / "invocations.jsonl").read_text().splitlines()]
             assert len(invocations) == 2
+            children = [json.loads(line) for line in (root / "children.jsonl").read_text().splitlines()]
+            assert len(children) == 2
             for invocation in invocations:
                 cwd = Path(invocation["cwd"])
-                assert (cwd == project) == configured_cwd
+                if configured_cwd or requested_cwd:
+                    assert cwd == launch and os.path.samefile(cwd, project)
+                else:
+                    assert not cwd.exists(), "Scratch directory survived completed invocation"
                 assert invocation["allow_edits"] is False
-                if not configured_cwd:
+                if not configured_cwd and not requested_cwd:
                     assert not project.is_relative_to(cwd)
-            if not configured_cwd:
+            if not configured_cwd and not requested_cwd:
                 assert invocations[0]["cwd"] != invocations[1]["cwd"]
+            for child, invocation in zip(children, invocations):
+                assert child["launch_path"] == invocation["cwd"]
+                if child["actual_matches_launch"] is not None:
+                    # Filesystem identity was checked while the child and its
+                    # directory existed, without assuming native path spelling.
+                    assert child["actual_matches_launch"] is True
             assert settings_hash() == before, "Native agy changed saved user settings"
             evidence = {
                 "version": version,
                 "role": role,
-                "cwd_mode": "project" if configured_cwd else "scratch",
+                "cwd_mode": "project" if configured_cwd or requested_cwd else "scratch",
+                "cwd_source": "request" if requested_cwd else "configuration" if configured_cwd else "scratch",
+                "working_directory": first["metadata"]["working_directory"],
+                "policy": {
+                    "allow_edits": False,
+                    "native_mode": "inherited saved policy",
+                    "project_configuration": "disposable fixture without project hooks",
+                },
                 "project": str(project),
                 "invocations": invocations,
+                "children": children,
+                "actual_locations_observed": all(child["actual_matches_launch"] is not None for child in children),
                 "file_read_verified": True,
                 "history_verified": True,
                 "settings_sha256": before,
@@ -196,8 +255,8 @@ class ClinkAgyValidationTest(BaseSimulatorTest):
 
     @property
     def test_description(self):
-        return "Agy codereviewer fixture read and history-dependent follow-up"
+        return "Agy codereviewer request-selected project read and omitted-directory follow-up"
 
     def run_test(self) -> bool:
-        run_agy_validation(self.logger)
+        run_agy_validation(self.logger, requested_cwd=True)
         return True

@@ -65,7 +65,7 @@ PAL_RUN_AGY_INTEGRATION=1 python -m pytest tests/test_clink_agy_continuation.py 
 PAL_RUN_AGY_INTEGRATION=1 python communication_simulator_test.py --individual clink_agy_validation
 ```
 
-The tests use disposable fixtures, the actual filtered environment, and isolated PAL manifests/state while retaining native login access. They verify roles in both cwd modes, then replace the source value before a history-dependent follow-up. No opt-in means a reported skip; an opted-in missing executable/session, incompatible version, or failed required operation fails the run. The simulator uses `codereviewer` with default scratch cwd and is excluded from `--quick` and `--ci`. Tests do not manufacture expired sessions or inspect tokens; missing account coverage stays unverified.
+The tests use disposable fixtures, the actual filtered environment, and isolated PAL manifests/state while retaining native login access. They verify roles with scratch, manifest-selected and request-selected directories, then replace the source value before a history-dependent follow-up. Request mode uses a symlinked launch path and a relative fixture read; its follow-up omits the directory. No opt-in means a reported skip; an opted-in missing executable/session, incompatible version, or failed required operation fails the run. The simulator uses `codereviewer` with a request-selected project and is excluded from `--quick` and `--ci`. Evidence includes native policy, selected-directory metadata and literal launch paths; Linux `/proc` observations record actual child cwd when available and explicitly identify unavailable coverage elsewhere. Tests do not manufacture expired sessions or inspect tokens; missing account coverage stays unverified.
 
 ### Optional live conversation check
 

@@ -4,11 +4,17 @@ import asyncio
 import json
 import logging
 import os
+import re
+import subprocess
 import sys
+from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
 
 import server
+from simulator_tests import test_clink_agy_validation as live_agy
 from simulator_tests.test_clink_agy_validation import agy_server_environment, run_agy_validation
 from tests import test_clink_agy as agy_fixtures
 from tests import test_clink_continuation as continuation_fixtures
@@ -189,10 +195,138 @@ async def test_display_limit_preserves_raw_storage_but_forwards_visible_reply(st
 
 @pytest.mark.integration
 @pytest.mark.parametrize("role", ["default", "planner", "codereviewer"])
-@pytest.mark.parametrize("configured_cwd", [False, True], ids=["scratch", "project"])
-def test_live_agy_role_read_and_history(role, configured_cwd):
+@pytest.mark.parametrize("cwd_source", ["scratch", "configuration", "request"])
+def test_live_agy_role_read_and_history(role, cwd_source):
     """Run in each prepared personal/enterprise environment; never inspect account tokens."""
     if os.environ.get("PAL_RUN_AGY_INTEGRATION") != "1":
         pytest.skip("Set PAL_RUN_AGY_INTEGRATION=1 with agy 1.3.5 already authenticated")
-    evidence = run_agy_validation(logging.getLogger(__name__), role=role, configured_cwd=configured_cwd)
+    evidence = run_agy_validation(
+        logging.getLogger(__name__),
+        role=role,
+        configured_cwd=cwd_source == "configuration",
+        requested_cwd=cwd_source == "request",
+    )
     print("AGY_ROLE_EVIDENCE " + json.dumps(evidence, sort_keys=True))
+
+
+@pytest.mark.parametrize("cwd_source", ["scratch", "configuration", "request"])
+@pytest.mark.parametrize("failure", [None, "history", "metadata", "cwd", "actual-cwd", "unavailable"])
+def test_live_agy_harness_checks_directory_source_and_omitted_followup(monkeypatch, tmp_path, cwd_source, failure):
+    monkeypatch.setenv("PAL_RUN_AGY_INTEGRATION", "1")
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setattr(live_agy.shutil, "which", lambda *args, **kwargs: sys.executable)
+    monkeypatch.setattr(
+        live_agy.subprocess, "run", lambda *args, **kwargs: subprocess.CompletedProcess(args[0], 0, stdout="1.3.5")
+    )
+    calls = []
+    roots = []
+
+    class Session:
+        def __init__(self, *, timeout, parameters):
+            self.root = Path(parameters.args[-1])
+            roots.append(self.root)
+            self.project = self.root / "project"
+            self.launch = self.root / "requested project" if cwd_source == "request" else self.project
+            manifest = json.loads((self.root / "clients/agy.json").read_text())
+            if cwd_source == "scratch":
+                assert "working_dir" not in manifest
+            else:
+                expected = self.project if cwd_source == "configuration" else self.root / "manifest fallback"
+                assert manifest["working_dir"] == str(expected)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            (self.root / "server-stopped").touch()
+
+        def call_tool(self, name, arguments):
+            assert name == "clink"
+            calls.append(arguments)
+            first = len(calls) == 1
+            source = self.project / "fixture.py"
+            if first:
+                self.answer = re.search(r"AGY_FILE_[a-f0-9]+", source.read_text())[0]
+                self.answer += " " + re.search(r"AGY_LABEL_[a-f0-9]+", arguments["prompt"])[0]
+                if cwd_source == "request":
+                    assert arguments["working_directory_absolute_path"] == f"{self.launch}/./"
+                    assert arguments["absolute_file_paths"] == []
+                else:
+                    assert "working_directory_absolute_path" not in arguments
+                    assert arguments["absolute_file_paths"] == [str(source)]
+            else:
+                assert set(arguments) == {"prompt", "continuation_id"}
+                assert "REPLACED_AFTER_FIRST_CALL" in source.read_text()
+            cwd = self.launch
+            if cwd_source == "scratch":
+                cwd = self.root / f"scratch-{len(calls)}"
+            if failure == "cwd":
+                cwd = self.project if cwd_source == "scratch" else self.root
+            with (self.root / "invocations.jsonl").open("a") as stream:
+                stream.write(json.dumps({"cwd": str(cwd), "allow_edits": False}) + "\n")
+            with (self.root / "children.jsonl").open("a") as stream:
+                stream.write(
+                    json.dumps(
+                        {
+                            "launch_path": str(cwd),
+                            "actual_cwd": None if failure == "unavailable" else str(cwd.resolve()),
+                            "actual_matches_launch": None if failure == "unavailable" else failure != "actual-cwd",
+                        }
+                    )
+                    + "\n"
+                )
+            selected = {
+                "mode": "scratch" if cwd_source == "scratch" else "directory",
+                "launch_path": None if cwd_source == "scratch" else str(self.launch),
+                "canonical_path": None if cwd_source == "scratch" else str(self.project),
+                "source": cwd_source if first else "conversation",
+            }
+            if failure == "metadata" and not first:
+                selected["source"] = "scratch"
+            payload = {
+                "status": "continuation_available",
+                "content": "history lost" if failure == "history" and not first else self.answer,
+                "metadata": {
+                    "cli_name": "agy",
+                    "role": "codereviewer",
+                    "history_saved": True,
+                    "history": {"retained_messages": 2},
+                    "command": ["agy"],
+                    "working_directory": selected,
+                },
+                "continuation_offer": {"continuation_id": "same-thread"},
+            }
+            return SimpleNamespace(isError=False, content=[SimpleNamespace(type="text", text=json.dumps(payload))])
+
+    monkeypatch.setattr(live_agy, "SimulatorSession", Session)
+    options = {"configured_cwd": cwd_source == "configuration", "requested_cwd": cwd_source == "request"}
+    if failure and failure != "unavailable":
+        with pytest.raises(AssertionError):
+            run_agy_validation(logging.getLogger(__name__), **options)
+    else:
+        evidence = run_agy_validation(logging.getLogger(__name__), **options)
+        assert evidence["cwd_source"] == cwd_source
+        assert evidence["file_read_verified"] and evidence["history_verified"]
+        assert evidence["actual_locations_observed"] is (failure != "unavailable")
+        assert evidence["policy"]["allow_edits"] is False
+    assert len(calls) == 2
+    assert all(not root.exists() for root in roots)
+
+
+@pytest.mark.parametrize("failure", ["missing", "version", "conflicting-modes"])
+def test_live_agy_harness_keeps_prerequisite_failures_explicit(monkeypatch, failure):
+    monkeypatch.setenv("PAL_RUN_AGY_INTEGRATION", "1")
+    monkeypatch.setattr(
+        live_agy.shutil, "which", lambda *args, **kwargs: None if failure == "missing" else sys.executable
+    )
+    monkeypatch.setattr(
+        live_agy.subprocess, "run", lambda *args, **kwargs: subprocess.CompletedProcess(args[0], 0, stdout="1.4.0")
+    )
+    session = Mock(side_effect=AssertionError("Must not launch an unsupported live session"))
+    monkeypatch.setattr(live_agy, "SimulatorSession", session)
+    error = {"missing": RuntimeError, "version": AssertionError, "conflicting-modes": ValueError}[failure]
+    with pytest.raises(error):
+        run_agy_validation(
+            logging.getLogger(__name__), requested_cwd=True, configured_cwd=failure == "conflicting-modes"
+        )
+    session.assert_not_called()

@@ -62,7 +62,7 @@ def divide(x, y):
             precommit_params = {
                 "step": "Initial analysis of dummy_code.py for commit readiness. Please give me a quick one line reply.",
                 "step_number": 1,
-                "total_steps": 2,
+                "total_steps": 3,
                 "next_step_required": True,
                 "findings": "Starting pre-commit validation of dummy_code.py",
                 "path": os.getcwd(),  # Use current working directory as the git repo path
@@ -72,8 +72,8 @@ def divide(x, y):
             }
 
             response1, continuation_id = self.call_mcp_tool("precommit", precommit_params)
-            if not response1:
-                self.logger.error("  ❌ Step 1: precommit tool failed")
+            if not response1 or self.last_result.isError:
+                self.logger.error("  ❌ Step 1: precommit tool failed: %s", response1)
                 return False
 
             if not continuation_id:
@@ -101,8 +101,8 @@ def divide(x, y):
             }
 
             response2, _ = self.call_mcp_tool("codereview", codereview_params)
-            if not response2:
-                self.logger.error("  ❌ Step 2: codereview tool failed")
+            if not response2 or self.last_result.isError:
+                self.logger.error("  ❌ Step 2: codereview tool failed: %s", response2)
                 return False
 
             self.logger.info("  ✅ Step 2: codereview completed (fresh conversation)")
@@ -125,8 +125,8 @@ def subtract(a, b):
                 "continuation_id": continuation_id,
                 "step": "Continue analysis with new_feature.py added. Please give me a quick one line reply about both files.",
                 "step_number": 2,
-                "total_steps": 2,
-                "next_step_required": False,
+                "total_steps": 3,
+                "next_step_required": True,
                 "findings": "Continuing pre-commit validation with both dummy_code.py and new_feature.py",
                 "path": os.getcwd(),  # Use current working directory as the git repo path
                 "relevant_files": [dummy_file_path, new_file_path],  # Old + new file
@@ -135,11 +135,23 @@ def subtract(a, b):
             }
 
             response3, _ = self.call_mcp_tool("precommit", continue_params)
-            if not response3:
-                self.logger.error("  ❌ Step 3: precommit continuation failed")
+            if not response3 or self.last_result.isError:
+                self.logger.error("  ❌ Step 3: precommit continuation failed: %s", response3)
                 return False
 
             self.logger.info("  ✅ Step 3: precommit continuation completed")
+
+            # Complete the required three-step precommit workflow with the same files.
+            final_params = {
+                **continue_params,
+                "step": "Finish validation of both files and summarize commit readiness.",
+                "step_number": 3,
+                "next_step_required": False,
+            }
+            final_response, _ = self.call_mcp_tool("precommit", final_params)
+            if not final_response or self.last_result.isError:
+                self.logger.error("  ❌ Final precommit validation failed: %s", final_response)
+                return False
 
             # Validate results in server logs
             self.logger.info("  📋 Validating conversation history and file deduplication...")

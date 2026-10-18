@@ -114,17 +114,26 @@ prepared live-native observations, remaining verification gaps and final review.
 
 ## Task 6: Final verification and documentation
 
-- **Status:** pending
+- **Status:** in-progress
 - **Depends on:** Task 1, Task 2, Task 3, Task 4, Task 5
 - **Size:** S
 - **Can run in parallel with:** —
 - **Docs:** [final verification](implementation.md#task-6-final-verification-and-documentation)
 
-- [ ] 6.1 Run `$kk:test`, comprehensive checks, integrations and quick simulator tests; record baseline failures/skips without weakening assertions. Follow up the [Task 1 verification gaps](verification.md#task-1-follow-up-verification-gaps), including consensus replay mismatches and simulator failures.
+- [x] 6.1 Run `$kk:test`, comprehensive checks, integrations and quick simulator tests; record baseline failures/skips without weakening assertions. Follow up the [Task 1 verification gaps](verification.md#task-1-follow-up-verification-gaps), including consensus replay mismatches and simulator failures.
 - [ ] 6.2 Extend the existing Agy opt-in harness and run controlled native project smoke cases in prepared environments; record unavailable coverage.
-- [ ] 6.3 Run `$kk:document` and reconcile examples/evidence with actual behavior.
-- [ ] 6.4 Run `$kk:review-code` with Python; resolve findings or record specific deferred work.
-- [ ] 6.5 Run `$kk:review-spec` against all feature documents and reconcile deviations/statuses.
+- [x] 6.3 Run `$kk:document` and reconcile examples/evidence with actual behavior.
+- [x] 6.4 Run `$kk:review-code` with Python; resolve findings or record specific deferred work.
+- [x] 6.5 Run `$kk:review-spec` against all feature documents and reconcile deviations/statuses.
+
+Current evidence: [Task 6 verification](verification.md#task-6-final-verification-2026-10-18).
+The Agy request-directory harness is implemented and tested offline. Codex native
+marker/history/actual-cwd validation passed; Claude's prepared smoke test awaits
+explicit approval after automatic review rejected external transmission of its
+test payload. Agy 1.3.5 and Gemini CLI setups are unavailable. Comprehensive and
+integration checks pass; the default quick suite still needs a valid Gemini API
+key. Full-feature code review approved and spec review found no deviations. Task 6 remains open; these limitations
+are not represented as successful live coverage.
 
 ## Dependencies and parallel work
 
