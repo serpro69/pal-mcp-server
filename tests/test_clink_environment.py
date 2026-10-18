@@ -1,6 +1,7 @@
 """Child environments and working directories use only synthetic credentials."""
 
 import asyncio
+import errno
 import json
 import os
 import signal
@@ -12,7 +13,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from clink.agents import create_agent
-from clink.agents.base import BaseCLIAgent, CLIAgentError
+from clink.agents.base import BaseCLIAgent, CLIAgentError, WorkingDirectoryLaunchError
 from clink.constants import CONFIG_DIR, INTERNAL_DEFAULTS, SHARED_ENV_PASSTHROUGH
 from clink.models import CLIClientConfig, OutputCaptureConfig, ResolvedCLIClient, ResolvedCLIRole
 from clink.registry import ClinkRegistry
@@ -343,6 +344,43 @@ async def test_spawn_failure_cleans_scratch_and_output(tmp_path, monkeypatch):
         await BaseCLIAgent(cfg).run(role=cfg.get_role(None), prompt="x", files=[], images=[])
     assert not observed["cwd"].exists()
     assert not observed["output"].exists()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("configured_cwd", [False, True])
+async def test_directory_spawn_error_keeps_os_cause_and_cleans_owned_resources(tmp_path, monkeypatch, configured_cwd):
+    observed = {}
+
+    async def spawn(*args, **kwargs):
+        observed["cwd"] = Path(kwargs["cwd"])
+        observed["output"] = Path(args[-1])
+        observed["cause"] = PermissionError(errno.EACCES, "access denied", kwargs["cwd"])
+        raise observed["cause"]
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", spawn)
+    cfg = client(
+        working_dir=tmp_path if configured_cwd else None,
+        output_to_file=OutputCaptureConfig(flag_template="--output {path}"),
+    )
+    with pytest.raises(WorkingDirectoryLaunchError) as error:
+        await BaseCLIAgent(cfg).run(role=cfg.get_role(None), prompt="x", files=[], images=[])
+    assert error.value.__cause__ is observed["cause"]
+    assert "[Errno 13] access denied" in str(error.value)
+    assert observed["cwd"].exists() is configured_cwd
+    assert not observed["output"].exists()
+    if not configured_cwd:
+        assert str(observed["cwd"]) not in str(error.value)
+
+
+@pytest.mark.asyncio
+async def test_directory_preparation_error_keeps_os_cause(tmp_path, monkeypatch):
+    cause = PermissionError(errno.EACCES, "access denied", str(tmp_path))
+    check = Mock(side_effect=cause)
+    monkeypatch.setattr(BaseCLIAgent, "_check_working_directory", check)
+    cfg = client(working_dir=tmp_path)
+    with pytest.raises(WorkingDirectoryLaunchError) as error:
+        await BaseCLIAgent(cfg).run(role=cfg.get_role(None), prompt="x", files=[], images=[])
+    assert error.value.__cause__ is cause
 
 
 @pytest.mark.asyncio

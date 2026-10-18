@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import asyncio
+import errno
 import logging
 import os
 import shlex
+import stat
 import tempfile
 import time
 from collections.abc import Sequence
@@ -46,6 +48,10 @@ class CLIAgentError(RuntimeError):
         self.stderr = stderr
 
 
+class WorkingDirectoryLaunchError(CLIAgentError):
+    """A directory failure before the native executable started."""
+
+
 class BaseCLIAgent:
     """Execute a configured CLI command and parse its output."""
 
@@ -70,13 +76,24 @@ class BaseCLIAgent:
         editable_paths: Sequence[str] = (),
     ) -> AgentOutput:
         working_dir = self.client.working_dir
-        if working_dir is not None and not working_dir.is_dir():
-            raise CLIAgentError(f"Configured working_dir is not an existing directory: {working_dir}")
-        workspace = (
-            nullcontext(str(working_dir))
-            if working_dir is not None
-            else tempfile.TemporaryDirectory(prefix="pal-clink-")
-        )
+        if working_dir is not None:
+            try:
+                await asyncio.to_thread(self._check_working_directory, str(working_dir))
+            except OSError as exc:
+                raise WorkingDirectoryLaunchError(
+                    f"Selected working directory is not an existing directory or is inaccessible: {exc}"
+                ) from exc
+        try:
+            workspace = (
+                nullcontext(str(working_dir))
+                if working_dir is not None
+                else tempfile.TemporaryDirectory(prefix="pal-clink-")
+            )
+        except OSError as exc:
+            # Keep the cause, but do not expose an attempted disposable pathname.
+            raise WorkingDirectoryLaunchError(
+                f"Selected scratch working directory could not be created: [Errno {exc.errno}] {exc.strerror}"
+            ) from exc
         with workspace as cwd:
             async with progress_operation("cli") as operation:
                 result = await self._run_in_directory(
@@ -169,8 +186,27 @@ class BaseCLIAgent:
                     limit=limit,
                     env=env,
                 )
-            except FileNotFoundError as exc:
-                raise CLIAgentError(f"Executable not found for CLI '{self.client.name}': {exc}") from exc
+            except OSError as exc:
+                directory_failure = exc.filename is not None and os.fsdecode(exc.filename) == cwd
+                # POSIX identifies chdir failures by filename. Some platforms
+                # omit it: recheck cwd only when the OS gave no attribution.
+                # Never relabel an explicitly identified executable failure.
+                if exc.filename is None and exc.errno in (errno.ENOENT, errno.ENOTDIR, errno.EACCES, errno.EPERM):
+                    try:
+                        await asyncio.to_thread(self._check_working_directory, cwd)
+                    except OSError:
+                        directory_failure = True
+                if directory_failure:
+                    diagnostic = str(exc)
+                    if self.client.working_dir is None:
+                        diagnostic = diagnostic.replace(cwd, "<scratch>")
+                    raise WorkingDirectoryLaunchError(
+                        f"Selected working directory could not be used to launch CLI '{self.client.name}': {diagnostic}"
+                    ) from exc
+                description = (
+                    "Executable not found" if isinstance(exc, FileNotFoundError) else "Could not launch executable"
+                )
+                raise CLIAgentError(f"{description} for CLI '{self.client.name}': {exc}") from exc
 
             try:
                 stdout_bytes, stderr_bytes = await asyncio.wait_for(
@@ -239,6 +275,14 @@ class BaseCLIAgent:
                 parser_name=self._parser.name,
                 output_file_content=output_file_content,
             )
+
+    @staticmethod
+    def _check_working_directory(cwd: str) -> None:
+        """Check without suppressing OS causes or changing the process cwd."""
+        if not stat.S_ISDIR(os.stat(cwd).st_mode):
+            raise NotADirectoryError(errno.ENOTDIR, "Selected working directory is not a directory", cwd)
+        if not os.access(cwd, os.X_OK, effective_ids=os.access in os.supports_effective_ids):
+            raise PermissionError(errno.EACCES, "Selected working directory is not accessible", cwd)
 
     def _encode_stdin(self, prompt: str) -> bytes:
         """Encode a prepared prompt for the CLI's stdin transport."""

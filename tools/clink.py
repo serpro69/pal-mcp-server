@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 
 from clink import get_registry
 from clink.agents import AgentOutput, CLIAgentError, create_agent, get_agent_class
+from clink.agents.base import WorkingDirectoryLaunchError
 from clink.conversation import CLIConversation, canonical_continuation_id, prepare_request
 from clink.models import ResolvedCLIClient, ResolvedCLIRole
 from clink.working_directory import MISSING_BINDING, WorkingDirectoryError, resolve_working_directory
@@ -31,6 +32,7 @@ logger = logging.getLogger(__name__)
 
 MAX_RESPONSE_CHARS = 20_000
 AGY_DIAGNOSTIC_LIMIT = 2_048
+CODEX_GIT_REJECTION = "Not inside a trusted directory and --skip-git-repo-check was not specified."
 SUMMARY_PATTERN = re.compile(r"<SUMMARY>(.*?)</SUMMARY>", re.IGNORECASE | re.DOTALL)
 ALLOW_EDITS_DESCRIPTION = (
     "Opt in to native filesystem edits where supported. Defaults to false. "
@@ -262,8 +264,16 @@ class CLinkTool(SimpleTool):
                 saved_binding=conversation.thread.initial_context.get("clink_working_directory", MISSING_BINDING),
             )
         except WorkingDirectoryError as exc:
-            # Task 3 adds the full directory-specific diagnostic envelope.
-            self._raise_tool_error(str(exc), metadata={"tool_name": "clink", "error_type": type(exc).__name__})
+            self._raise_tool_error(
+                str(exc),
+                metadata={
+                    **exc.to_details(),
+                    "tool_name": "clink",
+                    "stage": "validation",
+                    "execution_started": False,
+                    "retryable": False,
+                },
+            )
 
         launch_path = working_directory.binding.launch_path
         client_config = client_config.model_copy(
@@ -317,6 +327,9 @@ class CLinkTool(SimpleTool):
             )
         except CLIAgentError as exc:
             metadata = self._build_error_metadata(client_config, exc)
+            metadata.update(tool_name="clink", working_directory=working_directory.to_metadata())
+            if isinstance(exc, WorkingDirectoryLaunchError):
+                metadata.update(error_type="WorkingDirectoryLaunchError", stage="spawn", execution_started=False)
             self._raise_cli_error(
                 client_config,
                 f"CLI '{client_config.name}' execution failed: {exc}",
@@ -324,6 +337,8 @@ class CLinkTool(SimpleTool):
             )
 
         metadata = self._build_execution_metadata(client_config, role_config, result)
+        # The selection belongs to PAL, never to untrusted native output.
+        metadata.update(tool_name="clink", working_directory=working_directory.to_metadata())
         if result.returncode != 0 or result.parsed.is_error:
             if result.stdout.strip() and not self._uses_agy_runner(client_config):
                 metadata["stdout"] = result.stdout.strip()
@@ -578,6 +593,15 @@ class CLinkTool(SimpleTool):
         return text[: AGY_DIAGNOSTIC_LIMIT - len(suffix)] + suffix
 
     def _raise_cli_error(self, client: ResolvedCLIClient, message: str, metadata: dict[str, Any]) -> None:
+        if (client.runner or client.name).lower() == "codex" and CODEX_GIT_REJECTION in (
+            line.strip() for line in metadata.get("stderr", "").splitlines()
+        ):
+            guidance = (
+                "Select an existing Git repository, or deliberately add --skip-git-repo-check to the Codex "
+                "manifest's additional_args and restart PAL to allow a non-repository project."
+            )
+            metadata["git_repository_guidance"] = guidance
+            message += f"\n{CODEX_GIT_REJECTION}\n{guidance}"
         if self._uses_agy_runner(client):
             if metadata.get("stderr"):
                 message += f"\n{metadata['stderr']}"

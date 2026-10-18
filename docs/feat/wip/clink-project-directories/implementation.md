@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Tasks: [tasks.md](tasks.md)
 > Review corrections: [review-resolution.md](review-resolution.md)
-> Status: Tasks 1–2 complete; Tasks 3–6 pending
+> Status: Tasks 1–3 complete; Tasks 4–6 pending
 
 ## Starting points and constraints
 
@@ -121,8 +121,8 @@ candidate binding and writes it beside `clink_defaults` in the successful CAS.
 
 The request suite covers real adapter construction with mocked execution and
 registered SDK validation. `tests/test_tool_surface.py` also records the exact
-intentional schema addition. Task 3 still owns the full directory-error envelope
-and selected-directory response metadata; Task 2 uses the existing generic
+intentional schema addition. Task 3 adds the full directory-error envelope
+and selected-directory response metadata; Task 2 initially used the existing generic
 error envelope with the helper's error type. Native child and stdio acceptance
 remain Tasks 4–5. See [Task 2 evidence](verification.md#task-2-request-and-atomic-continuation-2026-10-17).
 
@@ -162,6 +162,23 @@ directory cases in `tests/test_clink_execution_errors.py`.
 Run `python -m pytest tests/test_clink_working_directory_errors.py
 tests/test_clink_execution_errors.py tests/test_clink_environment.py -q
 -m 'not integration'`.
+
+Implemented: typed resolution errors retain the helper's exact path details in
+the validation envelope, with no success-shaped selection or continuation offer.
+After selection, PAL writes `metadata.working_directory` after native metadata
+merging; it survives summary/truncation, native errors, and persistence warnings.
+The shared runner reports `WorkingDirectoryLaunchError` for failed directory
+preparation, scratch allocation, or cwd-attributed spawn errors. Read-only
+prechecks run off the event loop. OS causes remain chained; scratch diagnostics
+omit disposable pathnames. Explicit executable failures remain CLI errors;
+unattributed relevant OS failures recheck cwd before classification.
+
+Codex guidance matches the captured repository-policy diagnostic as a complete
+stderr line, only on failed Codex execution (including runner aliases). It keeps
+the native diagnostic and explains the deliberate manifest override without
+changing flags or retrying. The fixture was captured from `codex-cli 0.163.0`;
+this establishes that rejection's wording, not live model/project acceptance.
+See [Task 3 evidence](verification.md#task-3-directory-diagnostics-2026-10-18).
 
 ## Task 4: Verify native adapters with the shared child fixture
 

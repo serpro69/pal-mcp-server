@@ -1,6 +1,11 @@
 """CLI diagnostics must remain errors through parsing, execution, and persistence."""
 
+import asyncio
+import errno
 import json
+import sys
+from asyncio import create_subprocess_exec as native_spawn
+from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
@@ -11,8 +16,10 @@ from clink.parsers.claude import ClaudeJSONParser
 from clink.parsers.codex import CodexJSONLParser
 from clink.parsers.gemini import GeminiJSONParser
 from tests.test_clink_claude_agent import DummyProcess
+from tests.test_clink_environment import ControlledProcess
 from tools.clink import CLinkTool
 from tools.shared.exceptions import ToolExecutionError
+from utils import conversation_coordination as coordination
 from utils import conversation_memory as memory
 from utils.storage_backend import InMemoryStorage
 
@@ -454,3 +461,227 @@ async def test_malformed_nested_output_keeps_structured_diagnostics_and_history(
     assert storage._store == snapshot
     assert len(launches) == 1
     resolve_provider.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "failure", ["removed-before-run", "file-before-run", "removed-at-spawn", "denied", "no-filename"]
+)
+async def test_directory_launch_failure_has_spawn_metadata_and_no_commit(execution, tmp_path, monkeypatch, failure):
+    from clink.agents import create_agent
+
+    storage, _, launches, configure_process = execution
+    project = tmp_path / "project"
+    project.mkdir()
+    configure_process('{"response":"ok"}')
+    thread_id = memory.create_thread("clink", {"clink_working_directory": {"mode": "scratch"}})
+    memory.add_turn(thread_id, "user", "previous input")
+    memory.add_turn(thread_id, "assistant", "previous answer")
+    snapshot = storage._store.copy()
+    spawn_attempts = []
+    if failure in ("removed-before-run", "file-before-run"):
+
+        def factory(client):
+            project.rmdir()
+            if failure == "file-before-run":
+                project.write_text("now a file")
+            return create_agent(client)
+
+        monkeypatch.setattr("tools.clink.create_agent", factory)
+    else:
+        # Use the OS for the deletion race. No vendor executable is launched.
+        monkeypatch.setattr("clink.agents.base.resolve_executable", lambda *args, **kwargs: sys.executable)
+
+        async def spawn(*args, **kwargs):
+            spawn_attempts.append(kwargs["cwd"])
+            if failure == "denied":
+                raise PermissionError(errno.EACCES, "synthetic access denied", kwargs["cwd"])
+            project.rmdir()
+            if failure == "no-filename":
+                raise FileNotFoundError(errno.ENOENT, "synthetic unattributed failure")
+            return await native_spawn(*args, **kwargs)
+
+        monkeypatch.setattr("clink.agents.base.asyncio.create_subprocess_exec", spawn)
+
+    with pytest.raises(ToolExecutionError) as error:
+        await CLinkTool().execute(
+            {
+                "cli_name": "gemini",
+                "prompt": "test",
+                "continuation_id": thread_id,
+                "working_directory_absolute_path": str(project),
+            }
+        )
+    response = json.loads(error.value.payload)
+    assert response["metadata"] == {
+        "cli_name": "gemini",
+        "return_code": None,
+        "tool_name": "clink",
+        "error_type": "WorkingDirectoryLaunchError",
+        "stage": "spawn",
+        "execution_started": False,
+        "working_directory": {
+            "mode": "directory",
+            "launch_path": str(project),
+            "canonical_path": str(project),
+            "source": "request",
+        },
+    }
+    assert "Selected working directory" in response["content"]
+    assert "[Errno" in response["content"]
+    assert "Executable not found" not in response["content"]
+    assert response["continuation_offer"] is None
+    assert storage._store == snapshot
+    assert not coordination._entries
+    assert not launches
+    assert len(spawn_attempts) == (0 if failure in ("removed-before-run", "file-before-run") else 1)
+
+
+@pytest.mark.parametrize("failure", ["missing-executable", "denied-executable", "unattributed", "other-os-error"])
+async def test_executable_spawn_failures_are_not_directory_failures(execution, tmp_path, monkeypatch, failure):
+    storage = execution[0]
+    causes = {
+        "missing-executable": FileNotFoundError(errno.ENOENT, "missing interpreter", "/synthetic/cli"),
+        "denied-executable": PermissionError(errno.EACCES, "executable denied", "/synthetic/cli"),
+        "unattributed": FileNotFoundError(errno.ENOENT, "unattributed failure"),
+        "other-os-error": OSError(errno.EMFILE, "descriptor limit"),
+    }
+
+    async def spawn(*args, **kwargs):
+        raise causes[failure]
+
+    monkeypatch.setattr("clink.agents.base.asyncio.create_subprocess_exec", spawn)
+    with pytest.raises(ToolExecutionError) as error:
+        await CLinkTool().execute(
+            {"cli_name": "gemini", "prompt": "test", "working_directory_absolute_path": str(tmp_path)}
+        )
+    response = json.loads(error.value.payload)
+    assert str(causes[failure]) in response["content"]
+    assert "error_type" not in response["metadata"]
+    assert "stage" not in response["metadata"]
+    assert response["metadata"]["working_directory"]["launch_path"] == str(tmp_path)
+    assert not storage._store
+    assert not coordination._entries
+
+
+@pytest.mark.parametrize("selected", [False, True])
+async def test_cancel_reaps_child_and_releases_bound_admission(execution, tmp_path, monkeypatch, selected):
+    storage, _, _, configure_process = execution
+    binding = (
+        {"mode": "directory", "launch_path": str(tmp_path), "canonical_path": str(tmp_path)}
+        if selected
+        else {"mode": "scratch"}
+    )
+    thread_id = memory.create_thread("clink", {"clink_working_directory": binding})
+    snapshot = storage._store.copy()
+    spawned = asyncio.Event()
+    processes = []
+
+    async def spawn(*args, **kwargs):
+        process = ControlledProcess(kwargs["cwd"], "cancel")
+        processes.append(process)
+        spawned.set()
+        return process
+
+    monkeypatch.setattr("clink.agents.base.asyncio.create_subprocess_exec", spawn)
+    arguments = {"cli_name": "gemini", "prompt": "test", "continuation_id": thread_id}
+    task = asyncio.create_task(CLinkTool().execute(arguments))
+    try:
+        await asyncio.wait_for(spawned.wait(), 2)
+        process = processes[0]
+        await asyncio.wait_for(process.started.wait(), 2)
+        task.cancel()
+        await asyncio.wait_for(process.reaping.wait(), 2)
+        assert process.cwd.is_dir()
+        assert storage._store == snapshot
+        process.release_reap.set()
+        with pytest.raises(asyncio.CancelledError):
+            await asyncio.wait_for(task, 2)
+        assert process.killed and process.reaped
+        assert process.cwd.exists() is selected
+        assert not coordination._entries
+        assert storage._store == snapshot
+        configure_process('{"response":"retry succeeds"}')
+        response = json.loads((await CLinkTool().execute(arguments))[0].text)
+        assert response["metadata"]["working_directory"]["source"] == "conversation"
+    finally:
+        for process in processes:
+            process.release_reap.set()
+        if not task.done():
+            task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+
+
+@pytest.mark.parametrize("cli_name", ["codex", "gemini"])
+@pytest.mark.parametrize("native_rejection", [True, False])
+@pytest.mark.parametrize("recovered", [True, False])
+async def test_codex_repository_guidance_is_specific_and_never_retries(
+    execution, tmp_path, cli_name, native_rejection, recovered
+):
+    storage, _, launches, configure_process = execution
+    diagnostic = (Path(__file__).parent / "fixtures" / "codex_git_rejection.stderr").read_text().strip()
+    stderr = diagnostic if native_rejection else "Authentication failed; check your credentials."
+    stdout = json.dumps(CODEX_ANSWER) if recovered else ""
+    configure_process(stdout, stderr, 1)
+    with pytest.raises(ToolExecutionError) as error:
+        await CLinkTool().execute(
+            {"cli_name": cli_name, "prompt": "test", "working_directory_absolute_path": str(tmp_path)}
+        )
+    response = json.loads(error.value.payload)
+    assert response["metadata"]["stderr"] == stderr
+    if cli_name == "codex" and native_rejection:
+        guidance = response["metadata"]["git_repository_guidance"]
+        for phrase in ("existing Git repository", "--skip-git-repo-check", "additional_args", "restart PAL"):
+            assert phrase in guidance
+        assert diagnostic in response["content"]
+        assert guidance in response["content"]
+    else:
+        assert "git_repository_guidance" not in response["metadata"]
+        assert "restart PAL" not in response["content"]
+    assert len(launches) == 1
+    assert "--skip-git-repo-check" not in launches[0]
+    assert not storage._store
+    assert response["continuation_offer"] is None
+
+
+async def test_codex_operator_skip_flag_survives_selected_directory(execution, tmp_path, monkeypatch):
+    from clink.models import CLIClientConfig
+    from clink.registry import ClinkRegistry
+
+    registry = ClinkRegistry.__new__(ClinkRegistry)
+    client = registry._resolve_config(
+        CLIClientConfig(name="codex", command="codex", additional_args=["--skip-git-repo-check"]),
+        source_path=tmp_path / "codex.json",
+    )
+    tool = CLinkTool()
+    monkeypatch.setattr(tool._registry, "get_client", lambda _: client)
+    execution[3](json.dumps(CODEX_ANSWER))
+    result = json.loads(
+        (await tool.execute({"cli_name": "codex", "prompt": "test", "working_directory_absolute_path": str(tmp_path)}))[
+            0
+        ].text
+    )
+    assert result["status"] == "continuation_available"
+    assert execution[2][0].count("--skip-git-repo-check") == 1
+    assert result["metadata"]["working_directory"]["source"] == "request"
+
+
+async def test_scratch_allocation_failure_keeps_selection_without_exposing_temporary_path(execution, monkeypatch):
+    cause = PermissionError(errno.EACCES, "access denied", "/synthetic/pal-clink-private")
+    monkeypatch.setattr("clink.agents.base.tempfile.TemporaryDirectory", Mock(side_effect=cause))
+    with pytest.raises(ToolExecutionError) as error:
+        await CLinkTool().execute({"cli_name": "gemini", "prompt": "test"})
+    response = json.loads(error.value.payload)
+    assert response["metadata"] == {
+        "cli_name": "gemini",
+        "return_code": None,
+        "tool_name": "clink",
+        "error_type": "WorkingDirectoryLaunchError",
+        "stage": "spawn",
+        "execution_started": False,
+        "working_directory": {"mode": "scratch", "launch_path": None, "canonical_path": None, "source": "scratch"},
+    }
+    assert "[Errno 13] access denied" in response["content"]
+    assert cause.filename not in error.value.payload
+    assert response["continuation_offer"] is None
+    assert not execution[0]._store
+    assert not execution[2]

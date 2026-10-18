@@ -3,15 +3,106 @@
 > Date: 2026-10-15
 > Source baseline: `6e6ea4a`
 > Design: [design.md](design.md)
-> Status: historical fact-check retained; Tasks 1–2 implemented and reviewed (2026-10-17)
+> Status: historical fact-check retained; Tasks 1–3 implemented and reviewed (latest: 2026-10-18)
 
 This record preserves the original pre-review fact-check at `6e6ea4a`.
 Its initial naming, single-path binding and scratch decisions are historical,
 not the current implementation contract. See [review-resolution.md](review-resolution.md)
 for the subsequent review, corroboration at `6da3e2b`, corrections, and the user's
 first-project selection decision. The four agents did not review those revisions.
-Current implementation evidence is in [Task 2 verification](#task-2-request-and-atomic-continuation-2026-10-17),
-following [Task 1](#task-1-directory-selection-and-identity-2026-10-17).
+Current implementation evidence is in [Task 3 verification](#task-3-directory-diagnostics-2026-10-18),
+following [Task 2](#task-2-request-and-atomic-continuation-2026-10-17) and
+[Task 1](#task-1-directory-selection-and-identity-2026-10-17).
+
+## Task 3: directory diagnostics (2026-10-18)
+
+Baseline: `6a5a5bb`. Implemented the directory-resolution rejection envelope and
+PAL-owned selection metadata in [`tools/clink.py`](../../../../tools/clink.py),
+with cwd-specific launch errors in
+[`clink/agents/base.py`](../../../../clink/agents/base.py). Resolution errors
+preserve exact requested/bound/normalized/canonical details, never offer a
+continuation, and do not change history, defaults, binding, or TTL. Selected
+metadata overwrites native values and survives normal output, summaries,
+truncation, execution errors, and persistence warnings.
+
+The runner retains OS exception causes and distinguishes directory preparation,
+scratch allocation, and cwd-attributed spawn failures from executable failures.
+When the OS does not name a failing path, only relevant OS errors trigger a cwd
+recheck. Cancellation still propagates after child reaping and admission release.
+Scratch selection paths stay null, and directory diagnostics do not disclose the
+disposable pathname. These checks improve diagnostics; they do not pin directory
+contents or eliminate filesystem races.
+
+The [new diagnostic suite](../../../../tests/test_clink_working_directory_errors.py)
+adds 74 cases for exact payloads, failure immutability and selection metadata.
+The expanded execution/environment suites add real deletion-at-spawn coverage,
+deterministic permission and executable failures, scratch allocation and cleanup,
+OS cause preservation, cancellation/retry, and Codex policy diagnostics. Existing
+request/SDK tests retain the separate wrong-JSON-type boundary.
+
+The [native stderr fixture](../../../../tests/fixtures/codex_git_rejection.stderr)
+was captured with `codex-cli 0.163.0`, running
+`codex exec --json 'Do not perform any work.'` in `/tmp` without a skip flag.
+It exited 1 at the repository check before a model call. No project hooks or
+native permissions were changed. PAL adds guidance only for that complete stderr
+line on a failed Codex invocation; unrelated errors retain their diagnostics.
+The tests also verify no automatic retry/bypass and preserve an explicit manifest
+`additional_args` skip flag. This capture does not establish live model or
+project-read acceptance.
+
+`kk:test` Python/async guidance was applied in the existing `pal` virtualenv
+(Python 3.10.12, pytest 9.0.3). The initial sandboxed baseline stalled in an
+existing async test and was interrupted; the approved run outside the sandbox
+completed. Subsequent test commands used that same environment outside the sandbox.
+
+| Check | Observed outcome |
+| --- | --- |
+| Before edits: `./code_quality_checks.sh` | Exit 0; lint/format passed; 3,225 passed, 17 skipped, 23 deselected, 19 subtests passed. |
+| Task 3 focused command in implementation.md | Exit 0; 255 passed. |
+| Final `./code_quality_checks.sh` | Exit 0; Ruff, Black and isort passed; 3,323 passed, 17 skipped, 23 deselected, 19 subtests passed. |
+| `./run_integration_tests.sh` | Exit 1; two passed, two failed, 19 skipped, 3,340 deselected. The same `gpt-5`/`gpt-5.2` consensus replay cases lack a matching recorded OpenAI chat-completions request. |
+| `python communication_simulator_test.py --quick` | Exit 1; four reported passed, two failed, none skipped. The same basic-conversation and precommit-deduplication missing-continuation failures recur. |
+
+Integration and simulator failures remain as documented in the
+[Task 1 follow-up gaps](#task-1-follow-up-verification-gaps). They are outside
+Task 3's changed paths and remain assigned to Task 6's prerequisite verification
+work: inspect the recorded/current consensus request mismatch and the individual
+simulator validation responses, correct fixtures or setup in their owning scope,
+then rerun unchanged assertions. These suites are not presented as passing.
+
+Initial post-change quality attempts caught a shared-fixture import conflict
+between Ruff and isort. The test now binds fixture objects from their existing
+module without suppressing lint rules; both tools pass. An intermediate full run
+passed 3,322 tests before the final scratch-allocation case was added; the final
+run above is authoritative. The pre-existing Black runtime/target-version warning
+remains unchanged. Git's user-level `indent-with-non-tab` setting rejects Python
+space indentation, so the whitespace-only diff check uses repository-compatible
+blank-line/trailing-space checks without changing Git configuration.
+
+### Task 3 isolated review and remaining scope
+
+The independent `code-reviewer` applied the Python security, SOLID, code-quality,
+and removal checklists to the production diff, tests, and surrounding contracts.
+It also inspected the scratch-allocation and fixture-import follow-ups. Verdict:
+**APPROVE**, no P0–P3 findings and no findings to index. The reviewer inspected
+tests but did not run them; execution evidence belongs to the implementing session.
+
+PAL's external `gemini-3.8-flash` review failed at its expert step with
+`400 INVALID_ARGUMENT / API_KEY_INVALID`, producing no expert findings. The
+isolated workflow's single-reviewer fallback applies; no external approval is
+claimed. The [existing credential follow-up](#task-1-follow-up-verification-gaps)
+remains necessary before external corroboration can be obtained.
+
+No dependencies or native permission flags changed. Python 3.10 documentation
+and the installed subprocess implementation were checked for stat/access and
+cwd/executable error attribution. No new project convention needs indexing:
+the implementation notes record these choices. Native error attribution and
+permissions on other operating systems remain unverified; exercise them alongside
+the existing host-dependent follow-up before broader platform acceptance.
+
+Task 3 matches its planned behavior. The broader four-adapter subprocess matrix,
+MCP stdio acceptance, operator guides, and final feature verification remain
+Tasks 4–6; this diagnostic slice does not satisfy those acceptance requirements.
 
 ## Task 2: request and atomic continuation (2026-10-17)
 
