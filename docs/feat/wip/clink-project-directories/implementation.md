@@ -3,7 +3,7 @@
 > Design: [design.md](design.md)
 > Tasks: [tasks.md](tasks.md)
 > Review corrections: [review-resolution.md](review-resolution.md)
-> Status: Tasks 1–5 complete; Task 6 implementation/offline checks/reviews complete, live approval pending
+> Status: Tasks 1–6 complete; native Codex/Claude verified; unavailable coverage and credential failures recorded
 
 ## Starting points and constraints
 
@@ -316,7 +316,12 @@ and precommit supplied only two steps where the current schema requires three.
 Recorded responses, exact replay matching and success assertions are retained.
 See [cassette provenance](../../../../tests/consensus_cassette_notes.md) and
 [Task 6 evidence](verification.md#task-6-final-verification-2026-10-18) for the
-native observations, remaining environment/approval gaps and review outcomes.
+native observations, remaining environment/credential gaps and review outcomes.
+On resumption, the approved Claude probe also passed marker, retained-history
+and actual-child-cwd checks. Task 6 is complete with unavailable Agy/Gemini
+coverage recorded as required; the failing API-backed quick cases and external
+review still require valid operator credentials. This completion does not waive
+those limits or claim full release readiness.
 
 ## Deferred follow-up: operator directory policy
 

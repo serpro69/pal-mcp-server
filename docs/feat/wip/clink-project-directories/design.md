@@ -1,6 +1,6 @@
 # Design: per-request project directories for clink
 
-> Status: Tasks 1–5 implemented; subprocess/MCP acceptance and operator guides complete; live native observations and final verification pending
+> Status: Tasks 1–6 complete; native Codex/Claude verified; unavailable coverage and credential failures recorded
 > Created: 2026-10-15
 > Source baseline: `6e6ea4a`
 > Review correction baseline: `6da3e2b`
@@ -349,6 +349,8 @@ explicit project selection; the server does not automatically learn their active
 project. No new dependency or configuration migration is planned. Directory
 diagnostics are implemented in Task 3. Task 4 verifies the subprocess matrix
 with the shared fake CLI fixture. Task 5 verifies MCP directory acceptance and
-documents operator choices. Task 6 remains responsible for prepared live-native
-observations, outstanding verification gaps and final feature review; fake-child
-tests do not establish live vendor behavior.
+documents operator choices. Task 6 records successful native Codex/Claude
+observations, final feature review and the remaining environment/credential
+gaps. Its completion includes explicit unavailable-coverage reporting, not a
+claim that all live checks passed. See the [remaining validation actions](verification.md#remaining-validation-actions);
+fake-child tests do not establish live vendor behavior.
