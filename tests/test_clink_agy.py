@@ -309,6 +309,46 @@ def test_parser_rejects_invalid_or_incomplete_results(stdout):
         AgyJSONLParser().parse(stdout, "")
 
 
+DENIED_COMMAND = {"action": "command", "display_name": "RunCommand"}
+
+
+def test_parser_names_denied_actions_when_headless_denial_leaves_response_empty():
+    output = stream(result_event(response="", denied_actions=[DENIED_COMMAND, {"action": "read_url"}]))
+    with pytest.raises(ParserError) as caught:
+        AgyJSONLParser().parse(output, "")
+    message = str(caught.value)
+    assert "auto-denied: command (RunCommand), read_url" in message
+    assert "permissions.allow" in message and "settings.json" in message
+    assert "nonempty string" not in message
+
+
+def test_parser_attaches_denied_actions_to_nonempty_response():
+    output = stream(result_event(response="partial answer", denied_actions=[DENIED_COMMAND]))
+    parsed = AgyJSONLParser().parse(output, "")
+    assert parsed.content == "partial answer"
+    assert parsed.metadata == {"agy_status": "SUCCESS", "agy_denied_actions": ["command (RunCommand)"]}
+
+
+@pytest.mark.parametrize(
+    "denied_actions",
+    [None, "command", {}, [], [1], ["command"], [{}], [{"action": 1}], [{"action": " "}], [{"display_name": "X"}]],
+)
+def test_parser_ignores_malformed_denied_actions(denied_actions):
+    assert "agy_denied_actions" not in (
+        AgyJSONLParser().parse(stream(result_event(denied_actions=denied_actions)), "").metadata
+    )
+    with pytest.raises(ParserError, match="nonempty string"):
+        AgyJSONLParser().parse(stream(result_event(response="", denied_actions=denied_actions)), "")
+
+
+def test_parser_bounds_denied_action_labels():
+    denied = [{"action": f"action-{index}", "display_name": "x" * 500} for index in range(25)]
+    parsed = AgyJSONLParser().parse(stream(result_event(denied_actions=denied)), "")
+    labels = parsed.metadata["agy_denied_actions"]
+    assert len(labels) == 10
+    assert all(len(label) == 80 and label.startswith("action-") for label in labels)
+
+
 def test_retained_live_fixture_parses():
     fixture = (
         Path(__file__).resolve().parents[1]
@@ -460,6 +500,7 @@ async def test_stderr_diagnostics_are_bounded_on_both_paths(registry, process, l
         (stream(result_event()) + '{"event":', 0, "Invalid agy JSON event"),
         (stream(result_event(), result_event()), 0, "duplicate results"),
         (stream(result_event(response="  ")), 0, "nonempty string"),
+        (stream(result_event(response="", denied_actions=[DENIED_COMMAND])), 0, "auto-denied: command (RunCommand)"),
         ("{}", 0, "Invalid agy event envelope"),
     ],
 )
@@ -483,6 +524,14 @@ async def test_failures_are_tool_errors_without_raw_output_or_replay(
     assert PROMPT_MARKER not in json.dumps(payload)
     assert "RAW_STREAM_MARKER" not in json.dumps(payload)
     assert "Executing CLI command:" in caplog.text and PROMPT_MARKER not in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_denied_actions_surface_in_successful_payload_metadata(registry, process):
+    process.stdout = stream(result_event(response="partial answer", denied_actions=[DENIED_COMMAND])).encode()
+    payload = json.loads((await CLinkTool().execute({"cli_name": "agy", "prompt": PROMPT}))[0].text)
+    assert payload["content"] == "partial answer"
+    assert payload["metadata"]["agy_denied_actions"] == ["command (RunCommand)"]
 
 
 @pytest.mark.asyncio

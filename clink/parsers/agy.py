@@ -12,6 +12,38 @@ def _reject_non_json_constant(value: str) -> NoReturn:
     raise ValueError("Non-JSON numeric constant")
 
 
+# Headless agy cannot prompt, so it auto-denies permissioned tools and reports them here.
+# Keep the selection bounded: these labels come from native output, not from PAL.
+_MAX_DENIED_ACTIONS = 10
+_MAX_DENIED_LABEL_LENGTH = 80
+AGY_PERMISSIONS_HINT = (
+    "PAL cannot grant native agy permissions; add a matching allow-rule under permissions.allow in "
+    "~/.gemini/antigravity-cli/settings.json (for example command(git)) and retry."
+)
+
+
+def _select_denied_actions(result: dict) -> list[str]:
+    """Return bounded ``action (display_name)`` labels from a result's ``denied_actions``."""
+    raw = result.get("denied_actions")
+    if not isinstance(raw, list):
+        return []
+    labels: list[str] = []
+    for entry in raw:
+        if not isinstance(entry, dict):
+            continue
+        action = entry.get("action")
+        if not isinstance(action, str) or not action.strip():
+            continue
+        label = action.strip()
+        display_name = entry.get("display_name")
+        if isinstance(display_name, str) and display_name.strip():
+            label += f" ({display_name.strip()})"
+        labels.append(label[:_MAX_DENIED_LABEL_LENGTH])
+        if len(labels) == _MAX_DENIED_ACTIONS:
+            break
+    return labels
+
+
 class AgyJSONLParser(BaseParser):
     """Accept one successful result, ignoring well-formed informational events."""
 
@@ -54,12 +86,24 @@ class AgyJSONLParser(BaseParser):
             if isinstance(error, str) and error.strip():
                 message += f": {error.strip()}"
             raise ParserError(message)
+        denied_actions = _select_denied_actions(result)
         response = result.get("response")
         if not isinstance(response, str) or not response.strip():
+            if denied_actions:
+                # The agent gave up after headless mode refused a tool; say so instead of
+                # reporting a generic parse failure that points at output formatting.
+                raise ParserError(
+                    "agy returned an empty response after headless mode auto-denied: "
+                    f"{', '.join(denied_actions)}. {AGY_PERMISSIONS_HINT}"
+                )
             raise ParserError("agy result response must be a nonempty string")
         # Select documented fields, never copying whole events or result envelopes.
         # Native conversation IDs and durations do not belong to PAL's namespace.
         metadata: dict[str, object] = {"agy_status": status}
+        if denied_actions:
+            # The answer arrived, but some tool calls were refused; the caller should
+            # treat it as potentially incomplete.
+            metadata["agy_denied_actions"] = denied_actions
         conversation_id = result.get("conversation_id")
         if isinstance(conversation_id, str) and conversation_id.strip():
             metadata["agy_conversation_id"] = conversation_id
