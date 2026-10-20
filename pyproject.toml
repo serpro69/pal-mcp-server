@@ -1,6 +1,6 @@
 [project]
 name = "pal-mcp-server"
-version = "1.4.1"
+version = "1.4.2"
 description = "AI-powered MCP server with multiple model providers"
 license = "Apache-2.0"
 license-files = [ "LICENSE", "NOTICE",]
