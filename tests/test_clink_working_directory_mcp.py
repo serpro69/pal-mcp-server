@@ -139,7 +139,7 @@ async def test_mcp_schema_projects_aliases_conflicts_and_validation_boundaries(c
         assert schema["properties"]["working_directory_absolute_path"]["type"] == ["string", "null"]
         assert "working_directory_absolute_path" not in schema["required"]
         assert "working_dir" not in schema["properties"]
-        assert schema["anyOf"] == [{"required": ["cli_name"]}, {"required": ["continuation_id"]}]
+        assert "anyOf" not in schema  # Anthropic API rejects top-level anyOf; rule is enforced at runtime
         assert not cli_server.stages()
 
         first = await call(session, vendor, "first", working_directory_absolute_path="~/alias/./")

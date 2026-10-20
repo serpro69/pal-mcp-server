@@ -56,9 +56,10 @@ def test_surface_preserves_names_parameters_types_defaults_and_safety(surface):
             expected["properties"]["model"]["deprecated"] = True
             expected["properties"]["use_assistant_model"].update(default=False, deprecated=True)
         if name == "clink":
-            # CLI-only Task 4 permits a follow-up to reuse committed selection.
+            # CLI-only Task 4 permits a follow-up to reuse committed selection. The rule is
+            # not encoded as a top-level anyOf: the Anthropic API rejects it and Claude Code
+            # drops the tool. It is described on cli_name and enforced at runtime instead.
             expected["required"].remove("cli_name")
-            expected["anyOf"] = [{"required": ["cli_name"]}, {"required": ["continuation_id"]}]
             # Antigravity adds one client with the existing shared role names.
             expected["properties"]["cli_name"]["enum"].insert(0, "agy")
             # Project-directory Task 2 adds an optional string/null selection.
@@ -73,7 +74,10 @@ def test_surface_preserves_names_parameters_types_defaults_and_safety(surface):
         if name == "cli_name":
             field["enum"].insert(0, "agy")
             field["description"] = field["description"].replace("Available: ", "Available: agy, ")
-            field["description"] += " May be omitted on continuation to reuse the last successful CLI selection."
+            field["description"] += (
+                ". Required for a new conversation; may be omitted with continuation_id to reuse "
+                "the last successful CLI selection."
+            )
         elif name == "role":
             field["description"] = field["description"].replace(
                 "Optional role preset defined for the selected CLI (defaults to 'default').",

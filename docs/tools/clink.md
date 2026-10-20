@@ -104,7 +104,7 @@ After a successful, recorded reply with room for another exchange, copy the retu
 }
 ```
 
-The follow-up inherits the last successfully recorded CLI and role. Explicit `cli_name` or `role` values override them. New conversations require `cli_name` when multiple clients are configured, as in the shipped configuration. If exactly one is configured, it can be selected implicitly. There is no implicit Gemini choice among multiple clients. Invalid selections fail; changing CLI while retaining a role the new CLI lacks also fails until you supply a supported role.
+The follow-up inherits the last successfully recorded CLI and role. Explicit `cli_name` or `role` values override them. New conversations require `cli_name` when multiple clients are configured, as in the shipped configuration. If exactly one is configured, it can be selected implicitly. The schema states this rule in the `cli_name` description and enforces it at runtime rather than through a top-level `anyOf`, which the Anthropic API rejects and which caused Claude Code to drop the tool. There is no implicit Gemini choice among multiple clients. Invalid selections fail; changing CLI while retaining a role the new CLI lacks also fails until you supply a supported role.
 
 The follow-up also inherits the saved directory choice, including across CLI or role changes. Changing an established project requires a new conversation: omit `continuation_id` and supply the new directory. A conversation that began in scratch mode may select its first project while retaining its history.
 

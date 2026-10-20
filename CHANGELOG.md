@@ -4,6 +4,12 @@
 
 ## Unreleased
 
+- Remove the top-level `anyOf` from the clink input schema. The Anthropic API rejects
+  that keyword in tool schemas, so Claude Code skipped the whole clink tool whenever
+  more than one CLI was configured (the shipped default) since v1.4.0. The
+  "cli_name or continuation_id" rule is now stated in the `cli_name` description and
+  remains enforced at runtime.
+
 - Return MCP tool errors for failed, empty or whitespace-only workflow expert
   replies; retain structured attachment-budget diagnostics and saved input without
   inventing a reply. Direct workflow callers now receive `ToolExecutionError` for

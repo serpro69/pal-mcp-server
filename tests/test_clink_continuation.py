@@ -656,5 +656,5 @@ def test_parent_history_depth_and_cycles_remain_bounded(storage):
 def test_multi_cli_schema_allows_continuation_instead_of_cli_selection():
     schema = CLinkTool().get_input_schema()
     assert schema["required"] == ["prompt"]
-    assert schema["anyOf"] == [{"required": ["cli_name"]}, {"required": ["continuation_id"]}]
+    assert "anyOf" not in schema  # Anthropic API rejects top-level anyOf; rule is enforced at runtime
     assert "last successful" in schema["properties"]["cli_name"]["description"]

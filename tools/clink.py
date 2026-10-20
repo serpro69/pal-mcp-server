@@ -158,11 +158,19 @@ class CLinkTool(SimpleTool):
             default_text = (
                 f" Default: {self._default_cli_name}." if self._default_cli_name and len(self._cli_names) <= 1 else ""
             )
+            if len(self._cli_names) > 1:
+                selection_rule = (
+                    " Required for a new conversation; may be omitted with continuation_id to reuse "
+                    "the last successful CLI selection."
+                )
+            else:
+                selection_rule = " May be omitted on continuation to reuse the last successful CLI selection."
             cli_description = (
                 "Configured CLI client name (from conf/cli_clients). Available: "
                 + cli_available
+                + "."
                 + default_text
-                + " May be omitted on continuation to reuse the last successful CLI selection."
+                + selection_rule
             )
             role_description = (
                 "Role preset for the selected CLI. Reuses the last successful role on continuation, "
@@ -211,17 +219,17 @@ class CLinkTool(SimpleTool):
             },
         }
 
-        schema = {
+        # The "cli_name or continuation_id" rule for multi-CLI setups is deliberately NOT
+        # expressed as a top-level anyOf/oneOf. The Anthropic API rejects those keywords in
+        # tool input schemas, and Claude Code silently drops the whole tool in response.
+        # The rule lives in the cli_name description and is enforced at runtime by
+        # CLIConversation.resolve_selection.
+        return {
             "type": "object",
             "properties": properties,
             "required": ["prompt"],
             "additionalProperties": False,
         }
-
-        if len(self._cli_names) > 1:
-            schema["anyOf"] = [{"required": ["cli_name"]}, {"required": ["continuation_id"]}]
-
-        return schema
 
     def get_tool_fields(self) -> dict[str, dict[str, Any]]:
         """Unused by clink because we override the schema end-to-end."""

@@ -110,7 +110,7 @@ def test_discovery_and_schema_preserve_selection_contract(registry):
     assert tool._default_cli_name == "gemini"
     schema = tool.get_input_schema()
     assert set(schema["properties"]["cli_name"]["enum"]) == {"agy", "claude", "codex", "gemini"}
-    assert schema["anyOf"] == [{"required": ["cli_name"]}, {"required": ["continuation_id"]}]
+    assert "anyOf" not in schema  # Anthropic API rejects top-level anyOf; rule is enforced at runtime
     assert tool.get_annotations()["readOnlyHint"] is False
     for description in (
         CLinkRequest.model_fields["allow_edits"].description,

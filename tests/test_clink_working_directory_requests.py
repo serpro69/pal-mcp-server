@@ -109,7 +109,7 @@ def seed(context, *, tool="chat", parent=None):
 def test_schema_adds_only_optional_directory_and_preserves_other_requirements(runtime):
     schema = CLinkTool().get_input_schema()
     assert schema["required"] == ["prompt"]
-    assert schema["anyOf"] == [{"required": ["cli_name"]}, {"required": ["continuation_id"]}]
+    assert "anyOf" not in schema  # Anthropic API rejects top-level anyOf; rule is enforced at runtime
     field = schema["properties"]["working_directory_absolute_path"]
     assert field["type"] == ["string", "null"]
     assert field["default"] is None
