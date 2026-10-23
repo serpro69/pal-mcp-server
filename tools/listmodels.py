@@ -362,6 +362,7 @@ class ListModelsTool(BaseTool):
             metadata={
                 "tool_name": self.name,
                 "configured_providers": configured_count,
+                **self._cli_observations(runtime),
             },
         )
 
@@ -426,13 +427,21 @@ class ListModelsTool(BaseTool):
                 "observed_at": "startup",
                 "available_tools": sorted(runtime.available_tools),
                 "provider_setup": setup,
-                "cli_clients": [
-                    {"name": cli.name, "executable_found": cli.executable_found, "authentication": "unverified"}
-                    for cli in runtime.cli_statuses
-                ],
+                **self._cli_observations(runtime),
             },
         )
         return [TextContent(type="text", text=output.model_dump_json())]
+
+    @staticmethod
+    def _cli_observations(runtime: RuntimeCapabilities) -> dict[str, Any]:
+        """Expose the same CLI startup snapshot in both discovery modes."""
+        return {
+            "cli_clients_observed_at": "startup",
+            "cli_clients": [
+                {"name": cli.name, "executable_found": cli.executable_found, "authentication": "unverified"}
+                for cli in runtime.cli_statuses
+            ],
+        }
 
     def get_model_category(self) -> ToolModelCategory:
         """Return the model category for this tool."""

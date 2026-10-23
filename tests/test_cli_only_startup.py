@@ -151,6 +151,53 @@ def test_api_mode_uses_registration_despite_empty_restricted_catalog(isolated_st
     assert not snapshot.provider_free  # Environment edits do not change the startup mode.
 
 
+@pytest.mark.parametrize(
+    "catalog_state,disable_review",
+    [("provider-free", False), ("available", False), ("empty", False), ("available", True)],
+)
+@pytest.mark.asyncio
+async def test_listmodels_exposes_cli_observations_in_every_mode(
+    isolated_startup, monkeypatch, tmp_path, catalog_state, disable_review
+):
+    manifests, _ = isolated_startup
+    capture = install_fake_cli(manifests, tmp_path, name="claude")
+    if catalog_state != "provider-free":
+        path = tmp_path / "custom.json"
+        path.write_text(
+            json.dumps({"models": [{"model_name": "local", "context_window": 10000, "max_output_tokens": 1000}]})
+        )
+        monkeypatch.setenv("CUSTOM_API_URL", "http://localhost:11434/v1")
+        monkeypatch.setenv("CUSTOM_MODELS_CONFIG_PATH", str(path))
+        monkeypatch.setenv("CUSTOM_ALLOWED_MODELS", "unavailable-model" if catalog_state == "empty" else "local")
+    if disable_review:
+        monkeypatch.setattr(server, "TOOLS", server.apply_tool_filter(server.ALL_TOOLS, {"codereview"}))
+    snapshot = server.initialize_runtime()
+    assert snapshot.provider_free is (catalog_state == "provider-free")
+    assert ("codereview" in snapshot.available_tools) is (catalog_state != "provider-free" and not disable_review)
+
+    blocked = Mock(side_effect=AssertionError("Listing must use startup observations without launching a CLI"))
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", blocked)
+    monkeypatch.setattr("clink.availability.resolve_executable", blocked)
+    response = json.loads((await server.handle_call_tool("listmodels", {}))[0].text)
+    assert response["status"] == "success"
+    assert response["metadata"]["cli_clients"] == [
+        {"name": "claude", "executable_found": True, "authentication": "unverified"},
+        {"name": "codex", "executable_found": False, "authentication": "unverified"},
+        {"name": "gemini", "executable_found": False, "authentication": "unverified"},
+    ]
+    assert response["metadata"]["cli_clients_observed_at"] == "startup"
+    if catalog_state == "provider-free":
+        assert response["metadata"]["mode"] == "provider-free"
+        assert response["metadata"]["observed_at"] == "startup"
+        assert response["metadata"]["configured_providers"] == 0
+    else:
+        assert response["metadata"]["configured_providers"] == 1
+        expected_count = 0 if catalog_state == "empty" else 1
+        assert f"**Total Available Models**: {expected_count}" in response["content"]
+    blocked.assert_not_called()
+    assert not capture.exists()
+
+
 def test_opencode_registration_with_other_partial_settings_remains_api_mode(isolated_startup, monkeypatch):
     monkeypatch.setenv("OPENCODE_GO_API_KEY", "synthetic")
     monkeypatch.setenv("CUSTOM_API_KEY", "private")
