@@ -203,7 +203,7 @@ cwd selection can add access to project configuration it could not otherwise
 activate. There is no operator directory allowlist in this version;
 `PAL_WORKSPACE_ROOT` controls chat artifacts, not clink cwd. An operator-owned
 allowed-project-roots policy is deferred as
-[D1](../feat/wip/clink-project-directories/implementation.md#deferred-follow-up-operator-directory-policy).
+[D1](../feat/done/clink-project-directories/implementation.md#deferred-follow-up-operator-directory-policy).
 That work needs canonical containment, configuration-discovery and pre-spawn
 denial rules before restricted-client deployments can rely on it. Even an
 allowlisted launch directory would not confine subsequent reads or writes.

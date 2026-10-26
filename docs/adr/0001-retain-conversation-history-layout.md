@@ -6,7 +6,7 @@ Keep fresh files before chronological, budget-selected history. Retain newest-fi
 file admission, existing modification-time headers and the current compaction
 policy. Task 40's deterministic ordering and footer counter remain in place.
 
-The [Task 41 experiment](../feat/wip/server-reliability-and-capabilities/history-layout-task41.json)
+The [Task 41 experiment](../feat/done/server-reliability-and-capabilities/history-layout-task41.json)
 captures **280 real dispatcher/SDK requests** with fake HTTP: 14 calls for each
 combination of five scenarios and four layouts. All required current files and
 retained turns appear exactly once; full system instructions survive; superseded file sentinels

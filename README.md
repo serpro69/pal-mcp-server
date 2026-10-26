@@ -501,7 +501,7 @@ DISABLED_TOOLS=
 - [Configuration](docs/configuration.md) - Environment variables, restrictions
 - [Architecture](docs/architecture.md) - Request isolation, async providers and memory ownership
 - [Logging and transcripts](docs/logging.md) - State paths and opt-in conversation audit resources
-- [Reliability verification](docs/feat/wip/server-reliability-and-capabilities/final-verification.md) - Tested scope and remaining release gates
+- [Reliability verification](docs/feat/done/server-reliability-and-capabilities/final-verification.md) - Tested scope and release gates (linked to tracking issues)
 - [Adding Providers](docs/adding_providers.md) - Provider-specific setup (OpenAI, Azure, custom gateways)
 - [Model Ranking Guide](docs/model_ranking.md) - How intelligence scores drive auto-mode suggestions
 

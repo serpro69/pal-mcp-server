@@ -1,7 +1,7 @@
 # Catalog reconciliation — 2026-10-12
 
 This bounded reconciliation preserves every existing canonical ID and alias.
-The snapshots in [catalog-evidence](catalog-evidence/) are normalized observations
+The snapshots in [tests/fixtures/catalog_evidence](../../../../tests/fixtures/catalog_evidence/) are normalized observations
 from public provider documentation and catalog endpoints, captured on 2026-10-12.
 They contain no credentials or model responses. No live generation was requested.
 
@@ -64,8 +64,8 @@ Unresolved items are intentionally visible in the reports:
 The first three audits return **review_needed**, exit 1; none claims a clean
 full-provider certification. OpenRouter's observed capacity drift is resolved.
 Reproduce using `python -m scripts.audit_model_registry` with the corresponding
-registry/provider/evidence files, `--models-dev catalog-evidence/models-dev.json`
-and `--as-of 2026-10-12` (paths relative to this document). Regression tests compare
+registry/provider/evidence files, `--models-dev tests/fixtures/catalog_evidence/models-dev.json`
+and `--as-of 2026-10-12` (paths relative to the repository root). Regression tests compare
 reports exactly and exercise the changed request limits through real SDK serializers
 with fake transports. Promotion and live routing remain separate release gates.
 

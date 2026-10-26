@@ -16,7 +16,7 @@ from scripts.model_catalog import CatalogInputError, read_document, validate_reg
 from tests.test_provider_wire_async import chat_response
 
 ROOT = Path(__file__).resolve().parents[1]
-EVIDENCE = ROOT / "docs/feat/wip/server-reliability-and-capabilities/catalog-evidence"
+EVIDENCE = ROOT / "tests/fixtures/catalog_evidence"
 FILES = {"openai": "openai", "google": "gemini", "openrouter": "openrouter", "xai": "xai"}
 
 

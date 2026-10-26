@@ -206,7 +206,7 @@ seeded temporary copies of both locks using the CI pip-compile flags and compare
 them byte for byte. Package/image checks and independent code/spec reviews
 complement this matrix; passing units alone does not close live-service gates.
 
-[Task 42 evidence and release gates](feat/wip/server-reliability-and-capabilities/final-verification.md)
+[Task 42 evidence and release gates](feat/done/server-reliability-and-capabilities/final-verification.md)
 record commands, counts, skip reasons and required follow-ups. Retain historical
 cassettes until an explicitly configured recording run replaces them. A changed
 request failing old replay is recorded as a compatibility gap, not edited into a

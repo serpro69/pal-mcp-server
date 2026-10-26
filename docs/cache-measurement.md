@@ -56,7 +56,8 @@ accounting. It does not infer token counts from workflow aggregates or old turns
 Even a returned empty/blocked response with known usage can be absent from the
 report when the invocation never saves an assistant reply. Report coverage counts
 describe persisted call records, not every attempted or billed invocation.
-[Task 42 follow-up R1](feat/wip/server-reliability-and-capabilities/final-verification.md#r1-preserve-known-usage-without-an-assistant-reply)
+[Task 42 follow-up R1](feat/done/server-reliability-and-capabilities/final-verification.md#r1-preserve-known-usage-without-an-assistant-reply)
+([#21](https://github.com/serpro69/pal-mcp-server/issues/21))
 tracks independent usage persistence and deduplication; complete invocation
 accounting remains unverified until that work lands.
 Retention/privacy/platform limitations follow [transcript configuration](logging.md#private-conversation-transcripts).
@@ -91,7 +92,7 @@ not tokens or the provider's internal cache key. Comparisons stay within the sam
 scenario/provider/model. A failed completeness contract suppresses prefix scores
 and exits nonzero; cross-run comparisons require the same ordered scenarios.
 
-The retained [baseline capture](feat/wip/server-reliability-and-capabilities/cache-capture-baseline.json)
+The retained [baseline capture](feat/done/server-reliability-and-capabilities/cache-capture-baseline.json)
 passes all declared contracts. Its 12 comparable chat pairs share **4,078–4,155
 bytes** (median **4,154.5**), approximately **41–68%** of the previous request.
 Seeds 1/7/42 each pass completeness; the workflow expert request differs across
@@ -107,7 +108,7 @@ order. File errors, omission markers, modification times and model/tool attribut
 remain available. Consensus retains its complete stance text and shared safety and
 response instructions, with the stance following the shared system instructions.
 
-The [Task 40 comparison](feat/wip/server-reliability-and-capabilities/cache-stability-task40.json)
+The [Task 40 comparison](feat/done/server-reliability-and-capabilities/cache-stability-task40.json)
 passes all content contracts and matches all **19/19 requests** across seeds
 1/7/42. Comparable chat prefixes have median **5,220.5 bytes**, up from **4,154.5**;
 the range is **4,078–7,800 bytes**. Two same-model consensus calls share **6,170
@@ -142,9 +143,9 @@ reread on every request, and compaction checks a contiguous newest suffix,
 exact-once current input and accurate omission counts. This experiment makes no
 live cost/quality claim and introduces no runtime cache, layout option or snapshots.
 
-The separate [reproduced prompt issues](feat/wip/server-reliability-and-capabilities/capture-followups.md)
+The separate [reproduced prompt issues](feat/done/server-reliability-and-capabilities/capture-followups.md)
 are fixed: chat search guidance, ThinkDeep customization and codereview newline
 rendering now have dispatcher/capture regressions. Historical baseline files
 retain the original failures; updated evidence is in
-[prompt-fixes-capture.json](feat/wip/server-reliability-and-capabilities/prompt-fixes-capture.json).
+[prompt-fixes-capture.json](feat/done/server-reliability-and-capabilities/prompt-fixes-capture.json).
 The failed-call usage gap R1 and live cost/quality validation remain open.

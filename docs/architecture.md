@@ -6,7 +6,7 @@ It exposes tools, prompts and optional transcript resources through MCP 1.x.
 Python 3.10–3.12 is the tested matrix; the package requires Python >=3.10.
 
 This describes the implementation after the server reliability work, including
-the subsequent prompt and dependency fixes. The [final verification record](feat/wip/server-reliability-and-capabilities/final-verification.md)
+the subsequent prompt and dependency fixes. The [final verification record](feat/done/server-reliability-and-capabilities/final-verification.md)
 separates tested contracts from release gates. It does not establish live model
 quality, Windows transcript support or clearance of container findings.
 

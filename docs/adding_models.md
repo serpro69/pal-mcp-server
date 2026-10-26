@@ -17,7 +17,7 @@ don't need to list it as an alias.
 
 ## Audit and propose changes before editing
 
-The [2026-10-12 reconciliation](feat/wip/server-reliability-and-capabilities/catalog-reconciliation.md)
+The [2026-10-12 reconciliation](feat/done/server-reliability-and-capabilities/catalog-reconciliation.md)
 is a worked example with frozen evidence, retained identities, reproducible drift
 reports and explicit unresolved candidates.
 

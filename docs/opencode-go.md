@@ -72,3 +72,5 @@ to `/messages`. They are excluded. Next step: separately design and wire-test
 Messages authentication, payload/content blocks, usage, cancellation and output
 controls, then perform configured live validation. Other catalog IDs are also
 unpromoted until their protocol/capabilities and a useful scope are verified.
+Both the live gate and the adapter are tracked in
+[#24](https://github.com/serpro69/pal-mcp-server/issues/24).

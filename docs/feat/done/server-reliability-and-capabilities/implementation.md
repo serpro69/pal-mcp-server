@@ -765,7 +765,7 @@ explicit API errors. Live state-transition checks still require a designated ses
 **Evaluation scope (2026-10-12):** Compare current rendering with test-only
 first-seen file ordering and compaction hysteresis using dispatcher/SDK captures.
 Keep the existing file delimiter/mtime format in all runtime paths: the separate
-[per-file descriptions design](../per-file-descriptions/design.md) requires
+[per-file descriptions design](../../wip/per-file-descriptions/design.md) requires
 unchanged headers when annotations are absent and descriptions fixed at first
 embedding. A snapshot/version log or relocated provenance would need a coordinated
 format contract before runtime implementation. Reject a candidate that improves

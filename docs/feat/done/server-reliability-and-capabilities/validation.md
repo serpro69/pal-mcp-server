@@ -136,7 +136,7 @@ minimum-version checks were rerun after the correction with the counts above.
 ## Task 28: Evidence-backed catalog reconciliation
 
 Recorded 2026-10-12. [Catalog decisions and follow-ups](catalog-reconciliation.md)
-and [frozen source observations/reports](catalog-evidence/) retain the canonical
+and [frozen source observations/reports](../../../../tests/fixtures/catalog_evidence/) retain the canonical
 comparison, exact pre-change aliases and evidence for every applied edit.
 Corrected five OpenRouter capacity declarations, hid three shut-down native Gemini
 entries and added GPT-6.1 Sol as a hidden Responses candidate without aliases/rank.

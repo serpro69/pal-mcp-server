@@ -130,8 +130,9 @@ workflows can supply release-specific labels.
   filesystem, `no-new-privileges`, and temporary mounts with `noexec,nosuid`.
   A plain `docker run` does not inherit those Compose settings.
 
-See the [latest remediation and scan evidence](feat/wip/server-reliability-and-capabilities/actionable-fixes.md)
-for tested properties and unresolved package findings. A successful build or
+See the [latest remediation and scan evidence](feat/done/server-reliability-and-capabilities/actionable-fixes.md)
+for tested properties and unresolved package findings; remediation is tracked in
+[#22](https://github.com/serpro69/pal-mcp-server/issues/22). A successful build or
 health check does not establish that the image has no vulnerabilities.
 
 ### Resource Management

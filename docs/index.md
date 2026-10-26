@@ -19,7 +19,7 @@ _Formerly known as PAL MCP. See the short [name change note](name-change.md) for
 | [OpenCode Go](opencode-go.md) | Optional provider setup and live-validation gates. |
 | [Jules](tools/jules.md) | Explicit background coding actions and approval controls. |
 | [Testing](testing.md) | Test strategy, command cheats, and coverage notes. |
-| [Reliability verification](feat/wip/server-reliability-and-capabilities/final-verification.md) | Final acceptance evidence and outstanding release gates. |
+| [Reliability verification](feat/done/server-reliability-and-capabilities/final-verification.md) | Final acceptance evidence and the release gates open at acceptance, each linked to its tracking issue. |
 | [Troubleshooting](troubleshooting.md) | Common issues and resolutions. |
 
 Additional docs live in this directory; start with the table above to orient yourself.

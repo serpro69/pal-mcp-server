@@ -216,7 +216,7 @@ an interactive trust prompt is not a reliable boundary for a noninteractive call
 Clink adds no directory allowlist or filesystem confinement, and
 `PAL_WORKSPACE_ROOT` remains a chat-artifact setting. Restricted MCP clients
 must not be treated as confined by cwd selection. An operator-owned allowed-roots
-policy is deferred as [D1](feat/wip/clink-project-directories/implementation.md#deferred-follow-up-operator-directory-policy):
+policy is deferred as [D1](feat/done/clink-project-directories/implementation.md#deferred-follow-up-operator-directory-policy):
 it needs canonical containment, configuration discovery and pre-spawn denial
 tests before such deployments can rely on it. Native/host isolation remains a
 separate requirement even with an allowed launch directory.
@@ -293,7 +293,7 @@ DEFAULT_MODEL=auto  # Claude picks best model for each task (recommended)
   context/output limits, endpoint families and discovery defaults. Run `listmodels`
   to see what your configured providers and policies actually expose. An entry in
   a catalog is not a live-availability guarantee; see the dated
-  [catalog audit and unresolved candidates](feat/wip/server-reliability-and-capabilities/catalog-reconciliation.md).
+  [catalog audit and unresolved candidates](feat/done/server-reliability-and-capabilities/catalog-reconciliation.md).
 
   > **Tip:** Copy the JSON file you need, customise it, and point the corresponding `*_MODELS_CONFIG_PATH` environment variable to your version. This lets you enable or disable capabilities (JSON mode, function calling, temperature support, code generation) without editing Python.
 
@@ -642,7 +642,7 @@ Models without thinking support omit the control.
 Invalid modes, empty/malformed level lists and unverified controls fail before
 provider I/O. The retained experimental Gemini 2.0 Flash entry has no verified
 current budget/level contract and fails explicitly. The completed
-[catalog audit](feat/wip/server-reliability-and-capabilities/catalog-reconciliation.md)
+[catalog audit](feat/done/server-reliability-and-capabilities/catalog-reconciliation.md)
 retains legacy IDs and aliases while hiding confirmed retired entries from default
 discovery. Capability validation and fake-transport tests do not establish live
 availability of legacy models.

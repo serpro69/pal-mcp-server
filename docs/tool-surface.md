@@ -47,7 +47,7 @@ Task 33's auto-mode baseline with no registered providers and shipped CLI config
 Descriptions are 14.3% smaller. The only schema contract changes are planner/tracer
 model requiredness and annotations/defaults for their unused compatibility fields.
 The regression baseline is [tool_surface_baseline.json](../tests/fixtures/tool_surface_baseline.json);
-the feature keeps a [post-change snapshot](feat/wip/server-reliability-and-capabilities/tool-surface-current.json).
+the feature keeps a [post-change snapshot](feat/done/server-reliability-and-capabilities/tool-surface-current.json).
 Tests compare semantic constraints, exercise MCP decorator validation and local
 execution with/without legacy fields, guard clink controls and hash every prompt
 module rather than a hand-maintained subset. A future intentional tool/prompt

@@ -78,6 +78,7 @@ Next step: designate a disposable repository/branch and explicitly run discovery
 creation with plan approval on and PR automation off, then inspect status. Do not
 claim live service validation from the fake transport tests. Message/approve and
 archive/unarchive need explicit live exercise on that same designated session.
+Tracked in [#25](https://github.com/serpro69/pal-mcp-server/issues/25).
 
 ## Lifecycle evidence (Task 38)
 

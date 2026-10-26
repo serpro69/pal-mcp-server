@@ -985,14 +985,17 @@ T01–T41 --> T42 (final verification)
 The [Task 42 release gate register](final-verification.md#open-release-gates-and-follow-ups)
 is the current consolidated status. Historical task evidence above retains its
 original counts and limitations; it is superseded where that register says so.
+Open items below are tracked as GitHub issues (added 2026-10-26 when the feature
+moved to `done/`); the issues carry current status.
 
-- **Python floor:** the proposed correction is >=3.10. If an actual 3.9 consumer
-  exists, Task 1 must record a supported dependency strategy before release;
-  changing metadata alone cannot make incompatible dependencies work.
-- **OpenCode Messages protocol:** models that require an unsupported protocol remain
+- **Python floor — resolved:** `requires-python = ">=3.10"` shipped in v1.4.x
+  releases without a reported 3.9 consumer; no separate dependency strategy needed.
+- **OpenCode Messages protocol** ([#24](https://github.com/serpro69/pal-mcp-server/issues/24)):
+  models that require an unsupported protocol remain
   unavailable. Task 36 records verified supported entries; the next step is a
   dedicated adapter design and wire tests for Messages-only entries.
-- **Jules live lifecycle validation:** Task 38 verified archive/unarchive in
+- **Jules live lifecycle validation** ([#25](https://github.com/serpro69/pal-mcp-server/issues/25)):
+  Task 38 verified archive/unarchive in
   official discovery revision 20261008 and implements their wire contracts.
   Live message/approval and archive/unarchive checks require a designated test
   repository/session; next step: authorize that target and verify reported state
@@ -1003,14 +1006,22 @@ original counts and limitations; it is superseded where that register says so.
   current layout. Next step: the [recorded follow-ups](../../../adr/0001-retain-conversation-history-layout.md),
   including a provider-specific API, pricing and quality assessment before
   separately bounded implementation tasks.
-- **Live cassette/service validation:** after request formatting or optional-service
+- **Live cassette/service validation** ([#26](https://github.com/serpro69/pal-mcp-server/issues/26)):
+  after request formatting or optional-service
   implementation, re-record or smoke-test only against explicitly configured targets.
   Missing credentials keep that release gate open; do not fabricate recordings.
+  Consensus replay request bodies were migrated offline on 2026-10-18
+  (`tests/consensus_cassette_notes.md`); that is not a live re-recording.
+- **Debian container advisories** ([#22](https://github.com/serpro69/pal-mcp-server/issues/22)),
+  **native Windows transcripts/launch** ([#23](https://github.com/serpro69/pal-mcp-server/issues/23))
+  and **unverified catalog capabilities** ([#27](https://github.com/serpro69/pal-mcp-server/issues/27)):
+  see the [Task 42 gate register](final-verification.md#open-release-gates-and-follow-ups)
+  and [catalog reconciliation](catalog-reconciliation.md).
 - **Prompt-preservation investigations — resolved:** Task 39 reproduced three
   issues; [Tasks C1–C3](capture-followups.md) record their fixes and the
   [actionable batch](actionable-fixes.md) retains capture/test evidence. Core
   workflow history and consensus blinding passed. These are not open release gates.
-- **Failed-call usage accounting:** [Task 42 R1](final-verification.md#r1-preserve-known-usage-without-an-assistant-reply)
+- **Failed-call usage accounting** ([#21](https://github.com/serpro69/pal-mcp-server/issues/21)): [Task 42 R1](final-verification.md#r1-preserve-known-usage-without-an-assistant-reply)
   records a P2 gap for known returned usage when no assistant reply is persisted.
   Implement independent usage events and deduplicated reporting before claiming
   complete invocation accounting.

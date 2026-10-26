@@ -121,7 +121,8 @@ directories and files, hard-linked files, and nonregular files are rejected.
 The state owner is trusted; this is not an OS sandbox against that owner.
 Windows recording fails closed with a diagnostic because chmod cannot establish
 private Windows ACLs. Native Windows ACL/reparse-point support remains a follow-up
-requiring Windows contract tests before activation; normal memory/logging still work.
+requiring Windows contract tests before activation
+([#23](https://github.com/serpro69/pal-mcp-server/issues/23)); normal memory/logging still work.
 
 Startup removes only owned, single-link regular files with canonical UUID names
 whose last modification is older than 30 days. Unrelated files and links remain

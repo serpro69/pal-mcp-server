@@ -156,6 +156,7 @@ No systemic P0/P1 findings or intentional spec deviations required indexing.
 
 **Priority:** P2. **Owner:** maintainer of conversation/transcript accounting.
 **Status:** deferred; complete Task 39 invocation accounting remains open.
+**Tracked in:** [#21](https://github.com/serpro69/pal-mcp-server/issues/21).
 
 Workflow/consensus may receive an empty or blocked response with valid usage and
 save failed state on the real user turn. That metadata update emits no transcript
@@ -172,20 +173,24 @@ unsuccessful-retry and failed-consensus responses with known/unknown/zero usage;
 no synthetic assistant turns, no aggregate double counting, and explicit coverage
 diagnostics. Do not claim complete usage or cost accounting before that acceptance.
 
-| Gate | Required next action |
-| --- | --- |
-| Debian container advisories | Maintainer follows the [package applicability/remediation register](validation.md#debian-follow-up); verify fixes/base update or justified removals, rebuild without cache and rescan. No blanket clearance. |
-| Consensus recordings and live providers | Configure explicitly approved provider targets and re-record the two cassettes with actual responses; run live UTF-8/routing and quick scenarios. Never edit request hashes to manufacture a pass. |
-| Local-model reasoning | Start the operator's configured Ollama endpoint/model, then run the local integration and relevant simulator cases. No model was downloaded or default changed here. |
-| OpenCode Go | Run the [gateway smoke matrix](../../../opencode-go.md) before promoting hidden candidates. Messages-only entries still require a dedicated adapter and wire tests. |
-| Jules | Designate a disposable repository/branch/session and authorize live mutations, then validate create/status/message/approval/archive/unarchive and PR opt-in. Offline contracts remain the implemented scope. |
-| Native Windows | Run PowerShell path/launch tests; implement and verify private ACL/reparse-point transcript support before enabling recording. Recording currently fails closed. |
-| Live cache cost/quality | Obtain controlled traffic, verified endpoint usage/rates and answer-quality comparisons before claiming benefit or adding explicit provider caches. ADR 0001 retains current history layout. |
-| Environment template | Repository security hook blocks `.env.example` access. An authorized maintainer should reconcile it with the updated configuration guide and remove ignored rotation examples; the guide contains the current examples. |
+Each open gate is tracked by a GitHub issue (added 2026-10-26); the issue is the
+current status, this table is the gate as recorded at acceptance.
+
+| Gate | Required next action | Tracked in |
+| --- | --- | --- |
+| Debian container advisories | Maintainer follows the [package applicability/remediation register](validation.md#debian-follow-up); verify fixes/base update or justified removals, rebuild without cache and rescan. No blanket clearance. | [#22](https://github.com/serpro69/pal-mcp-server/issues/22) |
+| Consensus recordings and live providers | Configure explicitly approved provider targets and re-record the two cassettes with actual responses; run live UTF-8/routing and quick scenarios. Never edit request hashes to manufacture a pass. **Update 2026-10-18:** the stale request bodies were migrated offline (see `tests/consensus_cassette_notes.md`), so replay passes; original responses are retained and live re-recording remains open. | [#26](https://github.com/serpro69/pal-mcp-server/issues/26) |
+| Local-model reasoning | Start the operator's configured Ollama endpoint/model, then run the local integration and relevant simulator cases. No model was downloaded or default changed here. | [#26](https://github.com/serpro69/pal-mcp-server/issues/26) |
+| OpenCode Go | Run the [gateway smoke matrix](../../../opencode-go.md) before promoting hidden candidates. Messages-only entries still require a dedicated adapter and wire tests. | [#24](https://github.com/serpro69/pal-mcp-server/issues/24) |
+| Jules | Designate a disposable repository/branch/session and authorize live mutations, then validate create/status/message/approval/archive/unarchive and PR opt-in. Offline contracts remain the implemented scope. | [#25](https://github.com/serpro69/pal-mcp-server/issues/25) |
+| Native Windows | Run PowerShell path/launch tests; implement and verify private ACL/reparse-point transcript support before enabling recording. Recording currently fails closed. | [#23](https://github.com/serpro69/pal-mcp-server/issues/23) |
+| Live cache cost/quality | Obtain controlled traffic, verified endpoint usage/rates and answer-quality comparisons before claiming benefit or adding explicit provider caches. ADR 0001 retains current history layout. | [ADR 0001](../../../adr/0001-retain-conversation-history-layout.md) follow-ups |
+| Environment template | Repository security hook blocks `.env.example` access. An authorized maintainer should reconcile it with the updated configuration guide and remove ignored rotation examples; the guide contains the current examples. | Maintainer (untracked; small manual edit) |
 
 Task C1–C3 prompt investigations are resolved in the [actionable fixes](actionable-fixes.md),
 not outstanding release defects. The dated [catalog follow-ups](catalog-reconciliation.md)
-remain the authority for unverified model capabilities and promotion decisions.
+remain the authority for unverified model capabilities and promotion decisions;
+their resolution is tracked in [#27](https://github.com/serpro69/pal-mcp-server/issues/27).
 
 Reflection: final acceptance exposed errors hidden by successful-looking workflow
 responses and permissive tests. Testing the actual MCP result, plus preserving
