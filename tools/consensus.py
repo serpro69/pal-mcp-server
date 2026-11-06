@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import Field, model_validator
 
@@ -65,7 +65,14 @@ CONSENSUS_WORKFLOW_FIELD_DESCRIPTIONS = {
     "current_model_index": "0-based index of the next model to consult (managed internally).",
     "model_responses": "Internal log of responses gathered so far.",
     "images": "Optional absolute image paths or base64 references that add helpful visual context.",
+    "thinking_mode": (
+        "Reasoning depth for every consulted model: minimal, low, medium, high, or max (default medium). "
+        "Set at step 1; later steps reuse it."
+    ),
 }
+
+
+DEFAULT_THINKING_MODE = "medium"
 
 
 class ConsensusRequest(WorkflowRequest):
@@ -98,12 +105,16 @@ class ConsensusRequest(WorkflowRequest):
         description=CONSENSUS_WORKFLOW_FIELD_DESCRIPTIONS["model_responses"],
     )
 
+    # Reasoning depth for every participant; set at step 1 and kept for later steps
+    thinking_mode: Literal["minimal", "low", "medium", "high", "max"] | None = Field(
+        default=None, description=CONSENSUS_WORKFLOW_FIELD_DESCRIPTIONS["thinking_mode"]
+    )
+
     # Optional images for visual debugging
     images: list[str] | None = Field(default=None, description=CONSENSUS_WORKFLOW_FIELD_DESCRIPTIONS["images"])
 
     # Override inherited fields to exclude them from schema
     temperature: float | None = Field(default=None, exclude=True)
-    thinking_mode: str | None = Field(default=None, exclude=True)
 
     # Not used in consensus workflow
     files_checked: list[str] | None = Field(default_factory=list, exclude=True)
@@ -149,6 +160,7 @@ class ConsensusTool(WorkflowTool):
         "initial_prompt": None,
         "models_to_consult": [],
         "accumulated_responses": [],
+        "thinking_mode": DEFAULT_THINKING_MODE,
     }
 
     def __init__(self):
@@ -157,6 +169,7 @@ class ConsensusTool(WorkflowTool):
         self.original_proposal: str | None = None  # Store the original proposal separately
         self.models_to_consult: list[dict] = []
         self.accumulated_responses: list[dict] = []
+        self.thinking_mode: str = DEFAULT_THINKING_MODE
         self._current_arguments: dict[str, Any] = {}
 
     def get_name(self) -> str:
@@ -314,7 +327,6 @@ of the evidence, even when it strongly points in one direction.""",
         excluded_common_fields = [
             "model",  # Consensus uses 'models' field instead
             "temperature",  # Not used in consensus workflow
-            "thinking_mode",  # Not used in consensus workflow
         ]
 
         requires_model = self.requires_model()
@@ -518,6 +530,7 @@ of the evidence, even when it strongly points in one direction.""",
             self.initial_request = request.step
             self.models_to_consult = request.models or []
             self.accumulated_responses = []
+            self.thinking_mode = request.thinking_mode or DEFAULT_THINKING_MODE
             # Set total steps: len(models) (each step includes consultation + response)
             request.total_steps = len(self.models_to_consult)
         elif not self.models_to_consult:
@@ -670,7 +683,7 @@ of the evidence, even when it strongly points in one direction.""",
                     max_output_tokens=output_limit,
                     system_prompt=system_prompt,
                     temperature=validated_temperature,
-                    thinking_mode="medium",
+                    thinking_mode=self.thinking_mode,
                     images=request.images if request.images else None,
                 )
                 operation.usage = response.usage

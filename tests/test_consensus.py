@@ -131,7 +131,7 @@ class TestConsensusTool:
         assert "hypothesis" not in schema["properties"]
         assert "issues_found" not in schema["properties"]
         assert "temperature" not in schema["properties"]
-        assert "thinking_mode" not in schema["properties"]
+        assert schema["properties"]["thinking_mode"]["enum"] == ["minimal", "low", "medium", "high", "max"]
 
         # Images should be present now
         assert "images" in schema["properties"]
@@ -412,6 +412,93 @@ class TestConsensusTool:
                 else:
                     # Re-raise if it's a different RuntimeError
                     raise
+
+    @pytest.mark.parametrize("requested, expected", [(None, "medium"), ("max", "max")])
+    async def test_consult_model_passes_thinking_mode_to_participant(self, requested, expected):
+        """thinking_mode set on the request reaches each participant call (default: medium)."""
+        from unittest.mock import AsyncMock, Mock, patch
+
+        from providers.shared import ModelResponse, ProviderType
+
+        tool = ConsensusTool()
+        request = ConsensusRequest(
+            step="Proposal",
+            step_number=1,
+            total_steps=1,
+            next_step_required=False,
+            findings="Analysis",
+            models=[{"model": "flash", "stance": "neutral"}],
+            thinking_mode=requested,
+        )
+        tool.thinking_mode = request.thinking_mode or "medium"
+        tool.original_proposal = "Proposal"
+
+        mock_request = Mock(relevant_files=None, continuation_id=None, images=None)
+        with (
+            patch.object(tool, "get_model_provider") as mock_get_provider,
+            patch.object(tool, "_get_stance_enhanced_prompt", return_value="system prompt"),
+            patch.object(tool, "get_name", return_value="consensus"),
+        ):
+            mock_provider = create_mock_provider()
+            mock_provider.get_provider_type.return_value = ProviderType.GOOGLE
+            mock_provider.generate_content = AsyncMock(
+                return_value=ModelResponse(content="ok", model_name="flash", provider=ProviderType.GOOGLE)
+            )
+            mock_get_provider.return_value = mock_provider
+
+            await tool._consult_model({"model": "flash", "stance": "neutral"}, mock_request)
+
+        assert mock_provider.generate_content.await_args.kwargs["thinking_mode"] == expected
+
+    @pytest.mark.parametrize("requested, expected", [(None, "medium"), ("high", "high")])
+    async def test_thinking_mode_is_kept_for_later_steps(self, requested, expected):
+        """thinking_mode given at step 1 is stored with the roster and reused by step 2."""
+        import json
+        from unittest.mock import patch
+
+        seen = []
+
+        async def fake_consult(self, model_config, request):
+            seen.append(self.thinking_mode)
+            return {"model": model_config["model"], "stance": "neutral", "status": "success", "verdict": "v"}
+
+        arguments = {
+            "step": "Proposal",
+            "step_number": 1,
+            "total_steps": 2,
+            "next_step_required": True,
+            "findings": "Analysis",
+            "models": [{"model": "flash"}, {"model": "pro"}],
+        }
+        if requested:
+            arguments["thinking_mode"] = requested
+
+        with patch.object(ConsensusTool, "_consult_model", fake_consult):
+            step1 = json.loads((await ConsensusTool().execute(arguments))[0].text)
+            await ConsensusTool().execute(
+                {
+                    "step": "Next",
+                    "step_number": 2,
+                    "total_steps": 2,
+                    "next_step_required": False,
+                    "findings": "Analysis",
+                    "continuation_id": step1["continuation_offer"]["continuation_id"],
+                }
+            )
+
+        assert seen == [expected, expected]
+
+    def test_thinking_mode_rejects_unknown_value(self):
+        with pytest.raises(ValueError):
+            ConsensusRequest(
+                step="Proposal",
+                step_number=1,
+                total_steps=1,
+                next_step_required=False,
+                findings="Analysis",
+                models=[{"model": "flash"}, {"model": "pro"}],
+                thinking_mode="extreme",
+            )
 
 
 if __name__ == "__main__":
