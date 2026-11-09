@@ -99,7 +99,7 @@ Get a consensus from gemini supporting the idea for implementing X, grok opposin
 - `images`: Visual references like diagrams or mockups (absolute paths)
 - `focus_areas`: Specific aspects to emphasize
 - `temperature`: Control consistency (default: 0.2 for stable consensus)
-- `thinking_mode`: Analysis depth for every consulted model (minimal/low/medium/high/max, default medium). Set it at step 1; later steps reuse it
+- `thinking_mode`: Thinking depth sent to every consulted model (minimal/low/medium/high/max, default: medium). Only the native Gemini provider applies it; other providers, including Gemini via OpenRouter, ignore it. Set it at step 1; later steps reuse it
 - `continuation_id`: Continue previous consensus discussions
 
 ## Model Configuration Examples

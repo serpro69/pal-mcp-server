@@ -103,6 +103,35 @@ def isolated_provider_environment(monkeypatch):
     return registry
 
 
+@pytest.fixture
+def wire(monkeypatch):
+    """Serve Gemini clients from an in-process transport; returns the captured HTTP requests."""
+    import httpx
+    from google import genai
+    from google.genai import types
+
+    requests = []
+    original = genai.Client
+
+    def handle(request):
+        requests.append(request)
+        return httpx.Response(
+            200,
+            json={
+                "candidates": [{"content": {"parts": [{"text": "answer"}]}, "finishReason": "STOP"}],
+            },
+        )
+
+    def constructor(**kwargs):
+        options = kwargs.setdefault("http_options", types.HttpOptions())
+        options.client_args = {"transport": httpx.MockTransport(handle)}
+        options.async_client_args = {"transport": httpx.MockTransport(handle)}
+        return original(**kwargs)
+
+    monkeypatch.setattr("providers.gemini.genai.Client", constructor)
+    return requests
+
+
 def _set_dummy_keys_if_missing():
     """Set dummy API keys only when they are completely absent."""
     for var in ("GEMINI_API_KEY", "OPENAI_API_KEY", "XAI_API_KEY"):

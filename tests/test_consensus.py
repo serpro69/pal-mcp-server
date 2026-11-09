@@ -132,6 +132,7 @@ class TestConsensusTool:
         assert "issues_found" not in schema["properties"]
         assert "temperature" not in schema["properties"]
         assert schema["properties"]["thinking_mode"]["enum"] == ["minimal", "low", "medium", "high", "max"]
+        assert "Set at step 1" in schema["properties"]["thinking_mode"]["description"]
 
         # Images should be present now
         assert "images" in schema["properties"]
@@ -413,42 +414,60 @@ class TestConsensusTool:
                     # Re-raise if it's a different RuntimeError
                     raise
 
-    @pytest.mark.parametrize("requested, expected", [(None, "medium"), ("max", "max")])
-    async def test_consult_model_passes_thinking_mode_to_participant(self, requested, expected):
-        """thinking_mode set on the request reaches each participant call (default: medium)."""
-        from unittest.mock import AsyncMock, Mock, patch
+    @pytest.mark.parametrize("requested, budget", [(None, 8110), ("max", 24576)])
+    async def test_thinking_mode_reaches_participant_requests(
+        self, wire, isolated_provider_environment, monkeypatch, requested, budget
+    ):
+        """Step 1's thinking_mode is applied per model: a non-thinking participant still succeeds without
+        controls, and the next participant gets the step 1 mode (default medium) as its thinking budget."""
+        import json
 
-        from providers.shared import ModelResponse, ProviderType
+        from providers.gemini import GeminiModelProvider
+        from providers.registry import ModelProviderRegistry
+        from providers.shared import ProviderType
 
-        tool = ConsensusTool()
-        request = ConsensusRequest(
-            step="Proposal",
-            step_number=1,
-            total_steps=1,
-            next_step_required=False,
-            findings="Analysis",
-            models=[{"model": "flash", "stance": "neutral"}],
-            thinking_mode=requested,
-        )
-        tool.thinking_mode = request.thinking_mode or "medium"
-        tool.original_proposal = "Proposal"
+        monkeypatch.setenv("GEMINI_API_KEY", "synthetic")
+        ModelProviderRegistry.register_provider(ProviderType.GOOGLE, GeminiModelProvider)
+        arguments = {
+            "step": "Proposal",
+            "step_number": 1,
+            "total_steps": 2,
+            "next_step_required": True,
+            "findings": "Analysis",
+            "models": [{"model": "gemini-2.0-flash-lite"}, {"model": "gemini-2.5-flash"}],
+        }
+        if requested:
+            arguments["thinking_mode"] = requested
 
-        mock_request = Mock(relevant_files=None, continuation_id=None, images=None)
-        with (
-            patch.object(tool, "get_model_provider") as mock_get_provider,
-            patch.object(tool, "_get_stance_enhanced_prompt", return_value="system prompt"),
-            patch.object(tool, "get_name", return_value="consensus"),
-        ):
-            mock_provider = create_mock_provider()
-            mock_provider.get_provider_type.return_value = ProviderType.GOOGLE
-            mock_provider.generate_content = AsyncMock(
-                return_value=ModelResponse(content="ok", model_name="flash", provider=ProviderType.GOOGLE)
+        try:
+            step1 = json.loads((await ConsensusTool().execute(arguments))[0].text)
+            step2 = json.loads(
+                (
+                    await ConsensusTool().execute(
+                        {
+                            "step": "Next",
+                            "step_number": 2,
+                            "total_steps": 2,
+                            "next_step_required": False,
+                            "findings": "Analysis",
+                            "continuation_id": step1["continuation_offer"]["continuation_id"],
+                        }
+                    )
+                )[0].text
             )
-            mock_get_provider.return_value = mock_provider
+        finally:
+            for provider in isolated_provider_environment._initialized_providers.values():
+                await provider.aclose()
 
-            await tool._consult_model({"model": "flash", "stance": "neutral"}, mock_request)
-
-        assert mock_provider.generate_content.await_args.kwargs["thinking_mode"] == expected
+        assert [step["model_response"]["status"] for step in (step1, step2)] == ["success", "success"]
+        calls = [r for r in wire if r.url.path.endswith(":generateContent")]
+        assert [r.url.path.rsplit("/", 1)[-1] for r in calls] == [
+            "gemini-2.0-flash-lite:generateContent",
+            "gemini-2.5-flash:generateContent",
+        ]
+        configs = [json.loads(r.content)["generationConfig"] for r in calls]
+        assert "thinkingConfig" not in configs[0]
+        assert configs[1]["thinkingConfig"] == {"thinking_budget": budget}
 
     @pytest.mark.parametrize("requested, expected", [(None, "medium"), ("high", "high")])
     async def test_thinking_mode_is_kept_for_later_steps(self, requested, expected):

@@ -66,8 +66,9 @@ CONSENSUS_WORKFLOW_FIELD_DESCRIPTIONS = {
     "model_responses": "Internal log of responses gathered so far.",
     "images": "Optional absolute image paths or base64 references that add helpful visual context.",
     "thinking_mode": (
-        "Reasoning depth for every consulted model: minimal, low, medium, high, or max (default medium). "
-        "Set at step 1; later steps reuse it."
+        "Reasoning depth sent to every consulted model; only the native Gemini provider applies it "
+        "(other providers, including Gemini via OpenRouter, ignore it). "
+        "minimal, low, medium, high, or max (default medium). Set at step 1; later steps reuse it."
     ),
 }
 
@@ -219,6 +220,7 @@ of the evidence, even when it strongly points in one direction.""",
 
     def get_input_schema(self) -> dict[str, Any]:
         """Generate input schema for consensus workflow."""
+        from .shared.schema_builders import SchemaBuilder
         from .workflow.schema_builders import WorkflowSchemaBuilder
 
         # Consensus tool-specific field definitions
@@ -283,6 +285,10 @@ of the evidence, even when it strongly points in one direction.""",
                 "type": "array",
                 "items": {"type": "string"},
                 "description": CONSENSUS_WORKFLOW_FIELD_DESCRIPTIONS["images"],
+            },
+            "thinking_mode": {
+                **SchemaBuilder.COMMON_FIELD_SCHEMAS["thinking_mode"],
+                "description": CONSENSUS_WORKFLOW_FIELD_DESCRIPTIONS["thinking_mode"],
             },
         }
 
