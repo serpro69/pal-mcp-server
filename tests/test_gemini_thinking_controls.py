@@ -3,38 +3,11 @@
 import json
 from dataclasses import replace
 
-import httpx
 import pytest
-from google import genai
-from google.genai import types
 
 from providers.gemini import GeminiModelProvider
 
 MODES = ["minimal", "low", "medium", "high", "max"]
-
-
-@pytest.fixture
-def wire(monkeypatch):
-    requests = []
-    original = genai.Client
-
-    def handle(request):
-        requests.append(request)
-        return httpx.Response(
-            200,
-            json={
-                "candidates": [{"content": {"parts": [{"text": "answer"}]}, "finishReason": "STOP"}],
-            },
-        )
-
-    def constructor(**kwargs):
-        options = kwargs.setdefault("http_options", types.HttpOptions())
-        options.client_args = {"transport": httpx.MockTransport(handle)}
-        options.async_client_args = {"transport": httpx.MockTransport(handle)}
-        return original(**kwargs)
-
-    monkeypatch.setattr("providers.gemini.genai.Client", constructor)
-    return requests
 
 
 @pytest.mark.parametrize(

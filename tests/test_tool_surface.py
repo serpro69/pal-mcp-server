@@ -67,6 +67,12 @@ def test_surface_preserves_names_parameters_types_defaults_and_safety(surface):
                 "type": ["string", "null"],
                 "default": None,
             }
+        if name == "consensus":
+            # Issue #30: consensus accepts thinking_mode at step 1 and reuses it for every participant.
+            expected["properties"]["thinking_mode"] = {
+                "type": "string",
+                "enum": ["minimal", "low", "medium", "high", "max"],
+            }
         assert surface["tools"][name]["schema"] == expected, name
         assert surface["tools"][name]["annotations"] == old["annotations"], name
     for name, field in baseline["tools"]["clink"]["safety_schema"]["properties"].items():

@@ -131,7 +131,8 @@ class TestConsensusTool:
         assert "hypothesis" not in schema["properties"]
         assert "issues_found" not in schema["properties"]
         assert "temperature" not in schema["properties"]
-        assert "thinking_mode" not in schema["properties"]
+        assert schema["properties"]["thinking_mode"]["enum"] == ["minimal", "low", "medium", "high", "max"]
+        assert "Set at step 1" in schema["properties"]["thinking_mode"]["description"]
 
         # Images should be present now
         assert "images" in schema["properties"]
@@ -412,6 +413,111 @@ class TestConsensusTool:
                 else:
                     # Re-raise if it's a different RuntimeError
                     raise
+
+    @pytest.mark.parametrize("requested, budget", [(None, 8110), ("max", 24576)])
+    async def test_thinking_mode_reaches_participant_requests(
+        self, wire, isolated_provider_environment, monkeypatch, requested, budget
+    ):
+        """Step 1's thinking_mode is applied per model: a non-thinking participant still succeeds without
+        controls, and the next participant gets the step 1 mode (default medium) as its thinking budget."""
+        import json
+
+        from providers.gemini import GeminiModelProvider
+        from providers.registry import ModelProviderRegistry
+        from providers.shared import ProviderType
+
+        monkeypatch.setenv("GEMINI_API_KEY", "synthetic")
+        ModelProviderRegistry.register_provider(ProviderType.GOOGLE, GeminiModelProvider)
+        arguments = {
+            "step": "Proposal",
+            "step_number": 1,
+            "total_steps": 2,
+            "next_step_required": True,
+            "findings": "Analysis",
+            "models": [{"model": "gemini-2.0-flash-lite"}, {"model": "gemini-2.5-flash"}],
+        }
+        if requested:
+            arguments["thinking_mode"] = requested
+
+        try:
+            step1 = json.loads((await ConsensusTool().execute(arguments))[0].text)
+            step2 = json.loads(
+                (
+                    await ConsensusTool().execute(
+                        {
+                            "step": "Next",
+                            "step_number": 2,
+                            "total_steps": 2,
+                            "next_step_required": False,
+                            "findings": "Analysis",
+                            "continuation_id": step1["continuation_offer"]["continuation_id"],
+                        }
+                    )
+                )[0].text
+            )
+        finally:
+            for provider in isolated_provider_environment._initialized_providers.values():
+                await provider.aclose()
+
+        assert [step["model_response"]["status"] for step in (step1, step2)] == ["success", "success"]
+        calls = [r for r in wire if r.url.path.endswith(":generateContent")]
+        assert [r.url.path.rsplit("/", 1)[-1] for r in calls] == [
+            "gemini-2.0-flash-lite:generateContent",
+            "gemini-2.5-flash:generateContent",
+        ]
+        configs = [json.loads(r.content)["generationConfig"] for r in calls]
+        assert "thinkingConfig" not in configs[0]
+        assert configs[1]["thinkingConfig"] == {"thinking_budget": budget}
+
+    @pytest.mark.parametrize("requested, expected", [(None, "medium"), ("high", "high")])
+    async def test_thinking_mode_is_kept_for_later_steps(self, requested, expected):
+        """thinking_mode given at step 1 is stored with the roster and reused by step 2."""
+        import json
+        from unittest.mock import patch
+
+        seen = []
+
+        async def fake_consult(self, model_config, request):
+            seen.append(self.thinking_mode)
+            return {"model": model_config["model"], "stance": "neutral", "status": "success", "verdict": "v"}
+
+        arguments = {
+            "step": "Proposal",
+            "step_number": 1,
+            "total_steps": 2,
+            "next_step_required": True,
+            "findings": "Analysis",
+            "models": [{"model": "flash"}, {"model": "pro"}],
+        }
+        if requested:
+            arguments["thinking_mode"] = requested
+
+        with patch.object(ConsensusTool, "_consult_model", fake_consult):
+            step1 = json.loads((await ConsensusTool().execute(arguments))[0].text)
+            await ConsensusTool().execute(
+                {
+                    "step": "Next",
+                    "step_number": 2,
+                    "total_steps": 2,
+                    "next_step_required": False,
+                    "findings": "Analysis",
+                    "continuation_id": step1["continuation_offer"]["continuation_id"],
+                }
+            )
+
+        assert seen == [expected, expected]
+
+    def test_thinking_mode_rejects_unknown_value(self):
+        with pytest.raises(ValueError):
+            ConsensusRequest(
+                step="Proposal",
+                step_number=1,
+                total_steps=1,
+                next_step_required=False,
+                findings="Analysis",
+                models=[{"model": "flash"}, {"model": "pro"}],
+                thinking_mode="extreme",
+            )
 
 
 if __name__ == "__main__":
