@@ -313,6 +313,14 @@ tail -f logs/mcp_server.log
 LOG_LEVEL=DEBUG python communication_simulator_test.py --individual <test_name>
 ```
 
+`tests/test_tool_surface.py` compares every tool schema with a committed baseline. User CLI
+overrides in `~/.pal/cli_clients/` change the clink schema, so the test fails locally while CI
+passes. Run it with an empty `HOME` before treating a failure as real:
+
+```bash
+HOME=$(mktemp -d) python -m pytest tests/test_tool_surface.py
+```
+
 #### Linting Issues
 
 ```bash
