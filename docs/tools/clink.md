@@ -124,6 +124,62 @@ The follow-up also inherits the saved directory choice, including across CLI or 
 
 `/pal:continue` in provider-free mode instructs your client to reuse the previous available conversation tool and latest PAL continuation ID. A CLI conversation stays on clink. These IDs belong to PAL; native vendor session IDs are diagnostic metadata, not resume handles used by clink.
 
+## Observed CLI activity and response limits
+
+Successful Codex responses include `metadata.observed_activity`, computed by PAL from
+`item.completed` events for `command_execution` items. It contains `source: "codex_jsonl"`,
+a `commands` sample (command text, exit code, status), `command_count`, `failed_count`,
+`denied_count`, and `truncated`. Repeated completion IDs are counted once; start/update
+events are not counted. Counts cover all observed command completions, including those
+omitted from the sample. Failed or declined status, or a nonzero exit code, counts as a
+failure; `denied_count` counts explicit `declined` status only. PAL does not infer sandbox
+denials from command output.
+
+The sample keeps at most the first ten and last ten completions, with each command
+limited to 256 characters. Shortened commands have `command_truncated: true`. A separate
+6,000-character serialized JSON budget can remove additional middle entries, accounting
+for JSON escaping. Either limit sets `truncated: true`. Missing or invalid command/exit-code
+fields are `null`; unrecognized completion status is `"unknown"`.
+
+```json
+{
+  "source": "codex_jsonl",
+  "commands": [{"command": "sed -n 1,120p src/main.py", "exit_code": 0, "status": "completed"}],
+  "command_count": 1,
+  "failed_count": 0,
+  "denied_count": 0,
+  "truncated": false
+}
+```
+
+These are CLI-reported command receipts, not filesystem auditing or proof the model
+understood a file. Only completed shell-command items are covered: pending commands,
+MCP tools, file changes, and other activity are outside this summary. An empty Codex
+sample means no matching completions were observed. Claude, Gemini, and agy currently
+omit this field, meaning activity coverage is unavailable. Their existing diagnostic
+fields, including agy's denied-action labels, retain their separate meanings. Extraction
+for those clients is deferred until their configured output exposes a verified activity
+schema; add parser fixtures and equivalent bounded extraction before claiming coverage.
+
+**Disclosure policy:** command text is returned as supplied by the CLI, apart from
+truncation. It may contain sensitive arguments, inline scripts, or literal data; PAL
+does not promise secret redaction. Command output and file contents from event payloads
+are never copied into the activity summary. The CLI's answer can still contain anything
+the CLI chooses to report.
+
+All successful clients discard `events`, `raw_events`, `raw`, and `raw_output_file` copies
+before presentation, including summarized or truncated answers. This removes Claude's
+duplicate event arrays and Gemini's duplicate result envelope. Success diagnostics have a
+separate 10,000-character serialized JSON budget: oversized fields are omitted whole,
+largest first, while preserving the bounded activity summary. `metadata_truncated` and
+`metadata_omitted_keys` report those omissions. PAL's exact `working_directory` selection,
+tool/provider identity, history counters and persistence state/warnings are retained
+outside that budget. The existing 20,000-character answer-text limit remains
+separate; these are not limits on the entire MCP envelope. Failed-call
+diagnostics retain their existing policy; parsed Codex failures can also include the
+activity summary alongside raw error diagnostics. Activity covers the current invocation only;
+it is not accumulated into conversation history.
+
 ## Tool Parameters
 
 | Parameter | Behavior |

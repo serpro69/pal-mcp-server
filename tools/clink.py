@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 import re
@@ -31,6 +32,7 @@ from utils.conversation_coordination import ConversationBusyError, coordinate_co
 logger = logging.getLogger(__name__)
 
 MAX_RESPONSE_CHARS = 20_000
+MAX_METADATA_CHARS = 10_000
 AGY_DIAGNOSTIC_LIMIT = 2_048
 CODEX_GIT_REJECTION = "Not inside a trusted directory and --skip-git-repo-check was not specified."
 SUMMARY_PATTERN = re.compile(r"<SUMMARY>(.*?)</SUMMARY>", re.IGNORECASE | re.DOTALL)
@@ -396,7 +398,7 @@ class CLinkTool(SimpleTool):
                     note=f"You can continue this conversation for {remaining // 2} more exchanges.",
                 )
 
-        tool_output.metadata = metadata
+        tool_output.metadata = self._bound_success_metadata(metadata)
         return [TextContent(type="text", text=tool_output.model_dump_json())]
 
     async def prepare_prompt(self, request) -> str:
@@ -562,15 +564,45 @@ class CLinkTool(SimpleTool):
         reason: str,
     ) -> dict[str, Any]:
         cleaned = dict(metadata)
-        events = cleaned.pop("events", None)
-        if events is not None:
-            cleaned[f"events_removed_for_{reason}"] = True
-            logger.debug(
-                "Clink dropped %s events metadata for %s response (%s)",
-                client.name,
-                reason,
-                type(events).__name__,
-            )
+        for key in ("events", "raw_events", "raw", "raw_output_file"):
+            if key in cleaned:
+                del cleaned[key]
+                cleaned[f"{key}_removed_for_{reason}"] = True
+                logger.debug("Clink dropped %s %s metadata for %s response", client.name, key, reason)
+        return cleaned
+
+    @staticmethod
+    def _bound_success_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
+        """Bound diagnostics while retaining PAL selection and persistence state."""
+        # These fields are response contracts, not optional CLI diagnostics.
+        required_keys = {
+            "working_directory",
+            "tool_name",
+            "provider_used",
+            "history",
+            "history_saved",
+            "conversation_ready",
+            "memory_persistence_warning",
+        }
+        cleaned = {key: value for key, value in metadata.items() if key not in required_keys}
+        if len(json.dumps(cleaned, ensure_ascii=False)) <= MAX_METADATA_CHARS:
+            return dict(metadata)
+        # Preserve the bounded activity receipt. Drop oversized diagnostics whole,
+        # rather than returning partial objects that appear to be complete.
+        omitted: list[str] = []
+        cleaned["metadata_omitted_keys"] = omitted
+        cleaned["metadata_truncated"] = True
+        candidates = sorted(
+            (key for key in metadata if key not in required_keys and key != "observed_activity"),
+            key=lambda key: len(json.dumps(metadata[key], ensure_ascii=False)),
+            reverse=True,
+        )
+        for key in candidates:
+            if len(json.dumps(cleaned, ensure_ascii=False)) <= MAX_METADATA_CHARS:
+                break
+            del cleaned[key]
+            omitted.append(key)
+        cleaned.update({key: metadata[key] for key in required_keys if key in metadata})
         return cleaned
 
     def _build_error_metadata(self, client: ResolvedCLIClient, exc: CLIAgentError) -> dict[str, Any]:
