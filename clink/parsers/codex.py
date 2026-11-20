@@ -7,6 +7,71 @@ from typing import Any
 
 from .base import BaseParser, ParsedCLIResponse, ParserError
 
+MAX_ACTIVITY_COMMANDS = 20
+MAX_ACTIVITY_COMMAND_CHARS = 256
+MAX_ACTIVITY_CHARS = 6_000
+
+
+def _observed_activity(events: list[dict[str, Any]]) -> dict[str, Any]:
+    """Select completed command receipts, never command output or model self-reports."""
+    commands: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    command_count = failed_count = denied_count = 0
+    truncated = False
+    for event in events:
+        if event.get("type") != "item.completed":
+            continue
+        item = event.get("item")
+        if not isinstance(item, dict) or item.get("type") != "command_execution":
+            continue
+        item_id = item.get("id")
+        if isinstance(item_id, str) and item_id:
+            if item_id in seen:
+                continue
+            seen.add(item_id)
+        command_count += 1
+        exit_code = item.get("exit_code")
+        if type(exit_code) is not int or not -(2**31) <= exit_code < 2**31:
+            exit_code = None
+        status = item.get("status")
+        if status not in ("completed", "failed", "declined"):
+            status = "unknown"
+        if status in ("failed", "declined") or exit_code not in (None, 0):
+            failed_count += 1
+        if status == "declined":
+            denied_count += 1
+        command = item.get("command")
+        if not isinstance(command, str):
+            command = None
+        shortened = command is not None and len(command) > MAX_ACTIVITY_COMMAND_CHARS
+        entry = {
+            "command": command[:MAX_ACTIVITY_COMMAND_CHARS] if command is not None else None,
+            "exit_code": exit_code,
+            "status": status,
+        }
+        if shortened:
+            entry["command_truncated"] = True
+            truncated = True
+        commands.append(entry)
+        if len(commands) > MAX_ACTIVITY_COMMANDS:
+            # Keep the first ten and latest ten, in stream order.
+            del commands[MAX_ACTIVITY_COMMANDS // 2]
+            truncated = True
+
+    summary = {
+        "source": "codex_jsonl",
+        "commands": commands,
+        "command_count": command_count,
+        "failed_count": failed_count,
+        "denied_count": denied_count,
+        "truncated": truncated,
+    }
+    # Escaping can expand strings; cap serialized metadata as well as entry lengths.
+    while len(json.dumps(summary)) > MAX_ACTIVITY_CHARS:
+        del commands[len(commands) // 2]
+        summary["truncated"] = True
+    return summary
+
 
 class CodexJSONLParser(BaseParser):
     """Parse stdout emitted by `codex exec --json`."""
@@ -68,7 +133,7 @@ class CodexJSONLParser(BaseParser):
             raise ParserError("Codex CLI JSONL output did not include an agent_message item")
 
         content = "\n\n".join(agent_messages).strip()
-        metadata: dict[str, Any] = {"events": events}
+        metadata: dict[str, Any] = {"events": events, "observed_activity": _observed_activity(events)}
         if errors:
             metadata["errors"] = errors
         if usage:
