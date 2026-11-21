@@ -7,7 +7,7 @@ Use this path for local, single-user workflows. PAL does not install CLIs, sign 
 ## Setup Requirements
 
 1. Install your chosen vendor CLI and authenticate it outside PAL, using the same OS account that launches PAL. Follow the vendor links below.
-2. Ensure the MCP server process can find the executable on its `PATH`, or configure an explicit command path in the client manifest. A terminal and a desktop MCP client may have different environments.
+2. Ensure the MCP server process can find the executable on its `PATH`, or configure an explicit command path in the client manifest. A terminal and a desktop MCP client may have different environments. For npm CLIs installed through nvm, see the [nvm PATH setup](#clis-installed-with-nvm).
 3. Follow [Getting Started: CLI conversations](../getting-started.md#cli-conversations-without-pal-provider-keys). Leave PAL model-provider keys and endpoints unconfigured for provider-free startup. No mode switch is needed.
 4. Restart PAL after changing configuration. Ask `listmodels` for the startup provider diagnostics, available independent tools, and configured CLI executable status. Login is **unverified**, even when an executable is found; invocation checks the executable again.
 
@@ -385,6 +385,36 @@ Explicit values take precedence, including Windows case-insensitive names. Execu
 An explicit request directory takes precedence over `working_dir` for an unbound conversation; follow-ups inherit the saved choice. The selected directory must exist and is preserved. Scratch mode uses a fresh private temporary directory per call, removed after success, failure, timeout, or cancellation. Immediate-child termination/reaping precedes scratch cleanup; draining output pipes is bounded. Different conversations can overlap, including in the same project; PAL adds no project lock. Relative manifest paths retain the registry's configuration/project resolution rules. See [project selection](#project-directory-selection) and [operator configuration](../configuration.md#cli-project-directories).
 
 Home/auth locations remain available, so a scratch directory does not prevent access elsewhere. File reads and edits still depend on the selected CLI's native controls; this feature adds no filesystem sandbox or process-tree supervision guarantee.
+
+### CLIs installed with nvm
+
+A desktop MCP client may start PAL without the interactive shell setup that adds nvm's bin directory to `PATH`. A CLI that works in your terminal can then fail with `Executable 'codex' not found in PATH`. An absolute `command` alone can still fail with an error such as `/usr/bin/env: ‘node’: No such file or directory`: npm launchers commonly use `#!/usr/bin/env node`, which needs Node on the child's `PATH`.
+
+1. In a terminal where the intended nvm version is active, locate both executables:
+
+   ```sh
+   command -v codex
+   command -v node
+   ```
+
+2. Copy the complete [`conf/cli_clients/codex.json`](../../conf/cli_clients/codex.json) manifest to `~/.pal/cli_clients/codex.json`, or edit that override if it already exists. Preserve its argument, permission, and role settings. Add `PATH` to its existing `env` object. This is sufficient if the path includes both the CLI and Node; optionally set an absolute `command` to pin the executable. This example shows both fields, **not a complete manifest**:
+
+   ```json
+   {
+     "command": "/home/alice/.nvm/versions/node/v24.21.0/bin/codex",
+     "env": {
+       "PATH": "/home/alice/.nvm/versions/node/v24.21.0/bin:/usr/local/bin:/usr/bin:/bin"
+     }
+   }
+   ```
+
+   Replace the example with the actual executable path and the directory containing your `node`. `env.PATH` replaces the inherited value: include every other directory the CLI needs, such as the one containing `git`. Values are literal; PAL does not expand `$PATH`, `$HOME`, or `~` in `command` or `env.PATH`. If the executable path contains spaces, quote it inside the JSON string, for example `"command": "\"/home/Alice Smith/.nvm/versions/node/v24.21.0/bin/codex\""`.
+
+   Alternatively, place the complete manifest elsewhere and set `CLI_CLIENTS_CONFIG_PATH` to its absolute file or directory path in PAL's launch environment. Definitions in `~/.pal/cli_clients/` load last and replace earlier definitions for the same CLI; edit or reconcile an existing user override if it would supersede this file.
+
+3. Restart PAL, check the executable status in `listmodels`, then make a small `clink` request. Discovery verifies the CLI executable only; the request also exercises its interpreter and authentication. Update both paths after switching or removing the pinned nvm version. For another npm-installed CLI, use its own manifest and executable name.
+
+The command and PATH workaround was checked with nvm-installed Codex CLI 0.171.0 on Linux: a missing nvm path failed lookup, an absolute command without Node exited 127, and the absolute command with Node's bin directory returned the CLI version successfully. That launch check did not make a model request.
 
 ## Related Guides
 

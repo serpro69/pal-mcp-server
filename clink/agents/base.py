@@ -141,7 +141,10 @@ class BaseCLIAgent:
         if resolved_executable is None:
             raise CLIAgentError(
                 f"Executable '{self.client.executable[0]}' not found in PATH for CLI '{self.client.name}'. "
-                f"Ensure the command is installed and accessible."
+                "Install the CLI, set an absolute 'command', or set 'env.PATH' in a complete manifest via "
+                "CLI_CLIENTS_CONFIG_PATH or ~/.pal/cli_clients/. env.PATH replaces the inherited PATH; "
+                "for nvm, include the directory containing node and other required tool directories. "
+                "Restart PAL after changing configuration."
             )
         command[0] = resolved_executable
 
