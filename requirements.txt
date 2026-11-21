@@ -14,7 +14,7 @@ attrs==26.1.0
     # via
     #   jsonschema
     #   referencing
-certifi==2026.5.20
+certifi==2026.10.18
     # via
     #   httpcore
     #   httpx
@@ -76,7 +76,7 @@ openai==2.41.0
     # via pal-mcp-server (pyproject.toml)
 opentelemetry-api==1.45.2
     # via mcp
-pyasn1==0.6.4
+pyasn1==0.6.5
     # via
     #   pal-mcp-server (pyproject.toml)
     #   pyasn1-modules
