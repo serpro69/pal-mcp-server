@@ -4,6 +4,7 @@ import asyncio
 import errno
 import json
 import os
+import shlex
 import signal
 import sys
 from pathlib import Path
@@ -14,6 +15,7 @@ import pytest
 
 from clink.agents import create_agent
 from clink.agents.base import BaseCLIAgent, CLIAgentError, WorkingDirectoryLaunchError
+from clink.availability import discover_cli_availability
 from clink.constants import CONFIG_DIR, INTERNAL_DEFAULTS, SHARED_ENV_PASSTHROUGH
 from clink.models import CLIClientConfig, OutputCaptureConfig, ResolvedCLIClient, ResolvedCLIRole
 from clink.registry import ClinkRegistry
@@ -291,9 +293,64 @@ async def test_executable_lookup_uses_configured_child_path(monkeypatch):
     cfg = client(env={"PATH": "/synthetic/operator/bin"})
     lookup = Mock(return_value=None)
     monkeypatch.setattr("clink.availability.shutil.which", lookup)
-    with pytest.raises(CLIAgentError, match="not found in PATH"):
+    with pytest.raises(CLIAgentError, match="not found in PATH") as error:
         await BaseCLIAgent(cfg).run(role=cfg.get_role(None), prompt="x", files=[], images=[])
     lookup.assert_called_once_with(sys.executable, path="/synthetic/operator/bin")
+    assert "CLI_CLIENTS_CONFIG_PATH" in str(error.value)
+    assert "env.PATH" in str(error.value)
+    assert "node" in str(error.value)
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(os.name != "posix", reason="nvm-style POSIX shebang resolution")
+@pytest.mark.parametrize("absolute_command", [False, True])
+async def test_nvm_manifest_path_resolves_cli_and_shebang_runtime(tmp_path, monkeypatch, absolute_command):
+    nvm_bin = tmp_path / "nvm directory" / "versions" / "node" / "v-test" / "bin"
+    nvm_bin.mkdir(parents=True)
+    # Python stands in for Node so CI needs no Node installation. The real
+    # /usr/bin/env shebang must still find its interpreter through the child PATH.
+    (nvm_bin / "node").symlink_to(sys.executable)
+    executable = nvm_bin / "codex"
+    executable.write_text(
+        "#!/usr/bin/env node\n"
+        "import json, os, sys\n"
+        "text = json.dumps({'prompt': sys.stdin.read(), 'path': os.environ['PATH']})\n"
+        "print(json.dumps({'type': 'item.completed', 'item': {'type': 'agent_message', 'text': text}}))\n",
+        encoding="utf-8",
+    )
+    executable.chmod(0o755)
+    empty_path = tmp_path / "empty-path"
+    empty_path.mkdir()
+    monkeypatch.setenv("PATH", str(empty_path))
+    monkeypatch.setattr("clink.registry.USER_CONFIG_DIR", tmp_path / "no-user-overrides")
+    manifest = tmp_path / "codex.json"
+    monkeypatch.setenv("CLI_CLIENTS_CONFIG_PATH", str(manifest))
+    config = json.loads((CONFIG_DIR / "codex.json").read_text(encoding="utf-8"))
+    config["command"] = shlex.quote(str(executable)) if absolute_command else "codex"
+    manifest.write_text(json.dumps(config), encoding="utf-8")
+    registry = ClinkRegistry()
+    configured = registry.get_client("codex")
+    available = {item.name: item.executable_found for item in discover_cli_availability(registry)}
+    assert available["codex"] is absolute_command
+
+    with pytest.raises(CLIAgentError) as error:
+        await create_agent(configured).run(role=configured.get_role(None), prompt="test", files=[], images=[])
+    if absolute_command:
+        assert error.value.returncode == 127
+        assert "node" in error.value.stderr
+    else:
+        assert "not found in PATH" in str(error.value)
+
+    config["env"]["PATH"] = str(nvm_bin)
+    manifest.write_text(json.dumps(config), encoding="utf-8")
+    registry.reload()
+    configured = registry.get_client("codex")
+    available = {item.name: item.executable_found for item in discover_cli_availability(registry)}
+    assert available["codex"] is True
+    result = await create_agent(configured).run(role=configured.get_role(None), prompt="test", files=[], images=[])
+    assert json.loads(result.parsed.content) == {"prompt": "test", "path": str(nvm_bin)}
+    assert result.sanitized_command[0] == str(executable)
+    assert os.environ["PATH"] == str(empty_path)
 
 
 @pytest.mark.asyncio

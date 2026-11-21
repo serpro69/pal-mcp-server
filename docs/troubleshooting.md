@@ -81,6 +81,13 @@ See [Logging Documentation](logging.md) for more details on accessing logs.
 - Run `./run-server.sh` to reinstall dependencies
 - Check virtual environment is activated: should see `.pal_venv` in the Python path
 
+**clink cannot find an nvm-installed CLI**
+- A desktop MCP client may give PAL a different `PATH` than your interactive terminal.
+- Locate the CLI and Node with `command -v codex` and `command -v node` in the terminal where nvm works.
+- In a complete CLI manifest, set `env.PATH` to a full path containing the CLI, Node, and other required tool directories. An absolute `command` can additionally pin the CLI; on its own, it can still produce an error mentioning `node` and `No such file or directory`.
+- Use `~/.pal/cli_clients/` or `CLI_CLIENTS_CONFIG_PATH`; definitions in `~/.pal/cli_clients/` load last. Restart PAL after the change, check `listmodels`, and make a small `clink` request.
+- See the [nvm manifest example and precedence details](tools/clink.md#clis-installed-with-nvm). Do not put literal `$PATH` or `~` in the manifest values; they are not expanded.
+
 ### 6. Environment Issues
 
 **Virtual Environment Problems**
