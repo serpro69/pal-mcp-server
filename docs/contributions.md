@@ -95,15 +95,19 @@ python communication_simulator_test.py
 
 Dependencies are pinned with `pip-compile` ([pip-tools](https://pip-tools.readthedocs.io/)). Never edit `requirements.txt` or `requirements-dev.txt` directly — they are generated.
 
+Dependabot checks GitHub Actions and the Docker base image weekly, grouping minor and patch releases by ecosystem. The **Update Python dependencies** workflow opens or refreshes one weekly PR for direct and transitive pins within their current major versions. Python major upgrades are reviewed manually. The constraints in `pyproject.toml` and `requirements-dev.in` also apply to every refresh.
+
+To run the Python refresh locally, use Python 3.11, install `requirements-dev.txt`, and run `python scripts/update_python_locks.py` from the repository root. To trigger the same workflow on GitHub, select **Run workflow** on the default branch. The repository's Actions settings must allow GitHub Actions to create pull requests. If GitHub requests approval to run CI on the generated PR, select **Approve workflows to run**.
+
 **To add or update a runtime dependency:**
 1. Edit `pyproject.toml` under `[project] dependencies`
-2. Run: `pip-compile --strip-extras pyproject.toml -o requirements.txt`
-3. Run: `pip-compile --strip-extras requirements-dev.in -o requirements-dev.txt` (dev deps are constrained against runtime pins)
+2. Run: `pip-compile --strip-extras --no-header pyproject.toml -o requirements.txt`
+3. Run: `pip-compile --strip-extras --no-header requirements-dev.in -o requirements-dev.txt` (dev deps are constrained against runtime pins)
 4. Commit all three files together
 
 **To add or update a dev dependency:**
 1. Edit `requirements-dev.in`
-2. Run: `pip-compile --strip-extras requirements-dev.in -o requirements-dev.txt`
+2. Run: `pip-compile --strip-extras --no-header requirements-dev.in -o requirements-dev.txt`
 3. Commit both files together
 
 CI verifies lock file freshness — the build will fail if lock files are out of sync with their source files.

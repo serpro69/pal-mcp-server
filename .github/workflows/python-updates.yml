@@ -1,0 +1,64 @@
+name: Update Python dependencies
+
+on:
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+concurrency: python-dependency-updates
+permissions:
+  contents: read
+
+jobs:
+  compile:
+    if: github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.11'
+      - name: Install the locked compiler and update both locks
+        run: |
+          python -m pip install -r requirements-dev.txt
+          python scripts/update_python_locks.py
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: python-locks
+          path: |
+            requirements.txt
+            requirements-dev.txt
+          if-no-files-found: error
+
+  pull-request:
+    needs: compile
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: python-locks
+          path: ${{ runner.temp }}/python-locks
+      - name: Copy locks compiled for this revision
+        run: |
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          cp "$RUNNER_TEMP/python-locks/"{requirements.txt,requirements-dev.txt} .
+      - uses: peter-evans/create-pull-request@3ffccacd46053766916f087ce41d627c0b8cf2d1 # v8.1.3
+        with:
+          branch: automation/python-dependencies
+          delete-branch: true
+          add-paths: |
+            requirements.txt
+            requirements-dev.txt
+          title: 'chore: Update Python dependency locks'
+          commit-message: 'chore: Update Python dependency locks'
+          body: 'Weekly minor and patch releases resolved from pyproject.toml and requirements-dev.in on Python 3.11.'

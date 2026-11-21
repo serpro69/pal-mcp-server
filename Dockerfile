@@ -55,7 +55,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
 # Installation belongs to the builder. Remove unused packaging tools and bundled
 # bootstrap wheels so their vendored dependencies do not remain in the runtime.
 RUN /usr/local/bin/python -m pip uninstall -y pip setuptools wheel && \
-    rm -rf /usr/local/lib/python3.11/ensurepip
+    rm -rf /usr/local/lib/python*/ensurepip
 
 # Copy virtual environment from builder
 COPY --from=builder /opt/venv /opt/venv
