@@ -5,7 +5,9 @@
 ## Unreleased
 
 - Support the 2026-07-28 MCP protocol over stdio using Python SDK 2.x. Existing
-  clients can continue using the initialization handshake.
+  clients can continue using the initialization handshake. For `prompts/get`,
+  read the standard `description` and `messages` fields. The SDK omits the
+  old extra `prompt` object. Prompt names and arguments are in `prompts/list`.
 
 - Remove the top-level `anyOf` from the clink input schema. The Anthropic API rejects
   that keyword in tool schemas, so Claude Code skipped the whole clink tool whenever
