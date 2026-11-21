@@ -8,7 +8,6 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
 import pytest
-from mcp.types import CallToolRequest, CallToolRequestParams, Tool
 from pydantic import ValidationError
 
 import server
@@ -16,6 +15,7 @@ from clink.agents import AgentOutput, BaseCLIAgent, CLIAgentError, create_agent,
 from clink.parsers.base import ParsedCLIResponse
 from clink.registry import ClinkRegistry
 from clink.working_directory import resolve_working_directory
+from tests.mcp_client import call_tool as call_mcp_tool
 from tests.request_capture import capture_providers
 from tools.chat import ChatTool
 from tools.clink import CLinkRequest, CLinkTool
@@ -142,25 +142,14 @@ async def test_wrong_types_fail_model_before_loading_conversation(runtime, monke
 
 @pytest.mark.parametrize("value", [42, 1.5, False, [], {}])
 async def test_sdk_rejects_wrong_json_types_before_pal_handler(runtime, monkeypatch, value):
-    tool = CLinkTool()
-    monkeypatch.setattr(
-        server.server,
-        "_get_cached_tool_definition",
-        AsyncMock(return_value=Tool(name="clink", inputSchema=tool.get_input_schema())),
-    )
     load = Mock(side_effect=AssertionError("SDK rejection must not load a conversation"))
     monkeypatch.setattr("tools.clink.CLIConversation.load", load)
-    response = await server.server.request_handlers[CallToolRequest](
-        CallToolRequest(
-            params=CallToolRequestParams(
-                name="clink",
-                arguments={"cli_name": "gemini", "prompt": "test", "working_directory_absolute_path": value},
-            )
-        )
+    response = await call_mcp_tool(
+        "clink", {"cli_name": "gemini", "prompt": "test", "working_directory_absolute_path": value}
     )
-    assert response.root.isError is True
-    assert response.root.structuredContent is None
-    assert response.root.content[0].text.startswith("Input validation error:")
+    assert response.is_error is True
+    assert response.structured_content is None
+    assert response.content[0].text.startswith("Input validation error:")
     load.assert_not_called()
     runtime.factory.assert_not_called()
     assert runtime.storage._store == {}
@@ -170,32 +159,21 @@ async def test_sdk_rejects_wrong_json_types_before_pal_handler(runtime, monkeypa
 async def test_sdk_accepted_types_reach_directory_resolution(runtime, monkeypatch, projects, value_kind):
     a, _, _, _ = projects
     value = {"null": None, "directory": str(a), "relative": "relative"}[value_kind]
-    tool = CLinkTool()
-    monkeypatch.setattr(
-        server.server,
-        "_get_cached_tool_definition",
-        AsyncMock(return_value=Tool(name="clink", inputSchema=tool.get_input_schema())),
-    )
     resolve = Mock(wraps=resolve_working_directory)
     monkeypatch.setattr("tools.clink.resolve_working_directory", resolve)
-    response = await server.server.request_handlers[CallToolRequest](
-        CallToolRequest(
-            params=CallToolRequestParams(
-                name="clink",
-                arguments={"cli_name": "gemini", "prompt": "test", "working_directory_absolute_path": value},
-            )
-        )
+    response = await call_mcp_tool(
+        "clink", {"cli_name": "gemini", "prompt": "test", "working_directory_absolute_path": value}
     )
     resolve.assert_called_once()
     assert resolve.call_args.kwargs["requested"] == value
-    result = json.loads(response.root.content[0].text)
+    result = json.loads(response.content[0].text)
     if value_kind == "relative":
-        assert response.root.isError is True
+        assert response.is_error is True
         assert result["metadata"]["error_type"] == "InvalidWorkingDirectoryError"
         runtime.factory.assert_not_called()
         assert runtime.storage._store == {}
     else:
-        assert response.root.isError is False
+        assert response.is_error is False
         assert saved(result).initial_context["clink_working_directory"] == record(
             a if value_kind == "directory" else None
         )

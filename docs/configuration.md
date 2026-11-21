@@ -26,7 +26,7 @@ OPENAI_API_KEY=your-openai-key
 
 ### Runtime and workspace
 
-PAL requires Python >=3.10 and retains MCP 1.x. The test matrix covers Python
+PAL requires Python >=3.10 and uses MCP Python SDK 2.x. The test matrix covers Python
 3.10–3.12. Provider credentials are needed only for the corresponding model calls.
 
 ```env

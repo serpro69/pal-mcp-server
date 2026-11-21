@@ -27,28 +27,21 @@ import time
 from logging.handlers import RotatingFileHandler
 from typing import Any, Optional
 
-from mcp.server import Server  # noqa: E402
-from mcp.server.lowlevel.helper_types import ReadResourceContents
-from mcp.server.models import InitializationOptions  # noqa: E402
-from mcp.server.stdio import stdio_server  # noqa: E402
-from mcp.shared.exceptions import McpError
-from mcp.types import (  # noqa: E402
-    ErrorData,
+import jsonschema
+from mcp import types
+from mcp.server import Server, ServerRequestContext
+from mcp.server.stdio import stdio_server
+from mcp.shared.exceptions import MCPError
+from mcp.types import (
     GetPromptResult,
-    JSONRPCRequest,
     Prompt,
     PromptMessage,
-    PromptsCapability,
     Resource,
-    ResourcesCapability,
     ResourceTemplate,
-    ServerCapabilities,
     TextContent,
     Tool,
     ToolAnnotations,
-    ToolsCapability,
 )
-from pydantic import AnyUrl
 
 from clink import get_registry as get_cli_registry
 from clink.availability import discover_cli_availability
@@ -80,6 +73,7 @@ from tools import (  # noqa: E402
 )
 from tools.models import ToolOutput  # noqa: E402
 from tools.shared.exceptions import ToolExecutionError  # noqa: E402
+from utils.client_info import request_client_info
 from utils.env import env_override_enabled, get_env  # noqa: E402
 from utils.log_dir import (
     ACTIVITY_LOG_BACKUPS,
@@ -97,7 +91,7 @@ from utils.runtime_capabilities import (
     reset_runtime_capabilities,
 )
 from utils.state_dir import StateDirectoryError
-from utils.transcript_reader import ResourceLimitError, ResourceNotFoundError, read_resource, resource_thread_id
+from utils.transcript_reader import ResourceLimitError, ResourceNotFoundError, read_resource
 from utils.transcripts import TranscriptError, prune_transcripts, transcripts_enabled
 
 # Configure logging for server operations
@@ -202,12 +196,6 @@ else:
     logger.debug("PAL_MCP_FORCE_ENV_OVERRIDE disabled - system environment variables take precedence")
 
 
-# Create the MCP server instance with a unique name identifier
-# This name is used by MCP clients to identify and connect to this specific server
-server: Server = Server("pal-server")
-
-
-@server.list_resources()
 async def handle_list_resources() -> list[Resource]:
     if not transcripts_enabled():
         return []
@@ -215,78 +203,43 @@ async def handle_list_resources() -> list[Resource]:
         Resource(
             uri="pal://threads",
             name="Conversation transcripts",
-            mimeType="application/json",
+            mime_type="application/json",
             description="Private audit index; bounded to 100 threads, sorted by UUID.",
         )
     ]
 
 
-@server.list_resource_templates()
 async def handle_list_resource_templates() -> list[ResourceTemplate]:
     if not transcripts_enabled():
         return []
     return [
         ResourceTemplate(
-            uriTemplate="pal://threads/{thread_id}",
+            uri_template="pal://threads/{thread_id}",
             name="Conversation transcript",
-            mimeType="application/json",
+            mime_type="application/json",
             description="Canonical UUID audit; bounded to 1 MiB/1000 records.",
         )
     ]
 
 
-@server.read_resource()
-async def handle_read_resource(uri: AnyUrl) -> list[ReadResourceContents]:
+async def handle_read_resource(uri: str, *, missing_code: int = -32002) -> list[types.TextResourceContents]:
     try:
         result = await asyncio.to_thread(read_resource, str(uri))
     except ResourceNotFoundError as exc:
-        raise McpError(ErrorData(code=-32002, message="Resource not found")) from exc
+        raise MCPError(missing_code, "Resource not found") from exc
     except ResourceLimitError as exc:
-        raise McpError(
-            ErrorData(code=-32603, message="Transcript directory scan limit exceeded (10000 entries)")
-        ) from exc
+        raise MCPError(-32603, "Transcript directory scan limit exceeded (10000 entries)") from exc
     except PermissionError as exc:
         logger.warning("Transcript resource permission denied")
-        raise McpError(ErrorData(code=-32603, message="Transcript permission denied")) from exc
+        raise MCPError(-32603, "Transcript permission denied") from exc
     except (OSError, TranscriptError, StateDirectoryError) as exc:
         logger.warning("Transcript resource unavailable (%s)", type(exc).__name__)
-        raise McpError(ErrorData(code=-32603, message="Transcript storage unavailable")) from exc
+        raise MCPError(-32603, "Transcript storage unavailable") from exc
     return [
-        ReadResourceContents(
-            content=json.dumps(result, ensure_ascii=False, allow_nan=False), mime_type="application/json"
+        types.TextResourceContents(
+            uri=uri, text=json.dumps(result, ensure_ascii=False, allow_nan=False), mime_type="application/json"
         )
     ]
-
-
-class _ResourceURIStream:
-    """Validate resource URI spelling before MCP's AnyUrl normalization.
-
-    Invalid spellings become a fixed unknown URI so the normal MCP lifecycle
-    returns -32002 with its original request ID and cancellation/error handling.
-    """
-
-    def __init__(self, stream):
-        self.stream = stream
-
-    async def __aenter__(self):
-        await self.stream.__aenter__()
-        return self
-
-    async def __aexit__(self, *args):
-        return await self.stream.__aexit__(*args)
-
-    async def __aiter__(self):
-        async for message in self.stream:
-            if not isinstance(message, Exception):
-                request = message.message.root
-                if isinstance(request, JSONRPCRequest) and request.method == "resources/read":
-                    params = request.params
-                    if isinstance(params, dict) and isinstance(params.get("uri"), str):
-                        try:
-                            resource_thread_id(params["uri"])
-                        except ResourceNotFoundError:
-                            request.params = {**params, "uri": "pal://invalid-resource"}
-            yield message
 
 
 # Constants for tool filtering
@@ -562,8 +515,7 @@ def initialize_runtime():
     )
 
 
-@server.list_tools()
-async def handle_list_tools() -> list[Tool]:
+async def handle_list_tools(context: ServerRequestContext | None = None) -> list[Tool]:
     """
     List all available tools with their descriptions and input schemas.
 
@@ -582,7 +534,7 @@ async def handle_list_tools() -> list[Tool]:
     try:
         from utils.client_info import format_client_info, get_client_info_from_context
 
-        client_info = get_client_info_from_context(server)
+        client_info = get_client_info_from_context(context)
         if client_info:
             formatted = format_client_info(client_info)
             logger.info(f"MCP Client Connected: {formatted}")
@@ -608,7 +560,7 @@ async def handle_list_tools() -> list[Tool]:
             Tool(
                 name=tool.name,
                 description=tool.description,
-                inputSchema=tool.get_input_schema(),
+                input_schema=tool.get_input_schema(),
                 annotations=tool_annotations,
             )
         )
@@ -622,16 +574,13 @@ async def handle_list_tools() -> list[Tool]:
     return tools
 
 
-@server.call_tool()
-async def handle_call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
+async def handle_call_tool(
+    name: str, arguments: dict[str, Any], *, context: ServerRequestContext | None = None
+) -> list[TextContent]:
     """Coordinate continuations, letting clink own its non-waiting admission."""
     from utils.conversation_coordination import coordinate_conversation
 
     thread_id = arguments.get("continuation_id")
-    try:
-        context = server.request_context
-    except LookupError:
-        context = None  # Direct Python calls have no MCP request token.
     # Invalid input remains the request model's responsibility, not a lock key.
     try:
         async with request_progress(context) as progress:
@@ -1175,7 +1124,6 @@ async def reconstruct_thread_context(arguments: dict[str, Any]) -> dict[str, Any
     return enhanced_arguments
 
 
-@server.list_prompts()
 async def handle_list_prompts() -> list[Prompt]:
     """
     List all available prompts for CLI Code shortcuts.
@@ -1275,7 +1223,6 @@ def _provider_free_tool_prompt(tool_name: str, default: str) -> str:
     }.get(tool_name, default)
 
 
-@server.get_prompt()
 async def handle_get_prompt(name: str, arguments: dict[str, Any] = None) -> GetPromptResult:
     """
     Get prompt details and generate the actual prompt text.
@@ -1379,11 +1326,7 @@ async def handle_get_prompt(name: str, arguments: dict[str, Any] = None) -> GetP
         tool_instruction = _provider_free_tool_prompt(tool_name, prompt_text) if runtime.provider_free else prompt_text
 
     return GetPromptResult(
-        prompt=Prompt(
-            name=name,
-            description=template_info["description"],
-            arguments=[],
-        ),
+        description=template_info["description"],
         messages=[
             PromptMessage(
                 role="user",
@@ -1391,6 +1334,80 @@ async def handle_get_prompt(name: str, arguments: dict[str, Any] = None) -> GetP
             )
         ],
     )
+
+
+async def _list_tools(ctx: ServerRequestContext, params: types.PaginatedRequestParams | None) -> types.ListToolsResult:
+    return types.ListToolsResult(tools=await handle_list_tools(ctx))
+
+
+async def _call_tool(ctx: ServerRequestContext, params: types.CallToolRequestParams) -> types.CallToolResult:
+    if ctx.protocol_version >= "2026-07-28" and params.name not in ALL_TOOLS:
+        raise MCPError(-32602, f"Unknown tool: {params.name}")
+    arguments = params.arguments or {}
+    try:
+        # The 1.x decorator validated the advertised schema before dispatch.
+        if params.name in get_runtime_capabilities().available_tools and params.name in TOOLS:
+            jsonschema.validate(arguments, TOOLS[params.name].get_input_schema())
+        with request_client_info(ctx):
+            content = await handle_call_tool(params.name, arguments, context=ctx)
+    except jsonschema.ValidationError as exc:
+        return types.CallToolResult(
+            is_error=True, content=[TextContent(type="text", text=f"Input validation error: {exc.message}")]
+        )
+    except Exception as exc:
+        # PAL tool failures are visible to the calling model as tool results.
+        return types.CallToolResult(is_error=True, content=[TextContent(type="text", text=str(exc))])
+    return types.CallToolResult(content=content)
+
+
+async def _list_resources(
+    ctx: ServerRequestContext, params: types.PaginatedRequestParams | None
+) -> types.ListResourcesResult:
+    return types.ListResourcesResult(resources=await handle_list_resources())
+
+
+async def _list_resource_templates(
+    ctx: ServerRequestContext, params: types.PaginatedRequestParams | None
+) -> types.ListResourceTemplatesResult:
+    return types.ListResourceTemplatesResult(resource_templates=await handle_list_resource_templates())
+
+
+async def _read_resource(
+    ctx: ServerRequestContext, params: types.ReadResourceRequestParams
+) -> types.ReadResourceResult:
+    # SDK 2.x preserves the raw URI string for PAL's canonical-spelling check.
+    missing_code = -32602 if ctx.protocol_version >= "2026-07-28" else -32002
+    return types.ReadResourceResult(contents=await handle_read_resource(params.uri, missing_code=missing_code))
+
+
+async def _list_prompts(
+    ctx: ServerRequestContext, params: types.PaginatedRequestParams | None
+) -> types.ListPromptsResult:
+    return types.ListPromptsResult(prompts=await handle_list_prompts())
+
+
+async def _get_prompt(ctx: ServerRequestContext, params: types.GetPromptRequestParams) -> GetPromptResult:
+    try:
+        return await handle_get_prompt(params.name, params.arguments)
+    except (ValueError, ToolExecutionError) as exc:
+        raise MCPError(-32602, str(exc)) from exc
+
+
+def create_server() -> Server:
+    return Server(
+        "PAL",
+        version=__version__,
+        on_list_tools=_list_tools,
+        on_call_tool=_call_tool,
+        on_list_resources=_list_resources,
+        on_list_resource_templates=_list_resource_templates,
+        on_read_resource=_read_resource,
+        on_list_prompts=_list_prompts,
+        on_get_prompt=_get_prompt,
+    )
+
+
+server = create_server()
 
 
 async def _serve():
@@ -1471,21 +1488,9 @@ async def _serve():
 
     # Run the server using stdio transport (standard input/output)
     # This allows the server to be launched by MCP clients as a subprocess
+    server.instructions = handshake_instructions
     async with stdio_server() as (read_stream, write_stream):
-        await server.run(
-            _ResourceURIStream(read_stream),
-            write_stream,
-            InitializationOptions(
-                server_name="PAL",
-                server_version=__version__,
-                instructions=handshake_instructions,
-                capabilities=ServerCapabilities(
-                    tools=ToolsCapability(),  # Advertise tool support capability
-                    prompts=PromptsCapability(),  # Advertise prompt support capability
-                    resources=ResourcesCapability(),  # No subscriptions/list-change notifications.
-                ),
-            ),
-        )
+        await server.run(read_stream, write_stream, server.create_initialization_options())
 
 
 async def _close_providers() -> None:

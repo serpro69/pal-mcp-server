@@ -1,12 +1,11 @@
 """Missing credentials are usable state; broken catalogs remain explicit faults."""
 
 import json
-from datetime import timedelta
 from pathlib import Path
 from unittest.mock import AsyncMock
 
 import pytest
-from mcp.shared.memory import create_connected_server_and_client_session
+from mcp import Client
 from mcp.types import TextContent
 
 import config
@@ -160,7 +159,7 @@ async def test_mcp_without_provider_keys_keeps_local_tools_available(
     server.initialize_runtime()
     local_cli = AsyncMock(return_value=[TextContent(type="text", text="local CLI answer")])
     monkeypatch.setattr(CLinkTool, "execute", local_cli)
-    async with create_connected_server_and_client_session(server.server, timedelta(seconds=5)) as client:
+    async with Client(server.server, read_timeout_seconds=5) as client:
         listing = await client.list_tools()
         names = {tool.name for tool in listing.tools}
         assert {"version", "listmodels", "planner", "clink"} <= names
@@ -172,12 +171,12 @@ async def test_mcp_without_provider_keys_keeps_local_tools_available(
             ("clink", {"cli_name": "codex", "prompt": "local task"}),
         ]:
             result = await client.call_tool(name, arguments)
-            assert not result.isError, (name, result.content)
+            assert not result.is_error, (name, result.content)
         for model in ["auto", "gpt-5"]:
             result = await client.call_tool(
                 "chat", {"model": model, "prompt": "hello", "working_directory_absolute_path": str(tmp_path)}
             )
-            assert result.isError
+            assert result.is_error
             assert "Configure provider credentials" in result.content[0].text
             assert json.loads(result.content[0].text)["metadata"]["error_type"] == "model_provider_required"
     local_cli.assert_awaited_once()

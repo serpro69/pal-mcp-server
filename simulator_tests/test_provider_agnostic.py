@@ -12,7 +12,7 @@ class ProviderAgnosticTest(BaseSimulatorTest):
 
     def invoke(self, tool: str, **arguments):
         text, continuation = self.call_mcp_tool(tool, arguments)
-        if not text or self.last_result.isError:
+        if not text or self.last_result.is_error:
             raise AssertionError(f"{tool} failed: {text}")
         return json.loads(text), continuation
 
@@ -78,7 +78,7 @@ class SessionErrorTest(ProviderAgnosticTest):
                 "working_directory_absolute_path": os.getcwd(),
             },
         )
-        if self.last_result is None or not self.last_result.isError:
+        if self.last_result is None or not self.last_result.is_error:
             return False
         result, thread = self.chat(prompt="Reply briefly after the expected error.")
         return bool(thread and result.get("content"))

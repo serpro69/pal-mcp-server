@@ -5,9 +5,9 @@ import json
 
 import httpx
 import pytest
-from mcp.types import CallToolRequest, CallToolRequestParams
 
 import server
+from tests.mcp_client import call_tool as call_mcp_tool
 from tools.jules import JulesTool
 from tools.shared.exceptions import ToolExecutionError
 
@@ -136,12 +136,9 @@ async def test_invalid_action_fields_fail_before_client_creation(transport, args
 async def test_bad_configuration_is_actionable_mcp_error(monkeypatch, transport, key):
     requests, clients = transport(lambda request: pytest.fail("unexpected network"))
     monkeypatch.setenv("JULES_API_KEY", key)
-    monkeypatch.setattr(server.server, "_tool_cache", {})
-    result = await server.server.request_handlers[CallToolRequest](
-        CallToolRequest(params=CallToolRequestParams(name="jules", arguments={"action": "list_sources"}))
-    )
-    assert result.root.isError
-    assert "JULES_API_KEY" in result.root.content[0].text
+    result = await call_mcp_tool("jules", {"action": "list_sources"})
+    assert result.is_error
+    assert "JULES_API_KEY" in result.content[0].text
     assert not requests and not clients
 
 

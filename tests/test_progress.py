@@ -2,14 +2,12 @@
 
 import asyncio
 import json
-from datetime import timedelta
 
 import anyio
 import pytest
-from mcp.server.lowlevel.server import request_ctx
-from mcp.shared.context import RequestContext
-from mcp.shared.memory import create_connected_server_and_client_session
-from mcp.types import RequestParams, TextContent
+from mcp import Client
+from mcp.server import ServerRequestContext
+from mcp.types import RequestParamsMeta, TextContent
 
 import server
 from providers.gemini import GeminiModelProvider
@@ -32,8 +30,13 @@ class Session:
 
 
 def context(session, token):
-    return RequestContext(
-        request_id=1, meta=RequestParams.Meta(progressToken=token), session=session, lifespan_context={}
+    return ServerRequestContext(
+        request_id=1,
+        protocol_version="2025-11-25",
+        method="tools/call",
+        meta=RequestParamsMeta(progress_token=token),
+        session=session,
+        lifespan_context={},
     )
 
 
@@ -176,27 +179,26 @@ async def test_dispatch_records_only_current_provider_operations(monkeypatch, tm
 
     monkeypatch.setattr(GeminiModelProvider, "generate_content", generate)
     session = Session()
-    token = request_ctx.set(context(session, 0))
-    try:
-        if kind in {"primary", "recovery"}:
-            result = await server.handle_call_tool(
-                "chat",
-                {"prompt": "SECRET", "model": "gemini-2.5-flash", "working_directory_absolute_path": str(tmp_path)},
-            )
-        else:
-            args = {
-                "step": "SECRET",
-                "findings": "SECRET",
-                "step_number": 1,
-                "total_steps": 1,
-                "next_step_required": False,
-                "model": "gemini-2.5-flash",
-            }
-            if kind == "consensus":
-                args["models"] = [{"model": "gemini-2.5-flash"}, {"model": "gpt-5"}]
-            result = await server.handle_call_tool("thinkdeep" if kind == "expert" else "consensus", args)
-    finally:
-        request_ctx.reset(token)
+    if kind in {"primary", "recovery"}:
+        result = await server.handle_call_tool(
+            "chat",
+            {"prompt": "SECRET", "model": "gemini-2.5-flash", "working_directory_absolute_path": str(tmp_path)},
+            context=context(session, 0),
+        )
+    else:
+        args = {
+            "step": "SECRET",
+            "findings": "SECRET",
+            "step_number": 1,
+            "total_steps": 1,
+            "next_step_required": False,
+            "model": "gemini-2.5-flash",
+        }
+        if kind == "consensus":
+            args["models"] = [{"model": "gemini-2.5-flash"}, {"model": "gpt-5"}]
+        result = await server.handle_call_tool(
+            "thinkdeep" if kind == "expert" else "consensus", args, context=context(session, 0)
+        )
     metadata = json.loads(result[0].text)["metadata"]["execution"]
     assert [op["stage"] for op in metadata["operations"]] == {
         "primary": ["provider"],
@@ -209,7 +211,7 @@ async def test_dispatch_records_only_current_provider_operations(monkeypatch, tm
     assert progress._current.get() is None
 
 
-async def test_actual_mcp_v1_session_progress_round_trip(monkeypatch):
+async def test_actual_mcp_session_progress_round_trip(monkeypatch):
     async def dispatch(name, arguments):
         async with progress.progress_operation("provider"):
             return [TextContent(type="text", text="plain answer")]
@@ -220,9 +222,9 @@ async def test_actual_mcp_v1_session_progress_round_trip(monkeypatch):
     async def callback(value, total, message):
         received.append((value, total, json.loads(message)))
 
-    async with create_connected_server_and_client_session(server.server, timedelta(seconds=5)) as client:
+    async with Client(server.server, mode="legacy", read_timeout_seconds=5) as client:
         result = await client.call_tool("version", {}, progress_callback=callback)
-    assert not result.isError
+    assert not result.is_error
     assert result.content[0].text == "plain answer"
     assert result.content[0].meta["pal_execution"]["operations"][0]["stage"] == "provider"
     assert [value for value, _, _ in received] == [1, 2, 3, 4]
@@ -307,9 +309,9 @@ async def test_mcp_error_keeps_execution_metadata_and_terminal_progress(monkeypa
     async def callback(value, total, message):
         received.append(json.loads(message)["stage"])
 
-    async with create_connected_server_and_client_session(server.server, timedelta(seconds=5)) as client:
+    async with Client(server.server, mode="legacy", read_timeout_seconds=5) as client:
         result = await client.call_tool("version", {}, progress_callback=callback)
-    assert result.isError
+    assert result.is_error
     payload = json.loads(result.content[0].text)
     assert payload["content"] == "provider failed"
     execution = payload["metadata"]["execution"]

@@ -83,7 +83,7 @@ def agy_server_environment(root: Path) -> dict[str, str]:
 
 def successful_payload(result) -> dict:
     text = "\n".join(item.text for item in result.content if item.type == "text")
-    if result.isError:
+    if result.is_error:
         raise AssertionError(f"agy MCP call failed: {text}")
     payload = json.loads(text)
     assert payload["status"] in {"success", "continuation_available"}, f"agy request failed: {text}"

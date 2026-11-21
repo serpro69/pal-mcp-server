@@ -31,7 +31,7 @@ def test_quick_scenarios_submit_valid_requests_and_reject_tool_errors(
         jsonschema.validate(arguments, schemas[name])
         calls.append((name, arguments))
         failed = len(calls) == fail_at
-        scenario.last_result = SimpleNamespace(isError=failed)
+        scenario.last_result = SimpleNamespace(is_error=failed)
         # An error must fail even with nonempty content and a continuation-shaped value.
         return ("synthetic tool error" if failed else "synthetic answer"), continuation
 

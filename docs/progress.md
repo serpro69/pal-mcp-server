@@ -1,6 +1,6 @@
 # Request progress
 
-PAL emits MCP 1.x progress notifications when a tool request supplies
+PAL emits MCP progress notifications when a tool request supplies
 `_meta.progressToken`, including numeric `0`. No token means no notifications.
 The reporter belongs to that request and resets when it exits, so concurrent
 requests cannot borrow one another's token, counter or usage.
@@ -49,7 +49,5 @@ Plain-text results keep their text and put this record in the MCP content block'
 internal code can explicitly use `request_progress` when needed. These fields
 are additive and are not a persisted transcript or conversation recovery format.
 
-The implementation uses MCP **1.30.0**
-[`request_context`](https://github.com/modelcontextprotocol/python-sdk/blob/v1.30.0/src/mcp/server/lowlevel/server.py)
-and [`send_progress_notification`](https://github.com/modelcontextprotocol/python-sdk/blob/v1.30.0/src/mcp/server/session.py),
-verified against the installed locked SDK and an actual SDK session round trip.
+PAL reads the progress token from the SDK request context. Stdio tests exercise
+progress delivery with both handshake-based clients and the 2026-07-28 protocol.

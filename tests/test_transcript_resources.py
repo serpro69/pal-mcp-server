@@ -1,4 +1,4 @@
-"""MCP v1 resource contracts, bounded reads and a real stdio round trip."""
+"""MCP resource contracts, bounded reads and a real stdio round trip."""
 
 import asyncio
 import json
@@ -7,11 +7,11 @@ import sys
 from uuid import uuid4
 
 import pytest
-from mcp import ClientSession
+from mcp import Client, ClientSession
 from mcp.client.stdio import stdio_client
-from mcp.shared.exceptions import McpError
+from mcp.shared.exceptions import MCPError
 from mcp.shared.message import SessionMessage
-from mcp.types import JSONRPCMessage, JSONRPCNotification, JSONRPCRequest
+from mcp.types import JSONRPCNotification, JSONRPCRequest
 
 import server
 from providers.configuration import provider_configurations
@@ -60,7 +60,7 @@ async def test_disabled_discovery_and_resource_error(monkeypatch):
     monkeypatch.setenv("PAL_TRANSCRIPTS", "false")
     assert await server.handle_list_resources() == []
     assert await server.handle_list_resource_templates() == []
-    with pytest.raises(McpError) as caught:
+    with pytest.raises(MCPError) as caught:
         await server.handle_read_resource("pal://threads")
     assert caught.value.error.code == -32002
 
@@ -75,7 +75,7 @@ async def test_io_errors_distinct_from_missing_without_leaking_paths(monkeypatch
         raise error
 
     monkeypatch.setattr(server, "read_resource", fail)
-    with pytest.raises(McpError) as caught:
+    with pytest.raises(MCPError) as caught:
         await server.handle_read_resource("pal://threads")
     assert caught.value.error.code == -32603
     assert message in caught.value.error.message
@@ -96,7 +96,7 @@ class TestPosixResources:
             for _ in range(70):
                 nested = [nested]
             stream.write(json.dumps({**record, "metadata": nested}).encode() + b"\n")
-        result = json.loads((await server.handle_read_resource(f"pal://threads/{thread}"))[0].content)
+        result = json.loads((await server.handle_read_resource(f"pal://threads/{thread}"))[0].text)
         assert len(result["records"]) == 1
         assert result["diagnostics"]["skipped_malformed_records"] == 3
 
@@ -105,7 +105,7 @@ class TestPosixResources:
         state_file = tmp_path / "private-state-path"
         state_file.write_text("not a directory")
         monkeypatch.setenv("PAL_STATE_DIR", str(state_file))
-        with pytest.raises(McpError) as caught:
+        with pytest.raises(MCPError) as caught:
             await server.handle_read_resource("pal://threads")
         assert caught.value.error.code == -32603
         assert caught.value.error.message == "Transcript storage unavailable"
@@ -121,16 +121,12 @@ class TestPosixResources:
 
                     async def request(request_id, method, params):
                         await write.send(
-                            SessionMessage(
-                                JSONRPCMessage(
-                                    JSONRPCRequest(jsonrpc="2.0", id=request_id, method=method, params=params)
-                                )
-                            )
+                            SessionMessage(JSONRPCRequest(jsonrpc="2.0", id=request_id, method=method, params=params))
                         )
                         response = await read.receive()
                         assert not isinstance(response, Exception)
-                        assert response.message.root.id == request_id
-                        return response.message.root
+                        assert response.message.id == request_id
+                        return response.message
 
                     await request(
                         1,
@@ -142,9 +138,7 @@ class TestPosixResources:
                         },
                     )
                     await write.send(
-                        SessionMessage(
-                            JSONRPCMessage(JSONRPCNotification(jsonrpc="2.0", method="notifications/initialized"))
-                        )
+                        SessionMessage(JSONRPCNotification(jsonrpc="2.0", method="notifications/initialized"))
                     )
                     for number, uri in enumerate(
                         (f"pal://threads/x/../{thread}", f"pal://threads/%2e/{thread}", f"pal://THREADS/{thread}"), 2
@@ -231,7 +225,7 @@ class TestPosixResources:
         thread = memory.create_thread("chat", {})
         with monkeypatch.context() as patcher:
             patcher.setattr(reader, "MAX_DIRECTORY_ENTRIES", 0)
-            with pytest.raises(McpError) as caught:
+            with pytest.raises(MCPError) as caught:
                 await server.handle_read_resource("pal://threads")
             assert caught.value.error.code == -32603
             assert "scan limit" in caught.value.error.message
@@ -240,7 +234,7 @@ class TestPosixResources:
             raise PermissionError("permission denied by filesystem")
 
         monkeypatch.setattr(os, "fchmod", deny)
-        with pytest.raises(McpError) as caught:
+        with pytest.raises(MCPError) as caught:
             await server.handle_read_resource(f"pal://threads/{thread}")
         assert caught.value.error.code == -32603
         assert "permission denied" in caught.value.error.message
@@ -265,17 +259,12 @@ class TestPosixResources:
         assert target.read_text() == "private target"
 
     @pytest.mark.asyncio
-    async def test_mcp_decorated_handler_returns_json_contents(self, audit):
-        from mcp.types import ReadResourceRequest, ReadResourceRequestParams
-        from pydantic import AnyUrl
-
+    async def test_mcp_handler_returns_json_contents(self, audit):
         thread = memory.create_thread("chat", {})
-        handler = server.server.request_handlers[ReadResourceRequest]
-        response = await handler(
-            ReadResourceRequest(params=ReadResourceRequestParams(uri=AnyUrl(f"pal://threads/{thread}")))
-        )
-        assert response.root.contents[0].mimeType == "application/json"
-        assert json.loads(response.root.contents[0].text)["thread_id"] == thread
+        async with Client(server.server, read_timeout_seconds=5) as client:
+            response = await client.read_resource(f"pal://threads/{thread}")
+        assert response.contents[0].mime_type == "application/json"
+        assert json.loads(response.contents[0].text)["thread_id"] == thread
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("enabled", [True, False])
@@ -307,18 +296,18 @@ class TestPosixResources:
                         listed = await session.list_resources()
                         templates = await session.list_resource_templates()
                         assert bool(listed.resources) is enabled
-                        assert bool(templates.resourceTemplates) is enabled
+                        assert bool(templates.resource_templates) is enabled
                         if enabled:
                             index = json.loads((await session.read_resource("pal://threads")).contents[0].text)
                             assert index["threads"][0]["thread_id"] == thread
                             data = json.loads((await session.read_resource(f"pal://threads/{thread}")).contents[0].text)
                             assert data["records"][1]["content"] == "stdio audit answer"
                         for uri in ("pal://threads/invalid", f"pal://threads/{uuid4()}", "file:///etc/passwd"):
-                            with pytest.raises(McpError) as caught:
+                            with pytest.raises(MCPError) as caught:
                                 await session.read_resource(uri)
                             assert caught.value.error.code == -32002
                         if not enabled:
-                            with pytest.raises(McpError) as caught:
+                            with pytest.raises(MCPError) as caught:
                                 await session.read_resource(f"pal://threads/{thread}")
                             assert caught.value.error.code == -32002
 

@@ -135,7 +135,7 @@ async def test_mcp_schema_projects_aliases_conflicts_and_validation_boundaries(c
     async with cli_server.connect() as (session, initialized):
         assert "No PAL model providers are configured" in initialized.instructions
         tools = {tool.name: tool for tool in (await session.list_tools()).tools}
-        schema = tools["clink"].inputSchema
+        schema = tools["clink"].input_schema
         assert schema["properties"]["working_directory_absolute_path"]["type"] == ["string", "null"]
         assert "working_directory_absolute_path" not in schema["required"]
         assert "working_dir" not in schema["properties"]
@@ -183,7 +183,7 @@ async def test_mcp_schema_projects_aliases_conflicts_and_validation_boundaries(c
                     "working_directory_absolute_path": value,
                 },
             )
-            assert rejected.isError and rejected.structuredContent is None
+            assert rejected.is_error and rejected.structured_content is None
             assert rejected.content[0].text.startswith("Input validation error:")
             assert_unchanged(cli_server, stage)
         for i, value in enumerate(("", "relative", str(projects.a / "missing"))):

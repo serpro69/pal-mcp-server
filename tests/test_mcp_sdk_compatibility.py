@@ -1,62 +1,57 @@
-"""Exercise the MCP 1.x interfaces required by PAL over an actual SDK session."""
+"""Exercise PAL over stdio with both protocol generations supported by SDK 2.x."""
 
-from datetime import timedelta
+import json
 
 import pytest
-from mcp import types
-from mcp.server import Server
-from mcp.server.lowlevel.helper_types import ReadResourceContents
-from mcp.shared.memory import create_connected_server_and_client_session
-from pydantic import AnyUrl
+from mcp import Client, MCPError
+from mcp.types import Implementation
+
+from tests.cli_isolation import isolated_server_parameters
 
 
-@pytest.mark.asyncio
-async def test_resource_listing_and_read_round_trip():
-    server = Server("resource-compatibility")
-    uri = AnyUrl("pal://compatibility")
-
-    @server.list_resources()
-    async def list_resources():
-        return [types.Resource(uri=uri, name="compatibility", mimeType="text/plain")]
-
-    @server.read_resource()
-    async def read_resource(requested_uri):
-        assert requested_uri == uri
-        return [ReadResourceContents(content="MCP 1.x resource", mime_type="text/plain")]
-
-    assert server.create_initialization_options().capabilities.resources is not None
-    async with create_connected_server_and_client_session(server, timedelta(seconds=5)) as client:
-        listing = await client.list_resources()
-        assert [resource.uri for resource in listing.resources] == [uri]
-        result = await client.read_resource(uri)
-        assert result.contents == [types.TextResourceContents(uri=uri, mimeType="text/plain", text="MCP 1.x resource")]
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("is_error", [False, True])
-async def test_request_context_progress_and_explicit_tool_result_round_trip(is_error):
-    server = Server("tool-compatibility")
-    notifications = []
-
-    @server.list_tools()
-    async def list_tools():
-        return [types.Tool(name="probe", inputSchema={"type": "object"})]
-
-    @server.call_tool()
-    async def call_tool(name, arguments):
-        assert name == "probe"
-        context = server.request_context
-        assert context.meta.progressToken is not None
-        await context.session.send_progress_notification(
-            progress_token=context.meta.progressToken, progress=1, total=1, message="complete"
-        )
-        return types.CallToolResult(content=[types.TextContent(type="text", text="probe result")], isError=is_error)
+@pytest.mark.parametrize(("mode", "protocol"), [("legacy", "2025-11-25"), ("auto", "2026-07-28")])
+async def test_pal_stdio_protocol_contract(tmp_path, mode, protocol):
+    params = isolated_server_parameters(
+        {
+            "PAL_SKIP_DOTENV": "true",
+            "PAL_STATE_DIR": str(tmp_path),
+            "PAL_TRANSCRIPTS": "true",
+        }
+    )
+    stages = []
 
     async def record_progress(progress, total, message):
-        notifications.append((progress, total, message))
+        stages.append(json.loads(message)["stage"])
 
-    async with create_connected_server_and_client_session(server, timedelta(seconds=5)) as client:
-        result = await client.call_tool("probe", {}, progress_callback=record_progress)
-        assert result.isError is is_error
-        assert result.content == [types.TextContent(type="text", text="probe result")]
-        assert notifications == [(1, 1, "complete")]
+    async with Client(
+        params, mode=mode, read_timeout_seconds=10, client_info=Implementation(name="cursor", version="1")
+    ) as client:
+        assert client.protocol_version == protocol
+        assert client.server_info.name == "PAL"
+        assert client.instructions
+        assert "version" in {tool.name for tool in (await client.list_tools()).tools}
+        result = await client.call_tool("version", {}, progress_callback=record_progress)
+        assert not result.is_error
+        payload = json.loads(result.content[0].text)
+        assert payload["status"] == "success"
+        assert "**Connected Client**: Cursor" in payload["content"]
+        assert stages == ["started", "completed"]
+        invalid = await client.call_tool("clink", {"prompt": 123})
+        assert invalid.is_error and invalid.content[0].text.startswith("Input validation error:")
+        assert (await client.list_prompts()).prompts
+        assert (await client.get_prompt("version")).messages
+        with pytest.raises(MCPError, match="Unknown prompt") as unknown_prompt:
+            await client.get_prompt("unregistered-prompt")
+        assert unknown_prompt.value.code == -32602
+        if mode == "auto":
+            with pytest.raises(MCPError, match="Unknown tool") as unknown_tool:
+                await client.call_tool("unregistered-tool", {})
+            assert unknown_tool.value.code == -32602
+        assert [resource.uri for resource in (await client.list_resources()).resources] == ["pal://threads"]
+        assert (await client.list_resource_templates()).resource_templates
+        contents = (await client.read_resource("pal://threads")).contents
+        assert contents[0].mime_type == "application/json"
+        assert json.loads(contents[0].text)["threads"] == []
+        with pytest.raises(MCPError) as missing:
+            await client.read_resource("pal://unknown")
+        assert missing.value.code == (-32002 if mode == "legacy" else -32602)
