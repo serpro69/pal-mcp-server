@@ -24,7 +24,7 @@ PAL MCP is an open-source Model Context Protocol (MCP) server that acts as middl
 
 ### Preferred Method
 
-Use [GitHub Security Advisories](https://github.com/serpro69/pal-mcp-server/security/advisories/new) to report vulnerabilities privately.
+Sign in to GitHub and use [Report a vulnerability](https://github.com/serpro69/pal-mcp-server/security/advisories/new) to send a private report to the repository maintainers. You can also find this form under **Security → Advisories → Report a vulnerability**.
 
 ### What to Include
 
