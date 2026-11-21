@@ -7,6 +7,27 @@ on:
     branches: [main]
 
 jobs:
+  clean-install:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install PAL from its package metadata
+        run: |
+          python -m venv "$RUNNER_TEMP/pal"
+          "$RUNNER_TEMP/pal/bin/python" -m pip install .
+
+      - name: Connect to the installed server from a separate client environment
+        working-directory: ${{ runner.temp }}
+        run: |
+          python -m venv client
+          client/bin/python -m pip install mcp==1.30.0
+          client/bin/python -I "$GITHUB_WORKSPACE/scripts/check_installed_server.py" "$RUNNER_TEMP/pal/bin/pal-mcp-server"
+
   test:
     runs-on: ubuntu-latest
     strategy:
