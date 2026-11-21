@@ -22,6 +22,7 @@ from simulator_tests.base_test import BaseSimulatorTest
 from simulator_tests.conversation_base_test import ConversationBaseTest
 from simulator_tests.test_codereview_validation import CodeReviewValidationTest
 from simulator_tests.test_debug_certain_confidence import DebugCertainConfidenceTest
+from tests.cli_isolation import isolated_server_parameters
 
 
 @pytest.fixture
@@ -173,7 +174,7 @@ def test_real_stdio_keeps_planner_state(monkeypatch, tmp_path):
     monkeypatch.setenv("PAL_LOG_DIR", str(tmp_path / "logs"))
     monkeypatch.setenv("PAL_TRANSCRIPTS", "false")
     monkeypatch.setenv("DISABLED_TOOLS", "")
-    with server_session.SimulatorSession(timeout=15) as session:
+    with server_session.SimulatorSession(timeout=15, parameters=isolated_server_parameters()) as session:
         first = session.call_tool(
             "planner",
             {

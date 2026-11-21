@@ -19,6 +19,36 @@ python -m pytest tests/ -v -m "not integration"
 python -m pytest tests/test_providers.py -xvs
 ```
 
+### CLI manifest isolation
+
+Pytest uses the shipped `conf/cli_clients/` manifests by default. Before test
+collection imports the server or builds tool schemas, `tests/conftest.py`
+redirects the personal `~/.pal/cli_clients/` source to an unused temporary path,
+clears `CLI_CLIENTS_CONFIG_PATH`, and resets the cached clink registry. The
+environment override and cache are reset again before each test. This keeps
+personal roles, commands, model settings, and malformed manifests out of ordinary
+test results, including `tests/test_tool_surface.py`.
+
+Tests that exercise configuration may still use `monkeypatch` to set
+`CLI_CLIENTS_CONFIG_PATH` or `clink.registry.USER_CONFIG_DIR` to their own fixtures.
+The registry's production precedence is unchanged. Pytest restores the original
+session configuration on shutdown, including when tests fail; it does not edit
+personal manifests or change `HOME`, `CODEX_HOME`, or `CLAUDE_CONFIG_DIR`.
+
+Ordinary subprocess tests use `tests/cli_isolation.py`: the stdio bootstrap in
+`tests/fixtures/isolated_server.py` and the request-capture helper activate it
+before importing the server. It isolates personal manifests and the inherited
+CLI override in the fresh interpreter too. The ordinary stdio bootstrap uses its
+explicit child environment and disables checkout dotenv loading. Tests needing their own child CLI
+manifests use the separate CLI-only fixture launcher, which preserves those
+explicit fixtures.
+
+Explicit live CLI checks remain separate: `PAL_CLINK_LIVE_TEST` selects an
+installed CLI, and the live harness creates its own PAL manifests while retaining
+native CLI authentication locations. See the [live clink checks](tools/clink.md#optional-live-conversation-check).
+The in-process pytest fixture does not enable live calls, supply credentials, or
+change dotenv handling; tests of dotenv behavior can still use synthetic settings.
+
 ### Integration launcher
 
 `./run_integration_tests.sh` uses the activated environment's Python (including

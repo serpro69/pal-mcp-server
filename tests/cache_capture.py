@@ -18,6 +18,7 @@ import httpx
 
 from scripts.cache_prefix import prefix_report, request_text
 from scripts.cache_report import read_events, usage_report
+from tests.cli_isolation import isolated_cli_configuration
 
 
 async def capture_scenarios(root: Path, *, consensus_model: str = "gpt-5-mini") -> dict:
@@ -41,6 +42,7 @@ async def capture_scenarios(root: Path, *, consensus_model: str = "gpt-5-mini") 
     with ExitStack() as stack:
         stack.enter_context(patch.dict(os.environ, env))
         stack.enter_context(patch.object(env_config, "_FORCE_ENV_OVERRIDE", False))
+        stack.enter_context(isolated_cli_configuration())
         import server
         from providers.openai import OpenAIModelProvider
         from providers.registry import ModelProviderRegistry

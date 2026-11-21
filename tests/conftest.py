@@ -144,6 +144,15 @@ def pytest_configure(config):
     """Configure pytest with custom markers"""
     # Configure before test collection imports server; never write user logs.
     config._pal_test_state = tempfile.TemporaryDirectory(prefix="pal-test-state-")
+    # Collection imports server and builds its tool schemas before fixtures run.
+    # Ignore operator manifests early without changing HOME or CLI auth paths.
+    from clink import registry as cli_registry
+
+    cli_isolation = pytest.MonkeyPatch()
+    config.add_cleanup(cli_isolation.undo)
+    cli_isolation.setattr(cli_registry, "USER_CONFIG_DIR", Path(config._pal_test_state.name) / "cli-clients")
+    cli_isolation.setenv(cli_registry.CONFIG_ENV_VAR, "")
+    cli_isolation.setattr(cli_registry, "_REGISTRY", None)
     config._pal_log_environment = {key: os.environ.get(key) for key in ("PAL_STATE_DIR", "PAL_LOG_DIR")}
     os.environ["PAL_STATE_DIR"] = config._pal_test_state.name
     os.environ.pop("PAL_LOG_DIR", None)
@@ -251,7 +260,7 @@ def mock_provider_availability(request, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def initialized_runtime_snapshot(monkeypatch):
+def initialized_runtime_snapshot(monkeypatch, disable_force_env_override):
     """Most unit tests call handlers with mocked API clients, without startup.
 
     Seed that lifecycle explicitly. Provider-free/startup tests replace it with
@@ -285,12 +294,21 @@ def clear_model_restriction_env(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def disable_force_env_override(monkeypatch):
-    """Default tests to runtime environment visibility unless they explicitly opt in."""
+    """Start each test with runtime settings and built-in CLI configuration.
+
+    Test-specific fixtures may then supply their own manifests. Clearing the
+    cached registry prevents a prior test's explicit override from leaking.
+    """
 
     monkeypatch.setenv("PAL_MCP_FORCE_ENV_OVERRIDE", "false")
     env_config.reload_env({"PAL_MCP_FORCE_ENV_OVERRIDE": "false"})
     monkeypatch.setenv("DEFAULT_MODEL", "gemini-2.5-flash")
     monkeypatch.setenv("MAX_CONVERSATION_TURNS", "50")
+
+    from clink import registry as cli_registry
+
+    monkeypatch.setenv(cli_registry.CONFIG_ENV_VAR, "")
+    monkeypatch.setattr(cli_registry, "_REGISTRY", None)
 
     import importlib
     import sys
