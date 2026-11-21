@@ -77,7 +77,9 @@ def test_registry_lists_roles():
     assert gemini_client.safe_args == []
 
     claude_client = registry.get_client("claude")
-    assert claude_client.config_args == ["--model", "sonnet"]
+    assert claude_client.config_args == []
+    assert claude_client.model_args == ["--model", "{model}"]
+    assert claude_client.default_model == "sonnet"
     assert claude_client.safe_args == ["--permission-mode", "default"]
     assert claude_client.edit_args == ["--permission-mode", "acceptEdits"]
 

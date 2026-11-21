@@ -56,6 +56,8 @@ def test_surface_preserves_names_parameters_types_defaults_and_safety(surface):
             expected["properties"]["model"]["deprecated"] = True
             expected["properties"]["use_assistant_model"].update(default=False, deprecated=True)
         if name == "clink":
+            # Issue #34 adds a CLI-native model override; PAL provider routing is unchanged.
+            expected["properties"]["model"] = {"type": ["string", "null"], "default": None, "maxLength": 512}
             # CLI-only Task 4 permits a follow-up to reuse committed selection. The rule is
             # not encoded as a top-level anyOf: the Anthropic API rejects it and Claude Code
             # drops the tool. It is described on cli_name and enforced at runtime instead.

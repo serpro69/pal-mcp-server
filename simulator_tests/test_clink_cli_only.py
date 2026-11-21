@@ -27,6 +27,7 @@ from .base_test import BaseSimulatorTest
 from .server_session import SimulatorSession
 
 LIVE_SELECTOR_ENV = "PAL_CLINK_LIVE_TEST"
+LIVE_MODEL_ENV = "PAL_CLINK_LIVE_MODEL"
 LIVE_CLI_NAMES = ("codex", "claude", "gemini")
 REPO = Path(__file__).resolve().parents[1]
 
@@ -75,7 +76,7 @@ def _payload(result) -> dict:
     return payload
 
 
-def check_live_conversation(session: SimulatorSession, vendor: str) -> None:
+def check_live_conversation(session: SimulatorSession, vendor: str, *, model: str | None = None) -> None:
     """Require both prior input and the CLI's own answer in a dependent follow-up."""
     diagnostics = _payload(session.call_tool("listmodels", {}))["metadata"]
     assert diagnostics["mode"] == "provider-free" and diagnostics["configured_providers"] == 0
@@ -89,6 +90,7 @@ def check_live_conversation(session: SimulatorSession, vendor: str) -> None:
             "clink",
             {
                 "cli_name": vendor,
+                **({"model": model} if model is not None else {}),
                 "prompt": (
                     f"Remember the label {label}. Invent a code of exactly twelve lowercase ASCII letters. "
                     "Calculate 2 + 2. Reply with <CLINK_ANSWER>label|code|sum</CLINK_ANSWER>, "
@@ -118,6 +120,17 @@ def check_live_conversation(session: SimulatorSession, vendor: str) -> None:
     assert followup["metadata"]["history_saved"] is True
     assert followup["metadata"]["history"]["retained_messages"] == 2
     assert followup["continuation_offer"]["continuation_id"] == thread
+    if model is not None:
+        for response in (first, followup):
+            assert response["metadata"].get("model_requested") == model, "CLI model override was not retained"
+            command = response["metadata"]["command"]
+            assert command[command.index("--model") + 1] == model, "CLI model argv did not match the override"
+            logging.getLogger(__name__).info(
+                "Live %s model evidence: requested=%s reported=%s",
+                vendor,
+                model,
+                response["metadata"].get("model_used"),
+            )
 
 
 def run_live_clink(vendor: str, logger: logging.Logger) -> None:
@@ -157,7 +170,7 @@ def run_live_clink(vendor: str, logger: logging.Logger) -> None:
             env=env,
         )
         with SimulatorSession(timeout=150, parameters=parameters) as session:
-            check_live_conversation(session, vendor)
+            check_live_conversation(session, vendor, model=os.environ.get(LIVE_MODEL_ENV))
         assert (root / "server-stopped").exists(), "Live server did not shut down cleanly"
         assert not (root / "forbidden-calls.txt").exists(), "Live check attempted forbidden provider/dotenv access"
         logger.info("Live %s first request and dependent follow-up completed with provider-free PAL", vendor)

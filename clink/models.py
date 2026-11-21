@@ -9,6 +9,32 @@ from pydantic import BaseModel, Field, PositiveInt, field_validator, model_valid
 
 from clink.constants import DEFAULT_HISTORY_TOKEN_BUDGET
 
+MAX_CLI_MODEL_CHARS = 512
+
+
+def validate_cli_model(value: str | None) -> str | None:
+    """Validate an opaque CLI model identifier without interpreting it as argv."""
+    if value is not None and (
+        not isinstance(value, str)
+        or not value
+        or len(value) > MAX_CLI_MODEL_CHARS
+        or value != value.strip()
+        or value.startswith("-")
+        or any(ord(character) < 32 or ord(character) == 127 for character in value)
+    ):
+        raise ValueError(
+            f"model must be a nonempty string of at most {MAX_CLI_MODEL_CHARS} characters "
+            "without surrounding whitespace, control characters, or a leading '-'"
+        )
+    return value
+
+
+def validate_model_args(value: list[str]) -> list[str]:
+    """Only model-selector options may carry caller-controlled model values."""
+    if value and value not in (["--model", "{model}"], ["-m", "{model}"]):
+        raise ValueError("model_args must be [] or ['--model', '{model}'] or ['-m', '{model}']")
+    return value
+
 
 class OutputCaptureConfig(BaseModel):
     """Optional configuration for CLIs that write output to disk."""
@@ -47,6 +73,8 @@ class CLIClientConfig(BaseModel):
 
     name: str
     command: str | None = None
+    model_args: list[str] = Field(default_factory=list)
+    default_model: str | None = Field(default=None, strict=True)
     working_dir: str | None = None
     additional_args: list[str] = Field(default_factory=list)
     safe_args: list[str] = Field(
@@ -71,6 +99,16 @@ class CLIClientConfig(BaseModel):
     )
     roles: dict[str, CLIRoleConfig] = Field(default_factory=dict)
     output_to_file: OutputCaptureConfig | None = None
+
+    @field_validator("model_args")
+    @classmethod
+    def _validate_model_args(cls, value: list[str]) -> list[str]:
+        return validate_model_args(value)
+
+    @field_validator("default_model")
+    @classmethod
+    def _validate_default_model(cls, value: str | None) -> str | None:
+        return validate_cli_model(value)
 
     # Flags known to grant the CLI unrestricted filesystem-write capability.
     # They MUST NOT appear in `additional_args` (which is always applied) — only in
@@ -111,6 +149,8 @@ class CLIClientConfig(BaseModel):
         acceptEdits` in edit_args. The flag name appears in both; the value
         differs. We intentionally don't enforce disjoint-by-token.
         """
+        if self.default_model is not None and not self.model_args:
+            raise ValueError("default_model requires a model_args template")
         if (self.safe_args or self.edit_args) and self.safe_args == self.edit_args:
             raise ValueError(
                 "safe_args and edit_args must differ — identical buckets make "
@@ -149,6 +189,9 @@ class ResolvedCLIClient(BaseModel):
 
     name: str
     executable: list[str]
+    model_args: list[str] = Field(default_factory=list)
+    default_model: str | None = Field(default=None, strict=True)
+    requested_model: str | None = Field(default=None, strict=True)
     working_dir: Path | None
     internal_args: list[str] = Field(default_factory=list)
     config_args: list[str] = Field(default_factory=list)
@@ -162,6 +205,16 @@ class ResolvedCLIClient(BaseModel):
     runner: str | None = None
     roles: dict[str, ResolvedCLIRole]
     output_to_file: OutputCaptureConfig | None = None
+
+    @field_validator("model_args")
+    @classmethod
+    def _validate_model_args(cls, value: list[str]) -> list[str]:
+        return validate_model_args(value)
+
+    @field_validator("default_model", "requested_model")
+    @classmethod
+    def _validate_model(cls, value: str | None) -> str | None:
+        return validate_cli_model(value)
 
     def list_roles(self) -> list[str]:
         return list(self.roles.keys())

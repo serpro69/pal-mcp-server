@@ -13,13 +13,13 @@ from pathlib import Path
 from typing import Any
 
 from mcp.types import TextContent
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from clink import get_registry
 from clink.agents import AgentOutput, CLIAgentError, create_agent, get_agent_class
 from clink.agents.base import WorkingDirectoryLaunchError
 from clink.conversation import CLIConversation, canonical_continuation_id, prepare_request
-from clink.models import ResolvedCLIClient, ResolvedCLIRole
+from clink.models import MAX_CLI_MODEL_CHARS, ResolvedCLIClient, ResolvedCLIRole, validate_cli_model
 from clink.working_directory import MISSING_BINDING, WorkingDirectoryError, resolve_working_directory
 from config import TEMPERATURE_BALANCED
 from tools.models import ContinuationOffer, ToolModelCategory, ToolOutput
@@ -48,6 +48,11 @@ WORKING_DIRECTORY_DESCRIPTION = (
     "An explicit directory may select the first project from scratch; changing an established project "
     "requires a new conversation. Omission or null never clears the saved project."
 )
+MODEL_DESCRIPTION = (
+    "Optional model identifier passed to the CLI, not a PAL provider model. Requires the client's model_args template. "
+    "Omission or null inherits the last successful selection for the same CLI; switching CLIs resets it. "
+    "A new conversation without model uses the configured default. Model names must not start with '-'."
+)
 
 # Request-scoped system prompt. Stored in a ContextVar so concurrent asyncio
 # invocations of CLinkTool.execute() can't cross-contaminate each other's
@@ -67,6 +72,7 @@ class CLinkRequest(BaseModel):
         default=None,
         description="Role preset. Reuses the saved role on continuation, otherwise defaults to 'default'.",
     )
+    model: str | None = Field(default=None, strict=True, max_length=MAX_CLI_MODEL_CHARS, description=MODEL_DESCRIPTION)
     absolute_file_paths: list[str] = Field(
         default_factory=list,
         description=COMMON_FIELD_DESCRIPTIONS["absolute_file_paths"],
@@ -95,6 +101,11 @@ class CLinkRequest(BaseModel):
             "allow_edits=true. Currently honored only by the 'claude' CLI via --allowedTools."
         ),
     )
+
+    @field_validator("model")
+    @classmethod
+    def _validate_model(cls, value: str | None) -> str | None:
+        return validate_cli_model(value)
 
 
 class CLinkTool(SimpleTool):
@@ -197,6 +208,12 @@ class CLinkTool(SimpleTool):
                 "enum": self._all_roles or ["default"],
                 "description": role_description,
             },
+            "model": {
+                "type": ["string", "null"],
+                "default": None,
+                "maxLength": MAX_CLI_MODEL_CHARS,
+                "description": MODEL_DESCRIPTION,
+            },
             "absolute_file_paths": SchemaBuilder.SIMPLE_FIELD_SCHEMAS["absolute_file_paths"],
             "images": SchemaBuilder.COMMON_FIELD_SCHEMAS["images"],
             "continuation_id": SchemaBuilder.COMMON_FIELD_SCHEMAS["continuation_id"],
@@ -255,7 +272,7 @@ class CLinkTool(SimpleTool):
         try:
             request = prepare_request(self, arguments)
             conversation = CLIConversation.load(request)
-            selected_cli, selected_role = conversation.resolve_selection(request, self._cli_names)
+            selected_cli, selected_role, selected_model = conversation.resolve_selection(request, self._cli_names)
         except (memory.ConversationMemoryError, ValueError) as exc:
             self._raise_tool_error(str(exc), metadata={"tool_name": "clink", "error_type": type(exc).__name__})
 
@@ -263,6 +280,13 @@ class CLinkTool(SimpleTool):
             client_config = self._registry.get_client(selected_cli)
         except KeyError as exc:
             self._raise_tool_error(str(exc))
+
+        if selected_model is not None and not client_config.model_args:
+            self._raise_tool_error(
+                f"CLI '{client_config.name}' has no model_args template; model selection is unsupported. "
+                "Configure model_args in its complete CLI manifest and restart PAL. "
+                "If the model was inherited, start a new conversation without model to use the configured default."
+            )
 
         try:
             # Resolution is read-only. Cancellation can abandon the worker's
@@ -287,7 +311,11 @@ class CLinkTool(SimpleTool):
 
         launch_path = working_directory.binding.launch_path
         client_config = client_config.model_copy(
-            deep=True, update={"working_dir": Path(launch_path) if launch_path is not None else None}
+            deep=True,
+            update={
+                "working_dir": Path(launch_path) if launch_path is not None else None,
+                "requested_model": selected_model,
+            },
         )
 
         try:
@@ -349,6 +377,9 @@ class CLinkTool(SimpleTool):
         metadata = self._build_execution_metadata(client_config, role_config, result)
         # The selection belongs to PAL, never to untrusted native output.
         metadata.update(tool_name="clink", working_directory=working_directory.to_metadata())
+        metadata.pop("model_requested", None)
+        if selected_model is not None:
+            metadata["model_requested"] = selected_model
         if result.returncode != 0 or result.parsed.is_error:
             if result.stdout.strip() and not self._uses_agy_runner(client_config):
                 metadata["stdout"] = result.stdout.strip()
@@ -385,6 +416,7 @@ class CLinkTool(SimpleTool):
                 model_name=model_name,
                 model_metadata=model_metadata,
                 working_directory=working_directory.binding,
+                requested_model=selected_model,
             )
         except memory.ConversationMemoryError as exc:
             metadata.update(memory.memory_persistence_warning(exc), history_saved=False)
@@ -576,6 +608,7 @@ class CLinkTool(SimpleTool):
         """Bound diagnostics while retaining PAL selection and persistence state."""
         # These fields are response contracts, not optional CLI diagnostics.
         required_keys = {
+            "model_requested",
             "working_directory",
             "tool_name",
             "provider_used",
@@ -608,6 +641,7 @@ class CLinkTool(SimpleTool):
     def _build_error_metadata(self, client: ResolvedCLIClient, exc: CLIAgentError) -> dict[str, Any]:
         """Assemble metadata for failed CLI calls."""
         metadata: dict[str, Any] = {
+            **({"model_requested": client.requested_model} if client.requested_model is not None else {}),
             "cli_name": client.name,
             "return_code": exc.returncode,
         }

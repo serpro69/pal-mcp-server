@@ -146,6 +146,17 @@ class BaseCLIAgent:
                 "for nvm, include the directory containing node and other required tool directories. "
                 "Restart PAL after changing configuration."
             )
+        if (
+            self.client.requested_model is not None
+            and os.name == "nt"
+            and resolved_executable.lower().endswith((".bat", ".cmd"))
+        ):
+            # Windows may dispatch batch files through a shell even with
+            # create_subprocess_exec. Do not expose caller model values to it.
+            raise CLIAgentError(
+                "Model overrides cannot use Windows batch launchers (.bat/.cmd). "
+                "Configure a native CLI executable or invoke the CLI script directly with node."
+            )
         command[0] = resolved_executable
 
         sanitized_command = list(command)
@@ -309,12 +320,43 @@ class BaseCLIAgent:
         base = list(self.client.executable)
         base.extend(self.client.internal_args)
         base.extend(self.client.config_args)
+        base.extend(self._model_arguments(role=role, allow_edits=allow_edits))
         base.extend(self.client.edit_args if allow_edits else self.client.safe_args)
         base.extend(self._extra_command_args(system_prompt=system_prompt, role=role))
         base.extend(self._build_path_restriction_args(editable_paths, allow_edits=allow_edits))
         base.extend(role.role_args)
 
         return base
+
+    def _model_arguments(self, *, role: ResolvedCLIRole, allow_edits: bool) -> list[str]:
+        model = self.client.requested_model
+        if model is None:
+            model = self.client.default_model
+        if model is None:
+            return []
+        if not self.client.model_args:
+            raise CLIAgentError(f"CLI '{self.client.name}' has no model_args template; model selection is unsupported.")
+        if self.client.requested_model is not None:
+            # Do not rewrite arbitrary argv: a model-looking token could be an
+            # option's value. Make legacy pins explicit configuration conflicts.
+            buckets = (
+                self.client.config_args,
+                self.client.edit_args if allow_edits else self.client.safe_args,
+                role.role_args,
+            )
+            if any(
+                argument.partition("=")[0] == "--model" or argument.startswith("-m")
+                for bucket in buckets
+                for argument in bucket
+            ):
+                raise CLIAgentError(
+                    f"CLI '{self.client.name}' has model flags in its configured arguments. "
+                    "Move the default to default_model and remove model flags from argument lists "
+                    "before using the model input."
+                )
+        # The validated template has one flag and one whole-value placeholder.
+        # No shell expansion, splitting, formatting, or PAL model lookup occurs.
+        return [self.client.model_args[0], model]
 
     def _extra_command_args(self, *, system_prompt: str | None, role: ResolvedCLIRole) -> list[str]:
         """Hook for subclasses to inject agent-specific args (e.g. system prompt flags).

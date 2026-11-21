@@ -1,6 +1,7 @@
 {
   "name": "codex",
   "command": "codex",
+  "model_args": ["--model", "{model}"],
   "additional_args": [
     "--json",
     "--enable",
