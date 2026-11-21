@@ -129,7 +129,8 @@ def cli_server(tmp_path, monkeypatch, vendor):
 async def test_client_cancellation_stops_cli_and_preserves_stdio_session(cli_server, vendor, mode):
     cli_server.client_overrides[vendor] = {"env": {"CLINK_TEST_SCENARIO": "directory"}}
     async with child_gate() as gate:
-        async with cli_server.connect(gate_port=gate.port, mode=mode) as (session, _):
+        async with cli_server.connect(gate_port=gate.port, mode=mode) as (session, client):
+            assert client.protocol_version == ("2025-11-25" if mode == "legacy" else "2026-07-28")
             held = asyncio.create_task(
                 session.call_tool("clink", {"cli_name": vendor, "prompt": "CLINK_TEST_STAGE=held"})
             )
