@@ -170,7 +170,7 @@ jobs:
           token: ${{ steps.app-token.outputs.token || github.token }}
 
       - name: Download Staged Changes
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: sync-diff-report
           path: .github/sync-artifacts
