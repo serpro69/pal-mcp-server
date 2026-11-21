@@ -39,10 +39,11 @@ async def test_pal_stdio_protocol_contract(tmp_path, mode, protocol):
         invalid = await client.call_tool("clink", {"prompt": 123})
         assert invalid.is_error and invalid.content[0].text.startswith("Input validation error:")
         assert (await client.list_prompts()).prompts
-        assert (await client.get_prompt("version")).messages
+        prompt = await client.get_prompt("version")
+        assert prompt.description and prompt.messages
         with pytest.raises(MCPError, match="Unknown prompt") as unknown_prompt:
             await client.get_prompt("unregistered-prompt")
-        assert unknown_prompt.value.code == -32602
+        assert unknown_prompt.value.code == (0 if mode == "legacy" else -32602)
         if mode == "auto":
             with pytest.raises(MCPError, match="Unknown tool") as unknown_tool:
                 await client.call_tool("unregistered-tool", {})

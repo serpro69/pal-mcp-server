@@ -1390,6 +1390,8 @@ async def _get_prompt(ctx: ServerRequestContext, params: types.GetPromptRequestP
     try:
         return await handle_get_prompt(params.name, params.arguments)
     except (ValueError, ToolExecutionError) as exc:
+        if ctx.protocol_version < "2026-07-28":
+            raise  # Preserve the 1.x dispatcher's legacy prompt error.
         raise MCPError(-32602, str(exc)) from exc
 
 
