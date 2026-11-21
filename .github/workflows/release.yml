@@ -29,7 +29,7 @@ jobs:
       - name: Generate GitHub App Token
         id: app-token
         if: ${{ vars.CLAUDE_TOOLBOX_APP_ID != '' || vars.JEAN_CLAWDER_APP_ID != '' }}
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@v3
         with:
           app-id: ${{ vars.CLAUDE_TOOLBOX_APP_ID || vars.JEAN_CLAWDER_APP_ID }}
           private-key: ${{ secrets.CLAUDE_TOOLBOX_APP_KEY || secrets.JEAN_CLAWDER_APP_KEY }}
