@@ -7,7 +7,6 @@ import shlex
 import sys
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
-from datetime import timedelta
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -25,7 +24,7 @@ EDIT_FLAGS = {"gemini": "--yolo", "claude": "acceptEdits", "codex": "--dangerous
 
 
 def payload(result, *, error=False):
-    assert result.isError is error, result.content
+    assert result.is_error is error, result.content
     assert len(result.content) == 1 and result.content[0].type == "text"
     value = json.loads(result.content[0].text)
     assert (value["status"] == "error") is error, value
@@ -99,7 +98,7 @@ class CLIOnlyServer:
         )
         with (self.root / "stderr.log").open("w", encoding="utf-8") as errors:
             async with stdio_client(parameters, errlog=errors) as (read, write):
-                async with ClientSession(read, write, read_timeout_seconds=timedelta(seconds=10)) as session:
+                async with ClientSession(read, write, read_timeout_seconds=10) as session:
                     initialized = await session.initialize()
                     yield session, initialized
         assert (self.root / "server-stopped").exists(), "SDK teardown did not shut down the actual server"

@@ -5,12 +5,12 @@ import json
 from pathlib import Path
 
 import pytest
-from mcp.types import CallToolRequest, CallToolRequestParams
 
 import config
 import server
 import tools
 from scripts.tool_surface import capture_surface
+from tests.mcp_client import call_tool as call_mcp_tool
 from tools.planner import PlannerTool
 from tools.shared.base_tool import BaseTool
 from tools.tracer import TracerTool
@@ -152,17 +152,14 @@ async def test_provider_free_and_legacy_calls_pass_mcp_schema_validation(
     monkeypatch, isolated_provider_environment, name, legacy
 ):
     monkeypatch.setattr(config, "DEFAULT_MODEL", "auto")
-    monkeypatch.setattr(server.server, "_tool_cache", {})
     args = {"step": "Inspect the next action", "step_number": 1, "total_steps": 1, "next_step_required": False}
     if name == "tracer":
         args.update(findings="A local trace", trace_mode="precision", target_description="trace target")
     if legacy:
         args.update(model="unavailable-legacy-model", use_assistant_model=True)
-    result = await server.server.request_handlers[CallToolRequest](
-        CallToolRequest(params=CallToolRequestParams(name=name, arguments=args))
-    )
-    assert result.root.isError is False
-    response = json.loads(result.root.content[0].text)
+    result = await call_mcp_tool(name, args)
+    assert result.is_error is False
+    response = json.loads(result.content[0].text)
     assert response["metadata"]["model_used"] is None
     assert response["metadata"]["provider_used"] is None
 
@@ -170,7 +167,6 @@ async def test_provider_free_and_legacy_calls_pass_mcp_schema_validation(
 @pytest.mark.asyncio
 async def test_legacy_field_transition_keeps_mcp_type_validation(monkeypatch, isolated_provider_environment):
     monkeypatch.setattr(config, "DEFAULT_MODEL", "auto")
-    monkeypatch.setattr(server.server, "_tool_cache", {})
     args = {
         "step": "Plan",
         "step_number": 1,
@@ -178,10 +174,8 @@ async def test_legacy_field_transition_keeps_mcp_type_validation(monkeypatch, is
         "next_step_required": False,
         "use_assistant_model": "not-a-boolean",
     }
-    result = await server.server.request_handlers[CallToolRequest](
-        CallToolRequest(params=CallToolRequestParams(name="planner", arguments=args))
-    )
-    assert result.root.isError is True
+    result = await call_mcp_tool("planner", args)
+    assert result.is_error is True
 
 
 def test_short_descriptions_retain_continuation_and_validation_rules(surface):

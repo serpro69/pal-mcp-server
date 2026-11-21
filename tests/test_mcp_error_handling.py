@@ -3,11 +3,10 @@ from dataclasses import replace
 from types import SimpleNamespace
 
 import pytest
-from mcp.types import CallToolRequest, CallToolRequestParams
 
 from providers.gemini import GeminiModelProvider
 from providers.registry import ModelProviderRegistry
-from server import server as mcp_server
+from tests.mcp_client import call_tool as call_mcp_tool
 from tests.request_capture import capture_providers
 from utils import conversation_memory as memory
 
@@ -42,11 +41,9 @@ def _install_dummy_provider(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_tool_execution_error_sets_is_error_flag_for_mcp_response(monkeypatch):
-    """Ensure ToolExecutionError surfaces as CallToolResult with isError=True."""
+    """Ensure ToolExecutionError surfaces as CallToolResult with is_error=True."""
 
     _install_dummy_provider(monkeypatch)
-
-    handler = mcp_server.request_handlers[CallToolRequest]
 
     arguments = {
         "prompt": "Trigger working_directory_absolute_path validation failure",
@@ -55,14 +52,12 @@ async def test_tool_execution_error_sets_is_error_flag_for_mcp_response(monkeypa
         "model": "gemini-2.5-flash",
     }
 
-    request = CallToolRequest(params=CallToolRequestParams(name="chat", arguments=arguments))
+    server_result = await call_mcp_tool("chat", arguments)
 
-    server_result = await handler(request)
+    assert server_result.is_error is True
+    assert server_result.content, "Expected error response content"
 
-    assert server_result.root.isError is True
-    assert server_result.root.content, "Expected error response content"
-
-    payload = server_result.root.content[0].text
+    payload = server_result.content[0].text
     data = json.loads(payload)
     assert data["status"] == "error"
     assert "absolute" in data["content"].lower()
@@ -86,10 +81,9 @@ async def test_expert_failure_sets_protocol_error_without_saving_reply(monkeypat
         "next_step_required": False,
         "model": "gemini-2.5-flash",
     }
-    request = CallToolRequest(params=CallToolRequestParams(name="thinkdeep", arguments=arguments))
-    result = (await mcp_server.request_handlers[CallToolRequest](request)).root
+    result = await call_mcp_tool("thinkdeep", arguments)
 
-    assert result.isError is True
+    assert result.is_error is True
     payload = json.loads(result.content[0].text)
     assert payload["status"] == "error"
     assert payload["thinkdeep_complete"] is False
@@ -125,14 +119,13 @@ async def test_restored_expert_attachment_keeps_structured_budget_error(monkeypa
         "relevant_files": [str(path)],
         "model": "gemini-2.5-flash",
     }
-    handler = mcp_server.request_handlers[CallToolRequest]
-    first = (await handler(CallToolRequest(params=CallToolRequestParams(name="thinkdeep", arguments=arguments)))).root
-    assert first.isError is False
+    first = await call_mcp_tool("thinkdeep", arguments)
+    assert first.is_error is False
     thread_id = json.loads(first.content[0].text)["continuation_offer"]["continuation_id"]
     arguments.update(continuation_id=thread_id, step_number=2, next_step_required=False, relevant_files=[])
-    result = (await handler(CallToolRequest(params=CallToolRequestParams(name="thinkdeep", arguments=arguments)))).root
+    result = await call_mcp_tool("thinkdeep", arguments)
 
-    assert result.isError is True
+    assert result.is_error is True
     payload = json.loads(result.content[0].text)
     assert payload["status"] == "code_too_large"
     assert payload["metadata"]["overage"] > 0

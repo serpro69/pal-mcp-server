@@ -296,7 +296,7 @@ def test_live_agy_harness_checks_directory_source_and_omitted_followup(monkeypat
                 },
                 "continuation_offer": {"continuation_id": "same-thread"},
             }
-            return SimpleNamespace(isError=False, content=[SimpleNamespace(type="text", text=json.dumps(payload))])
+            return SimpleNamespace(is_error=False, content=[SimpleNamespace(type="text", text=json.dumps(payload))])
 
     monkeypatch.setattr(live_agy, "SimulatorSession", Session)
     options = {"configured_cwd": cwd_source == "configuration", "requested_cwd": cwd_source == "request"}

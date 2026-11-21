@@ -229,6 +229,11 @@ Remember: All tests must pass before submitting a PR. See the [Contributing Guid
 
 ## Final reliability verification
 
+The `clean-install` CI job installs the checkout into a fresh virtual environment
+using `pyproject.toml`. A separate MCP 1.30.0 client launches that installation's
+`pal-mcp-server` from a temporary directory, initializes it, and lists tools.
+The locked SDK 2.x suite also exercises the newer protocol over stdio.
+
 Install both committed locks into fresh environments for Python 3.10, 3.11 and
 3.12. Run the full unit suite and `python -m simulator_tests.stub_provider` in
 each, and run `./code_quality_checks.sh` with an activated environment. Recompile

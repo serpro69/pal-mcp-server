@@ -105,13 +105,13 @@ def test_tool_error_is_preserved(fake_transport, monkeypatch):
     _, client = fake_transport
 
     async def failed(self, name, args):
-        return CallToolResult(isError=True, content=[TextContent(type="text", text='{"status":"error"}')])
+        return CallToolResult(is_error=True, content=[TextContent(type="text", text='{"status":"error"}')])
 
     monkeypatch.setattr(client, "call_tool", failed)
     test = BaseSimulatorTest()
     try:
         assert test.call_mcp_tool("chat", {}) == ('{"status":"error"}', None)
-        assert test.last_result.isError
+        assert test.last_result.is_error
     finally:
         test.close_session()
 
@@ -184,7 +184,7 @@ def test_real_stdio_keeps_planner_state(monkeypatch, tmp_path):
                 "next_step_required": True,
             },
         )
-        assert not first.isError
+        assert not first.is_error
         thread = BaseSimulatorTest()._extract_continuation_id(first.content[0].text)
         assert thread
         second = session.call_tool(
@@ -197,7 +197,7 @@ def test_real_stdio_keeps_planner_state(monkeypatch, tmp_path):
                 "continuation_id": thread,
             },
         )
-        assert not second.isError
+        assert not second.is_error
         assert BaseSimulatorTest()._extract_continuation_id(second.content[0].text) == thread
 
 
@@ -415,7 +415,7 @@ def test_explicit_session_parameters_preserve_owned_transport(fake_transport, tm
     events, _ = fake_transport
     parameters = server_session.StdioServerParameters(command="isolated-python", args=["launcher"], cwd=str(tmp_path))
     with server_session.SimulatorSession(parameters=parameters) as session:
-        assert not session.call_tool("clink", {}).isError
+        assert not session.call_tool("clink", {}).is_error
     assert events[0][1] is parameters
     assert events[0][2] is events[-1][1]
 
@@ -482,7 +482,7 @@ class FakeLiveSession:
             if self.model is not None:
                 value["metadata"].update(model_requested=self.model, command=["claude", "--model", self.model])
         return CallToolResult(
-            isError=name == "clink" and self.failure == "mcp",
+            is_error=name == "clink" and self.failure == "mcp",
             content=[TextContent(type="text", text=json.dumps(value))],
         )
 

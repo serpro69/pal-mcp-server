@@ -11,8 +11,6 @@ def observe_directory_calls(root, server):
     import asyncio
     import re
 
-    from mcp.types import CallToolRequest
-
     from clink.registry import get_registry
     from utils import conversation_memory as memory
 
@@ -39,21 +37,22 @@ def observe_directory_calls(root, server):
             "clients": {name: registry.get_client(name).model_dump(mode="json") for name in registry.list_clients()},
         }
 
-    sdk_handler = server.server.request_handlers[CallToolRequest]
+    sdk_handler = server._call_tool
 
-    async def observed_handler(request):
-        if request.params.name != "clink":
-            return await sdk_handler(request)
-        stage = re.findall(r"CLINK_TEST_STAGE=(\w+)", request.params.arguments["prompt"])[-1]
+    async def observed_handler(ctx, params):
+        if params.name != "clink":
+            return await sdk_handler(ctx, params)
+        stage = re.findall(r"CLINK_TEST_STAGE=(\w+)", params.arguments["prompt"])[-1]
         before = snapshot()
         try:
-            # Includes the SDK's input-schema validation; never dispatch around it.
-            return await sdk_handler(request)
+            # Includes PAL's MCP input-schema validation; never dispatch around it.
+            return await sdk_handler(ctx, params)
         finally:
             with (observations / f"{stage}.json").open("x", encoding="utf-8") as stream:
                 json.dump({"before": before, "after": snapshot()}, stream)
 
-    server.server.request_handlers[CallToolRequest] = observed_handler
+    server._call_tool = observed_handler
+    server.server = server.create_server()
     native_spawn = asyncio.create_subprocess_exec
 
     async def observed_spawn(*args, **kwargs):

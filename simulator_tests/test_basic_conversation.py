@@ -42,7 +42,7 @@ class BasicConversationTest(BaseSimulatorTest):
                 },
             )
 
-            if not response1 or not continuation_id or self.last_result.isError:
+            if not response1 or not continuation_id or self.last_result.is_error:
                 self.logger.error("Failed to get initial response with continuation_id: %s", response1)
                 return False
 
@@ -61,7 +61,7 @@ class BasicConversationTest(BaseSimulatorTest):
                 },
             )
 
-            if not response2 or self.last_result.isError:
+            if not response2 or self.last_result.is_error:
                 self.logger.error("Failed to continue conversation: %s", response2)
                 return False
 
@@ -78,7 +78,7 @@ class BasicConversationTest(BaseSimulatorTest):
                 },
             )
 
-            if not response3 or self.last_result.isError:
+            if not response3 or self.last_result.is_error:
                 self.logger.error("Failed to continue with additional file: %s", response3)
                 return False
 

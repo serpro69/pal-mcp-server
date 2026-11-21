@@ -11,7 +11,7 @@ Planner and tracer run locally. They no longer require `model`, even with
 remain accepted with the original string/boolean types throughout PAL 1.x and
 cannot trigger a provider call. The advertised expert default is false, matching
 their existing request models. Removal requires a separately announced PAL major
-release; this is unrelated to the retained MCP 1.x protocol version.
+release. Upgrading the MCP SDK preserves this compatibility window.
 
 No advertised parameter was removed in this slice: MCP 1.30 validates requests
 against the advertised schema before invoking tool code, so removing a field would

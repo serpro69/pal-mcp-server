@@ -4,6 +4,9 @@
 
 ## Unreleased
 
+- Support the 2026-07-28 MCP protocol over stdio using Python SDK 2.x. Existing
+  clients can continue using the initialization handshake.
+
 - Remove the top-level `anyOf` from the clink input schema. The Anthropic API rejects
   that keyword in tool schemas, so Claude Code skipped the whole clink tool whenever
   more than one CLI was configured (the shipped default) since v1.4.0. The
