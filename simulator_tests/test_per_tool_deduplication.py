@@ -72,7 +72,7 @@ def divide(x, y):
             }
 
             response1, continuation_id = self.call_mcp_tool("precommit", precommit_params)
-            if not response1 or self.last_result.isError:
+            if not response1 or self.last_result.is_error:
                 self.logger.error("  ❌ Step 1: precommit tool failed: %s", response1)
                 return False
 
@@ -101,7 +101,7 @@ def divide(x, y):
             }
 
             response2, _ = self.call_mcp_tool("codereview", codereview_params)
-            if not response2 or self.last_result.isError:
+            if not response2 or self.last_result.is_error:
                 self.logger.error("  ❌ Step 2: codereview tool failed: %s", response2)
                 return False
 
@@ -135,7 +135,7 @@ def subtract(a, b):
             }
 
             response3, _ = self.call_mcp_tool("precommit", continue_params)
-            if not response3 or self.last_result.isError:
+            if not response3 or self.last_result.is_error:
                 self.logger.error("  ❌ Step 3: precommit continuation failed: %s", response3)
                 return False
 
@@ -149,7 +149,7 @@ def subtract(a, b):
                 "next_step_required": False,
             }
             final_response, _ = self.call_mcp_tool("precommit", final_params)
-            if not final_response or self.last_result.isError:
+            if not final_response or self.last_result.is_error:
                 self.logger.error("  ❌ Final precommit validation failed: %s", final_response)
                 return False
 

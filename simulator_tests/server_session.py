@@ -3,7 +3,6 @@
 import os
 import sys
 from contextlib import ExitStack, asynccontextmanager
-from datetime import timedelta
 from pathlib import Path
 
 from anyio.from_thread import start_blocking_portal
@@ -30,7 +29,7 @@ class SimulatorSession:
             command=sys.executable, args=[str(repo / "server.py")], cwd=str(repo), env=dict(os.environ)
         )
         async with stdio_client(parameters) as (read, write):
-            async with ClientSession(read, write, read_timeout_seconds=timedelta(seconds=self.timeout)) as session:
+            async with ClientSession(read, write, read_timeout_seconds=self.timeout) as session:
                 await session.initialize()
                 yield session
 

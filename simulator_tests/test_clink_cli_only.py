@@ -68,7 +68,7 @@ def live_server_environment(root: Path, vendor: str) -> dict[str, str]:
 
 def _payload(result) -> dict:
     text = "\n".join(item.text for item in result.content if item.type == "text")
-    if result.isError:
+    if result.is_error:
         raise AssertionError(f"Live clink MCP request failed: {text}")
     payload = json.loads(text)
     if payload["status"] not in {"success", "continuation_available"}:

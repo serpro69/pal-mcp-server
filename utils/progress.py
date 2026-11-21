@@ -1,4 +1,4 @@
-"""Request-local MCP 1.x progress and bounded, owned operation heartbeats."""
+"""Request-local MCP progress and bounded, owned operation heartbeats."""
 
 import asyncio
 import json
@@ -10,7 +10,7 @@ from contextvars import ContextVar
 from dataclasses import dataclass, field
 from typing import Any
 
-from mcp.shared.context import RequestContext
+from mcp.server import ServerRequestContext
 from mcp.types import TextContent
 
 logger = logging.getLogger(__name__)
@@ -37,7 +37,7 @@ class Operation:
 
 @dataclass
 class RequestProgress:
-    context: RequestContext | None
+    context: ServerRequestContext | None
     started: float = field(default_factory=time.monotonic)
     operations: list[Operation] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
@@ -49,7 +49,7 @@ class RequestProgress:
         return (
             self.context is not None
             and self.context.meta is not None
-            and self.context.meta.progressToken is not None
+            and self.context.meta.get("progress_token") is not None
             and not self.warnings
         )
 
@@ -67,7 +67,7 @@ class RequestProgress:
             try:
                 await asyncio.wait_for(
                     self.context.session.send_progress_notification(
-                        progress_token=self.context.meta.progressToken,
+                        progress_token=self.context.meta["progress_token"],
                         progress=self.counter,
                         message=json.dumps(message),
                     ),
@@ -126,7 +126,7 @@ class RequestProgress:
 
 
 @asynccontextmanager
-async def request_progress(context: RequestContext | None) -> AsyncIterator[RequestProgress]:
+async def request_progress(context: ServerRequestContext | None) -> AsyncIterator[RequestProgress]:
     reporter = RequestProgress(context)
     token = _current.set(reporter)
     try:

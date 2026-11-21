@@ -2,7 +2,7 @@
 
 PAL is a single-user MCP stdio server. A client launches one Python process;
 that process owns its conversation memory, provider clients and request tasks.
-It exposes tools, prompts and optional transcript resources through MCP 1.x.
+It exposes tools, prompts and optional transcript resources through MCP Python SDK 2.x over stdio.
 Python 3.10–3.12 is the tested matrix; the package requires Python >=3.10.
 
 This describes the implementation after the server reliability work, including
@@ -134,7 +134,7 @@ or quality benefit is inferred from prefix similarity.
 
 ## Evolution and rollback
 
-Keep MCP 1.x, pip-tools locks and the existing release workflow. Roll back async
+CI tests a clean source install with a separate MCP 1.x client and runs the locked SDK 2.x suite. Roll back async
 interfaces with their callers/tests, and JSON/schema changes with their declared
 compatibility windows. Planner/tracer legacy model fields remain accepted for
 PAL 1.x. Optional services and transcripts can be disabled by configuration;

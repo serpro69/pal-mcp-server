@@ -163,12 +163,10 @@ private files when a view is truncated. No subscriptions or change notifications
 
 Thread IDs must be canonical lowercase hyphenated UUIDs. Queries, fragments,
 percent-encoded IDs and paths are rejected. Missing, unknown, unsafe-file and
-disabled resources use MCP error -32002 (`Resource not found`). Permission failures
+disabled resources return `Resource not found`. The 2026-07-28 protocol uses
+-32602. Earlier clients receive -32002. Permission failures
 and storage/configuration failures use -32603 with distinct safe messages. Local
 path/error details are not exposed to the client. Reads use the same private
 directory/file policy as recording and run outside the event-loop thread.
 
-The mapping follows the retained
-[MCP 2025-11-25 resource contract](https://modelcontextprotocol.io/specification/2025-11-25/server/resources#error-handling)
-and was verified against Python SDK 1.30.0; MCP 2.x migration guidance has a different
-mapping and does not govern this implementation.
+The error code follows the negotiated protocol revision. [2025-11-25 resource errors](https://modelcontextprotocol.io/specification/2025-11-25/server/resources#error-handling) · [2026-07-28 resource errors](https://modelcontextprotocol.io/specification/2026-07-28/server/resources#error-handling)

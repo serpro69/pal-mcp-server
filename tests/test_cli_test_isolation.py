@@ -64,7 +64,7 @@ def test_ordinary_stdio_child_ignores_malformed_personal_manifests(tmp_path):
     ]
     with SimulatorSession(timeout=15, parameters=parameters) as session:
         result = session.call_tool("listmodels", {})
-        assert not result.isError
+        assert not result.is_error
         metadata = json.loads(result.content[0].text)["metadata"]
         assert metadata["configured_providers"] == 0
         assert {client["name"] for client in metadata["cli_clients"]} == {"agy", "claude", "codex", "gemini"}

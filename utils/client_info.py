@@ -2,19 +2,22 @@
 Client Information Utility for MCP Server
 
 This module provides utilities to extract and format client information
-from the MCP protocol's clientInfo sent during initialization.
+from the MCP request context.
 
 It also provides friendly name mapping and caching for consistent client
 identification across the application.
 """
 
 import logging
+from contextlib import contextmanager
+from contextvars import ContextVar
 from typing import Any, Optional
+
+from mcp.server import ServerRequestContext
 
 logger = logging.getLogger(__name__)
 
-# Global cache for client information
-_client_info_cache: Optional[dict[str, Any]] = None
+_client_info_cache: ContextVar[dict[str, Any] | None] = ContextVar("pal_client_info", default=None)
 
 # Mapping of known client names to friendly names
 # This is case-insensitive and checks if the key is contained in the client name
@@ -76,120 +79,30 @@ def get_cached_client_info() -> Optional[dict[str, Any]]:
     Returns:
         Cached client info dictionary or None
     """
-    global _client_info_cache
-    return _client_info_cache
+    return _client_info_cache.get()
 
 
-def get_client_info_from_context(server: Any) -> Optional[dict[str, Any]]:
-    """
-    Extract client information from the MCP server's request context.
-
-    The MCP protocol sends clientInfo during initialization containing:
-    - name: The client application name (e.g., "Claude Code", "Claude Desktop")
-    - version: The client version string
-
-    This function also adds a friendly_name field and caches the result.
-
-    Args:
-        server: The MCP server instance
-
-    Returns:
-        Dictionary with client info or None if not available:
-        {
-            "name": "claude-ai",
-            "version": "1.0.0",
-            "friendly_name": "Claude"
-        }
-    """
-    global _client_info_cache
-
-    # Return cached info if available
-    if _client_info_cache is not None:
-        return _client_info_cache
-
-    try:
-        # Try to access the request context and session
-        if not server:
-            return None
-
-        # Check if server has request_context property
-        request_context = None
-        try:
-            request_context = server.request_context
-        except AttributeError:
-            logger.debug("Server does not have request_context property")
-            return None
-
-        if not request_context:
-            logger.debug("Request context is None")
-            return None
-
-        # Try to access session from request context
-        session = None
-        try:
-            session = request_context.session
-        except AttributeError:
-            logger.debug("Request context does not have session property")
-            return None
-
-        if not session:
-            logger.debug("Session is None")
-            return None
-
-        # Try to access client params from session
-        client_params = None
-        try:
-            # The clientInfo is stored in _client_params.clientInfo
-            client_params = session._client_params
-        except AttributeError:
-            logger.debug("Session does not have _client_params property")
-            return None
-
-        if not client_params:
-            logger.debug("Client params is None")
-            return None
-
-        # Try to extract clientInfo
-        client_info = None
-        try:
-            client_info = client_params.clientInfo
-        except AttributeError:
-            logger.debug("Client params does not have clientInfo property")
-            return None
-
-        if not client_info:
-            logger.debug("Client info is None")
-            return None
-
-        # Extract name and version
-        result = {}
-
-        try:
-            result["name"] = client_info.name
-        except AttributeError:
-            logger.debug("Client info does not have name property")
-
-        try:
-            result["version"] = client_info.version
-        except AttributeError:
-            logger.debug("Client info does not have version property")
-
-        if not result:
-            return None
-
-        # Add friendly name
-        raw_name = result.get("name", "")
-        result["friendly_name"] = get_friendly_name(raw_name)
-
-        # Cache the result
-        _client_info_cache = result
-        logger.debug(f"Cached client info: {result}")
-
-        return result
-
-    except Exception as e:
-        logger.debug(f"Error extracting client info: {e}")
+def get_client_info_from_context(context: ServerRequestContext | None) -> Optional[dict[str, Any]]:
+    """Read the SDK's public per-request identity for the current stdio client."""
+    params = context.session.client_params if context is not None else None
+    if params is None:
         return None
+    client = params.client_info
+    return {
+        "name": client.name,
+        "version": client.version,
+        "friendly_name": get_friendly_name(client.name),
+    }
+
+
+@contextmanager
+def request_client_info(context: ServerRequestContext):
+    """Expose this caller's identity during tool execution, including nested awaits."""
+    token = _client_info_cache.set(get_client_info_from_context(context))
+    try:
+        yield
+    finally:
+        _client_info_cache.reset(token)
 
 
 def format_client_info(client_info: Optional[dict[str, Any]], use_friendly_name: bool = True) -> str:
@@ -236,17 +149,17 @@ def get_client_friendly_name() -> str:
     return DEFAULT_FRIENDLY_NAME
 
 
-def log_client_info(server: Any, logger_instance: Optional[logging.Logger] = None) -> None:
+def log_client_info(context: ServerRequestContext, logger_instance: Optional[logging.Logger] = None) -> None:
     """
     Log client information extracted from the server.
 
     Args:
-        server: The MCP server instance
+        context: The MCP request context
         logger_instance: Optional logger to use (defaults to module logger)
     """
     log = logger_instance or logger
 
-    client_info = get_client_info_from_context(server)
+    client_info = get_client_info_from_context(context)
     if client_info:
         # Log with both raw and friendly names for debugging
         raw_name = client_info.get("name", "Unknown")

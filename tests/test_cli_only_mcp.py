@@ -7,15 +7,15 @@ import shlex
 import sys
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
-from datetime import timedelta
 from pathlib import Path
 from uuid import UUID, uuid4
 
 import pytest
-from mcp import ClientSession, StdioServerParameters
+from mcp import Client, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
 from providers.configuration import provider_configurations
+from tests.test_clink_working_directory_subprocess import child_gate
 
 REPO = Path(__file__).resolve().parents[1]
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -25,7 +25,7 @@ EDIT_FLAGS = {"gemini": "--yolo", "claude": "acceptEdits", "codex": "--dangerous
 
 
 def payload(result, *, error=False):
-    assert result.isError is error, result.content
+    assert result.is_error is error, result.content
     assert len(result.content) == 1 and result.content[0].type == "text"
     value = json.loads(result.content[0].text)
     assert (value["status"] == "error") is error, value
@@ -48,7 +48,7 @@ class CLIOnlyServer:
         return {path.stem for path in (self.root / "captures" / self.vendor).glob("*.json")}
 
     @asynccontextmanager
-    async def connect(self, *, gate_port=0):
+    async def connect(self, *, gate_port=0, mode="legacy"):
         manifests = self.root / "clients"
         manifests.mkdir()
         for vendor in self.vendors:
@@ -98,10 +98,8 @@ class CLIOnlyServer:
             env=env,
         )
         with (self.root / "stderr.log").open("w", encoding="utf-8") as errors:
-            async with stdio_client(parameters, errlog=errors) as (read, write):
-                async with ClientSession(read, write, read_timeout_seconds=timedelta(seconds=10)) as session:
-                    initialized = await session.initialize()
-                    yield session, initialized
+            async with Client(stdio_client(parameters, errlog=errors), mode=mode, read_timeout_seconds=10) as client:
+                yield client.session, client
         assert (self.root / "server-stopped").exists(), "SDK teardown did not shut down the actual server"
         assert not (self.root / "forbidden-calls.txt").exists()
         isolation = json.loads((self.root / "isolation.json").read_text(encoding="utf-8"))
@@ -124,6 +122,33 @@ def cli_server(tmp_path, monkeypatch, vendor):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "PARENT_CHILD_KEY_MUST_NOT_LEAK")
     monkeypatch.setenv("GOOGLE_API_KEY", "PARENT_CHILD_KEY_MUST_NOT_LEAK")
     return CLIOnlyServer(tmp_path, vendor, settings | {"ANTHROPIC_API_KEY", "GOOGLE_API_KEY"})
+
+
+@pytest.mark.parametrize("vendor", ["codex"])
+@pytest.mark.parametrize("mode", ["legacy", "auto"])
+async def test_client_cancellation_stops_cli_and_preserves_stdio_session(cli_server, vendor, mode):
+    cli_server.client_overrides[vendor] = {"env": {"CLINK_TEST_SCENARIO": "directory"}}
+    async with child_gate() as gate:
+        async with cli_server.connect(gate_port=gate.port, mode=mode) as (session, client):
+            assert client.protocol_version == ("2025-11-25" if mode == "legacy" else "2026-07-28")
+            held = asyncio.create_task(
+                session.call_tool("clink", {"cli_name": vendor, "prompt": "CLINK_TEST_STAGE=held"})
+            )
+            try:
+                reader, _ = await asyncio.wait_for(gate.connections.get(), 5)
+                assert await asyncio.wait_for(reader.readexactly(1), 5) == b"R"
+                held.cancel()
+                with pytest.raises(asyncio.CancelledError):
+                    await held
+                # The fake CLI holds this socket open until PAL terminates it.
+                assert await asyncio.wait_for(reader.read(1), 5) == b""
+                retried = await session.call_tool(
+                    "clink", {"cli_name": vendor, "prompt": "CLINK_TEST_STAGE=after_cancel"}
+                )
+                assert payload(retried)["status"] == "continuation_available"
+            finally:
+                held.cancel()
+                await asyncio.gather(held, return_exceptions=True)
 
 
 @pytest.mark.parametrize("vendor", VENDORS)

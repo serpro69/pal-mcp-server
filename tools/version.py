@@ -28,6 +28,7 @@ from config import __author__, __updated__, __version__
 from tools.models import ToolModelCategory, ToolOutput
 from tools.shared.base_models import ToolRequest
 from tools.shared.base_tool import BaseTool
+from utils.client_info import format_client_info, get_cached_client_info
 
 DEFAULT_VERSION_CHECK_URL = "https://raw.githubusercontent.com/serpro69/pal-mcp-server/main/config.py"
 
@@ -237,19 +238,9 @@ class VersionTool(BaseTool):
         output_lines.append("- Run `listmodels` for the complete model catalog and capabilities")
         output_lines.append("")
 
-        # Try to get client information
-        try:
-            # We need access to the server instance
-            # This is a bit hacky but works for now
-            import server as server_module
-            from utils.client_info import format_client_info, get_client_info_from_context
-
-            client_info = get_client_info_from_context(server_module.server)
-            if client_info:
-                formatted = format_client_info(client_info)
-                output_lines.append(f"**Connected Client**: {formatted}")
-        except Exception as e:
-            logger.debug(f"Could not get client info: {e}")
+        client_info = get_cached_client_info()
+        if client_info:
+            output_lines.append(f"**Connected Client**: {format_client_info(client_info)}")
 
         # Get the current working directory (MCP server location)
         current_path = Path.cwd()
