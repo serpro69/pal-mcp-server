@@ -13,6 +13,10 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      # Keep the image on Python 3.11 until a newer series builds with the lockfile.
+      - dependency-name: python
+        versions: [">= 3.12"]
     groups:
       docker-minor-and-patch:
         update-types: [minor, patch]
