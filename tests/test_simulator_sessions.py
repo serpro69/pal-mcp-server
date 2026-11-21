@@ -463,6 +463,7 @@ class FakeLiveSession:
             value = {"status": "error", "content": "authentication unavailable"}
         else:
             if len(self.calls) == 2:
+                self.model = arguments.get("model")
                 label = re.search(r"Remember the label ([a-f0-9]{32})", arguments["prompt"])[1]
                 self.answer = f"<CLINK_ANSWER>{label}|abcdefghijkl|4</CLINK_ANSWER>"
                 assert arguments["allow_edits"] is False
@@ -477,6 +478,8 @@ class FakeLiveSession:
                 "metadata": {"history_saved": True, "history": {"retained_messages": 2}},
                 "continuation_offer": {"continuation_id": "same-thread"},
             }
+            if self.model is not None:
+                value["metadata"].update(model_requested=self.model, command=["claude", "--model", self.model])
         return CallToolResult(
             isError=name == "clink" and self.failure == "mcp",
             content=[TextContent(type="text", text=json.dumps(value))],
@@ -492,6 +495,13 @@ def test_live_conversation_requires_success_and_both_sides_of_history(failure):
     else:
         live_clink.check_live_conversation(session, "claude")
         assert len(session.calls) == 3
+
+
+def test_live_model_selection_is_sent_once_and_checked_on_followup():
+    session = FakeLiveSession()
+    live_clink.check_live_conversation(session, "claude", model="opus")
+    assert session.calls[1][1]["model"] == "opus"
+    assert "model" not in session.calls[2][1]
 
 
 @pytest.mark.parametrize("failure", [None, "request", "interrupt", "version", "missing"])
@@ -528,7 +538,7 @@ def test_live_workspace_session_and_prerequisite_ownership(monkeypatch, failure)
             (self.root / "server-stopped").touch()
             events.append("close")
 
-    def conversation(session, vendor):
+    def conversation(session, vendor, *, model=None):
         assert vendor == "claude"
         if failure == "interrupt":
             raise KeyboardInterrupt

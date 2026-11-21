@@ -1,10 +1,9 @@
 {
   "name": "claude",
   "command": "claude",
-  "additional_args": [
-    "--model",
-    "sonnet"
-  ],
+  "model_args": ["--model", "{model}"],
+  "default_model": "sonnet",
+  "additional_args": [],
   "safe_args": [
     "--permission-mode",
     "default"

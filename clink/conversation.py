@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 from clink.constants import DEFAULT_HISTORY_TOKEN_BUDGET
+from clink.models import validate_cli_model
 from clink.working_directory import WorkingDirectoryBinding
 from utils import conversation_memory as memory
 from utils.file_utils import expand_paths
@@ -259,8 +260,8 @@ class CLIConversation:
         if history.text:
             self.user_content = f"{history.text}\n\n=== NEW USER INPUT ===\n{self.user_turn.content}"
 
-    def resolve_selection(self, request: CLinkRequest, cli_names: list[str]) -> tuple[str, str]:
-        """Inherit only successful CLI/role defaults, never request permissions."""
+    def resolve_selection(self, request: CLinkRequest, cli_names: list[str]) -> tuple[str, str, str | None]:
+        """Inherit successful selection; model defaults stay within their CLI."""
         defaults = self.thread.initial_context.get("clink_defaults", {})
         if not isinstance(defaults, dict):
             defaults = {}
@@ -278,7 +279,10 @@ class CLIConversation:
             raise ValueError(f"Invalid cli_name {cli_name!r}. Select a configured CLI: {', '.join(cli_names)}.")
         if not isinstance(role, str) or not role:
             raise ValueError("Invalid role; specify a valid role for the selected CLI.")
-        return cli_name, role
+        model = request.model
+        if model is None and cli_name == defaults.get("cli_name"):
+            model = defaults.get("model")
+        return cli_name, role, validate_cli_model(model)
 
     @staticmethod
     def _check_capacity(thread: memory.ThreadContext) -> None:
@@ -294,6 +298,7 @@ class CLIConversation:
         model_name: str | None,
         model_metadata: dict[str, Any],
         working_directory: WorkingDirectoryBinding,
+        requested_model: str | None = None,
     ) -> int:
         """Commit both raw turns once, then emit compatible audit events in order.
 
@@ -319,7 +324,11 @@ class CLIConversation:
                 "last_updated_at": now,
                 "initial_context": {
                     **self.thread.initial_context,
-                    "clink_defaults": {"cli_name": provider, "role": role},
+                    "clink_defaults": {
+                        "cli_name": provider,
+                        "role": role,
+                        **({"model": requested_model} if requested_model is not None else {}),
+                    },
                     "clink_working_directory": working_directory.to_record(),
                 },
             }

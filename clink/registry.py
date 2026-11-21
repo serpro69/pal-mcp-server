@@ -160,6 +160,8 @@ class ClinkRegistry:
         return ResolvedCLIClient(
             name=normalized_name,
             executable=executable,
+            model_args=list(raw.model_args),
+            default_model=raw.default_model,
             internal_args=internal_args,
             config_args=config_args,
             safe_args=list(raw.safe_args),

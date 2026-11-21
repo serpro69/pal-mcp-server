@@ -94,6 +94,8 @@ The accepted selectors are `claude`, `codex`, and `gemini`; use `$env:PAL_CLINK_
 
 Each check owns a temporary workspace and MCP session. It excludes PAL provider settings, checkout dotenv files, and personal PAL client manifests. It preserves home/configuration locations and the selected CLI's remaining environment allowlist, so existing CLI authentication remains accessible. Shared PAL credentials such as `OPENAI_API_KEY` and `GEMINI_API_KEY` are excluded; configure the intended CLI account outside PAL before testing. The harness does not install or sign in to a CLI, and successful output does not establish billing mode.
 
+To check explicit model selection and inheritance with the shipped Codex or Claude manifest, also set `PAL_CLINK_LIVE_MODEL` to an identifier supported by that CLI/account, for example `PAL_CLINK_LIVE_TEST=claude PAL_CLINK_LIVE_MODEL=opus python -m pytest tests/test_clink_integration.py -q`. The check sends the model on the first request, omits it on the follow-up, verifies the selected model and CLI argv on both replies, and logs any CLI-reported model identity separately. The shipped Gemini manifest has no model template, so an explicit model fails that check.
+
 With no selector, pytest skips and the simulator reports `SKIPPED` before setup or live execution. A skip-only invocation exits successfully with “No tests executed”; it does not establish coverage. Invalid selectors, missing executables, authentication errors, incompatible arguments, and failed requests fail an opted-in check. The scenario is excluded from `--quick` and `--ci`.
 
 ## First Request and Follow-up
@@ -121,6 +123,26 @@ After a successful, recorded reply with room for another exchange, copy the retu
 The follow-up inherits the last successfully recorded CLI and role. Explicit `cli_name` or `role` values override them. New conversations require `cli_name` when multiple clients are configured, as in the shipped configuration. If exactly one is configured, it can be selected implicitly. The schema states this rule in the `cli_name` description and enforces it at runtime rather than through a top-level `anyOf`, which the Anthropic API rejects and which caused Claude Code to drop the tool. There is no implicit Gemini choice among multiple clients. Invalid selections fail; changing CLI while retaining a role the new CLI lacks also fails until you supply a supported role.
 
 The follow-up also inherits the saved directory choice, including across CLI or role changes. Changing an established project requires a new conversation: omit `continuation_id` and supply the new directory. A conversation that began in scratch mode may select its first project while retaining its history.
+
+### Choosing the CLI model
+
+Use `model` to select a model in a client whose manifest declares `model_args`. The shipped Codex and Claude manifests enable this; the shipped Gemini and agy manifests do not. For example:
+
+```json
+{
+  "cli_name": "claude",
+  "model": "opus",
+  "prompt": "Review this approach and give three concise risks."
+}
+```
+
+The value goes to the CLI as one argument. PAL does not translate its own model aliases, resolve an API provider, or check account availability. Use an identifier or alias supported by your CLI and account. Values are limited to 512 characters so the requested selection can always be retained in response metadata. Empty values, surrounding whitespace, control characters, and names beginning with `-` are rejected.
+
+On Windows, explicit or inherited model overrides reject `.bat` and `.cmd` launchers before execution. Windows can interpret batch-file arguments through a shell despite a direct subprocess call ([Python subprocess security considerations](https://docs.python.org/3.10/library/subprocess.html#security-considerations)). Configure a native CLI executable, or invoke the installed CLI script with a native `node.exe` command, instead of the npm batch shim. Do not use shell command launchers such as `cmd /c` or `powershell -Command` with caller-selected models: these operator-defined wrappers can interpret argument text. Existing launches without a request override retain their behavior.
+
+After a successful, saved exchange, omission or `null` reuses that model for the **same CLI**, including role changes. An explicit model replaces it only after the next exchange is saved. Switching to a different CLI clears the selection unless that call supplies a new model; switching back does not resurrect an earlier selection. Failures and unsuccessful history writes leave the previous selection unchanged. Start a new conversation without `model` to return to the configured default. Existing conversations without a saved model keep their previous default behavior.
+
+`metadata.model_requested` records the selected override; `metadata.model_used`, when the CLI reports it, is separate evidence of the model used. The CLI may resolve an alias to a different full model name. A reported model is never used as an implicit selection for later calls.
 
 `/pal:continue` in provider-free mode instructs your client to reuse the previous available conversation tool and latest PAL continuation ID. A CLI conversation stays on clink. These IDs belong to PAL; native vendor session IDs are diagnostic metadata, not resume handles used by clink.
 
@@ -187,6 +209,7 @@ it is not accumulated into conversation history.
 | `prompt` | Required current question or task. |
 | `cli_name` | Configured client name: `codex`, `claude`, `gemini`, or `agy`; selection rules are above. CLI names are not PAL API model names. |
 | `role` | Shipped roles: `default`, `planner`, `codereviewer`. Defaults to `default` on a new conversation, or the saved role on a continuation. |
+| `model` | Optional CLI-native model. Requires the selected manifest's `model_args`. Omission/null inherits a successfully saved model only for the same CLI; a CLI switch resets it. |
 | `absolute_file_paths` | Optional absolute file paths. PAL forwards references; the CLI opens files using its own capabilities and permissions. |
 | `images` | Accepted image-path references. This does not guarantee image transport or multimodal support in the selected runner. |
 | `continuation_id` | Existing PAL conversation UUID. Expired or invalid IDs fail before CLI execution. |
@@ -301,6 +324,8 @@ You can explicitly continue an API-origin PAL conversation through clink, supply
 | --- | --- |
 | `listmodels` reports provider-free mode | Expected without registered PAL model providers. It distinguishes absent/incomplete settings and reports startup CLI executable observations; login remains unverified. Complete inputs alone do not prove registration or valid authentication. |
 | Selected executable missing | Check the PAL process's `PATH` or configured command. A different installed CLI is never substituted. No history is written. |
+| No `model_args` template | Model selection is unsupported for the current manifest. Update the complete manifest and restart PAL; existing user manifests are not automatically upgraded. No history is written. |
+| Model flags conflict with a requested model | Move a configured model default into `default_model` and remove model flags from argument lists. No CLI process is started. |
 | Authentication, quota, timeout, nonzero exit, or terminal CLI error | Inspect the returned diagnostic and the selected vendor's setup. The failed request creates/appends nothing, does not refresh TTL, and carries no continuation offer. There is no API fallback. |
 | `ConversationBusyError`, `retryable=true` | Another holder or queued request owns this ID. Clink rejects immediately; retry the same request/ID after it finishes. Different conversation IDs can proceed independently. |
 | Missing/expired ID, insufficient message slots, or oversized history | Start a new conversation or address the indicated limit. The error occurs before CLI launch. |
@@ -353,7 +378,22 @@ PAL itself does not require a `.git` directory; worktrees may use `.git` files.
 
 The shipped manifests live in [`conf/cli_clients/`](../../conf/cli_clients/); role prompts live in [`systemprompts/clink/`](../../systemprompts/clink/). Copy a **complete** manifest to `~/.pal/cli_clients/` to customize it. Later manifests replace a client's full definition, rather than patching individual fields. See [configuration precedence](../configuration.md#cli-conversation-history-budgets).
 
-Arguments are assembled from internal defaults, `additional_args` (always), one of `safe_args` / `edit_args`, runner-generated arguments, and `role_args`. Keep write-enabling flags out of always-applied arguments.
+Arguments are assembled from internal defaults, `additional_args` (always), model selection, one of `safe_args` / `edit_args`, runner-generated arguments, and `role_args`. Keep write-enabling flags out of always-applied arguments.
+
+To enable model selection, add these fields to a complete manifest after checking the CLI's model flag:
+
+```json
+{
+  "model_args": ["--model", "{model}"],
+  "default_model": "sonnet"
+}
+```
+
+`model_args` accepts `[]` (unsupported), `["--model", "{model}"]`, or `["-m", "{model}"]`. The placeholder must be a whole argument; templates cannot expose permission or other options as model selectors. `default_model` is optional and requires a template. Claude's shipped default remains `sonnet`; Codex uses its own configured default when no override is selected.
+
+An explicit or inherited request model takes precedence over `default_model`. For such an override, model flags in `additional_args`, the active permission argument list, or the selected `role_args` are rejected as conflicts rather than rewritten, including `--model=value` and `-mVALUE` forms. Migrate a general default to `default_model`; use the request field to choose other models. Without a request override, existing manually configured argument lists retain their behavior. The executable `command` and its launcher arguments are opaque (for example, `python -m` may launch a module); PAL does not rewrite or check them for model conflicts. Vendor configuration overrides such as Codex's `-c model=...` are also opaque. Keep model settings in the dedicated fields rather than combining these mechanisms.
+
+Custom manifests replace the full shipped definition. To use `model` with an existing override, add `model_args` and migrate any model flags there too. Restart PAL after changing manifests. The model flag was checked against installed Codex CLI **0.171.0** (`exec --help`) and Claude Code **2.1.296** (`--help`); see the official [Codex CLI source](https://github.com/openai/codex/blob/main/codex-rs/utils/cli/src/shared_options.rs) and [Claude CLI reference](https://code.claude.com/docs/en/cli-reference).
 
 These are the current base commands for the shipped presets. PAL sends the prompt over stdin; Claude also receives a request-local `--append-system-prompt` argument, and scoped edits add `--allowedTools` arguments.
 
