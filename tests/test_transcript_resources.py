@@ -4,11 +4,10 @@ import asyncio
 import json
 import os
 import sys
-from pathlib import Path
 from uuid import uuid4
 
 import pytest
-from mcp import ClientSession, StdioServerParameters
+from mcp import ClientSession
 from mcp.client.stdio import stdio_client
 from mcp.shared.exceptions import McpError
 from mcp.shared.message import SessionMessage
@@ -16,6 +15,7 @@ from mcp.types import JSONRPCMessage, JSONRPCNotification, JSONRPCRequest
 
 import server
 from providers.configuration import provider_configurations
+from tests.cli_isolation import isolated_server_parameters
 from utils import conversation_memory as memory
 from utils import transcript_reader as reader
 
@@ -29,7 +29,6 @@ def audit(tmp_path, monkeypatch):
 
 
 def server_parameters(tmp_path, enabled):
-    repo = Path(__file__).resolve().parents[1]
     env = dict(os.environ)
     for declaration in provider_configurations().values():
         for name in declaration.environment_names():
@@ -43,7 +42,7 @@ def server_parameters(tmp_path, enabled):
         PREFERRED_MODELS="",
         DEFAULT_MODEL="auto",
     )
-    return StdioServerParameters(command=sys.executable, args=[str(repo / "server.py")], env=env, cwd=str(repo))
+    return isolated_server_parameters(env)
 
 
 def test_disabled_hides_retained_reads(audit, monkeypatch):
@@ -283,7 +282,6 @@ class TestPosixResources:
     async def test_stdio_handshake_list_read_and_protocol_errors(self, audit, tmp_path, enabled):
         thread = memory.create_thread("chat", {})
         memory.add_turn(thread, "assistant", "stdio audit answer")
-        repo = Path(__file__).resolve().parents[1]
         # Empty provider settings isolate this local protocol test from services.
         env = dict(os.environ)
         for declaration in provider_configurations().values():
@@ -298,7 +296,7 @@ class TestPosixResources:
             PREFERRED_MODELS="",
             DEFAULT_MODEL="auto",
         )
-        params = StdioServerParameters(command=sys.executable, args=[str(repo / "server.py")], env=env, cwd=str(repo))
+        params = isolated_server_parameters(env)
 
         async def roundtrip():
             with (tmp_path / "child-stderr").open("w") as errors:
