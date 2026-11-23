@@ -45,10 +45,12 @@ LABEL org.opencontainers.image.licenses="Apache-2.0"
 # Create non-root user for security
 RUN groupadd -r paluser && useradd -r -g paluser paluser
 
-# Install minimal runtime dependencies
+# Install runtime dependencies. Docker supplies the mounts used by PAL.
+# dpkg refuses the purge if another installed package comes to require mount.
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     ca-certificates \
     procps \
+    && dpkg --purge mount \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
