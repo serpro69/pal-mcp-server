@@ -45,6 +45,7 @@ from mcp.types import (
 
 from clink import get_registry as get_cli_registry
 from clink.availability import discover_cli_availability
+from clink.diagnostics import MainLogHandler
 from config import (  # noqa: E402
     DEFAULT_MODEL,
     __version__,
@@ -147,7 +148,7 @@ root_logger.setLevel(getattr(logging, log_level, logging.INFO))
 
 # Invalid/unwritable paths fail visibly; never silently write into the package.
 log_dir = get_log_dir(create=True)
-file_handler = RotatingFileHandler(
+file_handler = MainLogHandler(
     log_dir / MAIN_LOG_NAME,
     maxBytes=MAIN_LOG_MAX_BYTES,
     backupCount=MAIN_LOG_BACKUPS,

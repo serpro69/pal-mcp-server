@@ -11,12 +11,13 @@ import stat
 import tempfile
 import time
 from collections.abc import Sequence
-from contextlib import ExitStack, nullcontext
+from contextlib import AsyncExitStack, nullcontext
 from dataclasses import dataclass
 from pathlib import Path
 
 from clink.availability import build_cli_environment, resolve_executable
 from clink.constants import DEFAULT_CLEANUP_TIMEOUT_SECONDS, DEFAULT_STREAM_LIMIT
+from clink.diagnostics import private_stderr_on_failure
 from clink.models import ResolvedCLIClient, ResolvedCLIRole
 from clink.parsers import BaseParser, ParsedCLIResponse, ParserError, get_parser
 from utils.progress import progress_operation
@@ -189,7 +190,7 @@ class BaseCLIAgent:
 
         output_file_path: Path | None = None
 
-        with ExitStack() as resources:
+        async with AsyncExitStack() as resources:
             if self.client.output_to_file:
                 fd, tmp_path = tempfile.mkstemp(prefix="clink-", suffix=".json")
                 os.close(fd)
@@ -261,6 +262,16 @@ class BaseCLIAgent:
 
             duration = time.monotonic() - start_time
             return_code = process.returncode
+            if self.client.custom and self.client.custom.log_stderr_on_failure and stderr_bytes:
+                await resources.enter_async_context(
+                    private_stderr_on_failure(
+                        self.client.name,
+                        stderr_bytes,
+                        prompt,
+                        env,
+                        flag_prompt=self.client.custom.prompt.mode == "flag",
+                    )
+                )
             stdout_text, stderr_text = self._decode_output(stdout_bytes, stderr_bytes, return_code)
 
             if output_file_path and output_file_path.exists():

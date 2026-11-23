@@ -14,8 +14,10 @@ import pytest
 from mcp import Client, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
+from clink.constants import DEFAULT_STREAM_LIMIT
 from providers.configuration import provider_configurations
 from tests.test_clink_working_directory_subprocess import child_gate
+from utils.log_dir import MAIN_LOG_BACKUPS, MAIN_LOG_MAX_BYTES, MAIN_LOG_NAME
 
 REPO = Path(__file__).resolve().parents[1]
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -126,9 +128,18 @@ def cli_server(tmp_path, monkeypatch, vendor):
 
 @pytest.mark.parametrize("vendor", ["codex"])
 @pytest.mark.parametrize(
-    "client_name,reply_mode", [("team-ask", "reply"), ("team-review", "json")], ids=["stdin-text", "flag-json"]
+    "client_name,reply_mode,private_log,block_rotation",
+    [
+        ("team-ask", "reply", False, False),
+        ("team-ask", "reply", True, False),
+        ("team-review", "json", True, False),
+        ("team-ask", "reply", True, True),
+    ],
+    ids=["default-off", "stdin-text", "flag-json", "failed-rotation"],
 )
-async def test_generic_conversation_and_private_exit_through_stdio(cli_server, client_name, reply_mode):
+async def test_generic_conversation_and_private_exit_through_stdio(
+    cli_server, client_name, reply_mode, private_log, block_rotation
+):
     personal = cli_server.root / "user-cli-config"
     personal.mkdir()
     mode = cli_server.root / "mode"
@@ -141,13 +152,26 @@ async def test_generic_conversation_and_private_exit_through_stdio(cli_server, c
             "FIXTURE_MODE_FILE": str(mode),
             "FIXTURE_CAPTURE": str(capture),
             "TEST_CLI_TOKEN": "PRIVATE_STDIO_TOKEN",
+            "HTTPS_PROXY": "http://PRIVATE_PROXY.invalid",
+            "FIXTURE_LIMIT": str(DEFAULT_STREAM_LIMIT),
             "PYTHONIOENCODING": "utf-8",
         },
     )
     manifest["custom"]["workspace"] = "any"
+    if private_log:
+        manifest["custom"]["log_stderr_on_failure"] = True
     if client_name == "team-review":
         manifest["env"]["FIXTURE_PROMPT_FLAG"] = "--question"
     (personal / f"{client_name}.json").write_text(json.dumps(manifest), encoding="utf-8")
+    main_path = cli_server.root / "logs" / MAIN_LOG_NAME
+    if block_rotation:
+        # Open the server's stream at the limit. The rotating handler cannot
+        # unlink a directory to replace its oldest backup.
+        main_path.parent.mkdir()
+        main_path.with_name(f"{MAIN_LOG_NAME}.{MAIN_LOG_BACKUPS}").mkdir()
+        main_path.with_name(f"{MAIN_LOG_NAME}.{MAIN_LOG_BACKUPS - 1}").touch()
+        with main_path.open("wb") as stream:
+            stream.truncate(MAIN_LOG_MAX_BYTES)
     async with cli_server.connect() as (session, _):
         first = payload(await session.call_tool("clink", {"cli_name": client_name, "prompt": "First question"}))
         assert first["content"] == "  Fixture answer ✓  \n"
@@ -166,10 +190,32 @@ async def test_generic_conversation_and_private_exit_through_stdio(cli_server, c
         assert (
             "First question" in prompt and first["content"].strip() in prompt and "PRIVATE_STDIO_REQUEST" not in prompt
         )
-    diagnostics = [json.dumps(failed), (cli_server.root / "stderr.log").read_text(encoding="utf-8")]
-    diagnostics.extend(path.read_text(encoding="utf-8") for path in (cli_server.root / "logs").glob("*.log"))
-    for diagnostic in diagnostics:
-        for marker in ("STDERR_PRIVATE", "PRIVATE_STDIO_REQUEST", "PRIVATE_STDIO_TOKEN", "PLAUSIBLE_PRIVATE_ANSWER"):
+        mode.write_text("stderr")
+        overflow = payload(
+            await session.call_tool("clink", {"prompt": "Overflow", "continuation_id": thread}), error=True
+        )
+        assert overflow["metadata"]["stage"] == "output_limit"
+    main = main_path.read_text(encoding="utf-8")
+    public = [
+        json.dumps([first, failed, retry, overflow]),
+        (cli_server.root / "stderr.log").read_text(encoding="utf-8"),
+        (cli_server.root / "logs/mcp_activity.log").read_text(encoding="utf-8"),
+    ]
+    expect_excerpt = private_log and not block_rotation
+    assert main.count("failure stderr:") == int(expect_excerpt)
+    assert ("NATIVE_FAILURE_DETAIL" in main) is expect_excerpt
+    if block_rotation:
+        assert "--- Logging error ---" in public[1]
+    for diagnostic in public:
+        assert "NATIVE_FAILURE_DETAIL" not in diagnostic
+    for diagnostic in [main, *public]:
+        for marker in (
+            "STDERR_PRIVATE",
+            "PRIVATE_STDIO_REQUEST",
+            "PRIVATE_STDIO_TOKEN",
+            "PRIVATE_PROXY",
+            "PLAUSIBLE_PRIVATE_ANSWER",
+        ):
             assert marker not in diagnostic
 
 
@@ -188,7 +234,14 @@ async def test_generic_manifest_advertised_with_missing_executable(cli_server):
         assert metadata["mode"] == "provider-free"
         record = next(info for info in metadata["cli_clients"] if info["name"] == "team-review")
         assert record["executable_found"] is False
-        error = payload(await session.call_tool("clink", {"cli_name": "team-review", "prompt": "test"}), error=True)
+        error = payload(
+            await session.call_tool(
+                "clink",
+                {"cli_name": "team-review", "prompt": "test", "working_directory_absolute_path": str(cli_server.root)},
+            ),
+            error=True,
+        )
+        assert error["metadata"]["stage"] == "lookup"
         assert error["metadata"]["execution_started"] is False
         assert manifest["custom"]["failure_hint"] in error["content"]
 
