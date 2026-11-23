@@ -2,7 +2,7 @@
 
 > Design: [design.md](./design.md)
 > Implementation: [implementation.md](./implementation.md)
-> Status: pending
+> Status: in progress
 > Created: 2026-06-06 · Revised: 2026-11-23
 > Not Doing: structured path objects, images, CLI references, provider-free workflow output, general annotation history, file snapshots, error-header annotations, directory-as-unit display
 
@@ -10,16 +10,22 @@ The November review revised the plan before implementation. Every checkbox below
 
 ## Task 1 — Bind and render eligible attachments
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** —
 - **Size:** M
 - **Slicing:** Contract-first. Establish one renderer and the real model admission boundary for all tool paths.
 - **Can run in parallel with:** —
 - **Docs:** [Binding, rendering and admission](./implementation.md#task-1--bind-descriptions-and-admit-the-rendered-files)
 
-- [ ] 1.1 In `utils/file_utils.py`, bind direct and deepest-directory keys to the current attachment set, returning sanitized exact canonical file keys. Cover aliases, component boundaries, conflicts, empty/unmatched keys and directory inheritance.
-- [ ] 1.2 Add the optional successful-header annotation to `read_file_content` and exact lookups in `read_files`. Verify delimiter safety, the 200-character cap, byte-identical absent/empty output and plain diagnostic headers.
-- [ ] 1.3 Pass the optional map through `BaseTool._prepare_file_content_for_prompt` and align its workflow mixin signature. Exercise `FileReadReport` with the chosen model estimator at the fit/overage boundary in `tests/test_file_size_gate.py`.
+- [x] 1.1 In `utils/file_utils.py`, bind direct and deepest-directory keys to the current attachment set, returning sanitized exact canonical file keys. Cover aliases, component boundaries, conflicts, empty/unmatched keys and directory inheritance.
+- [x] 1.2 Add the optional successful-header annotation to `read_file_content` and exact lookups in `read_files`. Verify delimiter safety, the 200-character cap, byte-identical absent/empty output and plain diagnostic headers.
+- [x] 1.3 Pass the optional map through `BaseTool._prepare_file_content_for_prompt` and align its workflow mixin signature. Exercise `FileReadReport` with the chosen model estimator at the fit/overage boundary in `tests/test_file_size_gate.py`.
+
+**Execution context**
+
+- 2026-11-23, observed at `cf715ec`. The shared reader measures complete blocks and the preparation method already passes that report to admission.
+
+- 2026-11-23, verified with the repository quality suite and 12 focused file-gate tests. Independent review identified an inaccessible-child failure and repeated cleaning of inherited labels. Both fixes passed the focused suite and re-review.
 
 ## Task 2 — Ship chat on initial and continued requests
 

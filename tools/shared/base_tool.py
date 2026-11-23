@@ -952,6 +952,7 @@ class BaseTool(ABC):
         model_context: Optional[Any] = None,
         *,
         blinded: bool = False,
+        file_descriptions: Optional[dict[str, str]] = None,
     ) -> tuple[str, list[str]]:
         """Admit and render files once, recording only successfully included content."""
         if not request_files:
@@ -985,6 +986,7 @@ class BaseTool(ABC):
             reserve_tokens=0,
             include_line_numbers=self.wants_line_numbers_by_default(),
             report=report,
+            file_descriptions=file_descriptions,
             token_estimator=model_context.estimate_tokens,
         )
         self._file_context_report = {

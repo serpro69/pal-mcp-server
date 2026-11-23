@@ -1,6 +1,7 @@
 """Admission and rendering share a finite allowance and actual file accounting."""
 
 import json
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -8,7 +9,13 @@ import pytest
 from providers.shared import ModelCapabilities, ProviderType
 from tools.chat import ChatTool
 from tools.shared.exceptions import ToolExecutionError
-from utils.file_utils import FileReadReport, check_total_file_size, read_file_content, read_files
+from utils.file_utils import (
+    FileReadReport,
+    bind_file_descriptions,
+    check_total_file_size,
+    read_file_content,
+    read_files,
+)
 from utils.model_context import FileBudget, ModelContext
 
 
@@ -124,3 +131,102 @@ def test_invalid_budget_cannot_fall_back_to_large_allowance(tmp_path):
     tool._current_arguments = {}
     with pytest.raises(ValueError, match="max_output_tokens"):
         tool._prepare_file_content_for_prompt([str(path)], None)
+
+
+def test_descriptions_bind_only_to_eligible_files_with_stable_precedence(tmp_path):
+    pkg = tmp_path / "pkg"
+    nested = pkg / "sub"
+    nested.mkdir(parents=True)
+    sibling = tmp_path / "pkg2"
+    sibling.mkdir()
+    paths = [pkg / "a.py", nested / "b.py", nested / "c.py", nested / "blank.py", sibling / "d.py"]
+    for path in paths:
+        path.touch()
+    alias = tmp_path / "alias"
+    alias.symlink_to(nested)
+    alias2 = tmp_path / "alias2"
+    alias2.symlink_to(nested)
+    labels = {
+        str(pkg): "all",
+        str(alias2): "losing alias",
+        str(alias): "nested",
+        str(paths[2]): "direct",
+        str(alias / "c.py"): "losing direct alias",
+        str(paths[3]): "  ",
+        "relative": "invalid",
+        str(tmp_path / "missing"): "missing",
+    }
+    expected = dict(zip(map(str, paths[:3]), ("all", "nested", "direct")))
+    for mapping in (labels, dict(reversed(labels.items()))):
+        assert bind_file_descriptions([str(pkg), str(sibling)], mapping) == expected
+    assert bind_file_descriptions([str(paths[0])], {str(paths[1]): "unattached"}) == {}
+
+
+def test_description_binding_skips_unavailable_child(tmp_path, monkeypatch):
+    available = tmp_path / "a.py"
+    denied = tmp_path / "b.py"
+    available.touch()
+    denied.touch()
+    is_file = Path.is_file
+
+    def check_file(path):
+        if path == denied:
+            raise PermissionError("unsearchable symlink target")
+        return is_file(path)
+
+    monkeypatch.setattr(Path, "is_file", check_file)
+    assert bind_file_descriptions([str(tmp_path)], {str(tmp_path): "context"}) == {str(available): "context"}
+
+
+def test_description_is_safe_bounded_and_only_on_success(tmp_path):
+    path = tmp_path / "content.txt"
+    path.write_text("body")
+    label = "  a\n\x00\u202eb] ---- c " + "x" * 210
+    effective = bind_file_descriptions([str(path)], {str(path): label})[str(path)]
+    assert len(effective) == 200 and effective.endswith("…")
+    assert effective.startswith("a b) — c ")
+    plain = read_file_content(str(path))
+    rendered = read_file_content(str(path), description=label)[0]
+    assert rendered == plain[0].replace(") ---", f") [{effective}] ---", 1)
+    assert read_file_content(str(path), description=effective)[0] == rendered
+    for blank in (None, "", " \t "):
+        assert read_file_content(str(path), description=blank) == plain
+    for file, kwargs in (
+        (str(path), {"max_size": 0}),
+        (str(tmp_path / "absent"), {}),
+        ("relative", {}),
+        (str(tmp_path), {}),
+        (str(path), {"max_size": -1}),
+    ):
+        assert read_file_content(file, description=label, **kwargs) == read_file_content(file, **kwargs)
+
+
+def test_annotation_counts_at_shared_model_gate(tmp_path, monkeypatch):
+    path = str(tmp_path / "file.txt")
+    Path(path).write_text("content")
+    context = model_context()
+    tool = ChatTool()
+    tool._model_context = context
+    plain, _ = tool._prepare_file_content_for_prompt([path], None)
+    limit = context.estimate_tokens(plain)
+    monkeypatch.setattr(context, "file_budget", lambda *_: FileBudget(limit, "remaining_input", limit, limit, 4000))
+    assert tool._prepare_file_content_for_prompt([path], None) == (plain, [path])
+    label = "annotated"
+    report = FileReadReport()
+    read_files(
+        [path],
+        max_tokens=limit,
+        reserve_tokens=0,
+        file_descriptions={path: label},
+        include_line_numbers=tool.wants_line_numbers_by_default(),
+        report=report,
+        token_estimator=context.estimate_tokens,
+    )
+    expected = context.estimate_tokens(plain.replace(") ---", f") [{label}] ---", 1))
+    assert report.omitted == [path] and report.required_tokens == expected
+    with pytest.raises(ToolExecutionError) as caught:
+        tool._prepare_file_content_for_prompt([path], None, file_descriptions={path: label})
+    metadata = json.loads(caught.value.payload)["metadata"]
+    assert metadata["limit"] == limit
+    assert metadata["overage"] == expected - limit > 0
+    assert metadata["largest_files"] == [{"path": path, "tokens": expected}]
