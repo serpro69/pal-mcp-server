@@ -71,9 +71,9 @@ Consult the JSON file for the full list, aliases, and capability flags. Add new 
 
 | Alias | Maps to Local Model | Note |
 |-------|-------------------|------|
-| `local-llama`, `local` | `llama3.2` | Requires `CUSTOM_API_URL` configured |
+| `local-llama`, `ollama-llama` | `llama3.2` | Requires `CUSTOM_API_URL` configured |
 
-View the baseline OpenRouter catalogue in [`conf/openrouter_models.json`](conf/openrouter_models.json) and populate [`conf/custom_models.json`](conf/custom_models.json) with your local models.
+View the [OpenRouter catalog](../conf/openrouter_models.json) or edit the [custom endpoint catalog](../conf/custom_models.json) to advertise local models.
 
 Native catalogues (`conf/openai_models.json`, `conf/gemini_models.json`, `conf/xai_models.json`, `conf/dial_models.json`) follow the same schema. Updating those files lets you:
 
@@ -101,7 +101,7 @@ To control ordering in auto mode or the `listmodels` summary, adjust the
 [`intelligence_score`](model_ranking.md) for each entry (or rely on the automatic
 heuristic described there).
 
-**Note:** While you can use any OpenRouter model by its full name, models not in the config file will use generic capabilities (32K context window, no extended thinking, etc.) which may not match the model's actual capabilities. For best results, add new models to the config file with their proper specifications.
+Requests need verified token limits. Add unlisted OpenRouter models to the OpenRouter catalog and models served by your own endpoint to the custom catalog.
 
 ## Quick Start
 
@@ -144,8 +144,8 @@ python -m vllm.entrypoints.openai.api_server --model meta-llama/Llama-2-7b-chat-
 ```bash
 # Add to your .env file
 CUSTOM_API_URL=http://localhost:11434/v1  # Ollama example
-CUSTOM_API_KEY=                                      # Empty for Ollama (no auth needed)
-CUSTOM_MODEL_NAME=llama3.2                          # Default model to use
+CUSTOM_API_KEY=                          # Empty for Ollama
+DEFAULT_MODEL=local-llama                # Optional, shipped alias for llama3.2
 ```
 
 **Local Model Connection**
@@ -157,34 +157,51 @@ The PAL MCP server runs natively, so you can use standard localhost URLs to conn
 CUSTOM_API_URL=http://localhost:11434/v1  # Ollama default port
 ```
 
-#### 3. Examples for Different Platforms
+#### 3. Register the models your endpoint serves
+
+PAL reads model IDs, aliases and token limits from `conf/custom_models.json`. To keep a separate catalog, set `CUSTOM_MODELS_CONFIG_PATH` to the absolute path of your JSON file. This file replaces the shipped custom catalog.
+
+Use the exact model ID accepted by the endpoint, including any Ollama tag. Restart PAL and call `listmodels` to confirm the entry. `DEFAULT_MODEL` selects a registered ID or alias for requests that omit a model. With `DEFAULT_MODEL=auto`, PAL chooses from eligible catalog entries across configured providers. Discovery does not query the endpoint for installed models. [Tagged Ollama example](#adding-a-customlocal-model)
+
+For Docker Compose, place `ollama-models.json` beside the Compose file and add a `docker-compose.override.yml` that mounts it and sets its container path together. Set `CUSTOM_API_URL` to an endpoint reachable from the container.
+
+```yaml
+services:
+  pal-mcp:
+    volumes:
+      - ./ollama-models.json:/etc/pal/ollama-models.json:ro
+    environment:
+      CUSTOM_MODELS_CONFIG_PATH: /etc/pal/ollama-models.json
+```
+
+#### 4. Examples for Different Platforms
 
 **Ollama:**
 ```bash
 CUSTOM_API_URL=http://localhost:11434/v1
 CUSTOM_API_KEY=
-CUSTOM_MODEL_NAME=llama3.2
+DEFAULT_MODEL=llama3.2
 ```
 
 **vLLM:**
 ```bash
 CUSTOM_API_URL=http://localhost:8000/v1
 CUSTOM_API_KEY=
-CUSTOM_MODEL_NAME=meta-llama/Llama-2-7b-chat-hf
+DEFAULT_MODEL=meta-llama/Llama-2-7b-chat-hf  # Register this ID in the custom catalog first
 ```
 
 **LM Studio:**
 ```bash
 CUSTOM_API_URL=http://localhost:1234/v1
 CUSTOM_API_KEY=lm-studio  # Or any value, LM Studio often requires some key
-CUSTOM_MODEL_NAME=local-model
+DEFAULT_MODEL=local-model  # Use the ID or alias you registered for the loaded model
 ```
 
 **text-generation-webui (with OpenAI extension):**
 ```bash
 CUSTOM_API_URL=http://localhost:5001/v1
 CUSTOM_API_KEY=
-CUSTOM_MODEL_NAME=your-loaded-model
+DEFAULT_MODEL=your-loaded-model  # Use the ID or alias from your catalog
 ```
 
 ## Using Models
@@ -200,7 +217,7 @@ CUSTOM_MODEL_NAME=your-loaded-model
 
 # Local models (with custom URL configured):
 "Use local-llama to analyze this code"     # → llama3.2 (local)
-"Use local to debug this function"         # → llama3.2 (local)
+"Use ollama-llama to debug this function"  # → llama3.2 (local)
 ```
 
 **Using full model names:**
@@ -222,9 +239,9 @@ CUSTOM_MODEL_NAME=your-loaded-model
 
 The system automatically routes models to the appropriate provider:
 
-1. Entries in `conf/custom_models.json` → Always routed through the Custom API (requires `CUSTOM_API_URL`)
+1. Entries in `conf/custom_models.json` → Available through the Custom API when `CUSTOM_API_URL` is configured
 2. Entries in `conf/openrouter_models.json` → Routed through OpenRouter (requires `OPENROUTER_API_KEY`)
-3. **Unknown models** → Fallback logic based on model name patterns
+3. **Undeclared custom models** → Register the exact ID or an alias before requesting the model
 
 **Provider Priority Order:**
 1. Native APIs (Google, OpenAI) - if API keys are available
@@ -261,22 +278,28 @@ Edit `conf/openrouter_models.json` to tweak OpenRouter behaviour or `conf/custom
 
 #### Adding a Custom/Local Model
 
+This complete override file registers `qwen3:latest` and the alias `local-qwen`. The example assumes an endpoint configured for an 8,192-token context and up to 2,048 output tokens. Use the limits supported by your deployment.
+
 ```json
 {
-  "model_name": "my-local-model",
-  "aliases": ["local-model", "custom"],
-  "context_window": 128000,
-  "supports_extended_thinking": false,
-  "supports_json_mode": false,
-  "supports_function_calling": false,
-  "description": "My custom Ollama/vLLM model"
+  "models": [
+    {
+      "model_name": "qwen3:latest",
+      "aliases": ["local-qwen"],
+      "context_window": 8192,
+      "max_output_tokens": 2048
+    }
+  ]
 }
 ```
+
+For example, set `CUSTOM_MODELS_CONFIG_PATH=/absolute/path/to/ollama-models.json` and `DEFAULT_MODEL=local-qwen`. PAL sends `qwen3:latest` to the endpoint.
 
 **Field explanations:**
 - `model_name`: The model identifier (OpenRouter format like `vendor/model` or local name like `llama3.2`)
 - `aliases`: Array of short names users can type instead of the full model name
 - `context_window`: Total tokens the model can process (input + output combined)
+- `max_output_tokens`: Maximum output tokens your deployment supports per request
 - `supports_extended_thinking`: Whether the model has extended reasoning capabilities
 - `supports_json_mode`: Whether the model can guarantee valid JSON output
 - `supports_function_calling`: Whether the model supports function/tool calling
@@ -295,6 +318,7 @@ Popular models available through OpenRouter:
 
 ## Troubleshooting
 
-- **"Model not found"**: Check exact model name at openrouter.ai/models
+- **Custom model missing from `listmodels`**: Check the active custom catalog and model policy, restart PAL, and request the exact registered tag or alias.
+- **Endpoint reports "model not found"**: Confirm that the endpoint actually serves the catalog's `model_name`. For Ollama, check the tag with `ollama list`.
 - **"Insufficient credits"**: Add credits to your OpenRouter account
 - **"Model not available"**: Check your OpenRouter dashboard for model access permissions

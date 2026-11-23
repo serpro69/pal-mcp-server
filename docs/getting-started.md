@@ -344,8 +344,10 @@ DIAL_ALLOWED_MODELS=o3,gemini-2.5-pro       # Restrict models (optional)
 # Custom/Local models (Ollama, vLLM, etc.)
 CUSTOM_API_URL=http://localhost:11434/v1     # Ollama example
 CUSTOM_API_KEY=                              # Empty for Ollama
-CUSTOM_MODEL_NAME=llama3.2                   # Default model name
+# DEFAULT_MODEL=local-llama                   # Optional, shipped alias for llama3.2
 ```
+
+For another local model, register its exact ID and token limits in `conf/custom_models.json` or point `CUSTOM_MODELS_CONFIG_PATH` at your own catalog. Restart PAL and check `listmodels`. [Tagged Ollama example](custom_models.md#adding-a-customlocal-model)
 
 ## Prevent Client Timeouts
 
@@ -576,10 +578,9 @@ OPENAI_ALLOWED_MODELS=gpt-5.1-codex,gpt-5.2
 
 ### Local-First Setup
 ```env
-DEFAULT_MODEL=auto
+DEFAULT_MODEL=local-llama
 CUSTOM_API_URL=http://localhost:11434/v1
-CUSTOM_MODEL_NAME=llama3.2
-# Add cloud APIs as backup
+# Optional cloud provider for explicitly selected models
 GEMINI_API_KEY=your-key
 ```
 

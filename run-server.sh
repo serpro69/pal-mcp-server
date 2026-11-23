@@ -1172,7 +1172,7 @@ parse_env_variables() {
             "OPENCODE_GO_MODELS_CONFIG_PATH"
             "CUSTOM_API_URL"
             "CUSTOM_API_KEY"
-            "CUSTOM_MODEL_NAME"
+            "CUSTOM_MODELS_CONFIG_PATH"
             "DISABLED_TOOLS"
             "DEFAULT_MODEL"
             "LOG_LEVEL"

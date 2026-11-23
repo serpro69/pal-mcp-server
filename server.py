@@ -497,7 +497,11 @@ def configure_providers():
     from config import IS_AUTO_MODE
 
     if IS_AUTO_MODE and not ModelProviderRegistry.get_available_models(respect_restrictions=True):
-        logger.warning("No models available for auto mode after restrictions; provider-free tools remain available.")
+        logger.warning(
+            ModelProviderRegistry.with_custom_model_hint(
+                "No models available for auto mode after restrictions; provider-free tools remain available."
+            )
+        )
     return configured
 
 
@@ -713,7 +717,7 @@ async def _dispatch_tool(name: str, arguments: dict[str, Any]) -> list[TextConte
                 )
             error_output = ToolOutput(
                 status="error",
-                content=error_message,
+                content=ModelProviderRegistry.with_custom_model_hint(error_message, model_name),
                 content_type="text",
                 metadata={
                     "tool_name": name,
@@ -766,10 +770,11 @@ def parse_model_option(model_string: str) -> tuple[str, Optional[str]]:
         preceding = preceding.strip()
         if ModelProviderRegistry.resolve_model_identity(preceding) is not None:
             return preceding, option
-    raise ValueError(
+    message = (
         f"Unknown model '{requested}'. Register the exact tagged model or an explicit alias in its model registry; "
         "only :for, :against and :neutral are supported legacy options."
     )
+    raise ValueError(ModelProviderRegistry.with_custom_model_hint(message, requested))
 
 
 def get_follow_up_instructions(current_turn_count: int, max_turns: int = None) -> str:

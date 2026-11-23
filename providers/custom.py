@@ -34,7 +34,7 @@ class CustomProvider(OpenAICompatibleProvider):
         "CUSTOM_ALLOWED_MODELS",
         placeholders=("your_custom_api_key_here",),
         required_env=("CUSTOM_API_URL",),
-        optional_env=("CUSTOM_MODELS_CONFIG_PATH", "CUSTOM_MODEL_NAME"),
+        optional_env=("CUSTOM_MODELS_CONFIG_PATH",),
         arguments=(("base_url", "CUSTOM_API_URL"),),
         key_optional=True,
         required_placeholders=(("CUSTOM_API_URL", "your_custom_api_url_here"),),
@@ -117,11 +117,22 @@ class CustomProvider(OpenAICompatibleProvider):
             registry_entry.provider = ProviderType.CUSTOM
             return registry_entry
 
-        logging.debug(
-            "Custom provider cannot resolve model '%s'; ensure it is declared in custom_models.json",
-            canonical_name,
-        )
         return None
+
+    def model_registration_hint(self) -> str:
+        return (
+            f"The active custom model catalog is {self._registry.source_name}. "
+            "Declare the endpoint's exact model ID (including its tag) and token limits there, "
+            "or select your own catalog with CUSTOM_MODELS_CONFIG_PATH. Restart PAL to reload it."
+        )
+
+    def _raise_unsupported_model(self, model_name: str) -> None:
+        raise ValueError(f"Unsupported model '{model_name}' for provider custom. {self.model_registration_hint()}")
+
+    def _raise_invalid_request_model(self, model_name: str) -> None:
+        if self._registry.resolve(model_name) is None:
+            self._raise_unsupported_model(model_name)
+        super()._raise_invalid_request_model(model_name)
 
     def get_provider_type(self) -> ProviderType:
         """Identify this provider for restriction and logging logic."""
