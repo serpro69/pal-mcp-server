@@ -8,6 +8,7 @@ import os
 import shlex
 import sys
 import tempfile
+from io import StringIO
 from pathlib import Path
 from threading import Event
 from types import SimpleNamespace
@@ -210,9 +211,14 @@ def test_private_stderr_masks_native_bytes_before_decoding(monkeypatch):
 
 
 @pytest.fixture
-def main_log(tmp_path, monkeypatch, capsys):
+def host_log():
+    return StringIO()
+
+
+@pytest.fixture
+def main_log(tmp_path, monkeypatch, host_log):
     handler = diagnostics.MainLogHandler(tmp_path / "main.log", maxBytes=4096, backupCount=1, encoding="utf-8")
-    monkeypatch.setattr(logging.getLogger(), "handlers", [handler, logging.StreamHandler()])
+    monkeypatch.setattr(logging.getLogger(), "handlers", [handler, logging.StreamHandler(host_log)])
     try:
         yield handler
     finally:
@@ -220,7 +226,7 @@ def main_log(tmp_path, monkeypatch, capsys):
 
 
 @pytest.mark.parametrize("mode,detail", [("bad-utf8", "NATIVE_ENCODING_DETAIL"), ("blank", "NATIVE_PARSE_DETAIL")])
-async def test_complete_stderr_available_on_parse_failure(cli, main_log, capsys, mode, detail):
+async def test_complete_stderr_available_on_parse_failure(cli, main_log, host_log, capsys, mode, detail):
     cli.configure(
         custom={**cli.manifest["custom"], "log_stderr_on_failure": True},
         env={**cli.manifest["env"], "FIXTURE_MODE": mode},
@@ -228,11 +234,34 @@ async def test_complete_stderr_available_on_parse_failure(cli, main_log, capsys,
     meta = await failure(cli)
     assert meta["stage"] == "parse" and meta["return_code"] == 0
     assert detail in Path(main_log.baseFilename).read_text()
-    assert detail not in json.dumps(meta) + capsys.readouterr().err
+    assert detail not in json.dumps(meta) + host_log.getvalue() + capsys.readouterr().err
+
+
+def test_main_log_reports_overflow_and_resumes_after_private_write(main_log, monkeypatch, host_log, capsys):
+    monkeypatch.setattr(main_log, "_PENDING_LIMIT", 2)
+    should_rollover = main_log.shouldRollover
+
+    def overlapping_writes(record):
+        if record.name == "clink.stderr":
+            for number in range(4):
+                logging.warning("overlapping %d", number)
+        return should_rollover(record)
+
+    monkeypatch.setattr(main_log, "shouldRollover", overlapping_writes)
+    diagnostics._write_stderr("fixture", b"private detail", "", {}, False)
+    logging.warning("after recovery")
+    main = Path(main_log.baseFilename).read_text()
+    assert [line for line in main.splitlines() if line.startswith("overlapping")] == ["overlapping 0", "overlapping 1"]
+    assert "Main log omitted 2 records" in main
+    assert main.endswith("after recovery\n")
+    host = host_log.getvalue()
+    assert not capsys.readouterr().err
+    assert "private detail" in main and "private detail" not in host
+    assert all(f"overlapping {number}" in host for number in range(4))
 
 
 @pytest.mark.parametrize("fault", ["write", "rollover", "filter"])
-async def test_private_diagnostic_failure_preserves_cli_error(cli, main_log, monkeypatch, capsys, fault):
+async def test_private_diagnostic_failure_preserves_cli_error(cli, main_log, monkeypatch, host_log, capsys, fault):
     cli.configure(
         custom={**cli.manifest["custom"], "log_stderr_on_failure": True},
         env={**cli.manifest["env"], "FIXTURE_MODE": "failure"},
@@ -248,7 +277,7 @@ async def test_private_diagnostic_failure_preserves_cli_error(cli, main_log, mon
     monkeypatch.setattr(logging, "raiseExceptions", True)
     meta = await failure(cli)
     assert meta["stage"] == "exit" and meta["return_code"] == 7
-    host = capsys.readouterr().err
+    host = host_log.getvalue() + capsys.readouterr().err
     assert "NATIVE_FAILURE_DETAIL" not in host + json.dumps(meta) + Path(main_log.baseFilename).read_text()
     if fault != "filter":
         # The ordinary CLI failure log still uses logging's standard error path.

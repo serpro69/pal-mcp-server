@@ -52,7 +52,7 @@ class CLIOnlyServer:
         return {path.stem for path in (self.root / "captures" / self.vendor).glob("*.json")}
 
     @asynccontextmanager
-    async def connect(self, *, gate_port=0, mode="legacy", extra_manifests=()):
+    async def connect(self, *, gate_port=0, mode="legacy", extra_manifests=(), private_log_gate=0):
         manifests = self.root / "clients"
         manifests.mkdir()
         for vendor in self.vendors:
@@ -98,6 +98,8 @@ class CLIOnlyServer:
         if self.observe_directories:
             (self.root / "home").mkdir(exist_ok=True)
             env.update(CLINK_TEST_OBSERVE="true", HOME=str(self.root / "home"))
+        if private_log_gate:
+            env.update(CLINK_TEST_PRIVATE_LOG_GATE=str(private_log_gate), LOG_LEVEL="DEBUG")
         parameters = StdioServerParameters(
             command=sys.executable,
             args=[str(FIXTURES / "cli_only_server.py"), str(self.root)],
@@ -279,6 +281,55 @@ async def test_generic_conversation_and_private_exit_through_stdio(
             "PRIVATE_OVERFLOW_DETAIL",
         ):
             assert marker not in diagnostic
+
+
+@pytest.mark.parametrize("vendor", ["codex"])
+async def test_stalled_private_log_preserves_timeout_and_concurrent_request(cli_server):
+    capture = cli_server.root / "child.json"
+    manifest = json.loads((FIXTURES / "clink_generic/team-ask.json").read_text(encoding="utf-8"))
+    manifest["custom"]["log_stderr_on_failure"] = True
+    async with child_gate() as gate:
+        manifest.update(
+            command=shlex.join([sys.executable, str(FIXTURES / "generic_cli.py")]),
+            env={"FIXTURE_MODE": "hold-closed-stderr", "FIXTURE_PORT": str(gate.port), "FIXTURE_CAPTURE": str(capture)},
+            timeout_seconds=1,
+        )
+        manifest_path = cli_server.root / "team-ask.json"
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        async with cli_server.connect(private_log_gate=gate.port, extra_manifests=[manifest_path]) as (session, _):
+            clink_call = asyncio.create_task(session.call_tool("clink", {"cli_name": "team-ask", "prompt": "test"}))
+            release = None
+            try:
+                child, _ = await asyncio.wait_for(gate.connections.get(), 5)
+                assert await asyncio.wait_for(child.readexactly(1), 5) == b"R"
+                sink, release = await asyncio.wait_for(gate.connections.get(), 5)
+                assert await asyncio.wait_for(sink.readexactly(1), 5) == b"R"
+                failed, discovery = await asyncio.wait_for(
+                    asyncio.gather(clink_call, session.call_tool("listmodels", {})), 5
+                )
+                error = payload(failed, error=True)
+                assert error["metadata"]["stage"] == "timeout"
+                assert "timed out after 1 seconds" in error["content"]
+                assert payload(discovery)["metadata"]["mode"] == "provider-free"
+                assert await asyncio.wait_for(child.read(1), 5) == b""
+                observed = json.loads(capture.read_text(encoding="utf-8"))
+                assert not Path(observed["cwd"]).exists()
+                if os.name == "posix":
+                    with pytest.raises(ProcessLookupError):
+                        os.kill(observed["pid"], 0)
+            finally:
+                if release is not None:
+                    release.write(b"G")
+                    await release.drain()
+                clink_call.cancel()
+                await asyncio.gather(clink_call, return_exceptions=True)
+
+    main = (cli_server.root / "logs" / MAIN_LOG_NAME).read_text(encoding="utf-8")
+    assert "HELD_DIAGNOSTIC" in main
+    assert "CLI team-ask failed at timeout" in main
+    assert "HELD_DIAGNOSTIC" not in json.dumps([error, payload(discovery)])
+    for path in ("stderr.log", "logs/mcp_activity.log"):
+        assert "HELD_DIAGNOSTIC" not in (cli_server.root / path).read_text(encoding="utf-8")
 
 
 @pytest.mark.parametrize("vendor", ["codex"])
