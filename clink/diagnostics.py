@@ -4,9 +4,11 @@ import asyncio
 import json
 import logging
 import os
+from collections import deque
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from logging.handlers import RotatingFileHandler
+from threading import RLock
 
 from clink.constants import DEFAULT_CLEANUP_TIMEOUT_SECONDS
 
@@ -19,6 +21,57 @@ class _PrivateStderrRecord(logging.LogRecord):
 
 
 class MainLogHandler(RotatingFileHandler):
+    # Bound memory if the operator's main log stops accepting writes.
+    _PENDING_LIMIT = 256
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._dispatch_lock = RLock()
+        self._pending: deque[logging.LogRecord] | None = None
+        self._omitted = 0
+
+    def handle(self, record):
+        with self._dispatch_lock:
+            if self._pending is not None:
+                if len(self._pending) >= self._PENDING_LIMIT:
+                    self._omitted += 1
+                    return False
+                self._pending.append(record)
+                return True
+            if not isinstance(record, _PrivateStderrRecord):
+                return super().handle(record)
+            # The private writer already runs off the event loop. Give it sole
+            # ownership of the file until it has drained overlapping records.
+            self._pending = deque()
+            self._omitted = 0
+
+        try:
+            handled = super().handle(record)
+            while True:
+                with self._dispatch_lock:
+                    if self._pending:
+                        pending = self._pending.popleft()
+                    elif self._omitted:
+                        pending = logging.LogRecord(
+                            __name__,
+                            logging.WARNING,
+                            __file__,
+                            0,
+                            "Main log omitted %d records while a private CLI diagnostic was pending",
+                            (self._omitted,),
+                            None,
+                        )
+                        self._omitted = 0
+                    else:
+                        self._pending = None
+                        return handled
+                super().handle(pending)
+        except BaseException:
+            # A failing filter or error handler must release dispatch ownership.
+            with self._dispatch_lock:
+                self._pending = None
+            raise
+
     def handleError(self, record):
         if not isinstance(record, _PrivateStderrRecord):
             super().handleError(record)

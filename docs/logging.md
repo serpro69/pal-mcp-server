@@ -79,6 +79,13 @@ Expected activity-write I/O/encoding failures emit event-specific diagnostics;
 programming errors are not silently swallowed. Logs can contain request details:
 protect the selected directory with your account's normal access controls.
 
+When a clink client opts into private stderr logging, its diagnostic writer
+buffers up to 256 other records for the main file while it writes. MCP requests
+can finish while the file write or rotation is stalled. When the file recovers,
+the writer drains those records in order and reports how many additional records
+it omitted if the buffer filled. Host stderr and the activity log continue to
+receive their usual records. The private excerpt goes only to the main file.
+
 ## Migration and containers
 
 Existing repository `logs/` files are left untouched. To keep using them, explicitly

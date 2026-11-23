@@ -6,6 +6,26 @@ import sys
 from pathlib import Path
 
 
+def stall_private_log(handler, port):
+    """Gate the rotating handler inside emit, after it has acquired its lock."""
+    import socket
+
+    from clink import diagnostics
+
+    should_rollover = handler.shouldRollover
+
+    def gated_rollover(record):
+        if record.name == "clink.stderr":
+            with socket.create_connection(("127.0.0.1", port), timeout=20) as gate:
+                gate.sendall(b"R")
+                if gate.recv(1) != b"G":
+                    raise RuntimeError("Private log gate closed before release")
+        return should_rollover(record)
+
+    handler.shouldRollover = gated_rollover
+    diagnostics.DEFAULT_CLEANUP_TIMEOUT_SECONDS = 0.2
+
+
 def observe_directory_calls(root, server):
     """Opt-in test observations around the real SDK handler and OS spawn call."""
     import asyncio
@@ -130,6 +150,8 @@ def main() -> None:
 
     import server
 
+    if port := os.environ.get("CLINK_TEST_PRIVATE_LOG_GATE"):
+        stall_private_log(server.file_handler, int(port))
     if os.environ.get("CLINK_TEST_OBSERVE") == "true":
         observe_directory_calls(root, server)
 
