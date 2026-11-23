@@ -132,6 +132,12 @@ class WorkflowRequest(BaseWorkflowRequest):
         return v
 
 
+class FileAwareWorkflowRequest(WorkflowRequest):
+    """Workflow whose expert prompt supports labels on attached files."""
+
+    file_descriptions: dict[str, str] = Field(default_factory=dict, description=FILE_DESCRIPTIONS_SCHEMA["description"])
+
+
 class ConsolidatedFindings(BaseModel):
     """
     Model for tracking consolidated findings across workflow steps.
@@ -141,6 +147,7 @@ class ConsolidatedFindings(BaseModel):
     BaseWorkflowMixin to track progress across workflow steps.
     """
 
+    file_descriptions: dict[str, str] = Field(default_factory=dict)
     files_checked: set[str] = Field(default_factory=set, description="All files examined across all steps")
     relevant_files: set[str] = Field(
         default_factory=set,

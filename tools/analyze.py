@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
 from config import TEMPERATURE_ANALYTICAL
 from systemprompts import ANALYZE_PROMPT
-from tools.shared.base_models import WorkflowRequest
+from tools.shared.base_models import FILE_DESCRIPTIONS_SCHEMA, FileAwareWorkflowRequest
 
 from .workflow.base import WorkflowTool
 
@@ -80,7 +80,7 @@ ANALYZE_WORKFLOW_FIELD_DESCRIPTIONS = {
 }
 
 
-class AnalyzeWorkflowRequest(WorkflowRequest):
+class AnalyzeWorkflowRequest(FileAwareWorkflowRequest):
     """Request model for analyze workflow investigation steps"""
 
     # Required fields for each investigation step
@@ -182,6 +182,7 @@ class AnalyzeTool(WorkflowTool):
 
         # Analyze workflow-specific field overrides
         analyze_field_overrides = {
+            "file_descriptions": FILE_DESCRIPTIONS_SCHEMA,
             "step": {
                 "type": "string",
                 "description": ANALYZE_WORKFLOW_FIELD_DESCRIPTIONS["step"],

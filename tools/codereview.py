@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
 from config import TEMPERATURE_ANALYTICAL
 from systemprompts import CODEREVIEW_PROMPT
-from tools.shared.base_models import WorkflowRequest
+from tools.shared.base_models import FILE_DESCRIPTIONS_SCHEMA, FileAwareWorkflowRequest
 
 from .workflow.base import WorkflowTool
 
@@ -61,7 +61,7 @@ CODEREVIEW_WORKFLOW_FIELD_DESCRIPTIONS = {
 }
 
 
-class CodeReviewRequest(WorkflowRequest):
+class CodeReviewRequest(FileAwareWorkflowRequest):
     """Request model for code review workflow investigation steps"""
 
     # Required fields for each investigation step
@@ -164,6 +164,7 @@ class CodeReviewTool(WorkflowTool):
 
         # Code review workflow-specific field overrides
         codereview_field_overrides = {
+            "file_descriptions": FILE_DESCRIPTIONS_SCHEMA,
             "step": {
                 "type": "string",
                 "description": CODEREVIEW_WORKFLOW_FIELD_DESCRIPTIONS["step"],

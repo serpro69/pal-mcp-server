@@ -48,16 +48,25 @@ The November review revised the plan before implementation. Every checkbox below
 
 ## Task 3 — Ship the generic expert workflows
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 2
 - **Size:** M
 - **Can run in parallel with:** —
 - **Docs:** [Generic expert delivery and replay](./implementation.md#task-3--deliver-descriptions-to-generic-workflow-experts)
 
-- [ ] 3.1 Opt the seven generic expert requests and schemas into the shared property. Add the corresponding seven expected properties in `tests/test_tool_surface.py`.
-- [ ] 3.2 Bind each step's map to its expanded `relevant_files` in `execute_workflow` before saving step data. Merge effective canonical entries in `_update_consolidated_findings`, freeze delivered labels and replay older steps with an empty default.
-- [ ] 3.3 Pass the consolidated map to final-step preparation and to the expert delegate through `_prepare_files_for_expert_analysis` and `_force_embed_files_for_expert_analysis`. Preserve the shared gate, ordering and diagnostics.
-- [ ] 3.4 Capture a multi-step expert prompt with inherited, overridden and history-only sibling files. Check canonical ordering of three alias updates, same-tool replay, cross-tool isolation, boundedness and absence of raw/unmatched data in initial context, saved state and opt-in transcripts. Exercise the existing failed-state branch.
+- [x] 3.1 Opt the seven generic expert requests and schemas into the shared property. Add the corresponding seven expected properties in `tests/test_tool_surface.py`.
+- [x] 3.2 Bind each step's map to its expanded `relevant_files` in `execute_workflow` before saving step data. Merge effective canonical entries in `_update_consolidated_findings`, freeze delivered labels and replay older steps with an empty default.
+- [x] 3.3 Pass the consolidated map to final-step preparation and to the expert delegate through `_prepare_files_for_expert_analysis` and `_force_embed_files_for_expert_analysis`. Preserve the shared gate, ordering and diagnostics.
+- [x] 3.4 Capture a multi-step expert prompt with inherited, overridden and history-only sibling files. Check canonical ordering of three alias updates, same-tool replay, cross-tool isolation, boundedness and absence of raw/unmatched data in initial context, saved state and opt-in transcripts. Exercise the existing failed-state branch.
+
+**Execution context**
+
+- 2026-11-23, observed in the workflow executor. The expert prepares a fresh, sorted union of workflow and history files. Each step must bind descriptions before that union and before saving replay state.
+
+- 2026-11-23, verified in dispatcher and transcript tests. The earliest committed inclusion determines whether a staged label can render. A different tool delivering first suppresses the pending label. Existing workflow snapshots retain earlier sanitized step values, bounded to 200 characters per matched file per step.
+- Legacy model replies use their recorded paths. A paired input identifies which children a directory contained. A directory-only reply with no input snapshot conservatively covers matching descendants.
+
+- 2026-11-23, verified. All 61 focused checks and the quality suite passed (3,767 unit tests). Independent re-review approved the first-delivery correction. Integration passed four and skipped 22. The stub simulator passed all three. With no live provider configured, the quick simulator passed four of six.
 
 ## Task 4 — Ship debug's custom expert path
 

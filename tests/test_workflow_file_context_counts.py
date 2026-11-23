@@ -375,3 +375,227 @@ async def test_failed_expert_reply_leaves_file_eligible_for_chat(captures, tmp_p
         },
     )
     assert " [first committed] ---" in captures[0]["prompt"]
+
+
+async def workflow_step(name, number, *, more=False, **kwargs):
+    args = {
+        "model": "gemini-2.5-flash",
+        "step": f"Investigate step {number}",
+        "findings": f"Evidence for step {number}",
+        "step_number": number,
+        "total_steps": number + int(more),
+        "next_step_required": more,
+        **kwargs,
+    }
+    return json.loads((await server.handle_call_tool(name, args))[0].text)
+
+
+async def test_workflow_labels_follow_their_step_and_freeze_on_expert_delivery(captures, tmp_path, monkeypatch):
+    monkeypatch.setenv("PAL_TRANSCRIPTS", "true")
+    monkeypatch.setenv("PAL_STATE_DIR", str(tmp_path / "state"))
+    inherited, direct, historical = (tmp_path / name for name in ("a.py", "b.py", "c.py"))
+    alias = tmp_path / "alias.py"
+    for path in (inherited, direct, historical):
+        path.write_text(f"body of {path.name}")
+    alias.symlink_to(direct)
+    long_label = "a" * 201 + "TRUNCATED_SUFFIX"
+    effective = "a" * 199 + "…"
+    first = await workflow_step(
+        "thinkdeep",
+        1,
+        more=True,
+        relevant_files=[str(inherited), str(direct)],
+        file_descriptions={str(tmp_path): long_label, str(direct): "first", str(historical): "UNMATCHED"},
+    )
+    thread = first["continuation_id"]
+    first_state = memory.get_thread(thread)
+    assert "file_descriptions" not in first_state.initial_context
+    assert first_state.turns[-1].model_metadata["work_history"][0]["file_descriptions"] == {
+        str(inherited): effective,
+        str(direct): "first",
+    }
+    # Another tool supplies a sibling by reference between the workflow's own steps.
+    await workflow_step("codereview", 1, more=True, continuation_id=thread, relevant_files=[str(historical)])
+    await workflow_step(
+        "thinkdeep",
+        2,
+        more=True,
+        continuation_id=thread,
+        relevant_files=[str(alias)],
+        file_descriptions={str(alias): "second"},
+    )
+    assert not captures
+    third = await workflow_step(
+        "thinkdeep", 3, continuation_id=thread, relevant_files=[str(direct)], file_descriptions={str(direct): "third"}
+    )
+    assert third["file_context"]["files_embedded"] == 3
+    await workflow_step(
+        "thinkdeep",
+        4,
+        continuation_id=thread,
+        relevant_files=[str(alias)],
+        file_descriptions={str(alias): "AFTER_DELIVERY"},
+    )
+    for call in captures:
+        prompt = call["prompt"]
+        headers = [line for line in prompt.splitlines() if line.startswith("--- BEGIN FILE:")]
+        assert len(headers) == 3
+        by_file = {
+            path: next(line for line in headers if str(path) in line) for path in (inherited, direct, historical)
+        }
+        assert by_file[inherited].endswith(f"[{effective}] ---")
+        assert by_file[direct].endswith("[third] ---") and by_file[historical].endswith(") ---")
+        assert all(prompt.count(f"body of {path.name}") == 1 for path in by_file)
+        assert " [first] ---" not in prompt and " [second] ---" not in prompt
+    assert len(captures) == 2
+    saved = memory.get_thread(thread)
+    state = saved.turns[-1].model_metadata
+    assert set(state["included_files"]) == set(map(str, (inherited, direct, historical)))
+    assert [step.get("file_descriptions", {}).get(str(direct)) for step in state["work_history"]] == [
+        "first",
+        "second",
+        "third",
+        None,
+    ]
+    transcript = (tmp_path / "state" / "transcripts" / f"{thread}.jsonl").read_text()
+    records = [json.loads(line) for line in transcript.splitlines()]
+    assert records[-1]["model_metadata"]["work_history"] == state["work_history"]
+    for text in (transcript, saved.model_dump_json(), *(call["prompt"] for call in captures)):
+        assert all(secret not in text for secret in ("TRUNCATED_SUFFIX", "UNMATCHED", "AFTER_DELIVERY"))
+    # Neither a different expert nor a restarted workflow reuses the earlier labels.
+    await workflow_step("codereview", 2, continuation_id=thread, relevant_files=[str(direct)])
+    await workflow_step("thinkdeep", 1, continuation_id=thread, relevant_files=[str(direct)])
+    assert len(captures) == 4
+    for call in captures[-2:]:
+        assert "body of b.py" in call["prompt"]
+        assert "[third]" not in call["prompt"] and effective not in call["prompt"]
+
+
+async def test_workflow_replays_old_step_and_preserves_labels_after_provider_failure(captures, tmp_path, monkeypatch):
+    path = str(tmp_path / "source.py")
+    Path(path).write_text("RETRY_FILE")
+    first = await workflow_step("thinkdeep", 1, more=True, relevant_files=[path])
+    thread = first["continuation_id"]
+    assert "file_descriptions" not in memory.get_thread(thread).turns[-1].model_metadata["work_history"][0]
+
+    async def failed_provider(*args, **kwargs):
+        raise RuntimeError("synthetic provider failure")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(GeminiModelProvider, "generate_content", failed_provider)
+        with pytest.raises(ToolExecutionError):
+            await workflow_step(
+                "thinkdeep",
+                2,
+                continuation_id=thread,
+                relevant_files=[path],
+                file_descriptions={path: " retry\n] --- ", "relative": "DROP_ME"},
+            )
+    failed = memory.get_thread(thread).turns[-1]
+    assert failed.role == "user"
+    assert "included_files" not in failed.model_metadata
+    assert failed.model_metadata["work_history"][-1]["file_descriptions"] == {path: "retry ) —"}
+    assert "DROP_ME" not in failed.model_dump_json()
+    await workflow_step("thinkdeep", 3, continuation_id=thread, relevant_files=[path], file_descriptions={path: "  "})
+    assert len(captures) == 1 and " [retry ) —] ---" in captures[0]["prompt"]
+
+
+@pytest.mark.parametrize("tool", ["analyze", "codereview", "precommit", "refactor", "secaudit", "testgen", "thinkdeep"])
+async def test_generic_expert_receives_annotated_attachment(captures, tmp_path, tool):
+    path = str(tmp_path / "focus.py")
+    Path(path).write_text("FOCUS_BODY")
+    options = {"path": str(tmp_path)} if tool == "precommit" else {}
+    first = await workflow_step(tool, 1, more=True, relevant_files=[path], file_descriptions={path: "focus"}, **options)
+    assert not captures
+    await workflow_step(tool, 2, continuation_id=first["continuation_id"])
+    assert len(captures) == 1
+    assert captures[0]["prompt"].count("FOCUS_BODY") == captures[0]["prompt"].count(" [focus] ---") == 1
+
+
+async def test_workflow_drops_pending_label_if_chat_delivered_first(captures, tmp_path):
+    first_path, second_path = (str(tmp_path / name) for name in ("first.py", "second.py"))
+    for path in (first_path, second_path):
+        Path(path).write_text("body")
+    first = await workflow_step(
+        "thinkdeep",
+        1,
+        more=True,
+        relevant_files=[first_path, second_path],
+        file_descriptions={first_path: "pending", second_path: "settled"},
+    )
+    thread = first["continuation_id"]
+    # Chat renders the whole available history. The missing sibling can first reach the expert later.
+    Path(second_path).unlink()
+    chat = {
+        "prompt": "inspect",
+        "model": "gemini-2.5-flash",
+        "working_directory_absolute_path": str(tmp_path),
+        "continuation_id": thread,
+        "absolute_file_paths": [first_path],
+    }
+    await server.handle_call_tool("chat", chat)
+    assert memory.get_thread(thread).turns[-1].model_metadata["included_files"] == [first_path]
+    Path(second_path).write_text("restored")
+    await workflow_step("thinkdeep", 2, continuation_id=thread)
+    await server.handle_call_tool("chat", chat)
+    await workflow_step(
+        "thinkdeep",
+        3,
+        continuation_id=thread,
+        relevant_files=[second_path],
+        file_descriptions={second_path: "too late"},
+    )
+    assert len(captures) == 4
+    for call in (captures[1], captures[3]):
+        header = next(line for line in call["prompt"].splitlines() if line.startswith(f"--- BEGIN FILE: {first_path} "))
+        assert header.endswith(") ---")
+        assert " [pending]" not in call["prompt"] and " [too late]" not in call["prompt"]
+        assert call["prompt"].count(" [settled] ---") == 1
+
+
+@pytest.mark.parametrize("directory_reply", [True, False])
+async def test_legacy_reply_only_covers_its_recorded_files(captures, tmp_path, directory_reply):
+    old, new = (str(tmp_path / name) for name in ("old.py", "new.py"))
+    Path(old).touch()
+    thread = memory.create_thread("thinkdeep", {})
+    memory.add_turn(
+        thread, "user", "inspect directory", files=[old] if directory_reply else [old, new], tool_name="thinkdeep"
+    )
+    memory.add_turn(
+        thread,
+        "assistant",
+        "done",
+        model_name="older-model",
+        files=[str(tmp_path) if directory_reply else old],
+        tool_name="thinkdeep",
+    )
+    Path(new).touch()
+    await server.handle_call_tool(
+        "chat",
+        {
+            "model": "gemini-2.5-flash",
+            "prompt": "continue",
+            "continuation_id": thread,
+            "working_directory_absolute_path": str(tmp_path),
+            "absolute_file_paths": [new, old],
+            "file_descriptions": {new: "new child", old: "already present"},
+        },
+    )
+    assert " [new child] ---" in captures[0]["prompt"] and "already present" not in captures[0]["prompt"]
+
+
+async def test_consumed_prompt_file_alone_preserves_plain_attachment(captures, tmp_path):
+    path = str(tmp_path / "prompt.txt")
+    Path(path).write_text("PROMPT_BODY")
+    await server.handle_call_tool(
+        "chat",
+        {
+            "model": "gemini-2.5-flash",
+            "prompt": "inspect",
+            "working_directory_absolute_path": str(tmp_path),
+            "absolute_file_paths": [path],
+            "file_descriptions": {path: "consumed"},
+        },
+    )
+    assert " [consumed] ---" not in captures[0]["prompt"]
+    assert f"--- BEGIN FILE: {path} " in captures[0]["prompt"]
