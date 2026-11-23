@@ -87,6 +87,7 @@ async def test_chat_wire_contract(kind, limit, ceiling, expected_output, monkeyp
             temperature=0.4,
             max_output_tokens=limit,
             seed=7,
+            thinking_mode=None if kind == "openrouter" else "max",
         )
         (request,) = requests
         payload = json.loads(request.content)
@@ -114,10 +115,67 @@ async def test_chat_wire_contract(kind, limit, ceiling, expected_output, monkeyp
         await close_provider(provider)
 
 
-@pytest.mark.parametrize("kind", ["openai", "openrouter"])
-async def test_responses_wire_contract(kind):
+@pytest.mark.parametrize(
+    "model,mode,effort",
+    [
+        ("opus", "minimal", "minimal"),
+        ("openai/gpt-5", "max", "max"),
+        ("anthropic/claude-3.5-haiku", "high", None),
+    ],
+)
+async def test_openrouter_chat_reasoning(model, mode, effort):
+    provider = OpenRouterProvider("synthetic")
+    requests = []
+
+    def handler(request):
+        requests.append(json.loads(request.content))
+        body = chat_response().json()
+        body["choices"][0]["message"]["reasoning_details"] = [{"type": "reasoning.text", "text": "private"}]
+        body["usage"]["completion_tokens_details"] = {"reasoning_tokens": 2}
+        return httpx.Response(200, json=body)
+
+    provider._test_transport = httpx.MockTransport(handler)
+    try:
+        result = await provider.generate_content("question", model, thinking_mode=mode)
+        (payload,) = requests
+        if effort is None:
+            assert "reasoning" not in payload
+        else:
+            assert payload["reasoning"] == {"effort": effort}
+        assert result.content == "réponse ✅"
+        assert "private" not in str(result.metadata)
+        assert result.usage == {"input_tokens": 7, "output_tokens": 3, "total_tokens": 10, "reasoning_tokens": 2}
+    finally:
+        await provider.aclose()
+
+
+async def test_openrouter_invalid_thinking_mode_fails_before_io():
+    provider = OpenRouterProvider("synthetic")
+    provider._test_transport = httpx.MockTransport(lambda _: pytest.fail("Unexpected provider request"))
+    try:
+        with pytest.raises(ValueError, match="Invalid OpenRouter thinking_mode"):
+            await provider.generate_content("question", "opus", thinking_mode="typo")
+    finally:
+        await provider.aclose()
+
+
+@pytest.mark.parametrize(
+    "kind,mode,supports_thinking,effort",
+    [
+        ("openai", "max", True, "medium"),
+        ("openrouter", None, True, "high"),
+        ("openrouter", "low", True, "low"),
+        ("openrouter", "max", True, "max"),
+        ("openrouter", "low", False, "high"),
+    ],
+)
+async def test_responses_wire_contract(kind, mode, supports_thinking, effort, monkeypatch):
     provider = OpenAIModelProvider("synthetic") if kind == "openai" else OpenRouterProvider("synthetic")
     model = "o3-pro" if kind == "openai" else "openai/gpt-5.2-pro"
+    if not supports_thinking:
+        # An operator may configure a fixed Responses effort without permitting PAL to vary it.
+        caps = replace(provider.get_capabilities(model), supports_extended_thinking=False)
+        monkeypatch.setattr(provider, "get_capabilities", lambda _: caps)
     requests = []
 
     def handler(request):
@@ -129,22 +187,30 @@ async def test_responses_wire_contract(kind):
                 "model": model,
                 "created_at": 123,
                 "object": "response",
-                "usage": {"input_tokens": 17, "output_tokens": 5, "total_tokens": 22},
+                "usage": {
+                    "input_tokens": 17,
+                    "output_tokens": 5,
+                    "total_tokens": 22,
+                    "output_tokens_details": {"reasoning_tokens": 0},
+                },
                 "output": [
+                    {"type": "reasoning", "id": "r2", "summary": [{"type": "summary_text", "text": "private"}]},
                     {
                         "type": "message",
                         "id": "m1",
                         "role": "assistant",
                         "status": "completed",
                         "content": [{"type": "output_text", "text": "answer", "annotations": []}],
-                    }
+                    },
                 ],
             },
         )
 
     provider._test_transport = httpx.MockTransport(handler)
     try:
-        result = await provider.generate_content(prompt="héllo", model_name=model, system_prompt="system")
+        result = await provider.generate_content(
+            prompt="héllo", model_name=model, system_prompt="system", thinking_mode=mode
+        )
         (request,) = requests
         payload = json.loads(request.content)
         expected = {
@@ -153,7 +219,7 @@ async def test_responses_wire_contract(kind):
                 {"role": "user", "content": [{"type": "input_text", "text": "system"}]},
                 {"role": "user", "content": [{"type": "input_text", "text": "héllo"}]},
             ],
-            "reasoning": {"effort": "medium" if kind == "openai" else "high"},
+            "reasoning": {"effort": effort},
             "max_output_tokens": 65536 if kind == "openai" else 80000,
         }
         if kind == "openai":
@@ -162,6 +228,10 @@ async def test_responses_wire_contract(kind):
         assert request.url.path.endswith("/responses")
         assert result.content == "answer"
         assert result.metadata["endpoint"] == "responses"
-        assert result.usage == {"input_tokens": 17, "output_tokens": 5, "total_tokens": 22}
+        assert "private" not in str(result.metadata)
+        expected_usage = {"input_tokens": 17, "output_tokens": 5, "total_tokens": 22}
+        if kind == "openrouter":
+            expected_usage["reasoning_tokens"] = 0
+        assert result.usage == expected_usage
     finally:
         await close_provider(provider)

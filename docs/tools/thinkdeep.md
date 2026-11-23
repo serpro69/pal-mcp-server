@@ -6,7 +6,7 @@ The `thinkdeep` tool provides extended reasoning capabilities, offering a second
 
 ## Thinking Mode
 
-**Default is `high` (16,384 tokens) for deep analysis.** Claude will automatically choose the best mode based on complexity - use `low` for quick validations, `medium` for standard problems, `high` for complex issues (default), or `max` for extremely complex challenges requiring deepest analysis.
+The default thinking mode is `high`. Use `low` for quick validations, `medium` for standard problems, or `max` for deeper analysis. The token budget depends on the selected model.
 
 ## Example Prompt
 
@@ -36,7 +36,7 @@ with the best architecture for my project
 - `files`: Optional file paths or directories for additional context (absolute paths)
 - `images`: Optional images for visual analysis (absolute paths)
 - `temperature`: Temperature for creative thinking (0-1, default 0.7)
-- `thinking_mode`: minimal|low|medium|high|max (default: high, Gemini only)
+- `thinking_mode` accepts minimal, low, medium, high, or max on supported Gemini and OpenRouter models (default high).
 - `continuation_id`: Continue previous conversations
 
 The expert-validation prompt includes `problem_context` and `focus_areas` from

@@ -6,7 +6,7 @@ The `analyze` tool provides comprehensive code analysis and understanding capabi
 
 ## Thinking Mode
 
-**Default is `medium` (8,192 tokens).** Use `high` for architecture analysis (comprehensive insights worth the cost) or `low` for quick file overviews (save ~6k tokens).
+Expert analysis defaults to `high`. Use `low` for a quick file overview.
 
 ## How the Workflow Works
 
@@ -68,7 +68,7 @@ This workflow ensures methodical analysis before expert insights, resulting in d
 - `analysis_type`: architecture|performance|security|quality|general (default: general)
 - `output_format`: summary|detailed|actionable (default: detailed)
 - `temperature`: Temperature for analysis (0-1, default 0.2)
-- `thinking_mode`: minimal|low|medium|high|max (default: medium, Gemini only)
+- `thinking_mode` accepts minimal, low, medium, high, or max on supported Gemini and OpenRouter models (default high).
 - `use_assistant_model`: Whether to use expert analysis phase (default: true, set to false to use Claude only)
 - `continuation_id`: Continue previous analysis sessions
 

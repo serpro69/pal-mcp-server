@@ -66,9 +66,8 @@ CONSENSUS_WORKFLOW_FIELD_DESCRIPTIONS = {
     "model_responses": "Internal log of responses gathered so far.",
     "images": "Optional absolute image paths or base64 references that add helpful visual context.",
     "thinking_mode": (
-        "Reasoning depth sent to every consulted model; only the native Gemini provider applies it "
-        "(other providers, including Gemini via OpenRouter, ignore it). "
-        "minimal, low, medium, high, or max (default medium). Set at step 1; later steps reuse it."
+        "Reasoning depth for supported Gemini and OpenRouter models. "
+        "Choose minimal, low, medium, high, or max (default medium). Set at step 1. Later steps reuse it."
     ),
 }
 

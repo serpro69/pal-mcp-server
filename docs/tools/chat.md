@@ -6,7 +6,7 @@ The `chat` tool is your collaborative thinking partner for development conversat
 
 ## Thinking Mode
 
-**Default is `medium` (8,192 tokens).** Use `low` for quick questions to save tokens, or `high` for complex discussions when thoroughness matters.
+Chat defaults to `medium`. Use `low` for quick questions or `high` for complex discussions.
 
 ## Example Prompt
 
@@ -57,7 +57,7 @@ word verdict in the end.
 - `images`: Optional images for visual context (absolute paths)
 - `working_directory_absolute_path`: **Required** - Absolute path to an existing directory where generated code artifacts will be saved
 - `temperature`: Response creativity (0-1, default 0.5)
-- `thinking_mode`: minimal|low|medium|high|max (default: medium, Gemini only)
+- `thinking_mode` accepts minimal, low, medium, high, or max on supported Gemini and OpenRouter models (default medium).
 - `continuation_id`: Continue previous conversations
 
 ## Structured Code Generation

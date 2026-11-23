@@ -13,12 +13,13 @@ from providers.dial import DIALModelProvider
 from providers.gemini import GeminiModelProvider
 from providers.openai import OpenAIModelProvider
 from providers.openrouter import OpenRouterProvider
-from providers.shared import ModelResponse
+from providers.registry import ModelProviderRegistry
+from providers.shared import ModelResponse, ProviderType
 from scripts.cache_report import read_events, usage_report
 from tests.request_capture import capture_providers
 from tests.test_conversation_storage_errors import FaultStorage
 from tests.test_dial_async import inject_pool
-from tests.test_provider_wire_async import make_provider
+from tests.test_provider_wire_async import chat_response, make_provider
 from utils import conversation_memory as memory
 
 pytestmark = pytest.mark.no_mock_provider
@@ -124,6 +125,44 @@ def audit(monkeypatch, tmp_path):
     monkeypatch.setenv("PAL_TRANSCRIPTS", "true")
     capture_providers(monkeypatch)
     return tmp_path / "state" / "transcripts"
+
+
+async def test_chat_records_openrouter_reasoning_usage(monkeypatch, tmp_path, audit):
+    monkeypatch.setenv("OPENROUTER_API_KEY", "synthetic")
+    ModelProviderRegistry.register_provider(ProviderType.OPENROUTER, OpenRouterProvider)
+    requests = []
+
+    def handler(request):
+        requests.append(json.loads(request.content))
+        body = chat_response().json()
+        body["usage"]["completion_tokens_details"] = {"reasoning_tokens": 2}
+        return httpx.Response(200, json=body)
+
+    monkeypatch.setattr(OpenRouterProvider, "_test_transport", httpx.MockTransport(handler), raising=False)
+    try:
+        result = json.loads(
+            (
+                await server.handle_call_tool(
+                    "chat",
+                    {
+                        "prompt": "question",
+                        "model": "anthropic/claude-opus-4.8",
+                        "thinking_mode": "high",
+                        "working_directory_absolute_path": str(tmp_path),
+                    },
+                )
+            )[0].text
+        )
+        (payload,) = requests
+        assert payload["reasoning"] == {"effort": "high"}
+        (operation,) = result["metadata"]["execution"]["operations"]
+        assert operation["usage"]["reasoning_tokens"] == 2
+        (group,) = usage_report(read_events(audit.glob("*.jsonl")))["groups"]
+        assert group["fields"]["reasoning_tokens"] == {"known_calls": 1, "missing_calls": 0, "sum": 2}
+        assert group["fields"]["total_tokens"]["sum"] == 10
+    finally:
+        for provider in ModelProviderRegistry()._initialized_providers.values():
+            await provider.aclose()
 
 
 async def test_empty_reply_recovery_records_each_returned_call_once(monkeypatch, tmp_path, audit):

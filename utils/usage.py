@@ -3,7 +3,14 @@
 from collections.abc import Mapping
 from typing import Any
 
-USAGE_FIELDS = ("input_tokens", "output_tokens", "total_tokens", "cached_input_tokens", "cache_write_tokens")
+USAGE_FIELDS = (
+    "input_tokens",
+    "output_tokens",
+    "total_tokens",
+    "cached_input_tokens",
+    "cache_write_tokens",
+    "reasoning_tokens",
+)
 
 
 def known_usage(value: Any) -> dict[str, int]:

@@ -27,7 +27,7 @@ of successful answers; zero-success results ask for failure reporting and recove
 
 ## Thinking Mode
 
-**Default is `medium` (8,192 tokens).** Use `high` for complex architectural decisions or `max` for critical strategic choices requiring comprehensive analysis.
+Consensus defaults to `medium`. Use `high` for complex architectural decisions or `max` for deeper analysis.
 
 ## Model Recommendation
 
@@ -99,7 +99,7 @@ Get a consensus from gemini supporting the idea for implementing X, grok opposin
 - `images`: Visual references like diagrams or mockups (absolute paths)
 - `focus_areas`: Specific aspects to emphasize
 - `temperature`: Control consistency (default: 0.2 for stable consensus)
-- `thinking_mode`: Thinking depth sent to every consulted model (minimal/low/medium/high/max, default: medium). Only the native Gemini provider applies it; other providers, including Gemini via OpenRouter, ignore it. Set it at step 1; later steps reuse it
+- `thinking_mode` sets the reasoning depth for supported native Gemini and OpenRouter participants. Choose minimal, low, medium, high, or max at step 1 (default medium). Later steps reuse that setting.
 - `continuation_id`: Continue previous consensus discussions
 
 ## Model Configuration Examples
