@@ -28,14 +28,14 @@ tokens (candidate maximum 1,147). Full-request admission remains enforced by the
 runtime. Fixture paths are identical during comparisons and normalized only after
 rendering, so path length cannot bias admission between candidates.
 
-The separate [file-description design](../feat/wip/per-file-descriptions/design.md)
+The separate [file-description design](../feat/done/per-file-descriptions/design.md)
 requires unchanged headers when descriptions are absent, annotations adjacent to
-content, fixed descriptions after first embedding, and no new cross-continuation
-annotation persistence. Runtime headers remain unchanged. The test-only provenance
-footer explores the cost of a coordinated format change; it is not an approved
-annotation implementation. Immutable file snapshots/version logs were not added:
-they would need an explicit authoritative-current-version rule, bounded storage,
-and coordinated annotation semantics before a meaningful safe prototype.
+content and fixed descriptions after first embedding. Chat records delivered paths.
+An expert workflow may retain sanitized labels across its own steps, including in
+opt-in transcripts. Reuse is scoped to that workflow. Task 41 kept the runtime
+headers in place. Its test-only provenance footer measured the cost of changing
+the format. A prototype for immutable file snapshots or version logs would need
+a rule for selecting the current version, bounded storage, and agreed annotation semantics.
 
 Follow-ups are deliberately separate:
 

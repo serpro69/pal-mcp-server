@@ -150,6 +150,53 @@ The token budget for a given mode depends on the model. Native Gemini models use
 
 All tools that work with files support **both individual files and entire directories**. The server automatically expands directories, filters for relevant code files, and manages token limits.
 
+### Per-file descriptions
+
+Use `file_descriptions` to tell the model which attached file to review and which files provide
+context. For example, this `chat` request asks about a parser change and includes two tests as evidence.
+
+```json
+{
+  "model": "gemini-2.5-flash",
+  "prompt": "Does the parser handle an empty input the way these tests expect?",
+  "working_directory_absolute_path": "/work/parser",
+  "absolute_file_paths": [
+    "/work/parser/src/parser.py",
+    "/work/parser/tests/test_empty.py",
+    "/work/parser/tests/test_parser.py"
+  ],
+  "file_descriptions": {
+    "/work/parser/src/parser.py": "Implementation under review",
+    "/work/parser/tests": "Reference tests",
+    "/work/parser/tests/test_empty.py": "Regression test for empty input"
+  }
+}
+```
+
+The model sees `[Regression test for empty input]` in the opening header of `test_empty.py`
+and `[Reference tests]` in the header of `test_parser.py`. An exact file key wins, followed
+by the nearest matching parent directory. A directory label applies only to files attached in
+that request or step. Keys in the map cannot add attachments.
+
+Supply string values keyed by absolute file or directory paths. Omit the map or use `{}` to
+send plain headers. PAL collapses whitespace, replaces delimiter characters, and limits each
+label to 200 characters including the ellipsis when truncated. The header counts toward the
+model's file budget. Workflows check that budget when preparing the final step, even when the
+step finishes locally without consulting an expert.
+Only successfully embedded text files receive labels. An explicit `prompt.txt` used as the
+chat prompt stays plain even if its containing directory also supplies it as an attachment.
+
+| Tool | Attachments and continuations |
+| --- | --- |
+| `chat` | Supply `absolute_file_paths`. A file can receive a label the first time its contents reach a model successfully in the conversation. A previously unavailable file can still qualify. Later chat calls render an already delivered file with a plain header, even through a path alias. |
+| `analyze`, `codereview`, `debug`, `precommit`, `refactor`, `secaudit`, `testgen`, `thinkdeep` | Supply `relevant_files`. A reference-only step can save a label for a later expert call. The latest nonblank match wins before first delivery. If this workflow delivers the file first, its later expert calls reuse that label. Starting at step one resets the workflow's saved labels. |
+| `consensus` | Supply `relevant_files` and descriptions on each participant's call. Each participant sees only its own labels, even when two participants receive the same file. |
+
+Chat and consensus record delivered paths. Older model replies can count their recorded
+attachments as already delivered. Only the originating expert workflow retains labels for
+reuse. Its step history and opt-in private transcripts can contain earlier sanitized values
+after a later step updates them.
+
 ### File-Processing Tools
 
 **`analyze`** - Analyze files or directories

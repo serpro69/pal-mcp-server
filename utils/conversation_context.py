@@ -112,30 +112,26 @@ def invocation_thread(tool):
 
 
 def _legacy_file_inclusions(reply, previous, candidates: set[str]) -> set[str]:
-    """Match recorded reply references without enumerating a historical directory today."""
-    from utils.file_utils import resolve_and_validate_path
-
-    def resolved(paths):
-        result = set()
-        for path in paths or []:
-            try:
-                result.add(resolve_and_validate_path(path))
-            except (OSError, RuntimeError, ValueError):
-                continue
-        return result
-
-    requested = resolved(reply.files)
-    # Old workflow replies can name directories. Their paired input recorded the children.
-    # Without that snapshot, conservatively treat a recorded directory as covering its subtree.
-    children = None
+    """Use paths saved at delivery time, even if a symlink has since changed."""
+    references = {Path(path) for path in reply.files or []}
+    if not references:
+        return set()
     if previous and previous.role == "user" and previous.tool_name == reply.tool_name and previous.files is not None:
-        children = resolved(previous.files)
-    included = set()
-    for candidate in candidates:
-        path = Path(candidate)
-        if path in requested or ((children is None or path in children) and requested.intersection(path.parents)):
-            included.add(candidate)
-    return included
+        # The input recorded expanded paths, while the reply could retain a directory or alias.
+        unmatched = references.copy()
+        included = set()
+        for filename in previous.files:
+            path = Path(filename)
+            matches = references.intersection((path, *path.parents))
+            if matches:
+                unmatched.difference_update(matches)
+                included.add(filename)
+        # An old alias has no saved mapping to its target. Its possible targets are
+        # bounded by the paired input snapshot, regardless of where the alias points today.
+        return candidates.intersection(previous.files if unmatched else included)
+
+    # Without a paired snapshot, a recorded directory conservatively covers its descendants.
+    return {path for path in candidates if references.intersection((Path(path), *Path(path).parents))}
 
 
 def first_file_deliveries(tool, candidates: set[str]) -> dict[str, str | None]:
@@ -305,13 +301,17 @@ def conversation_request(*, workflow=False):
                 else:
                     # Load prompt files once before the raw input is persisted.
                     files = tool.get_request_files(request)
-                    prompt_file, updated_files = tool.handle_prompt_file(files) if files else (None, None)
+                    if files and getattr(request, "file_descriptions", None):
+                        consumed = []
+                        prompt_file, updated_files = tool.handle_prompt_file(files, consumed_files=consumed)
+                        if prompt_file:
+                            # A blank canonical file entry overrides both aliases and directory
+                            # labels if attachment expansion includes a consumed prompt again.
+                            request.file_descriptions.update(dict.fromkeys(consumed, ""))
+                    else:
+                        prompt_file, updated_files = tool.handle_prompt_file(files) if files else (None, None)
                     if prompt_file:
                         raw = prompt_file
-                        if updated_files is None and getattr(request, "file_descriptions", None):
-                            # A sole prompt.txt is retained in legacy attachment tracking.
-                            # It supplied the prompt, so it has no labelable attachment role.
-                            request.file_descriptions = {}
                     if updated_files is not None:
                         tool.set_request_files(request, updated_files)
                     request.prompt = raw
