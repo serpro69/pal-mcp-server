@@ -157,6 +157,22 @@ class ModelProviderRegistry:
         return list(instance._providers.keys())
 
     @classmethod
+    def with_custom_model_hint(cls, message: str, model_name: str | None = None) -> str:
+        """Suggest registration for unknown names or an empty custom catalog on auto selection."""
+        from .custom import CustomProvider
+
+        custom = cls.get_provider(ProviderType.CUSTOM)
+        if not isinstance(custom, CustomProvider):
+            return message
+        if model_name is None:
+            if custom.get_all_model_capabilities():
+                return message
+        elif cls.resolve_model_identity(model_name, catalog_only=True) is not None:
+            # Registration is already correct, even when policy denies the model.
+            return message
+        return f"{message} {custom.model_registration_hint()}"
+
+    @classmethod
     def get_available_models(cls, respect_restrictions: bool = True) -> dict[str, ProviderType]:
         """Get mapping of all available models to their providers.
 
@@ -405,9 +421,8 @@ class ModelProviderRegistry:
             return first_available_model
 
         # Ultimate fallback if no providers have models
-        raise ValueError(
-            "No eligible models available. Configure provider credentials and check model allowlists and DISABLED_MODELS."
-        )
+        message = "No eligible models available. Configure provider credentials and check model allowlists and DISABLED_MODELS."
+        raise ValueError(cls.with_custom_model_hint(message))
 
     @classmethod
     def get_preferred_model_choices(cls) -> list[tuple[ModelProvider, str, str]]:

@@ -11,11 +11,65 @@ from mcp.types import TextContent
 import config
 import server
 from providers.configuration import provider_classes
+from providers.custom import CustomProvider
 from providers.errors import RegistryConfigurationError
 from providers.registries.custom import CustomEndpointModelRegistry
 from providers.registries.openrouter import OpenRouterModelRegistry
 from providers.registry import ModelProviderRegistry
 from tools.clink import CLinkTool
+
+
+@pytest.mark.no_mock_provider
+@pytest.mark.parametrize(
+    "requested,use_override,entries,denied,expect_hint",
+    [
+        ("missing", False, [], None, True),
+        ("qwen3:latest", True, ["qwen3"], None, True),
+        ("missing", True, ["qwen3"], None, True),
+        ("auto", True, [], None, True),
+        ("qwen3:latest", True, ["qwen3:latest"], "qwen3:latest", False),
+        ("auto", True, ["qwen3:latest"], "qwen3:latest", False),
+    ],
+)
+async def test_custom_model_errors_identify_the_catalog_to_edit(
+    requested, use_override, entries, denied, expect_hint, isolated_provider_environment, monkeypatch, tmp_path
+):
+    path = tmp_path / "ollama-models.json"
+    monkeypatch.setattr(CustomProvider, "_registry", None)
+    source = str(path) if use_override else "conf/custom_models.json"
+    if use_override:
+        path.write_text(
+            json.dumps(
+                {
+                    "models": [
+                        {"model_name": name, "context_window": 8192, "max_output_tokens": 2048} for name in entries
+                    ]
+                }
+            )
+        )
+        monkeypatch.setenv("CUSTOM_MODELS_CONFIG_PATH", str(path))
+    monkeypatch.setenv("CUSTOM_API_URL", "http://localhost:11434/v1")
+    if denied:
+        monkeypatch.setenv("DISABLED_MODELS", denied)
+    monkeypatch.setattr(server, "DEFAULT_MODEL", "auto")
+    monkeypatch.setattr(config, "IS_AUTO_MODE", True)
+    server.initialize_runtime()
+    async with Client(server.server, read_timeout_seconds=5) as client:
+        result = await client.call_tool(
+            "chat", {"model": requested, "prompt": "hello", "working_directory_absolute_path": str(tmp_path)}
+        )
+    assert result.is_error
+    assert (source in result.content[0].text) == expect_hint
+
+
+async def test_undeclared_custom_model_fails_before_request(monkeypatch, tmp_path):
+    path = tmp_path / "ollama-models.json"
+    path.write_text('{"models": []}')
+    monkeypatch.setattr(CustomProvider, "_registry", CustomEndpointModelRegistry(str(path)))
+    provider = CustomProvider(base_url="http://localhost:11434/v1")
+    with pytest.raises(ValueError) as caught:
+        await provider.generate_content("hello", "qwen3:latest")
+    assert str(path) in str(caught.value)
 
 
 @pytest.mark.parametrize("selected", ["argument", "environment"])

@@ -508,7 +508,7 @@ class OpenAICompatibleProvider(ModelProvider):
         """
         # Validate model name against allow-list
         if not self.validate_model_name(model_name):
-            raise ValueError(f"Model '{model_name}' not in allowed models list. Allowed models: {self.allowed_models}")
+            self._raise_invalid_request_model(model_name)
 
         from utils.model_context import get_request_budget
 
@@ -666,6 +666,9 @@ class OpenAICompatibleProvider(ModelProvider):
             )
             logging.error(error_msg)
             raise RuntimeError(error_msg) from exc
+
+    def _raise_invalid_request_model(self, model_name: str) -> None:
+        raise ValueError(f"Model '{model_name}' not in allowed models list. Allowed models: {self.allowed_models}")
 
     def _reasoning_params(
         self, capabilities: ModelCapabilities | None, thinking_mode: str | None, *, responses_api: bool

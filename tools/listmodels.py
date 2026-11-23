@@ -349,7 +349,10 @@ class ListModelsTool(BaseTool):
         output_lines.append("\n**Usage Tips**:")
         output_lines.append("- Use model aliases (e.g., 'flash', 'gpt5', 'opus') for convenience")
         output_lines.append("- In auto mode, the CLI Agent will select the best model for each task")
-        output_lines.append("- Custom models are only available when CUSTOM_API_URL is set")
+        output_lines.append(
+            "- Custom endpoint models come from conf/custom_models.json or CUSTOM_MODELS_CONFIG_PATH "
+            "when CUSTOM_API_URL is set."
+        )
         output_lines.append("- OpenRouter provides access to many cloud models with one API key")
 
         # Format output

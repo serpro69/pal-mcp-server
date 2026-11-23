@@ -31,7 +31,6 @@ services:
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - CUSTOM_API_URL=${CUSTOM_API_URL}
       - CUSTOM_API_KEY=${CUSTOM_API_KEY}
-      - CUSTOM_MODEL_NAME=${CUSTOM_MODEL_NAME}
       
       # Logging configuration
       - PAL_STATE_DIR=/var/lib/pal

@@ -96,9 +96,8 @@ class ModelContext:
                         "No models detected. Configure provider credentials or set DEFAULT_MODEL to a valid option."
                     )
 
-                raise ValueError(
-                    f"Model '{self.model_name}' is not available with current API keys. Available models: {available_text}."
-                )
+                message = f"Model '{self.model_name}' is not available with current API keys. Available models: {available_text}."
+                raise ValueError(ModelProviderRegistry.with_custom_model_hint(message, self.model_name))
         return self._provider
 
     @property
