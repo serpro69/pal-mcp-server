@@ -358,7 +358,7 @@ Dependencies are pinned using [pip-tools](https://pip-tools.readthedocs.io/). Ab
 | `pyproject.toml`      | `requirements.txt`     |
 | `requirements-dev.in` | `requirements-dev.txt` |
 
-Dev deps are constrained against runtime pins (`-c requirements.txt` in `requirements-dev.in`) to prevent version divergence.
+Run the lock commands below on Python 3.10, the oldest supported interpreter. Dev deps are constrained against runtime pins (`-c requirements.txt` in `requirements-dev.in`) to prevent version divergence.
 
 ```bash
 # Add or update a runtime dependency: edit pyproject.toml [project] dependencies, then:
@@ -378,7 +378,7 @@ environment (some setups inject `--no-index`) and would otherwise cause spurious
 
 ### Environment Requirements
 
-- Python 3.9+ with virtual environment
+- Python 3.10+ with virtual environment
 - All dependencies from `requirements.txt` installed
 - Proper API keys configured in `.env` file
 
