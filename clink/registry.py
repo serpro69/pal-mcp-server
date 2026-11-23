@@ -4,13 +4,17 @@ from __future__ import annotations
 
 import json
 import logging
-import shlex
+import re
+import stat
 from collections.abc import Iterable
 from pathlib import Path
+from typing import Any
+
+from pydantic import ValidationError
 
 from clink.constants import (
+    BUILTIN_PROMPTS_DIR,
     CONFIG_DIR,
-    DEFAULT_TIMEOUT_SECONDS,
     INTERNAL_DEFAULTS,
     PROJECT_ROOT,
     USER_CONFIG_DIR,
@@ -19,11 +23,11 @@ from clink.constants import (
 from clink.models import (
     CLIClientConfig,
     CLIRoleConfig,
+    GenericCLIClientConfig,
     ResolvedCLIClient,
     ResolvedCLIRole,
 )
 from utils.env import get_env
-from utils.file_utils import read_json_file
 
 logger = logging.getLogger("clink.registry")
 
@@ -34,6 +38,50 @@ class RegistryLoadError(RuntimeError):
     """Raised when configuration files are invalid or missing critical data."""
 
 
+def _member_label(name: str) -> str:
+    """Keep a field identifiable when an operator pasted a NAME=value assignment."""
+    key, separator, _ = name.partition("=")
+    return f"{key}=[redacted]" if separator else key
+
+
+def _unique_members(pairs: list[tuple[str, Any]]) -> dict:
+    obj = {}
+    for key, value in pairs:
+        if key in obj:
+            raise RegistryLoadError(f"duplicate member {ascii(_member_label(key))}")
+        obj[key] = value
+    return obj
+
+
+def _decode_manifest(document: str) -> Any:
+    def reject_constant(token: str) -> None:
+        # The decoder supplies no offset for nonstandard constants. Skip quoted
+        # strings (including escaped quotes) to locate the actual token.
+        tokens = re.finditer(r'"(?:\\.|[^"\\])*"|NaN|-?Infinity', document)
+        position = next(match.start() for match in tokens if document.startswith(token, match.start()))
+        raise json.JSONDecodeError("non-finite number", document, position)
+
+    return json.loads(document, object_pairs_hook=_unique_members, parse_constant=reject_constant)
+
+
+def _validation_reason(exc: ValidationError) -> str:
+    # Pydantic's rendered exception, and even some built-in messages, contain input values.
+    errors = exc.errors(include_input=False, include_url=False)
+    if all(error["type"] == "missing" for error in errors):
+        fields = ", ".join(".".join(_member_label(str(part)) for part in error["loc"]) for error in errors)
+        return f"missing required fields: {fields}"
+    error = errors[0]
+    parts = list(error["loc"])
+    if parts[-1:] == ["[key]"]:
+        # An invalid environment key can contain a complete NAME=credential assignment.
+        parts[-2:] = ["[key]"]
+    elif error["type"] == "extra_forbidden" and not str(parts[-1]).isidentifier():
+        parts[-1] = "[unknown field]"
+    location = ".".join(_member_label(str(part)) for part in parts) or "manifest"
+    reason = error["msg"] if error["type"] == "value_error" else error["type"]
+    return f"invalid field {ascii(location)} ({reason})"
+
+
 class ClinkRegistry:
     """Loads CLI client definitions and exposes them for schema generation/runtime use."""
 
@@ -42,31 +90,22 @@ class ClinkRegistry:
         self._load()
 
     def _load(self) -> None:
-        self._clients.clear()
-        for config_path in self._iter_config_files():
-            try:
-                data = read_json_file(str(config_path))
-            except json.JSONDecodeError as exc:
-                raise RegistryLoadError(f"Invalid JSON in {config_path}: {exc}") from exc
-
-            if not data:
-                logger.debug("Skipping empty configuration file: %s", config_path)
-                continue
-
-            config = CLIClientConfig.model_validate(data)
-            resolved = self._resolve_config(config, source_path=config_path)
-            key = resolved.name.lower()
-            if key in self._clients:
-                logger.info("Overriding CLI configuration for '%s' from %s", resolved.name, config_path)
-            else:
-                logger.debug("Loaded CLI configuration for '%s' from %s", resolved.name, config_path)
-            self._clients[key] = resolved
-
-        if not self._clients:
-            raise RegistryLoadError(
-                "No CLI clients configured. Ensure conf/cli_clients contains at least one definition or set "
-                f"{CONFIG_ENV_VAR}."
-            )
+        candidate = {}
+        try:
+            for path in self._iter_config_files():
+                client = self._load_client(path)
+                key = client.name.casefold()
+                if key in candidate:
+                    logger.info("Overriding CLI configuration for %r from %r", _member_label(client.name), str(path))
+                else:
+                    logger.debug("Loaded CLI configuration for %r from %r", _member_label(client.name), str(path))
+                candidate[key] = client
+            if not candidate:
+                raise RegistryLoadError(f"No CLI clients configured in {CONFIG_DIR} or {CONFIG_ENV_VAR}.")
+        except RegistryLoadError as exc:
+            logger.critical("Failed to load clink configuration: %s", exc)
+            raise
+        self._clients = candidate
 
     def reload(self) -> None:
         """Reload configurations from disk."""
@@ -80,7 +119,7 @@ class ClinkRegistry:
         return sorted(config.roles.keys())
 
     def get_client(self, cli_name: str) -> ResolvedCLIClient:
-        key = cli_name.lower()
+        key = cli_name.casefold()
         if key not in self._clients:
             available = ", ".join(self.list_clients())
             raise KeyError(f"CLI '{cli_name}' is not configured. Available clients: {available}")
@@ -91,152 +130,140 @@ class ClinkRegistry:
     # ------------------------------------------------------------------
 
     def _iter_config_files(self) -> Iterable[Path]:
-        search_paths: list[Path] = []
-
-        # 1. Built-in configs
-        search_paths.append(CONFIG_DIR)
-
-        # 2. CLI_CLIENTS_CONFIG_PATH environment override (file or directory)
+        sources = [(CONFIG_DIR, False)]
         env_path_raw = get_env(CONFIG_ENV_VAR)
         if env_path_raw:
-            env_path = Path(env_path_raw).expanduser()
-            search_paths.append(env_path)
-
-        # 3. User overrides in ~/.pal/cli_clients
-        search_paths.append(USER_CONFIG_DIR)
-
+            try:
+                sources.append((Path(env_path_raw).expanduser(), False))
+            except RuntimeError:
+                raise RegistryLoadError(f"Cannot expand {CONFIG_ENV_VAR} path {ascii(env_path_raw)}") from None
+        sources.append((USER_CONFIG_DIR, True))
         seen: set[Path] = set()
-
-        for base in search_paths:
-            if not base:
-                continue
+        for base, optional in sources:
             if base in seen:
                 continue
             seen.add(base)
+            location = base
+            try:
+                try:
+                    mode = base.stat().st_mode
+                except FileNotFoundError:
+                    if optional and not base.is_symlink():
+                        continue
+                    raise RegistryLoadError(f"Configuration source missing: {ascii(str(base))}") from None
+                if stat.S_ISDIR(mode):
+                    # glob/is_file can silently suppress enumeration and broken-link errors.
+                    for location in sorted(base.iterdir()):
+                        if location.match("*.json") and not stat.S_ISDIR(location.stat().st_mode):
+                            yield location
+                elif stat.S_ISREG(mode) and base.suffix.lower() == ".json":
+                    yield base
+                else:
+                    raise RegistryLoadError(f"Expected a JSON file or directory at {ascii(str(base))}")
+            except OSError as exc:
+                raise RegistryLoadError(
+                    f"Cannot read configuration source {ascii(str(location))}: {type(exc).__name__}"
+                ) from None
 
-            if base.is_file() and base.suffix.lower() == ".json":
-                yield base
-                continue
-
-            if base.is_dir():
-                for path in sorted(base.glob("*.json")):
-                    if path.is_file():
-                        yield path
+    def _load_client(self, path: Path) -> ResolvedCLIClient:
+        try:
+            if not stat.S_ISREG(path.stat().st_mode):
+                raise RegistryLoadError("expected a regular JSON file")
+            data = _decode_manifest(path.read_text(encoding="utf-8"))
+            if not isinstance(data, dict) or not data:
+                raise RegistryLoadError("expected a nonempty JSON object")
+            name = data.get("name")
+            if isinstance(name, str) and name.strip().casefold() in INTERNAL_DEFAULTS:
+                kind = "shipped"
+                if "custom" in data:
+                    raise RegistryLoadError("field 'custom' cannot replace a shipped adapter")
+                raw = CLIClientConfig.model_validate(data)
             else:
-                logger.debug("Configuration path does not exist: %s", base)
+                kind = "generic"
+                raw = GenericCLIClientConfig.model_validate(data)
+            return self._resolve_config(raw, source_path=path)
+        except json.JSONDecodeError as exc:
+            reason = f"invalid JSON at line {exc.lineno}, column {exc.colno}"
+            if exc.msg.startswith("Unexpected UTF-8 BOM"):
+                reason += " (remove the UTF-8 byte-order mark)"
+        except UnicodeError:
+            reason = "invalid text encoding (expected UTF-8)"
+        except OSError as exc:
+            reason = f"cannot read file ({type(exc).__name__})"
+        except ValidationError as exc:
+            reason = f"{kind} manifest: {_validation_reason(exc)}"
+        except RegistryLoadError as exc:
+            reason = str(exc)
+        except (RecursionError, ValueError):
+            reason = "invalid JSON value"
+        raise RegistryLoadError(f"{ascii(str(path))}: {reason}") from None
 
-    def _resolve_config(self, raw: CLIClientConfig, *, source_path: Path) -> ResolvedCLIClient:
-        if not raw.name:
-            raise RegistryLoadError(f"CLI configuration at {source_path} is missing a 'name' field")
-
+    def _resolve_config(self, raw: CLIClientConfig | GenericCLIClientConfig, *, source_path: Path) -> ResolvedCLIClient:
         normalized_name = raw.name.strip()
-        internal_defaults = INTERNAL_DEFAULTS.get(normalized_name.lower())
-        if internal_defaults is None:
-            raise RegistryLoadError(f"CLI '{raw.name}' is not supported by clink")
-
-        executable = self._resolve_executable(raw, internal_defaults, source_path)
-
-        internal_args = list(internal_defaults.additional_args) if internal_defaults else []
-        config_args = list(raw.additional_args)
-
-        timeout_seconds = raw.timeout_seconds or (
-            internal_defaults.timeout_seconds if internal_defaults else DEFAULT_TIMEOUT_SECONDS
+        generic = isinstance(raw, GenericCLIClientConfig)
+        defaults = (
+            CLIInternalDefaults(parser="generic", runner="generic")
+            if generic
+            else INTERNAL_DEFAULTS[normalized_name.casefold()]
         )
-
-        parser_name = internal_defaults.parser
-        if not parser_name:
-            raise RegistryLoadError(
-                f"CLI '{raw.name}' must define a parser either in configuration or internal defaults"
-            )
-
-        runner_name = internal_defaults.runner if internal_defaults else None
-
-        env = self._merge_env(raw, internal_defaults)
-        working_dir = self._resolve_optional_path(raw.working_dir, source_path.parent)
-        roles = self._resolve_roles(raw, internal_defaults, source_path)
-
-        output_to_file = raw.output_to_file
+        try:
+            executable = raw.executable_tokens()
+        except ValueError as exc:
+            raise RegistryLoadError(str(exc)) from None
+        try:
+            working_dir = self._resolve_path(raw.working_dir, source_path.parent) if raw.working_dir else None
+        except (OSError, RuntimeError, ValueError):
+            raise RegistryLoadError("cannot resolve field 'working_dir'") from None
 
         return ResolvedCLIClient(
             name=normalized_name,
             executable=executable,
             model_args=list(raw.model_args),
             default_model=raw.default_model,
-            internal_args=internal_args,
-            config_args=config_args,
+            internal_args=defaults.additional_args,
+            config_args=raw.additional_args,
             safe_args=list(raw.safe_args),
             edit_args=list(raw.edit_args),
-            env=env,
-            env_passthrough=list(dict.fromkeys((*internal_defaults.env_passthrough, *raw.env_passthrough))),
-            timeout_seconds=int(timeout_seconds),
+            env={**defaults.env, **raw.env},
+            env_passthrough=list(dict.fromkeys((*defaults.env_passthrough, *raw.env_passthrough))),
+            timeout_seconds=raw.timeout_seconds or defaults.timeout_seconds,
             history_token_budget=raw.history_token_budget,
-            parser=parser_name,
-            runner=runner_name,
-            roles=roles,
-            output_to_file=output_to_file,
+            parser=defaults.parser,
+            runner=defaults.runner,
+            custom=raw.custom if generic else None,
+            roles=self._resolve_roles(raw, defaults, source_path),
+            output_to_file=None if generic else raw.output_to_file,
             working_dir=working_dir,
         )
 
-    def _resolve_executable(
-        self,
-        raw: CLIClientConfig,
-        internal_defaults: CLIInternalDefaults | None,
-        source_path: Path,
-    ) -> list[str]:
-        command = raw.command
-        if not command:
-            raise RegistryLoadError(f"CLI '{raw.name}' must specify a 'command' in configuration")
-        return shlex.split(command)
-
-    def _merge_env(
-        self,
-        raw: CLIClientConfig,
-        internal_defaults: CLIInternalDefaults | None,
-    ) -> dict[str, str]:
-        merged: dict[str, str] = {}
-        if internal_defaults and internal_defaults.env:
-            merged.update(internal_defaults.env)
-        merged.update(raw.env)
-        return merged
-
     def _resolve_roles(
         self,
-        raw: CLIClientConfig,
-        internal_defaults: CLIInternalDefaults | None,
+        raw: CLIClientConfig | GenericCLIClientConfig,
+        defaults: CLIInternalDefaults,
         source_path: Path,
     ) -> dict[str, ResolvedCLIRole]:
-        roles: dict[str, CLIRoleConfig] = dict(raw.roles)
-
-        default_role_prompt = internal_defaults.default_role_prompt if internal_defaults else None
-        if "default" not in roles:
-            roles["default"] = CLIRoleConfig(prompt_path=default_role_prompt)
-        elif roles["default"].prompt_path is None and default_role_prompt:
-            roles["default"].prompt_path = default_role_prompt
-
         resolved: dict[str, ResolvedCLIRole] = {}
-        for role_name, role_config in roles.items():
-            prompt_path_str = role_config.prompt_path or default_role_prompt
-            if not prompt_path_str:
-                raise RegistryLoadError(f"Role '{role_name}' for CLI '{raw.name}' must define a prompt_path")
-            prompt_path = self._resolve_prompt_path(prompt_path_str, source_path.parent)
+        for role_name, role_config in {"default": CLIRoleConfig(), **raw.roles}.items():
+            prompt = role_config.prompt_path or defaults.default_role_prompt
+            try:
+                path = (
+                    self._resolve_path(prompt, source_path.parent)
+                    if prompt
+                    else BUILTIN_PROMPTS_DIR / "generic_default.txt"
+                )
+                if not path.is_file():
+                    raise FileNotFoundError
+            except (OSError, RuntimeError, ValueError):
+                raise RegistryLoadError(
+                    f"cannot resolve file for roles.{ascii(_member_label(role_name))}.prompt_path"
+                ) from None
             resolved[role_name] = ResolvedCLIRole(
                 name=role_name,
-                prompt_path=prompt_path,
+                prompt_path=path,
                 role_args=list(role_config.role_args),
                 description=role_config.description,
             )
         return resolved
-
-    def _resolve_prompt_path(self, prompt_path: str, base_dir: Path) -> Path:
-        resolved = self._resolve_path(prompt_path, base_dir)
-        if not resolved.exists():
-            raise RegistryLoadError(f"Prompt file not found: {resolved}")
-        return resolved
-
-    def _resolve_optional_path(self, candidate: str | None, base_dir: Path) -> Path | None:
-        if not candidate:
-            return None
-        return self._resolve_path(candidate, base_dir)
 
     def _resolve_path(self, candidate: str, base_dir: Path) -> Path:
         path = Path(candidate)

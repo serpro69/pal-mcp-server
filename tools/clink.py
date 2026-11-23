@@ -281,6 +281,14 @@ class CLinkTool(SimpleTool):
         except KeyError as exc:
             self._raise_tool_error(str(exc))
 
+        # Narrow this guard as each transport, parser, workspace policy and stderr sink becomes available.
+        if client_config.custom is not None:
+            self._raise_tool_error(
+                f"CLI '{client_config.name}' is registered, but generic execution is not yet supported. "
+                f"{client_config.custom.failure_hint}",
+                metadata={"tool_name": "clink", "stage": "validation", "execution_started": False},
+            )
+
         if selected_model is not None and not client_config.model_args:
             self._raise_tool_error(
                 f"CLI '{client_config.name}' has no model_args template; model selection is unsupported. "

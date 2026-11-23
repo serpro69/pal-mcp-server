@@ -13,7 +13,7 @@ from clink.constants import DEFAULT_HISTORY_TOKEN_BUDGET
 from clink.conversation import render_history
 from clink.models import CLIClientConfig, ResolvedCLIClient
 from clink.parsers.base import ParsedCLIResponse
-from clink.registry import ClinkRegistry
+from clink.registry import ClinkRegistry, RegistryLoadError
 from tools.clink import CLinkTool
 from tools.shared.exceptions import ToolExecutionError
 from utils import conversation_coordination as coordination
@@ -236,7 +236,7 @@ def write_manifest(directory, name="gemini", **values):
 @pytest.mark.parametrize("value", [0, -1, 1.5, 8192.0, True, False, "8192", "invalid", None])
 def test_invalid_manifest_budget_fails_registry_load(manifest_dir, value):
     write_manifest(manifest_dir, history_token_budget=value)
-    with pytest.raises(ValidationError, match="history_token_budget"):
+    with pytest.raises(RegistryLoadError, match="history_token_budget"):
         ClinkRegistry()
 
 

@@ -1,0 +1,13 @@
+{
+  "name": "team-ask",
+  "command": "team-ask",
+  "safe_args": [],
+  "edit_args": [],
+  "env_passthrough": [],
+  "custom": {
+    "prompt": {"mode": "stdin"},
+    "output": {"format": "text"},
+    "workspace": "any",
+    "failure_hint": "Check that team-ask is installed and configured."
+  }
+}
