@@ -31,30 +31,45 @@
 
 ## Task 2 — Run the stdin and text example
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 1
 - **Size:** M
 - **Can run in parallel with:** —
 - **Docs:** [Text execution](./implementation.md#run-a-text-client-safely)
 
-- [ ] In `clink/availability.py` and `clink/agents/base.py`, make discovery and launch use the same absolute executable resolved against PAL's startup directory. Cover a relative command and a bare command on a relative PATH with different server and project directories.
-- [ ] Route custom stdin/text through the shared process lifecycle and a text parser. In `tools/clink.py`, select neutral guidance even for custom roles. Inspect prepared prompts for both the generic default and an operator role.
-- [ ] In the custom validation and execution paths, gate edit arguments, reject unsupported scoped paths and enforce known default-mode argument checks for every role. Keep executable, exit and parse errors actionable.
-- [ ] In the generic runner, bound both streams during concurrent I/O. Cover exact-limit success, excess on either pipe, invalid UTF-8, timeout and cancellation. Verify reaping and scratch cleanup.
-- [ ] In `tools/clink.py` and agent logging, retain structured stage, reason and hint once the client is selected. Keep raw streams out of MCP and default logs. Preserve the success-only commit and post-success persistence warning.
-- [ ] Exercise a fixture subprocess through clink for exact stdin, a supplied or missing role file, safe/edit argv, filtered credentials, continuation and a nonzero exit with plausible-looking stdout.
+- [x] In `clink/availability.py` and `clink/agents/base.py`, make discovery and launch use the same absolute executable resolved against PAL's startup directory. Cover a relative command and a bare command on a relative PATH with different server and project directories.
+- [x] Route custom stdin/text through the shared process lifecycle and a text parser. In `tools/clink.py`, select neutral guidance even for custom roles. Inspect prepared prompts for both the generic default and an operator role.
+- [x] In the custom validation and execution paths, gate edit arguments, reject unsupported scoped paths and enforce known default-mode argument checks for every role. Keep executable, exit and parse errors actionable.
+- [x] In the generic runner, bound both streams during concurrent I/O. Cover exact-limit success, excess on either pipe, invalid UTF-8, timeout and cancellation. Verify reaping and scratch cleanup.
+- [x] In `tools/clink.py` and agent logging, retain structured stage, reason and hint once the client is selected. Keep raw streams out of MCP and default logs. Preserve the success-only commit and post-success persistence warning.
+- [x] Exercise a fixture subprocess through clink for exact stdin, a supplied or missing role file, safe/edit argv, filtered credentials, continuation and a nonzero exit with plausible-looking stdout.
+
+**Execution context**
+
+- 2026-11-23, baseline at `29ddf90`. The quality suite passed with the pinned Python 3.11 environment. The shared runner used unbounded `communicate()` and could pass a relative lookup result into a different child directory. Task 2 enables stdin/text clients with workspace `any` and the default diagnostic policy.
+- 2026-11-23, verified on macOS. Local fixture processes exercised both stream limits at 10 MiB and one byte over, strict UTF-8, early termination, timeout, cancellation and scratch cleanup. The stdio test verified a private nonzero exit followed by a retry on the same thread. The focused generic and stdio checks passed on Python 3.11 and 3.12 (29 passed, two Windows cases skipped on each). The final repository quality run passed all lint and format checks with 3,698 tests passed, 19 skipped and 26 integration tests deselected.
+- 2026-11-23, integration. With credentials excluded and network access restricted to loopback, the integration command passed 4 tests and skipped 22. The stub simulator passed. The quick simulator passed 2 of 6 scenarios; four require a configured model provider. Task 6 owns live verification.
+- 2026-11-23, review. Codex and Claude approved the Task 2 source. Review fixes preserved exact Windows executable pins after removal, exercised each unsupported protocol option before launch, and kept exception text out of prompt-preparation diagnostics.
 
 ## Task 3 — Run flag transport and parse JSON
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 2
 - **Size:** M
 - **Can run in parallel with:** Task 4
 - **Docs:** [Flag prompts and JSON](./implementation.md#deliver-flag-prompts-and-extract-json)
 
-- [ ] Implement flag delivery in the generic runner and literal-key traversal in the generic parser. Use a fixture variant with `workspace: "any"` so this task can run alongside Task 4. The exact published example runs in Task 6.
-- [ ] Verify prompt boundaries, EOF, error reporting for U+0000 and OS argument-length errors, and history preservation on a failed follow-up. Cover Windows batch rejection and check representative literal flags (`-q`, `-question`, `--question`) and distinct names such as `-quiet`.
-- [ ] Verify a nested JSON result, missing field and unencodable result, plus flag/text and stdin/JSON. Exercise a prompt echo on failure under the default diagnostic policy from Task 2.
+- [x] Implement flag delivery in the generic runner and literal-key traversal in the generic parser. Use a fixture variant with `workspace: "any"` so this task can run alongside Task 4. The exact published example runs in Task 6.
+- [x] Verify prompt boundaries, EOF, error reporting for U+0000 and OS argument-length errors, and history preservation on a failed follow-up. Cover Windows batch rejection and check representative literal flags (`-q`, `-question`, `--question`) and distinct names such as `-quiet`.
+- [x] Verify a nested JSON result, missing field and unencodable result, plus flag/text and stdin/JSON. Exercise a prompt echo on failure under the default diagnostic policy from Task 2.
+
+**Execution context**
+
+- 2026-11-23, baseline. The quality checks passed on the uncommitted Task 2 worktree above `29ddf90`. Task 3 enables flag prompts and JSON replies with workspace `any`. Project directory enforcement and private stderr logging remain tracked in Tasks 4 and 5.
+- 2026-11-23, observed on macOS. A real flag-mode follow-up with a 1,048,577-byte role exceeded the host's 1,048,576-byte argv limit and returned the launch recovery hint. A shorter retry on the same continuation retained the original exchange. Fixture tests also injected POSIX `E2BIG` and Windows error 206 and checked that neither failure replayed the call.
+- 2026-11-23, verified. The final Python 3.11 quality run passed linting and formatting, with 3,720 tests passed, 19 skipped and 26 integration tests deselected. The Python 3.12 clink regression run passed 666 tests with two Windows-only skips. Native Windows flag delivery and size limits remain for the Task 6 runner check.
+- 2026-11-23, integration. With model credentials excluded and networking limited to loopback, the integration suite passed 4 tests and skipped 22. All three stub simulator scenarios passed. The quick simulator passed 2 of 6 scenarios; the other four require a configured model provider. Task 6 tracks live verification.
+- 2026-11-23, independent review. Codex and Claude approved the Task 3 source. Regression checks cover write-enabling prompt flags, option-like prompt values, POSIX argv encoding failures, and NUL in retained history. The runner keeps execution argv and display argv separate.
 
 ## Task 4 — Apply directory requirements to a call
 
@@ -90,6 +105,7 @@
 - [ ] Use `$kk:document` to publish both manifests and their troubleshooting rules. Cover startup stderr, hidden `*.json` entries and UTF-8 byte-order marks, optional local failure details, executable and script path bases, argv-preserving launchers, platform size limits, smaller history budgets, restart effects and directory recovery.
 - [ ] Use `$kk:test` to run the **exact published manifests** through the local stdio MCP harness. Supply named executable fixtures on an isolated PATH and a Git worktree for `team-review`. Verify registration in the schema and provider-free discovery, both replies and a dependent follow-up. Check the installed distribution can resolve the bundled neutral prompt.
 - [ ] Run the focused subprocess, directory, environment, parser and history checks plus the repository quality, integration and quick simulator commands. Record live prerequisites or skips. The installed-vendor simulator needs a new case only if a shipped adapter changes in a way the existing checks cannot verify.
+- [ ] On a native Windows runner, verify relative executable launch, effective PATH and PATHEXT, batch launcher handling, literal flag argv, command-length recovery, and generic stdin, timeout and cancellation. Record the result or unavailable runner. Tasks 2 and 3 exercised Windows lookup and launch errors on macOS.
 - [ ] Verify the four shipped clients and stock schema against the existing baseline. Exercise a native adapter directly if its invocation behavior changed or its regression tests leave an unresolved risk.
 - [ ] Run `$kk:review-code` with Python and `$kk:review-spec` against this design. Verify the accepted empty-list behavior and the separation between caller-visible diagnostics and the opt-in operator log.
 

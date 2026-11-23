@@ -125,6 +125,55 @@ def cli_server(tmp_path, monkeypatch, vendor):
 
 
 @pytest.mark.parametrize("vendor", ["codex"])
+@pytest.mark.parametrize(
+    "client_name,reply_mode", [("team-ask", "reply"), ("team-review", "json")], ids=["stdin-text", "flag-json"]
+)
+async def test_generic_conversation_and_private_exit_through_stdio(cli_server, client_name, reply_mode):
+    personal = cli_server.root / "user-cli-config"
+    personal.mkdir()
+    mode = cli_server.root / "mode"
+    mode.write_text(reply_mode)
+    capture = cli_server.root / "generic-capture.json"
+    manifest = json.loads((FIXTURES / "clink_generic" / f"{client_name}.json").read_text(encoding="utf-8"))
+    manifest.update(
+        command=shlex.join([sys.executable, str(FIXTURES / "generic_cli.py")]),
+        env={
+            "FIXTURE_MODE_FILE": str(mode),
+            "FIXTURE_CAPTURE": str(capture),
+            "TEST_CLI_TOKEN": "PRIVATE_STDIO_TOKEN",
+            "PYTHONIOENCODING": "utf-8",
+        },
+    )
+    manifest["custom"]["workspace"] = "any"
+    if client_name == "team-review":
+        manifest["env"]["FIXTURE_PROMPT_FLAG"] = "--question"
+    (personal / f"{client_name}.json").write_text(json.dumps(manifest), encoding="utf-8")
+    async with cli_server.connect() as (session, _):
+        first = payload(await session.call_tool("clink", {"cli_name": client_name, "prompt": "First question"}))
+        assert first["content"] == "  Fixture answer ✓  \n"
+        thread = first["continuation_offer"]["continuation_id"]
+        mode.write_text("failure")
+        failed = payload(
+            await session.call_tool("clink", {"prompt": "PRIVATE_STDIO_REQUEST", "continuation_id": thread}), error=True
+        )
+        details = failed["metadata"]
+        assert details["stage"] == "exit" and details["return_code"] == 7
+        assert details["failure_hint"] == manifest["custom"]["failure_hint"]
+        mode.write_text(reply_mode)
+        retry = payload(await session.call_tool("clink", {"prompt": "Try again", "continuation_id": thread}))
+        assert retry["metadata"]["history"]["retained_messages"] == 2
+        prompt = json.loads(capture.read_text(encoding="utf-8"))["prompt"]
+        assert (
+            "First question" in prompt and first["content"].strip() in prompt and "PRIVATE_STDIO_REQUEST" not in prompt
+        )
+    diagnostics = [json.dumps(failed), (cli_server.root / "stderr.log").read_text(encoding="utf-8")]
+    diagnostics.extend(path.read_text(encoding="utf-8") for path in (cli_server.root / "logs").glob("*.log"))
+    for diagnostic in diagnostics:
+        for marker in ("STDERR_PRIVATE", "PRIVATE_STDIO_REQUEST", "PRIVATE_STDIO_TOKEN", "PLAUSIBLE_PRIVATE_ANSWER"):
+            assert marker not in diagnostic
+
+
+@pytest.mark.parametrize("vendor", ["codex"])
 async def test_generic_manifest_advertised_with_missing_executable(cli_server):
     personal = cli_server.root / "user-cli-config"
     personal.mkdir()

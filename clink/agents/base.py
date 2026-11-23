@@ -24,6 +24,19 @@ from utils.progress import progress_operation
 logger = logging.getLogger("clink.agent")
 
 
+def is_windows_batch_launcher(executable: str) -> bool:
+    return os.name == "nt" and executable.rstrip(" .").lower().endswith((".bat", ".cmd"))
+
+
+@dataclass(repr=False)
+class PreparedLaunch:
+    """Keep process arguments and input separate from the command shown in diagnostics."""
+
+    argv: list[str]
+    display_argv: list[str]
+    stdin: bytes | None = None
+
+
 @dataclass
 class AgentOutput:
     """Container returned by CLI agents after successful execution."""
@@ -41,8 +54,17 @@ class AgentOutput:
 class CLIAgentError(RuntimeError):
     """Raised when a CLI agent fails (non-zero exit, timeout, parse errors)."""
 
-    def __init__(self, message: str, *, returncode: int | None = None, stdout: str = "", stderr: str = "") -> None:
+    def __init__(
+        self,
+        message: str,
+        *,
+        stage: str = "validation",
+        returncode: int | None = None,
+        stdout: str = "",
+        stderr: str = "",
+    ) -> None:
         super().__init__(message)
+        self.stage = stage
         self.returncode = returncode
         self.stdout = stdout
         self.stderr = stderr
@@ -58,10 +80,11 @@ class BaseCLIAgent:
     # Subclasses set True when the CLI can honor per-path edit allow-lists
     # (e.g. Claude's --allowedTools Edit(path) / Write(path)).
     supports_path_restrictions: bool = False
+    bounded_output: bool = False
 
-    def __init__(self, client: ResolvedCLIClient):
+    def __init__(self, client: ResolvedCLIClient, *, parser: BaseParser | None = None):
         self.client = client
-        self._parser: BaseParser = get_parser(client.parser)
+        self._parser = parser if parser is not None else get_parser(client.parser)
         self._logger = logging.getLogger(f"clink.runner.{client.name}")
 
     async def run(
@@ -81,7 +104,7 @@ class BaseCLIAgent:
                 await asyncio.to_thread(self._check_working_directory, str(working_dir))
             except OSError as exc:
                 raise WorkingDirectoryLaunchError(
-                    f"Selected working directory is not an existing directory or is inaccessible: {exc}"
+                    f"Selected working directory is not an existing directory or is inaccessible: {exc}", stage="launch"
                 ) from exc
         try:
             workspace = (
@@ -92,7 +115,8 @@ class BaseCLIAgent:
         except OSError as exc:
             # Keep the cause, but do not expose an attempted disposable pathname.
             raise WorkingDirectoryLaunchError(
-                f"Selected scratch working directory could not be created: [Errno {exc.errno}] {exc.strerror}"
+                f"Selected scratch working directory could not be created: [Errno {exc.errno}] {exc.strerror}",
+                stage="launch",
             ) from exc
         with workspace as cwd:
             async with progress_operation("cli") as operation:
@@ -137,20 +161,17 @@ class BaseCLIAgent:
         try:
             resolved_executable = resolve_executable(self.client, environment=env)
         except ValueError as exc:
-            raise CLIAgentError(str(exc)) from exc
+            raise CLIAgentError(str(exc), stage="lookup") from exc
         if resolved_executable is None:
             raise CLIAgentError(
                 f"Executable '{self.client.executable[0]}' not found in PATH for CLI '{self.client.name}'. "
                 "Install the CLI, set an absolute 'command', or set 'env.PATH' in a complete manifest via "
                 "CLI_CLIENTS_CONFIG_PATH or ~/.pal/cli_clients/. env.PATH replaces the inherited PATH; "
                 "for nvm, include the directory containing node and other required tool directories. "
-                "Restart PAL after changing configuration."
+                "Restart PAL after changing configuration.",
+                stage="lookup",
             )
-        if (
-            self.client.requested_model is not None
-            and os.name == "nt"
-            and resolved_executable.lower().endswith((".bat", ".cmd"))
-        ):
+        if self.client.requested_model is not None and is_windows_batch_launcher(resolved_executable):
             # Windows may dispatch batch files through a shell even with
             # create_subprocess_exec. Do not expose caller model values to it.
             raise CLIAgentError(
@@ -158,8 +179,6 @@ class BaseCLIAgent:
                 "Configure a native CLI executable or invoke the CLI script directly with node."
             )
         command[0] = resolved_executable
-
-        sanitized_command = list(command)
 
         limit = DEFAULT_STREAM_LIMIT
 
@@ -169,7 +188,6 @@ class BaseCLIAgent:
         start_time = time.monotonic()
 
         output_file_path: Path | None = None
-        command_with_output_flag = list(command)
 
         with ExitStack() as resources:
             if self.client.output_to_file:
@@ -183,21 +201,21 @@ class BaseCLIAgent:
                     rendered_flag = flag_template.format(path=str(output_file_path))
                 except KeyError as exc:  # pragma: no cover - defensive
                     raise CLIAgentError(f"Invalid output flag template '{flag_template}': missing placeholder {exc}")
-                command_with_output_flag.extend(shlex.split(rendered_flag))
-                sanitized_command = list(command_with_output_flag)
+                command = [*command, *shlex.split(rendered_flag)]
 
-            self._logger.debug("Executing CLI command: %s", " ".join(sanitized_command))
+            launch = self._prepare_launch(command, prompt)
+            self._logger.debug("Executing CLI command: %s", " ".join(launch.display_argv))
             if cwd:
                 self._logger.debug("Working directory: %s", cwd)
 
             try:
                 process = await asyncio.create_subprocess_exec(
-                    *command_with_output_flag,
+                    *launch.argv,
                     stdin=asyncio.subprocess.PIPE,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                     cwd=cwd,
-                    limit=limit,
+                    limit=min(limit, 64 * 1024) if self.bounded_output else limit,
                     env=env,
                 )
             except OSError as exc:
@@ -215,34 +233,35 @@ class BaseCLIAgent:
                     if self.client.working_dir is None:
                         diagnostic = diagnostic.replace(cwd, "<scratch>")
                     raise WorkingDirectoryLaunchError(
-                        f"Selected working directory could not be used to launch CLI '{self.client.name}': {diagnostic}"
+                        f"Selected working directory could not be used to launch CLI '{self.client.name}': {diagnostic}",
+                        stage="launch",
                     ) from exc
-                description = (
-                    "Executable not found" if isinstance(exc, FileNotFoundError) else "Could not launch executable"
-                )
-                raise CLIAgentError(f"{description} for CLI '{self.client.name}': {exc}") from exc
+                raise self._launch_error(exc) from exc
 
             try:
                 stdout_bytes, stderr_bytes = await asyncio.wait_for(
-                    process.communicate(self._encode_stdin(prompt)),
+                    self._communicate(
+                        process, launch.stdin if launch.stdin is not None else self._encode_stdin(prompt), limit
+                    ),
                     timeout=self.client.timeout_seconds,
                 )
             except asyncio.TimeoutError as exc:
-                await self._kill_and_reap(process)
+                observed_code = process.returncode if self.bounded_output else None
+                await self._kill_and_reap(process, discard_output=self.bounded_output)
                 raise CLIAgentError(
                     f"CLI '{self.client.name}' timed out after {self.client.timeout_seconds} seconds",
-                    returncode=None,
+                    stage="timeout",
+                    returncode=observed_code,
                 ) from exc
             except BaseException:
                 # Cancellation and failed communication must reap the child before
                 # the outer scratch-directory context removes its working directory.
-                await self._kill_and_reap(process)
+                await self._kill_and_reap(process, discard_output=self.bounded_output)
                 raise
 
             duration = time.monotonic() - start_time
             return_code = process.returncode
-            stdout_text = stdout_bytes.decode("utf-8", errors="replace")
-            stderr_text = stderr_bytes.decode("utf-8", errors="replace")
+            stdout_text, stderr_text = self._decode_output(stdout_bytes, stderr_bytes, return_code)
 
             if output_file_path and output_file_path.exists():
                 output_file_content = output_file_path.read_text(encoding="utf-8", errors="replace")
@@ -254,7 +273,7 @@ class BaseCLIAgent:
                     returncode=return_code,
                     stdout=stdout_text,
                     stderr=stderr_text,
-                    sanitized_command=sanitized_command,
+                    sanitized_command=launch.display_argv,
                     duration_seconds=duration,
                     output_file_content=output_file_content,
                 )
@@ -264,6 +283,7 @@ class BaseCLIAgent:
             if return_code != 0:
                 raise CLIAgentError(
                     f"CLI '{self.client.name}' exited with status {return_code}",
+                    stage="exit",
                     returncode=return_code,
                     stdout=stdout_text,
                     stderr=stderr_text,
@@ -274,6 +294,7 @@ class BaseCLIAgent:
             except ParserError as exc:
                 raise CLIAgentError(
                     f"Failed to parse output from CLI '{self.client.name}': {exc}",
+                    stage="parse",
                     returncode=return_code,
                     stdout=stdout_text,
                     stderr=stderr_text,
@@ -281,7 +302,7 @@ class BaseCLIAgent:
 
             return AgentOutput(
                 parsed=parsed,
-                sanitized_command=sanitized_command,
+                sanitized_command=launch.display_argv,
                 returncode=return_code,
                 stdout=stdout_text,
                 stderr=stderr_text,
@@ -301,6 +322,19 @@ class BaseCLIAgent:
     def _encode_stdin(self, prompt: str) -> bytes:
         """Encode a prepared prompt for the CLI's stdin transport."""
         return prompt.encode("utf-8")
+
+    def _prepare_launch(self, command: list[str], prompt: str) -> PreparedLaunch:
+        return PreparedLaunch(argv=command, display_argv=list(command))
+
+    def _launch_error(self, exc: OSError) -> CLIAgentError:
+        description = "Executable not found" if isinstance(exc, FileNotFoundError) else "Could not launch executable"
+        return CLIAgentError(f"{description} for CLI '{self.client.name}': {exc}", stage="launch")
+
+    async def _communicate(self, process: asyncio.subprocess.Process, data: bytes, limit: int) -> tuple[bytes, bytes]:
+        return await process.communicate(data)
+
+    def _decode_output(self, stdout: bytes, stderr: bytes, returncode: int) -> tuple[str, str]:
+        return stdout.decode("utf-8", errors="replace"), stderr.decode("utf-8", errors="replace")
 
     @staticmethod
     def _cleanup_output_file(path: Path) -> None:
@@ -381,7 +415,7 @@ class BaseCLIAgent:
         return build_cli_environment(self.client)
 
     @staticmethod
-    async def _kill_and_reap(process: asyncio.subprocess.Process) -> None:
+    async def _kill_and_reap(process: asyncio.subprocess.Process, *, discard_output: bool = False) -> None:
         if process.returncode is None:
             try:
                 process.kill()
@@ -390,7 +424,8 @@ class BaseCLIAgent:
 
         async def drain_and_reap() -> None:
             try:
-                await asyncio.wait_for(process.communicate(), timeout=DEFAULT_CLEANUP_TIMEOUT_SECONDS)
+                if not discard_output:
+                    await asyncio.wait_for(process.communicate(), timeout=DEFAULT_CLEANUP_TIMEOUT_SECONDS)
             except (asyncio.TimeoutError, OSError):
                 logger.warning("CLI output drain did not finish during cleanup; closing its pipes", exc_info=True)
             finally:

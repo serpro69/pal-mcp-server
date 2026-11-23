@@ -12,6 +12,27 @@ from clink.constants import DEFAULT_HISTORY_TOKEN_BUDGET
 
 MAX_CLI_MODEL_CHARS = 512
 
+_WRITE_FLAGS = frozenset({"--yolo", "--dangerously-bypass-approvals-and-sandbox"})
+
+
+def is_write_enabling_option(option: str, value: str = "") -> bool:
+    return (
+        option in _WRITE_FLAGS
+        or option == "--dangerously-skip-permissions"
+        or (option == "--permission-mode" and value in ("acceptEdits", "bypassPermissions"))
+        or (option == "--mode" and value == "accept-edits")
+    )
+
+
+def validate_generic_safe_args(args: list[str]) -> None:
+    """Check the assembled default command, including pairs across manifest fields."""
+    for index, token in enumerate(args):
+        option, equals, value = token.partition("=")
+        if not equals and index + 1 < len(args):
+            value = args[index + 1]
+        if is_write_enabling_option(option, value):
+            raise ValueError("default arguments must not contain write-enabling options; place them in edit_args")
+
 
 def validate_cli_model(value: str | None) -> str | None:
     """Validate an opaque CLI model identifier without interpreting it as argv."""
@@ -113,20 +134,6 @@ class _ClientFields(BaseModel):
     def _validate_default_model(cls, value: str | None) -> str | None:
         return validate_cli_model(value)
 
-    # Flags known to grant the CLI unrestricted filesystem-write capability.
-    # They MUST NOT appear in `additional_args` (which is always applied) — only in
-    # `edit_args`, which is gated behind the caller's explicit `allow_edits=true`.
-    # Keep this set conservative — false positives block config authors from writing
-    # legitimate configs; false negatives let a dangerous default slip through.
-    _DANGEROUS_DEFAULT_FLAGS: frozenset[str] = frozenset(
-        {
-            "--yolo",
-            "--dangerously-bypass-approvals-and-sandbox",
-            # Claude's --permission-mode is only dangerous at value=acceptEdits; we
-            # detect that combination below rather than flagging the flag itself.
-        }
-    )
-
     @model_validator(mode="after")
     def _enforce_arg_bucket_invariants(self) -> _ClientFields:
         """Enforce structural invariants on the arg buckets.
@@ -149,7 +156,7 @@ class _ClientFields(BaseModel):
                 "allow_edits=true a no-op. Move shared args to additional_args."
             )
 
-        dangerous_in_defaults = set(self.additional_args) & self._DANGEROUS_DEFAULT_FLAGS
+        dangerous_in_defaults = set(self.additional_args) & _WRITE_FLAGS
         if dangerous_in_defaults:
             raise ValueError(
                 f"additional_args must not contain write-enabling flags "
@@ -225,6 +232,13 @@ class FlagPrompt(_ProtocolObject):
     mode: Literal["flag"]
     flag: str = Field(pattern=r"^-{1,2}[A-Za-z][A-Za-z0-9_-]*$")
 
+    @field_validator("flag")
+    @classmethod
+    def _validate_prompt_option(cls, flag: str) -> str:
+        if is_write_enabling_option(flag):
+            raise ValueError("Choose the CLI's prompt-input flag. A write-enabling option cannot deliver prompts.")
+        return flag
+
 
 class TextOutput(_ProtocolObject):
     format: Literal["text"]
@@ -260,8 +274,15 @@ class GenericCLIClientConfig(_ClientFields):
     roles: dict[ManifestName, GenericRoleConfig] = Field(default_factory=dict)
 
     @model_validator(mode="after")
-    def _check_prompt_arguments(self) -> GenericCLIClientConfig:
+    def _check_arguments(self) -> GenericCLIClientConfig:
         prefix = self.executable_tokens()[1:]
+        default_args = prefix + self.additional_args
+        if self.default_model is not None:
+            default_args.extend([self.model_args[0], self.default_model])
+        default_args.extend(self.safe_args)
+        validate_generic_safe_args(default_args)
+        for role in self.roles.values():
+            validate_generic_safe_args(default_args + role.role_args)
         if isinstance(self.custom.prompt, FlagPrompt):
             name = self.custom.prompt.flag.lstrip("-")
             reserved = {f"-{name}", f"--{name}"}
