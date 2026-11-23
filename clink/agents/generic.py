@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import errno
 import os
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 
 from clink.models import (
     FlagPrompt,
@@ -130,7 +130,13 @@ class GenericAgent(BaseCLIAgent):
         category = type(exc).__name__ if code is None else f"OS error {code}"
         return CLIAgentError(f"{reason} ({category})", stage="launch")
 
-    async def _communicate(self, process: asyncio.subprocess.Process, data: bytes, limit: int) -> tuple[bytes, bytes]:
+    async def _communicate(
+        self,
+        process: asyncio.subprocess.Process,
+        data: bytes,
+        limit: int,
+        record_stderr: Callable[[bytes], None] | None,
+    ) -> tuple[bytes, bytes]:
         # All three pipes were requested at spawn. Drain both while feeding stdin
         # so a child that writes its response first can still make progress.
         assert process.stdin is not None and process.stdout is not None and process.stderr is not None
@@ -152,7 +158,15 @@ class GenericAgent(BaseCLIAgent):
         finally:
             for task in tasks:
                 task.cancel()
-            await asyncio.gather(*tasks, return_exceptions=True)
+            stdout_result, stderr_result, _ = await asyncio.gather(*tasks, return_exceptions=True)
+            # A bytes result means stderr reached EOF. A limit error on either pipe
+            # suppresses the excerpt, even if interruption raced with the overflow.
+            if (
+                record_stderr is not None
+                and isinstance(stderr_result, bytes)
+                and not isinstance(stdout_result, CLIAgentError)
+            ):
+                record_stderr(stderr_result)
 
     def _decode_output(self, stdout: bytes, stderr: bytes, returncode: int) -> tuple[str, str]:
         if returncode != 0:

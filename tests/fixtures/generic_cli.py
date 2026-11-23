@@ -14,11 +14,16 @@ def main():
         mode = Path(os.environ["FIXTURE_MODE_FILE"]).read_text().strip()
     if mode in ("limits", "stdout", "stderr"):
         size = int(os.environ["FIXTURE_LIMIT"])
+        if mode == "stdout":
+            # Complete stderr must still be discarded if stdout subsequently overflows.
+            print("PRIVATE_OVERFLOW_DETAIL", file=sys.stderr, flush=True)
+            os.close(sys.stderr.fileno())
         # Deliberately fill the pipes before reading stdin.
         sys.stdout.buffer.write(b"x" * (size + (mode == "stdout")))
         sys.stdout.buffer.flush()
-        sys.stderr.buffer.write(b"y" * (size + (mode == "stderr")))
-        sys.stderr.buffer.flush()
+        if mode != "stdout":
+            sys.stderr.buffer.write(b"y" * (size + (mode == "stderr")))
+            sys.stderr.buffer.flush()
         if mode in ("stdout", "stderr"):
             time.sleep(60)  # Excess must fail while the stream is still open.
     stdin = sys.stdin.buffer.read().decode("utf-8")
@@ -37,8 +42,10 @@ def main():
         "vendor_key_present": "GEMINI_API_KEY" in os.environ,
     }
     Path(os.environ["FIXTURE_CAPTURE"]).write_text(json.dumps(capture), encoding="utf-8")
-    if mode == "hold":
-        print("INCOMPLETE_STDERR", file=sys.stderr, flush=True)
+    if mode in ("hold", "hold-closed-stderr"):
+        print("HELD_DIAGNOSTIC", file=sys.stderr, flush=True)
+        if mode == "hold-closed-stderr":
+            os.close(sys.stderr.fileno())
         with socket.create_connection(("127.0.0.1", int(os.environ["FIXTURE_PORT"]))) as gate:
             gate.sendall(b"R")
             gate.recv(1)

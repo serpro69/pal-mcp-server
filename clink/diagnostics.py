@@ -4,9 +4,11 @@ import asyncio
 import json
 import logging
 import os
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from logging.handlers import RotatingFileHandler
+
+from clink.constants import DEFAULT_CLEANUP_TIMEOUT_SECONDS
 
 _EXCERPT_LIMIT = 2048
 _TRUNCATED = "[truncated] "
@@ -89,15 +91,26 @@ def _write_stderr(client: str, stderr: bytes, prompt: str, env: dict[str, str], 
 
 @asynccontextmanager
 async def private_stderr_on_failure(
-    client: str, stderr: bytes, prompt: str, env: dict[str, str], *, flag_prompt: bool
-) -> AsyncIterator[None]:
+    client: str, prompt: str, env: dict[str, str], *, flag_prompt: bool
+) -> AsyncIterator[Callable[[bytes], None]]:
+    stderr = b""
+
+    def record_complete(data: bytes) -> None:
+        nonlocal stderr
+        stderr = data
+
     try:
-        yield
-    except Exception:
-        try:
-            await asyncio.to_thread(_write_stderr, client, stderr, prompt, env, flag_prompt)
-        except Exception:
-            # Filtering or logging is best effort. Even its exception can contain
-            # private data, so preserve the CLI failure without another log route.
-            pass
+        yield record_complete
+    except (Exception, asyncio.CancelledError):
+        if stderr:
+            try:
+                # A stalled file write may finish in its worker later. Bound how
+                # long it can delay scratch cleanup and the original failure.
+                await asyncio.wait_for(
+                    asyncio.to_thread(_write_stderr, client, stderr, prompt, env, flag_prompt),
+                    timeout=DEFAULT_CLEANUP_TIMEOUT_SECONDS,
+                )
+            except Exception:
+                # A filtering or sink exception can itself contain private data.
+                pass
         raise

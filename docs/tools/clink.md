@@ -1,6 +1,6 @@
 # Clink Tool - CLI-to-CLI Bridge
 
-`clink` sends a request to an installed Codex, Claude Code, Gemini, or Antigravity (`agy`) CLI and returns its answer to your MCP client. You can hold an ongoing conversation without configuring a PAL model provider. PAL forwards bounded conversation history to a fresh CLI process on each call; the selected CLI handles authentication and inference.
+`clink` sends a request to an installed CLI and returns its answer to your MCP client. PAL ships adapters for Codex, Claude Code, Gemini, and Antigravity (`agy`). You can also register a noninteractive CLI with a JSON manifest. Each call starts a fresh process with bounded conversation history. The selected CLI handles authentication and inference, so you can hold a conversation without configuring a PAL model provider. [Register a config-only client](#register-a-config-only-client)
 
 Use this path for local, single-user workflows. PAL does not install CLIs, sign you in, enforce subscription billing, or fall back to an API provider when a CLI request fails.
 
@@ -406,11 +406,72 @@ These are the current base commands for the shipped presets. PAL sends the promp
 
 PAL automatically adds Codex's `--skip-git-repo-check` only for scratch directories. Request-selected and configured directories retain the native repository policy unless the operator explicitly supplied the flag in the manifest. The shipped `--enable web_search_request` flag is version-sensitive: the current [Codex CLI reference](https://learn.chatgpt.com/docs/cli/reference) does not list that feature name. Check support in your installed release before relying on this preset; the table records PAL's configuration, not universal vendor compatibility. For the other command formats, see [Claude programmatic use](https://code.claude.com/docs/en/headless) and [Gemini headless output](https://geminicli.com/docs/cli/headless/).
 
+### Register a config-only client
+
+Choose a CLI that accepts one prompt, writes its answer to stdout, and exits. Install it for the account that runs PAL. Save one complete manifest per client in `~/.pal/cli_clients/`, or point `CLI_CLIENTS_CONFIG_PATH` at a JSON file or a directory. Restart PAL, look for the new `cli_name` in clink, and ask `listmodels` to check executable discovery. A valid manifest registers even when the executable is missing.
+
+**`team-ask.json`** illustrates a CLI whose native defaults are read-only. It reads UTF-8 from stdin through EOF and writes a plain-text reply. To try this protocol with your own tool, replace the name, command and hint with yours.
+
+```json
+{
+  "name": "team-ask",
+  "command": "team-ask",
+  "safe_args": [],
+  "edit_args": [],
+  "env_passthrough": [],
+  "custom": {
+    "prompt": {"mode": "stdin"},
+    "output": {"format": "text"},
+    "workspace": "any",
+    "failure_hint": "Check that team-ask is installed and configured."
+  }
+}
+```
+
+**`team-review.json`** illustrates a CLI that accepts one `--question` value in a project directory. Its default invocation uses `--read-only`. With `allow_edits: true` it uses `--apply`. The executable checks its own Git worktree and login. If it prints `{"reply":{"text":"Ready"}}` and exits zero, clink returns `Ready`.
+
+```json
+{
+  "name": "team-review",
+  "command": "team-review",
+  "safe_args": ["--read-only"],
+  "edit_args": ["--apply"],
+  "env_passthrough": ["TEAM_REVIEW_TOKEN"],
+  "custom": {
+    "prompt": {"mode": "flag", "flag": "--question"},
+    "output": {"format": "json", "path": ["reply", "text"]},
+    "workspace": "project",
+    "failure_hint": "Check the team-review login and that it can access a Git worktree in the selected directory."
+  }
+}
+```
+
+The six top-level fields and four fields inside `custom` are required. The optional top-level fields are `additional_args`, `model_args`, `default_model`, `env`, `working_dir`, `roles`, `timeout_seconds`, and `history_token_budget`. Use arrays of strings for argument lists. PAL rejects unknown fields, including in roles and the protocol. Keep `failure_hint` to one nonblank line of at most 240 characters suitable for callers.
+
+- **Permissions.** Omitted or false `allow_edits` selects `safe_args` on each call. An explicit `[]` asserts that the CLI's native defaults and saved settings are safe. Omitting `safe_args` or setting it to `null` stops startup. An empty `edit_args` makes edit requests fail before launch. Config-only clients reject nonempty `editable_paths`. Check the meaning of each flag against the CLI you install.
+- **Executable and scripts.** PAL resolves the first command token at discovery and again at launch. A relative executable path and relative entries on the effective child `PATH` start at PAL's startup directory. Windows lookup also uses the effective `PATHEXT`. PAL launches the absolute match in the selected workspace. A relative script operand passed to an interpreter can therefore refer to a project or scratch file. Give operator-installed scripts an absolute path.
+- **Environment and roles.** `env_passthrough` lists names to inherit in addition to the shared runtime environment. An empty list adds no vendor credentials. Explicit `env` values take precedence. Roles without a `prompt_path` use the bundled neutral prompt. PAL looks for a relative role file beside the manifest first, then under the PAL installation. It appends neutral guidance to either role. For a text-only CLI, include the file contents it needs in your request. [Child environment](#child-environment-and-working-directory)
+- **Workspaces.** `any` accepts a project or temporary scratch directory. For `project`, supply `working_directory_absolute_path` on the first call or configure `working_dir` and restart PAL. If a continuation already uses scratch, supply the path on the follow-up with the same ID. PAL binds it to the project when it saves the exchange. If the CLI rejects a bound project, fix access and retry there, or start a fresh conversation to choose a different project. PAL accepts an existing project directory and leaves repository checks to the CLI.
+
+#### Startup and call failures
+
+PAL reads shipped manifests, the explicit configuration source, then personal manifests. Each directory is read in sorted order, including hidden `*.json` files. A later complete definition replaces the earlier one by case-insensitive client name. The four shipped names keep their native adapters and reject `custom`. The personal directory may be absent. An explicit source must exist and be readable.
+
+**One invalid manifest stops the entire server before the MCP handshake.** Inspect the MCP host's captured server stderr or PAL's main `mcp_server.log` for the filename and read error, JSON line and column, duplicate key, or invalid field. Run `python -m utils.log_dir` in the server environment to locate the log directory. Check hidden backup files and dangling links. Save each manifest as a nonempty UTF-8 JSON object without a byte-order mark (BOM) or duplicate keys. Correct the file and restart PAL.
+
+Once a config-only client is selected, its failure diagnostic includes the client, stage, reason, configured hint and any available exit code. A nonzero exit takes precedence over plausible stdout. Each stream may contain up to 10 MiB. Exceeding either limit stops the child and fails the call. A successful reply must be nonblank UTF-8 and is subject to clink's usual display limit. A failed call preserves the saved directory and conversation. If a successful reply reports `history_saved=false`, keep the answer. Repeating the request can run the CLI twice.
+
+**Private stderr is off by default.** To diagnose one trusted CLI, set `"log_stderr_on_failure": true` inside its `custom` object and restart PAL. Try a benign request and inspect the main rotating log. Only that file can receive the filtered tail of complete stderr on failure, even when `LOG_LEVEL` suppresses ordinary warnings. A timeout or cancellation can produce an excerpt if PAL already read stderr through EOF. The MCP response, host stderr and activity log omit the excerpt. Success, output overflow, incomplete stderr and filter or log-write failures produce no excerpt.
+
+PAL masks the complete prepared prompt and every nonempty effective child environment value before taking the last 2,048 characters. It escapes controls and caps the rendered excerpt. A short value such as `LANG=C` can mask individual letters. Partial echoes, transformed text and credentials the CLI reads itself can still appear. Restrict access to the log and disable the option after diagnosis.
+
 ### Flag prompts and JSON replies
 
 For a config-only client, `custom.prompt` can specify `{"mode": "flag", "flag": "--question"}`. PAL appends the flag and the complete prepared prompt as two arguments, then closes stdin. Prompt text, role instructions and retained conversation history can appear in process listings. Use a launcher that preserves argv boundaries all the way to the CLI. A native interpreter running an absolute script path can do this. Command-string wrappers such as `sh -c`, `cmd /c` and `powershell -Command` are unsupported. On Windows, PAL rejects batch launchers for flag prompts. [Python subprocess security considerations](https://docs.python.org/3/library/subprocess.html#security-considerations)
 
-The assembled prompt must fit the OS launch limits. Linux limits each argument to 32 pages (128 KiB with 4 KiB pages, including its terminator), and also limits the combined arguments and environment. Windows limits the complete quoted command line to 32,767 UTF-16 code units including its terminator. If launch fails because of length, shorten the request or start a new conversation with a summary. To retain less history in future sessions, lower `history_token_budget` in the manifest and restart PAL. A restart discards existing continuation IDs. [Linux execve(2)](https://man7.org/linux/man-pages/man2/execve.2.html) · [Windows CreateProcessW](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessw)
+Use a prompt flag matching `-{1,2}[A-Za-z][A-Za-z0-9_-]*` in full. PAL emits the spelling you supply. Both dash spellings of its whole name, including `=value` forms, are reserved across the configured arguments. With `-q`, for example, `--q=value` conflicts and `-quiet` is a distinct name. Omit the `--` terminator and any vendor aliases or clustered options that would supply the prompt again. A flag value containing U+0000 fails before launch.
+
+The assembled prompt must fit the OS launch limits. Linux limits each argument to 32 pages (128 KiB with 4 KiB pages, including its terminator), and also limits the combined arguments and environment. Windows limits the complete quoted command line to 32,767 UTF-16 code units including its terminator. If launch fails because of length, shorten the request or start a new conversation with a summary. To retain less history in future sessions, lower `history_token_budget` in the manifest and restart PAL. Its default of 16,384 estimated tokens covers history alone. The current request and role must also fit. A restart discards existing continuation IDs. [Linux execve(2)](https://man7.org/linux/man-pages/man2/execve.2.html) · [Windows CreateProcessW](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessw)
 
 Either prompt mode works with `custom.output` set to `{"format": "json", "path": ["reply", "text"]}`. The CLI must exit successfully and emit one UTF-8 JSON document on stdout. Each path element is a literal object key, so `["reply.text"]` selects a single key containing a dot. The selected value must be a nonblank UTF-8 string. PAL preserves its whitespace and applies the usual reply-size limit.
 
