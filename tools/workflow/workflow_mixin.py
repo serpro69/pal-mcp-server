@@ -185,6 +185,9 @@ class BaseWorkflowMixin(ABC):
         remaining_budget: Optional[int] = None,
         arguments: Optional[dict[str, Any]] = None,
         model_context: Optional[Any] = None,
+        *,
+        blinded: bool = False,
+        file_descriptions: Optional[dict[str, str]] = None,
     ) -> tuple[str, list[str]]:
         """Prepare file content for prompts. Usually provided by BaseTool."""
         pass
