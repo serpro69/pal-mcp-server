@@ -49,6 +49,21 @@ def surface(monkeypatch, isolated_provider_environment):
 def test_surface_preserves_names_parameters_types_defaults_and_safety(surface):
     baseline = json.loads(BASELINE.read_text())
     assert surface["tools"].keys() == baseline["tools"].keys() | {"jules"}
+    description_tools = {
+        "chat",
+        "analyze",
+        "codereview",
+        "consensus",
+        "debug",
+        "precommit",
+        "refactor",
+        "secaudit",
+        "testgen",
+        "thinkdeep",
+    }
+    assert {
+        name for name, tool in surface["tools"].items() if "file_descriptions" in tool["schema"]["properties"]
+    } == description_tools
     for name, old in baseline["tools"].items():
         expected = copy.deepcopy(old["schema"])
         if name in ("planner", "tracer"):
@@ -69,18 +84,7 @@ def test_surface_preserves_names_parameters_types_defaults_and_safety(surface):
                 "type": ["string", "null"],
                 "default": None,
             }
-        if name in {
-            "chat",
-            "analyze",
-            "codereview",
-            "consensus",
-            "debug",
-            "precommit",
-            "refactor",
-            "secaudit",
-            "testgen",
-            "thinkdeep",
-        }:
+        if name in description_tools:
             expected["properties"]["file_descriptions"] = {"type": "object", "additionalProperties": {"type": "string"}}
         if name == "consensus":
             # Issue #30: consensus accepts thinking_mode at step 1 and reuses it for every participant.

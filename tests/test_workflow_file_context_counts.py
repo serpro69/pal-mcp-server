@@ -698,3 +698,57 @@ async def test_consumed_prompt_file_alone_preserves_plain_attachment(captures, t
     )
     assert " [consumed] ---" not in captures[0]["prompt"]
     assert f"--- BEGIN FILE: {path} " in captures[0]["prompt"]
+
+
+@pytest.mark.parametrize("continued", [False, True], ids=["initial", "continued"])
+async def test_explicit_prompt_reintroduced_by_directory_stays_plain(captures, tmp_path, continued):
+    folder = tmp_path / "attachments"
+    folder.mkdir()
+    prompt_file = folder / "prompt.txt"
+    sibling = folder / "reference.py"
+    prompt_file.write_text("Review this reference")
+    sibling.write_text("reference_body")
+    args = {"prompt": "inspect", "model": "gemini-2.5-flash", "working_directory_absolute_path": str(tmp_path)}
+    if continued:
+        initial = await server.handle_call_tool("chat", args)
+        args["continuation_id"] = json.loads(initial[0].text)["continuation_offer"]["continuation_id"]
+    await server.handle_call_tool(
+        "chat",
+        {
+            **args,
+            "absolute_file_paths": [str(prompt_file), str(folder)],
+            "file_descriptions": {str(folder): "reference", str(prompt_file): "consumed"},
+        },
+    )
+    headers = [line for line in captures[-1]["prompt"].splitlines() if line.startswith("--- BEGIN FILE:")]
+    assert len(headers) == 2
+    assert any(str(prompt_file) in line and line.endswith(") ---") for line in headers)
+    assert any(str(sibling) in line and line.endswith(" [reference] ---") for line in headers)
+
+
+async def test_legacy_file_alias_keeps_original_delivery_after_retarget(captures, tmp_path):
+    old = tmp_path / "old.py"
+    new = tmp_path / "new.py"
+    alias = tmp_path / "alias.py"
+    old.touch()
+    new.touch()
+    alias.symlink_to(old)
+    thread = memory.create_thread("thinkdeep", {})
+    memory.add_turn(thread, "user", "inspect file", files=[str(alias.resolve())], tool_name="thinkdeep")
+    memory.add_turn(thread, "assistant", "done", model_name="older-model", files=[str(alias)], tool_name="thinkdeep")
+    alias.unlink()
+    alias.symlink_to(new)
+    await server.handle_call_tool(
+        "chat",
+        {
+            "model": "gemini-2.5-flash",
+            "prompt": "continue",
+            "continuation_id": thread,
+            "working_directory_absolute_path": str(tmp_path),
+            "absolute_file_paths": [str(old), str(alias)],
+            "file_descriptions": {str(old): "already delivered", str(alias): "first delivery"},
+        },
+    )
+    headers = [line for line in captures[0]["prompt"].splitlines() if line.startswith("--- BEGIN FILE:")]
+    assert any(str(new) in line and line.endswith(" [first delivery] ---") for line in headers)
+    assert any(str(old) in line and line.endswith(") ---") for line in headers)

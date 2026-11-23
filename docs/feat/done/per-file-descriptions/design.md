@@ -1,6 +1,6 @@
 # Design: Per-file descriptions / annotations for tool file inputs
 
-> Status: revised design, implementation pending
+> Status: implemented
 > Created: 2026-06-06 · Revised: 2026-11-23
 > [Source issue #12](https://github.com/serpro69/pal-mcp-server/issues/12) · [Implementation](./implementation.md) · [Tasks](./tasks.md) · [Review and dispositions](./review-design.md)
 

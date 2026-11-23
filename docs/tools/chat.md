@@ -54,6 +54,7 @@ word verdict in the end.
 - `prompt`: Your question or discussion topic (required)
 - `model`: auto|pro|flash|flash-2.0|flashlite|o3|o3-mini|o4-mini|gpt4.1|gpt5.2|gpt5.1-codex|gpt5.1-codex-mini|gpt5|gpt5-mini|gpt5-nano (default: server default)
 - `absolute_file_paths`: Optional absolute file or directory paths for additional context
+- `file_descriptions` labels attached text files on first delivery. [Multi-file example and continuation behavior](../advanced-usage.md#per-file-descriptions)
 - `images`: Optional images for visual context (absolute paths)
 - `working_directory_absolute_path`: **Required** - Absolute path to an existing directory where generated code artifacts will be saved
 - `temperature`: Response creativity (0-1, default 0.5)

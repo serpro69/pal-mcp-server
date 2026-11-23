@@ -2,7 +2,7 @@
 
 > Design: [design.md](./design.md)
 > Implementation: [implementation.md](./implementation.md)
-> Status: in progress
+> Status: done
 > Created: 2026-06-06 · Revised: 2026-11-23
 > Not Doing: structured path objects, images, CLI references, provider-free workflow output, general annotation history, file snapshots, error-header annotations, directory-as-unit display
 
@@ -104,15 +104,21 @@ The November review revised the plan before implementation. Every checkbox below
 
 ## Task 6 — Verify and document
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Tasks 1–5
 - **Size:** S
 - **Can run in parallel with:** —
 - **Docs:** [Final verification](./implementation.md#task-6--verify-the-public-surface-and-document-usage)
 
-- [ ] 6.1 Run `$kk:test` and the repository quality suite. Check the exact set of ten advertised tools, exclusions, byte ceilings, existing file-count contracts and captured provider prompts. Keep the historical schema baseline intact.
-- [ ] 6.2 Use `$kk:document` for a multi-file usage example, scope, precedence, continuation and retention behavior.
-- [ ] 6.3 Run `$kk:review-code` for Python and `$kk:review-spec` against these documents. Move the completed feature to `docs/feat/done` after closing the implementation tasks and update incoming links.
+- [x] 6.1 Run `$kk:test` and the repository quality suite. Check the exact set of ten advertised tools, exclusions, byte ceilings, existing file-count contracts and captured provider prompts. Keep the historical schema baseline intact.
+- [x] 6.2 Use `$kk:document` for a multi-file usage example, scope, precedence, continuation and retention behavior.
+- [x] 6.3 Run `$kk:review-code` for Python and `$kk:review-spec` against these documents. Move the completed feature to `docs/feat/done` after closing the implementation tasks and update incoming links.
+
+**Execution context**
+
+- 2026-11-23, the pre-change quality suite passed at `3f8fe87` with 3,771 unit tests. Independent review identified two chat cases to verify at the provider boundary. A directory can reintroduce a consumed prompt, and a legacy reply can name a symlink whose target has changed since delivery.
+- Both cases reproduced on that revision. After the fixes, 257 focused checks passed, including the initial chat, continued chat and legacy symlink regressions. The schema check covers every exported tool, including Jules, against the exact ten opt-ins. Independent code and spec re-review approved the fixes and the documented scope of workflow retention.
+- Final verification passed the repository quality suite (3,774 unit tests) and all three stub simulations. With external network access disabled, integration passed four checks and skipped 22. The quick simulator passed two of six against the loopback stub on both `3f8fe87` and the final implementation. The same four scenarios requested models unavailable from that stub.
 
 ## Dependency Graph
 

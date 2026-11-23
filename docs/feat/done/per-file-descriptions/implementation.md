@@ -140,5 +140,4 @@ Assertions about a provider seeing an annotation belong on the captured outgoing
 
 Document the field with one multi-file example, its supported tools, directory/direct precedence,
 first-embed behavior, same-workflow retention and consensus's per-call scope. Complete code and spec
-review before moving the feature to `done`. All tasks remain pending until the implementation and its
-checks land.
+review before moving the feature to `done`. The [task record](./tasks.md) contains the final verification results.
