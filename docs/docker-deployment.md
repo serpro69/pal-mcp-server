@@ -114,9 +114,10 @@ setuptools, wheel and ensurepip bootstrap wheels, including their bundled
 dependencies. Rebuild the image to change Python dependencies; `pip check` runs
 during the build before pip is removed.
 
-Both stages use the same digest-pinned Python 3.11.17 slim-trixie base and apply
+Both stages use the same digest-pinned Python 3.11 slim-trixie base and apply
 available Debian package updates. Rebuild with `docker build --pull --no-cache`
-after reviewing base updates; a cached build does not establish current patch status.
+to pick up new fixes. Docker supplies the volumes and temporary filesystems. The
+runtime image omits Debian's `mount` utilities, including `mount` and `umount`.
 The image version labels default to the repository version, 1.3.0. Existing release
 workflows can supply release-specific labels.
 
@@ -130,10 +131,10 @@ workflows can supply release-specific labels.
   filesystem, `no-new-privileges`, and temporary mounts with `noexec,nosuid`.
   A plain `docker run` does not inherit those Compose settings.
 
-See the [latest remediation and scan evidence](feat/done/server-reliability-and-capabilities/actionable-fixes.md)
-for tested properties and unresolved package findings; remediation is tracked in
-[#22](https://github.com/serpro69/pal-mcp-server/issues/22). A successful build or
-health check does not establish that the image has no vulnerabilities.
+The November rebuild picked up fixes for 16 Debian advisories and removed the
+`mount` package. The remaining 97 advisories had no trixie fix on November 23.
+See the [image scans and advisory register](security/runtime-image-2026-11-23.md)
+and [issue #22](https://github.com/serpro69/pal-mcp-server/issues/22).
 
 ### Resource Management
 
