@@ -42,15 +42,17 @@ Gemini · OpenAI · Anthropic · Grok · Azure · Ollama · OpenRouter · DIAL �
 
 The new **[`clink`](docs/tools/clink.md)** (CLI + Link) tool connects external AI CLIs directly into your workflow:
 
-- **Connect external CLIs** like [Gemini CLI](https://github.com/google-gemini/gemini-cli), [Codex CLI](https://github.com/openai/codex), [Claude Code](https://www.anthropic.com/claude-code), and [Antigravity (`agy`)](docs/tools/clink.md#antigravity-agy) directly into your workflow
+- **Connect external CLIs** like [Codex CLI](https://github.com/openai/codex), [Claude Code](https://www.anthropic.com/claude-code), and [Antigravity (`agy`)](docs/tools/clink.md#antigravity-agy) directly into your workflow
 - **Register your own CLI** with a JSON manifest. Clink can send a prompt over stdin or a flag and return plain text or a field from a JSON reply. [Manifests and examples](docs/tools/clink.md#register-a-config-only-client)
-- **CLI Subagents** - Launch isolated CLI instances from _within_ your current CLI! Claude Code can spawn Codex subagents, Codex can spawn Gemini CLI subagents, etc. Offload heavy tasks (code reviews, bug hunting) to fresh contexts while your main session's context window remains unpolluted. Each subagent returns only final results.
+- **CLI Subagents** - Launch isolated CLI instances from _within_ your current CLI! Claude Code can spawn Codex subagents, Codex can spawn Claude Code subagents, etc. Offload heavy tasks (code reviews, bug hunting) to fresh contexts while your main session's context window remains unpolluted. Each subagent returns only final results.
 - **Context Isolation** - Run separate investigations without polluting your primary workspace
 - **Role Specialization** - Spawn `planner`, `codereviewer`, or custom role agents with specialized system prompts
 - **Full CLI Capabilities** - Web search, file inspection, MCP tool access, latest documentation lookups
 - **Bounded Continuity** - Continue with a PAL conversation ID; clink forwards the newest complete exchanges that fit the selected CLI's history budget
 
 **No PAL provider key required:** use an installed, authenticated CLI for ongoing conversations through clink. PAL starts without model providers and retains available independent tools. See [CLI-only setup](docs/getting-started.md#cli-conversations-without-pal-provider-keys) and [first-request/follow-up examples](docs/tools/clink.md#first-request-and-follow-up).
+
+The `gemini` clink client is deprecated. Existing Gemini CLI configurations still work. [Migration guide](docs/tools/clink.md#migrating-from-gemini-cli)
 
 **Antigravity:** check native `agy --version` (reference: 1.3.5) and authenticate outside PAL. Use `cli_name=agy` with `default`, `planner`, or `codereviewer`; follow-ups use PAL's continuation ID. False inherits saved permissions and may allow writes; true requests `--mode accept-edits`, and path-scoped edits are unsupported. Scratch-mode project access may require operator-managed Non-Workspace Access. Google does not support consumer-plan agy wrappers; see [setup, authentication coverage, and upstream limits](docs/tools/clink.md#antigravity-agy). Final release acceptance remains pending.
 
@@ -65,7 +67,7 @@ clink with agy codereviewer to review /absolute/path/to/project/module.py
 
 # With PAL API providers configured: consensus → bounded CLI handoff
 Use consensus with gpt-5 and gemini-pro to decide: dark mode or offline support next
-Continue with clink cli_name=gemini allow_edits=true - implement the recommended feature
+Continue with clink cli_name=claude allow_edits=true - implement the recommended feature
 # Supply the PAL continuation ID; edit permission must be explicit on every call
 ```
 
@@ -174,7 +176,7 @@ For best results when using [Codex CLI](https://developers.openai.com/codex/cli)
 
 **1. Choose a setup path:**
 
-- **CLI conversations:** install and authenticate Codex, Claude Code, Gemini CLI, or [Antigravity](docs/tools/clink.md#antigravity-agy), then use `clink`. Leave PAL model-provider keys/endpoints unconfigured for provider-free mode. Follow [local CLI setup](docs/getting-started.md#cli-conversations-without-pal-provider-keys) and the agy-specific support limits when applicable.
+- **CLI conversations:** install and authenticate Codex, Claude Code, or [Antigravity](docs/tools/clink.md#antigravity-agy), then use `clink`. Leave PAL model-provider keys/endpoints unconfigured for provider-free mode. Follow [local CLI setup](docs/getting-started.md#cli-conversations-without-pal-provider-keys) and the agy-specific support limits when applicable.
 - **API-backed tools:** configure a provider for `chat`, `consensus`, `codereview`, and other model-backed workflows. Choose one or more below; a local endpoint may not need a key.
 
 - **[OpenRouter](https://openrouter.ai/)** - Access multiple models with one API
@@ -245,7 +247,7 @@ With API providers configured, you can also use these workflows:
 "Use pal to analyze this code for security issues with gemini pro"
 "Debug this error with o3 and then get flash to suggest optimizations"
 "Plan the migration strategy with pal, get consensus from multiple models"
-"clink with cli_name=\"gemini\" role=\"planner\" to draft a phased rollout plan"
+"clink with cli_name=\"codex\" role=\"planner\" to draft a phased rollout plan"
 ```
 
 👉 **[Complete Setup Guide](docs/getting-started.md)** with detailed installation, configuration for Gemini / Codex / Qwen, and troubleshooting

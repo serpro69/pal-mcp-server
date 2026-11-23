@@ -7,6 +7,7 @@ from unittest.mock import Mock
 import pytest
 
 from clink.agents import CLIAgentError
+from clink.constants import cli_deprecation_notice
 from tests import test_clink_working_directory_requests as requests
 from tests.test_clink_working_directory_requests import output, record, seed
 from tools.clink import MAX_RESPONSE_CHARS, CLinkTool
@@ -19,8 +20,8 @@ projects = requests.projects
 runtime = requests.runtime
 
 
-def validation_metadata(error_type, *, bound=None, requested=None, normalized=None, canonical=None, new=False):
-    return {
+def validation_metadata(vendor, error_type, *, bound=None, requested=None, normalized=None, canonical=None, new=False):
+    metadata = {
         "tool_name": "clink",
         "error_type": error_type,
         "stage": "validation",
@@ -32,6 +33,9 @@ def validation_metadata(error_type, *, bound=None, requested=None, normalized=No
         "canonical_requested_path": canonical,
         "new_conversation_required": new,
     }
+    if vendor == "gemini":
+        metadata["deprecation_notice"] = cli_deprecation_notice(vendor)
+    return metadata
 
 
 async def rejected(runtime, arguments):
@@ -74,6 +78,7 @@ async def test_invalid_request_exact_envelope(runtime, projects, monkeypatch, ki
         )
     result = await rejected(runtime, arguments)
     assert result["metadata"] == validation_metadata(
+        "gemini",
         "InvalidWorkingDirectoryError",
         bound=record(alias) if state == "directory" else None,
         requested=requested,
@@ -85,7 +90,7 @@ async def test_invalid_request_exact_envelope(runtime, projects, monkeypatch, ki
 async def test_missing_configuration_has_no_invented_request_paths(runtime, projects):
     runtime.registry.get_client("gemini").working_dir = projects[0] / "missing"
     result = await rejected(runtime, {"cli_name": "gemini", "prompt": "test"})
-    assert result["metadata"] == validation_metadata("InvalidWorkingDirectoryError")
+    assert result["metadata"] == validation_metadata("gemini", "InvalidWorkingDirectoryError")
 
 
 async def test_conflict_instructs_new_conversation_with_both_identities(runtime, projects):
@@ -102,6 +107,7 @@ async def test_conflict_instructs_new_conversation_with_both_identities(runtime,
     )
     assert "start a new conversation" in result["content"]
     assert result["metadata"] == validation_metadata(
+        "gemini",
         "WorkingDirectoryConflictError",
         bound=record(alias),
         requested=f"{b}/./",
@@ -144,6 +150,7 @@ async def test_unavailable_binding_retains_saved_paths(runtime, projects, monkey
         },
     )
     assert result["metadata"] == validation_metadata(
+        "gemini",
         "BoundWorkingDirectoryUnavailableError",
         bound=binding,
         requested=requested,
@@ -168,7 +175,7 @@ async def test_corrupt_binding_is_not_echoed_or_migrated(runtime, projects, bind
         },
     )
     assert result["metadata"] == validation_metadata(
-        "InvalidWorkingDirectoryBindingError", requested=requested, new=True
+        "gemini", "InvalidWorkingDirectoryBindingError", requested=requested, new=True
     )
 
 

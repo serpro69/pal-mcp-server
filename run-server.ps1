@@ -482,7 +482,7 @@ function Show-SetupPaths {
     param([switch]$UseDocker = $false)
 
     Write-Step "CLI and API Setup Paths"
-    Write-Info "CLI conversations: use clink with an installed, authenticated Codex, Claude Code, or Gemini CLI."
+    Write-Info "CLI conversations: use clink with an installed, authenticated CLI such as Codex or Claude Code."
     Write-Info "No PAL model-provider API key is required for clink or the available independent tools."
     Write-Info "Install and sign in to the selected CLI yourself, using the same OS account that runs PAL."
     Write-Info "API-backed tools (chat, consensus, etc.): configure a provider in .env or the launch environment."

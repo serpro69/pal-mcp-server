@@ -42,6 +42,7 @@ The tool displays:
 
 **CLI availability metadata:**
 - In both API-backed and provider-free modes, `metadata.cli_clients` lists each configured client with `name`, `executable_found`, and `authentication: "unverified"`.
+- The Gemini CLI entry also includes `deprecation_notice` with replacement client names. [Clink migration guide](clink.md#migrating-from-gemini-cli)
 - `metadata.cli_clients_observed_at: "startup"` identifies when those executable observations were taken. This does not timestamp the API model catalog or verify CLI login; invocation checks the selected executable again.
 - CLI observations remain available when an API provider is configured but restrictions leave no eligible models, or when the API review tool is disabled. Client names are not model-provider identities.
 

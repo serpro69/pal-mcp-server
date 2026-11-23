@@ -1,6 +1,6 @@
 # Clink Tool - CLI-to-CLI Bridge
 
-`clink` sends a request to an installed CLI and returns its answer to your MCP client. PAL ships adapters for Codex, Claude Code, Gemini, and Antigravity (`agy`). You can also register a noninteractive CLI with a JSON manifest. Each call starts a fresh process with bounded conversation history. The selected CLI handles authentication and inference, so you can hold a conversation without configuring a PAL model provider. [Register a config-only client](#register-a-config-only-client)
+`clink` sends a request to an installed CLI and returns its answer to your MCP client. PAL ships adapters for Codex, Claude Code, Antigravity (`agy`), and the deprecated Gemini CLI. You can also register a noninteractive CLI with a JSON manifest. Each call starts a fresh process with bounded conversation history. The selected CLI handles authentication and inference, so you can hold a conversation without configuring a PAL model provider. [Register a config-only client](#register-a-config-only-client)
 
 Use this path for local, single-user workflows. PAL does not install CLIs, sign you in, enforce subscription billing, or fall back to an API provider when a CLI request fails.
 
@@ -21,12 +21,20 @@ Primary vendor guidance was checked on **2026-10-13**, with agy guidance checked
 | --- | --- | --- |
 | Codex | Run `codex login` and follow the browser flow for ChatGPT sign-in; inspect the selected method with `codex login status`. API-key authentication is also supported. | `codex exec` reuses saved CLI authentication by default. See [authentication](https://learn.chatgpt.com/docs/auth) and [noninteractive mode](https://learn.chatgpt.com/docs/non-interactive-mode). |
 | Claude Code | Run `claude` and complete sign-in for the intended account. | PAL uses `--print`. Review [authentication precedence](https://code.claude.com/docs/en/authentication#authentication-precedence): in print mode, an inherited `ANTHROPIC_API_KEY` takes precedence over subscription login, subject to higher-priority routing/credentials. See [programmatic use](https://code.claude.com/docs/en/headless). |
-| Gemini | Run `gemini` and choose the intended authentication method, such as Google sign-in. Some account types require a Cloud project. | Headless mode can reuse cached authentication; without it, configure an API-key or Vertex AI method. See [authentication](https://geminicli.com/docs/get-started/authentication/#running-in-headless-mode). |
+| Gemini (deprecated) | Run `gemini` and choose the intended authentication method, such as Google sign-in. Some account types require a Cloud project. | Headless mode can reuse cached authentication; without it, configure an API-key or Vertex AI method. See [authentication](https://geminicli.com/docs/get-started/authentication/#running-in-headless-mode). |
 | Antigravity (`agy`) | Install the native CLI, check `agy --version`, and authenticate interactively with `agy` outside PAL. Existing enterprise authentication stays configured in agy. Add `command(...)` allow-rules to `~/.gemini/antigravity-cli/settings.json` for any shell commands the roles should be able to run (see [headless permissions below](#agy-headless-permissions)). | Reference version: **1.3.5**. Uses the existing login without a mandatory PAL API key; see [setup and limits below](#antigravity-agy) and [official installation/authentication](https://antigravity.google/docs/cli/install). |
 
 PAL inherits only shared runtime variables and the selected CLI's authentication allowlist, then applies operator overrides. The CLI can also read its own saved configuration and credentials. Review the [child environment](#child-environment-and-working-directory) and the vendor's active authentication method before relying on account-specific usage. A successful answer establishes execution, **not** which subscription or billing account paid for it. PAL provider-free mode does not mean the child CLI is offline or free.
 
 When validating an installation, record the chosen CLI's `--version`, intended authentication method, and first-request/follow-up outcomes. PAL discovery runs no version, login, or inference probes. No live version compatibility claim follows from this documentation check.
+
+### Migrating from Gemini CLI
+
+PAL has deprecated `cli_name=gemini` in clink. Existing manifests and continuations still invoke Gemini, and successful replies carry `metadata.deprecation_notice`. The deprecation applies only to this clink adapter. Google continues to support some enterprise and paid API-key uses of Gemini CLI. [Google’s transition announcement](https://developers.googleblog.com/an-important-update-transitioning-gemini-cli-to-antigravity-cli/)
+
+To migrate, install and authenticate a supported CLI, then set `cli_name` to `agy`, `claude`, or `codex`. If the new client lacks your custom Gemini role, also set `role=default`. Within the same running PAL session, you can send this request with your current continuation ID. Later calls inherit the new client after its first saved reply. If you restart PAL to load a new manifest or upgrade, start a new conversation with a summary of the old one.
+
+For Antigravity, check your plan’s support for headless use and review its saved permissions first. With `allow_edits=false`, `agy` inherits those permissions and may still write files. [Antigravity setup and permissions](#antigravity-agy)
 
 ### Antigravity (agy)
 
@@ -100,7 +108,7 @@ With no selector, pytest skips and the simulator reports `SKIPPED` before setup 
 
 ## First Request and Follow-up
 
-Ask your MCP client to call the **clink tool** with these arguments. These JSON objects are tool arguments, not shell commands. Replace the project path with an existing directory on the PAL host, and `codex` with `claude`, `gemini`, or `agy` if that is your installed CLI. Codex normally requires a Git repository; see [its repository check](#codex-repository-check).
+Ask your MCP client to call the **clink tool** with these arguments. These JSON objects are tool arguments, not shell commands. Replace the project path with an existing directory on the PAL host, and `codex` with `claude` or `agy` if that is your installed CLI. Codex normally requires a Git repository; see [its repository check](#codex-repository-check).
 
 ```json
 {
@@ -207,7 +215,7 @@ it is not accumulated into conversation history.
 | Parameter | Behavior |
 | --- | --- |
 | `prompt` | Required current question or task. |
-| `cli_name` | Configured client name: `codex`, `claude`, `gemini`, or `agy`; selection rules are above. CLI names are not PAL API model names. |
+| `cli_name` | Configured client name: `codex`, `claude`, `agy`, or the deprecated `gemini`. Selection rules are above. CLI names are not PAL API model names. |
 | `role` | Shipped roles: `default`, `planner`, `codereviewer`. Defaults to `default` on a new conversation, or the saved role on a continuation. |
 | `model` | Optional CLI-native model. Requires the selected manifest's `model_args`. Omission/null inherits a successfully saved model only for the same CLI; a CLI switch resets it. |
 | `absolute_file_paths` | Optional absolute file paths. PAL forwards references; the CLI opens files using its own capabilities and permissions. |
@@ -399,7 +407,7 @@ These are the current base commands for the shipped presets. PAL sends the promp
 
 | CLI | Default command (`allow_edits=false`) | Change when `allow_edits=true` |
 | --- | --- | --- |
-| Gemini | `gemini -o json` | Append `--yolo`. No telemetry flag is shipped. |
+| Gemini (deprecated) | `gemini -o json` | Append `--yolo`. No telemetry flag is shipped. |
 | Claude | `claude --print --output-format json --model sonnet --permission-mode default` | Replace the safe permission bucket with `--permission-mode acceptEdits`. |
 | Codex | `codex exec --json --enable web_search_request --skip-git-repo-check` | Add `--dangerously-bypass-approvals-and-sandbox` before the scratch-directory flag. |
 | Antigravity | `agy --input-format stream-json --output-format stream-json` | Append exactly `--mode accept-edits`. False inherits native policy; no read-only guarantee. |

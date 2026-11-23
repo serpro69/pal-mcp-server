@@ -101,7 +101,8 @@ def test_surface_preserves_names_parameters_types_defaults_and_safety(surface):
             field["description"] = field["description"].replace("Available: ", "Available: agy, ")
             field["description"] += (
                 ". Required for a new conversation; may be omitted with continuation_id to reuse "
-                "the last successful CLI selection."
+                "the last successful CLI selection. The 'gemini' clink client is deprecated. "
+                "For new conversations, configure 'agy', 'claude', or 'codex'."
             )
         elif name == "role":
             field["description"] = field["description"].replace(
@@ -120,7 +121,9 @@ def test_surface_preserves_names_parameters_types_defaults_and_safety(surface):
             )
         if name != "continuation_id":  # Only shared continuation prose is shortened.
             assert surface["tools"]["clink"]["safety_schema"]["properties"][name] == field
-    assert surface["tools"]["clink"]["description"] == baseline["tools"]["clink"]["description"]
+    assert surface["tools"]["clink"]["description"] == (
+        "Send a request to a configured external AI CLI and return its reply."
+    )
     for metric in ("description_bytes", "serialized_bytes"):
         assert sum(surface["tools"][name][metric] for name in baseline["tools"]) < baseline["totals"][metric]
 

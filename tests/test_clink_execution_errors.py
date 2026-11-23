@@ -11,6 +11,7 @@ from unittest.mock import Mock
 import pytest
 
 from clink.agents import AgentOutput
+from clink.constants import cli_deprecation_notice
 from clink.parsers.base import ParsedCLIResponse, ParserError
 from clink.parsers.claude import ClaudeJSONParser
 from clink.parsers.codex import CodexJSONLParser
@@ -157,6 +158,10 @@ async def test_failed_cli_saves_no_assistant_turn(execution, cli_name, payload, 
     assert diagnostic in output["content"]
     metadata = output["metadata"]
     assert metadata["cli_name"] == cli_name
+    if cli_name == "gemini":
+        assert "deprecated" in metadata["deprecation_notice"]
+    else:
+        assert "deprecation_notice" not in metadata
     assert metadata["return_code"] == 0
     assert metadata["raw"] == payload
     assert metadata["stdout"] == json.dumps(payload)
@@ -514,6 +519,7 @@ async def test_directory_launch_failure_has_spawn_metadata_and_no_commit(executi
     response = json.loads(error.value.payload)
     assert response["metadata"] == {
         "cli_name": "gemini",
+        "deprecation_notice": cli_deprecation_notice("gemini"),
         "return_code": None,
         "tool_name": "clink",
         "error_type": "WorkingDirectoryLaunchError",
@@ -673,6 +679,7 @@ async def test_scratch_allocation_failure_keeps_selection_without_exposing_tempo
     response = json.loads(error.value.payload)
     assert response["metadata"] == {
         "cli_name": "gemini",
+        "deprecation_notice": cli_deprecation_notice("gemini"),
         "return_code": None,
         "tool_name": "clink",
         "error_type": "WorkingDirectoryLaunchError",

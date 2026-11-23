@@ -11,6 +11,7 @@ from typing import Any, Optional
 
 from mcp.types import TextContent
 
+from clink.constants import cli_deprecation_notice
 from providers.configuration import provider_configurations
 from providers.registries.openrouter import OpenRouterModelRegistry
 from tools.models import ToolModelCategory, ToolOutput
@@ -408,9 +409,11 @@ class ListModelsTool(BaseTool):
             ]
         )
         for cli in runtime.cli_statuses:
-            lines.append(
-                f"- `{cli.name}`: executable {'found' if cli.executable_found else 'missing'}; authentication unverified."
-            )
+            availability = "found" if cli.executable_found else "missing"
+            status = f"- `{cli.name}`: executable {availability}; authentication unverified."
+            if notice := cli_deprecation_notice(cli.name):
+                status += f" {notice}"
+            lines.append(status)
         if not runtime.cli_statuses:
             lines.append("No CLI clients were recorded at startup.")
         if "clink" in runtime.available_tools:
@@ -438,12 +441,15 @@ class ListModelsTool(BaseTool):
     @staticmethod
     def _cli_observations(runtime: RuntimeCapabilities) -> dict[str, Any]:
         """Expose the same CLI startup snapshot in both discovery modes."""
+        clients = []
+        for cli in runtime.cli_statuses:
+            entry = {"name": cli.name, "executable_found": cli.executable_found, "authentication": "unverified"}
+            if notice := cli_deprecation_notice(cli.name):
+                entry["deprecation_notice"] = notice
+            clients.append(entry)
         return {
             "cli_clients_observed_at": "startup",
-            "cli_clients": [
-                {"name": cli.name, "executable_found": cli.executable_found, "authentication": "unverified"}
-                for cli in runtime.cli_statuses
-            ],
+            "cli_clients": clients,
         }
 
     def get_model_category(self) -> ToolModelCategory:
