@@ -1,321 +1,172 @@
 # Design: Per-file descriptions / annotations for tool file inputs
 
-> Status: draft (revised after design review — see §Revision notes)
-> Created: 2026-06-06
-> Source issue: https://github.com/serpro69/pal-mcp-server/issues/12
-> Implementation: [./implementation.md](./implementation.md)
-> Tasks: [./tasks.md](./tasks.md)
+> Status: revised design, implementation pending
+> Created: 2026-06-06 · Revised: 2026-11-23
+> [Source issue #12](https://github.com/serpro69/pal-mcp-server/issues/12) · [Implementation](./implementation.md) · [Tasks](./tasks.md) · [Review and dispositions](./review-design.md)
 
 ## Summary
 
-Add an optional, path-keyed map `file_descriptions: dict[str, str]` to the tools that
-embed file content. Each path's description is **sanitized to a single header-safe line**
-and rendered into that file's existing `--- BEGIN FILE: ... ---` delimiter header, so the
-model receives per-file *intent* ("module under review", "reference-only") right next to
-the content.
-
-The map is **additive and presentation-only**: the path-list parameters stay `list[str]`,
-so deduplication, conversation-memory tracking, and directory expansion — all of which key
-on plain path strings — are untouched.
-
-## Motivation
-
-When many files are sent at once, the model gets path names + raw contents and nothing
-about *why* each file is there. Today the only channel for that is the free-text
-`prompt` / `step` field, physically separated from the path list, so the path-to-intent
-mapping is implicit and degrades as file count grows. The workflow field
-`relevant_context` does not fill this gap — it targets **symbols** (`Class.method`), not
-files.
+Add an optional, path-keyed map `file_descriptions` to tools that send file contents to a model. Each
+description goes into the corresponding successful file header. A caller sending twenty files can
+identify the module under review and label the others as references. Today that intent must be spelled
+out in the separate `prompt` or `step` field. Workflow `relevant_context` describes symbols.
 
 ## Goals
 
-- An optional `file_descriptions` map can be supplied to `chat` and to every workflow tool
-  that embeds files, keyed by absolute path.
-- When a path has a description, it appears in that file's `--- BEGIN FILE ---` header —
-  in **all** embedding prompts the model actually sees, including workflow **expert
-  analysis** and consensus model consultations, not only the final-step embed.
-- Descriptions are sanitized so they can never corrupt the delimiter structure.
-- When a path has no (effective) description, output is **byte-for-byte unchanged**.
-- Deduplication, directory expansion, and continuation file-tracking are unchanged.
-- Description text is accounted for in token-aware truncation.
+- A description appears next to the file it describes in the provider request, including when a chat continuation introduces the file or an earlier workflow step identified it.
+- Keep path lists, directory expansion, ordering, deduplication, and the meaning of file-context counts. With no effective description, the rendered bytes remain identical.
+- Keep each annotation on one delimiter-safe line. Count the complete rendered header in the existing model-specific file and input allowances.
 
-## Current architecture (verified against `main`)
+## Field contract and tool scope
 
-File parameters differ by tool family but are all plain `list[str]` of absolute paths.
-There is **one render point** but **several feed paths** — the original design missed the
-latter, which the review corrected.
+`file_descriptions` is an optional JSON object with string values. Omission and `{}` mean no
+annotations. For example,
+`{"/work/service.py": "module under review", "/work/tests": "reference tests"}` accompanies the normal
+attachment list. A key alone cannot request a read. File keys are absolute paths, with the same home
+expansion and safe path resolution used for matching directory keys.
 
-### Entry families
+Advertise `type: object` and `additionalProperties: {type: string}`. Keep the field out of `required`.
+Use a string dictionary with an empty default factory on the participating request models. A null map, a
+non-object, and null or numeric values are invalid for both MCP and direct JSON-shaped requests. PAL
+already checks the advertised schema before constructing the request model. Omit the previously proposed
+coercion validator. [MCP validation](../../../../server.py#L1349)
 
-- **Simple tools** — `absolute_file_paths`, declared on the per-tool request model
-  (`ChatRequest`, `tools/chat.py:46`). Read via `SimpleTool.get_request_files`
-  (`tools/simple/base.py:232`).
-- **Workflow tools** — `relevant_files` / `files_checked` on `WorkflowRequest`
-  (`tools/shared/base_models.py:114-115`). Read via `get_request_relevant_files`
-  (`tools/workflow/workflow_mixin.py:969`).
+| Consumer | File source | Where the description is used |
+| --- | --- | --- |
+| `chat`, first request | `absolute_file_paths` after prompt-file extraction | `build_standard_prompt` → shared file preparation |
+| `chat`, continued request | Current attachments rendered with older files, newest first | `invocation_history` → `build_conversation_history` → `read_files` |
+| `analyze`, `codereview`, `precommit`, `refactor`, `secaudit`, `testgen`, `thinkdeep` | Step `relevant_files`, then consolidated files plus history | Final-step preparation and the actual generic expert prompt |
+| `debug` | Consolidated `relevant_files` | `prepare_expert_analysis_context` builds the essential-files block |
+| `consensus` | The current participant request's explicit `relevant_files` | `_consult_model` builds a blinded prompt with that participant's budget |
 
-### The single render point
+Only these ten tools advertise the field. `docgen` and `tracer` can produce file-context counts, but
+neither sends the rendered files to an expert or returns their headers to the caller. `planner` has no
+attachment input. `clink` passes path references to a CLI. An expert-disabled step of a supported
+workflow may collect descriptions for a later expert call in that workflow.
+[Docgen](../../../../tools/docgen.py#L284) · [Tracer](../../../../tools/tracer.py#L304) ·
+[Workflow response](../../../../tools/workflow/workflow_mixin.py#L839)
 
-Every embedded file is formatted by `read_file_content` (`utils/file_utils.py:421`); the
-header is built at `file_utils.py:506-510`, and per-file token estimation
-(`file_utils.py:511`) happens *after* the header — so header content is automatically
-counted in truncation.
+## Matching and rendering
 
-### The feed paths (all reach `read_file_content`)
+1. Bind descriptions to the current request's eligible expanded files before adding historical files or
+merging steps. Reuse the existing path policy, expansion and alias deduplication. Resolve keys with home
+expansion and `resolve_and_validate_path`. Ignore invalid, inaccessible or unmatched keys. An empty map
+takes the existing fast path.
+2. Match canonical paths. A direct key wins over a directory key, followed by the deepest keyed
+ancestor. Compare path components. Thus `/work/pkg` never covers `/work/pkg2`. Apply directory values
+only to eligible children in this request. For two spellings of the same key in one JSON object, prefer
+the canonical spelling, then the lexicographically first spelling. This keeps the result independent of
+member order. Return exact canonical **file** keys. A later reader of the resulting map performs exact
+lookups only.
+3. Clean the selected value before either storage or rendering. Collapse whitespace and control
+characters to single spaces, trim, replace closing brackets and delimiter runs (`---`), and cap at 200
+characters including a final ellipsis when truncated. Empty effective text produces no annotation. Use
+the same idempotent sanitizer at the successful-header boundary for direct calls.
+4. Insert ` [description]` before the closing ` ---` on the BEGIN line. Preserve the END line,
+direct-code block, error, missing-file and too-large headers. Omitted files receive no rendered
+annotation. Annotation input never changes which paths the caller requested.
 
-| # | Path | File source | Code |
-|---|------|-------------|------|
-| 1 | Simple-tool prompt | `request.absolute_file_paths` | `build_standard_prompt` `simple/base.py:780` → `_prepare_file_content_for_prompt` `base_tool.py:999` → `read_files` `file_utils.py:523` |
-| 2 | Workflow final-step embed | `request.relevant_files` | `_handle_workflow_file_context` `workflow_mixin.py:444` → `_embed_workflow_files:511` → `_prepare_file_content_for_prompt:544` |
-| 3 | Workflow **expert analysis** (generic) | `consolidated_findings.relevant_files` **+ conversation history** | `_prepare_files_for_expert_analysis:312` → `_force_embed_files_for_expert_analysis:375` → `read_files:409` |
-| 4 | **debug** custom expert context | `consolidated_findings.relevant_files` | `debug.py:_prepare_expert_analysis_context:316` → `_prepare_file_content_for_prompt:317` |
-| 5 | **consensus** per-model consult | `request.relevant_files` | `consensus.py:_consult_model:574` → `_prepare_file_content_for_prompt:594` |
-
-Paths 3 and 4 read from `consolidated_findings`, accumulated across steps by
-`_update_consolidated_findings` (`workflow_mixin.py:1369-1372`,
-`relevant_files.update(...)`). A description supplied in *any* step must therefore be
-**consolidated the same way** to reach the (final) expert-analysis call.
-
-### Schema surfacing
-
-- Simple path field: `SchemaBuilder.SIMPLE_FIELD_SCHEMAS["absolute_file_paths"]`
-  (`tools/shared/schema_builders.py:47`), injected by `SchemaBuilder.build_schema:81`.
-  **All four simple tools** (`chat`, `clink`, `apilookup`, `challenge`) hand-build
-  `get_input_schema` and do **not** call `build_schema`; `clink` cherry-picks the
-  `absolute_file_paths` key by name. So `SIMPLE_FIELD_SCHEMAS` is currently *inert* — see
-  §Resolved decision D5.
-- Workflow path fields: `WorkflowSchemaBuilder.WORKFLOW_FIELD_SCHEMAS`
-  (`schema_builders.py:23`), auto-merged into **every** workflow tool by `build_schema:111`
-  unless the tool lists the field in `excluded_workflow_fields`. `planner` excludes all
-  file fields (`planner.py:205-219`).
-
-## Proposed design
-
-### Field placement — mirror the path field, per family
-
-`file_descriptions` rides alongside the path field in each family; it is **not** on the
-universal `ToolRequest`.
-
-- **Pydantic models:** add to `ChatRequest` and `WorkflowRequest` as
-  `Optional[dict[str, str]] = Field(default_factory=dict, ...)`. The explicit
-  `default_factory=dict` is **required** — in Pydantic 2 an `Optional[...]` field with no
-  default is a *required* field (mirrors `absolute_file_paths`, `chat.py:46`).
-- **Validator (graceful degradation):** add a **separate** `@field_validator(...,
-  mode="before")` for `file_descriptions` that (a) coerces a non-dict value to `{}`, and
-  (b) within a dict, `str()`-coerces non-string values and drops `None` values — so
-  `{"p": 123}` → `{"p": "123"}` and `{"p": None}` is dropped, rather than raising.
-  **Do NOT add `file_descriptions` to the existing `convert_string_to_list` validator**
-  (`base_models.py:126`) — it returns `[]`, the wrong type for a dict field.
-- **Schema dicts:** add a `file_descriptions` entry to `SIMPLE_FIELD_SCHEMAS` and
-  `WORKFLOW_FIELD_SCHEMAS` (type `object`, `additionalProperties: {type: string}`), plus a
-  shared `COMMON_FIELD_DESCRIPTIONS["file_descriptions"]` blurb.
-- **Chat's hand-built schema:** add the entry to both `get_input_schema` (`chat.py:117`)
-  and `get_tool_fields` (`chat.py:164`). This is what actually surfaces the field on
-  `chat` (see D5).
-- **planner exclusion:** add `"file_descriptions"` to `planner.py`'s
-  `excluded_workflow_fields` (`planner.py:205`), mirroring its existing exclusion of
-  `relevant_files`/`files_checked`. Every other workflow tool keeps the field.
-
-### Accessors — mirror `get_request_files`
-
-Add `get_request_file_descriptions(request) -> dict[str, str]` to `SimpleTool`
-(beside `get_request_files`, `simple/base.py:232`) and to the workflow mixin (beside
-`get_request_relevant_files`, `workflow_mixin.py:969`); each returns
-`getattr(request, "file_descriptions", None) or {}`.
-
-### Cross-step description persistence (workflow)
-
-Workflow steps are **separate tool invocations**: on continuation, `consolidated_findings`
-is rebuilt by `_reprocess_consolidated_findings` (`workflow_mixin.py:1391-1395`) replaying
-the `step_data` dicts stored in `work_history`. So a description must live **in
-`step_data`** to survive across steps — merging it from the per-invocation request would be
-lost on the next step's rebuild.
-
-`step_data` is produced by `prepare_step_data` (`workflow_mixin.py:759`), but **all 11
-workflow tools override it and build the dict from scratch (no `super()` call)** — editing
-each override would be invasive and easy to miss. Instead, inject once at the single call
-site in `execute_workflow` (`workflow_mixin.py:705`, immediately after
-`step_data = self.prepare_step_data(request)` and before `work_history.append`):
-`step_data["file_descriptions"] = self.get_request_file_descriptions(request)`. This
-covers every tool regardless of its override and is persisted in `work_history`.
-
-Then: add `file_descriptions: dict[str, str] = Field(default_factory=dict)` to
-`ConsolidatedFindings` (`base_models.py:136`), and in `_update_consolidated_findings`
-(`workflow_mixin.py:1369`) merge it:
-`self.consolidated_findings.file_descriptions.update(step_data.get("file_descriptions", {}))`
-(dict update → a later step's description for a path overrides an earlier one; `.get(...,
-{})` keeps pre-feature threads safe). This makes the map available to feed paths 3-4.
-
-### Threading matrix
-
-| Feed path | File source | Description source |
-|-----------|-------------|--------------------|
-| 1 chat `build_standard_prompt` | request paths | `get_request_file_descriptions(request)` |
-| 2 `_embed_workflow_files` | request `relevant_files` | `get_request_file_descriptions(request)` |
-| 3 `_prepare_files_for_expert_analysis` / `_force_embed_files_for_expert_analysis` | `consolidated_findings.relevant_files` | `consolidated_findings.file_descriptions` |
-| 4 debug `_prepare_expert_analysis_context` | `consolidated_findings.relevant_files` | `consolidated_findings.file_descriptions` |
-| 5 consensus `_consult_model` | request `relevant_files` | `get_request_file_descriptions(request)` |
-
-All five pass an optional `descriptions=` kwarg through
-`_prepare_file_content_for_prompt` / `read_files` down to `read_file_content`.
-
-### Header rendering + sanitization
-
-`read_file_content` gains a keyword-only `description: Optional[str] = None`. Before
-rendering it **sanitizes** the value (see below); if the sanitized result is empty, no
-annotation is added and the header is byte-for-byte identical to today. Otherwise the
-successful header (`file_utils.py:506-510`) becomes:
-
-```
---- BEGIN FILE: {file_path} (Last modified: {modified_at}) [{sanitized_description}] ---
+```text
+--- BEGIN FILE: /work/service.py (Last modified: 2026-11-23 08:00:00 UTC) [module under review] ---
 ```
 
-`--- END FILE ---` and the error / not-found / too-large headers are never annotated.
-`read_file_content` is the **single point** where sanitization is applied, so every feed
-path is covered.
+`read_files` measures the completed block with its supplied model estimator.
+`BaseTool._prepare_file_content_for_prompt` passes the same `FileReadReport` into
+`check_total_file_size`. Keep that path for expert calls too. An annotation that pushes a required
+attachment over the limit is subject to the same overage, omission, and coverage rules as additional
+file text. [File measurement](../../../../utils/file_utils.py#L597) ·
+[Shared admission](../../../../tools/shared/base_tool.py#L977)
 
-**Sanitization rules** (a small helper, e.g. `_sanitize_file_description`):
-1. `strip()`; collapse all internal whitespace **and control characters (incl. newlines,
-   tabs, CR)** to single spaces — guarantees a single-line header.
-2. Neutralize delimiter tokens: remove/replace `]`, and any `---`, `--- BEGIN FILE:`,
-   `--- END FILE:` substrings, so a description cannot fabricate a file boundary or close
-   the bracket early.
-3. Cap length at a named constant (e.g. `MAX_FILE_DESCRIPTION_LEN = 200`), truncating with
-   an ellipsis.
-4. If empty after step 1 → return empty (→ no annotation; covers whitespace-only input).
+## Chat continuations
 
-This closes the injection/corruption vector: the marker structure is parsed line-by-line
-elsewhere (e.g. the `prompt.txt` extractor, `base_tool.py:919-930`, splits on `\n` and
-matches `--- BEGIN/END FILE:` prefixes), so a multi-line or marker-bearing description
-must never reach the header.
+The conversation wrapper saves the current user turn, including its attachments, before the continuation
+prompt is rendered. Consequently a file first attached on turn two is already in the history reader's
+file list. Pass that request's **effective exact-file map** to the existing history read. Keep
+newest-first order and a single copy of each file. Historical-only paths receive no annotation. A caller
+cannot relabel an already embedded file by resubmitting it under another spelling.
+[Chat dispatch](../../../../tools/simple/base.py#L353) ·
+[History assembly](../../../../utils/conversation_context.py#L141) ·
+[History reader](../../../../utils/conversation_memory.py#L870)
 
-### Key matching — normalize then match (in `read_files`)
+Distinguish a prior **committed model prompt** containing the file from a prior reference, omitted file,
+or unavailable file. PAL currently stores requested paths on turns and exposes the actual included list
+during each invocation. To make that distinction available on later chat calls, retain only the
+canonical paths actually included in the successful model exchange in its existing turn metadata. Use
+the final prompt's included paths, including history-rendered files. A preflight read, a reference-only
+workflow step and a failed invocation cannot establish prior delivery. These path-only observations
+serve annotation eligibility. File selection, `ConversationTurn.files`, budgets, and coverage counters
+keep their existing roles. [Stored chat paths](../../../../tools/simple/base.py#L734) ·
+[Invocation-local file evidence](../../../../tools/shared/base_tool.py#L726)
 
-Before the read loop, `read_files` normalizes every description key through the **same**
-resolution used for paths (`os.path.expanduser` + `resolve_and_validate_path`,
-`file_utils.py:351`), producing a `resolved_key -> text` map; unresolvable keys are
-dropped. Each loop iteration looks up its already-resolved `file_path`.
+For a continued chat, subtract prior committed inclusions across the thread and its parents from the
+current attachment candidates, excluding the newly saved user turn from that comparison. A path
+previously unavailable can receive a description when successfully supplied again. Older model-backed
+turns predate actual-inclusion metadata. For those turns alone, conservatively treat their recorded
+attachments as already introduced. Legacy history-only paths therefore cannot acquire new descriptions.
+A previously unavailable path in a legacy model reply may also remain unannotated. New-turn metadata
+distinguishes a known empty list from a legacy unknown.
 
-### Directory propagation & precedence
+## Workflow replay and retention
 
-For each expanded file: (1) direct hit on its resolved path wins; else (2) the **deepest
-ancestor directory** that is a key (separator-boundary prefix test, not bare
-`startswith`). A file's own key always beats an inherited directory key.
+A workflow can collect relevant files in a reference-only step and send them to an expert on a later
+invocation. After validating each supported step, retain only its effective, sanitized exact-file map
+for that step's own expanded `relevant_files` (at most one 200-character value per eligible file). Store
+it only when nonempty in `step_data` before appending to `work_history`. Restore via
+`_update_consolidated_findings` and the existing chronological replay. An absent field on an older step
+means an empty contribution. Until a file's first committed expert embedding, the latest effective value
+for its canonical path wins. Omission or blank text adds no override. A forced re-embed in the same
+workflow uses its settled label. Use the prior included-path evidence for this check. A reference-only
+step does not freeze a label. A history-only sibling gets no inherited directory annotation. Apply the
+consolidated map to both final-step preparation and the actual expert rendering so admission measures
+the same annotations on shared files. Debug uses the same map in its custom block.
+[Step processing](../../../../tools/workflow/workflow_mixin.py#L726) ·
+[Expert file union and delegate](../../../../tools/workflow/workflow_mixin.py#L395)
 
-*Trade-off (acknowledged):* propagating to children re-renders the same annotation on
-every file in a directory of N files — a small token cost and some repetition. Per-child
-is still preferred because it keeps the annotation adjacent to each file's content and
-needs no new per-directory rendering hook. A "describe a directory as a unit" mode is a
-possible follow-up (see Not Doing).
+| Destination | Data permitted |
+| --- | --- |
+| Initial thread context | Exclude the request's `file_descriptions` when creating the thread. Other initial request fields keep their existing semantics. |
+| General conversation history or another tool | No reusable annotation text. Chat's record of prior successful inclusion contains paths only. |
+| Same-tool workflow replay | Only the matched, sanitized file values in existing workflow state. Restoration is scoped to the saved tool and workflow. Starting step one resets it. |
+| Optional private transcripts | A successful workflow turn already serializes its model metadata. Only its effective workflow map may appear there. Chat and consensus supply no structured annotation text to transcripts. A thread creation event contains no initial request payload. Ordinary user input or model replies may of course contain the same words. |
+| Consensus participant | Only that request's matched descriptions. Use its separate consultation loop and preserve `blinded=True`. A later participant needs its own files and descriptions. |
 
-### Token accounting
-
-No new logic — the (sanitized, capped) header is built before `estimate_tokens`
-(`file_utils.py:511`). A test asserts a long description raises the per-file estimate.
-
-### Dedup / continuation behaviour
-
-- `filter_new_files` (`base_tool.py:1077`) skips files already embedded earlier in a
-  continuation; such a file will not re-render its description on later turns.
-- **Descriptions are fixed at first embed.** Supplying a new/changed description for an
-  already-embedded path on a later continuation turn is a **silent no-op** — accepted,
-  presentation-only.
-- **Within a single workflow invocation**, descriptions *are* consolidated across steps
-  (latest wins) so they reach expert analysis. They are **not** persisted into
-  conversation memory, so files pulled from conversation history by
-  `_prepare_files_for_expert_analysis` (`workflow_mixin.py:345`) in a *continued* workflow
-  carry no description (see Not Doing).
-
-## Tool scope
-
-- **In scope:** `chat`; and **all workflow tools that embed `relevant_files`** —
-  `analyze`, `codereview`, `refactor`, `debug`, `precommit`, `thinkdeep`, `secaudit`,
-  `testgen`, `tracer`, `docgen`, `consensus`. (`debug` and `consensus` use custom feed
-  paths 4/5; the rest use generic paths 2/3.)
-- **Excluded workflow tool:** `planner` — excludes all file fields (`planner.py:205-219`),
-  so `file_descriptions` is added to its exclusion list (no orphan field).
-- **Out of scope:** `clink` (lists path *references* via `_format_file_references`,
-  `clink.py:344`, and hands paths to an external CLI — never reaches `read_file_content`);
-  file-less tools (`version`, `listmodels`, `challenge`).
-
-## Backward compatibility
-
-Path lists stay `list[str]`. `file_descriptions` defaults to `{}`. With an empty/absent
-map every threaded function behaves exactly as before and rendered output is byte-for-byte
-identical. No conversation-memory schema change.
+The raw map, unmatched keys, and truncated suffixes have no place in stored request or workflow
+metadata. Failed workflow-state saves on the user turn use the same sanitized representation. Preserve
+existing persistence errors and transcript-event semantics.
+[Initial context](../../../../utils/conversation_memory.py#L265) ·
+[Workflow persistence](../../../../tools/workflow/workflow_mixin.py#L1170) ·
+[Success event](../../../../utils/conversation_memory.py#L449) ·
+[Participant prompt](../../../../tools/consensus.py#L643)
 
 ## Assumptions
 
-- **A1 (corrected):** in-scope embedding reaches the model through **five** feed paths
-  (table above), not one. All converge on `read_file_content`, where sanitization +
-  rendering happen. (Verified by tracing `read_files` / `_prepare_file_content_for_prompt`
-  callers.)
-- **A2:** resolving keys identically to paths makes them match the post-expansion resolved
-  paths the read loop iterates; divergence silently drops the annotation (guarded by a
-  normalization test).
-- **A3:** a file's own key overrides an inherited directory key; for the consolidated
-  workflow map, a later step's key overrides an earlier one.
-- **A4:** appending a sanitized, single-line ` [desc]` to the header breaks no existing
-  BEGIN-FILE consumer (they match the prefix; the `prompt.txt` extractor reads files
-  without a description).
+- File intent is presentation metadata. Adding the property to a tool is useful only when its successful provider prompt can carry the annotation.
+- Existing admission and history ordering remain authoritative. A description may legitimately change whether a rendered file fits.
+- The single-line header remains compatible with existing delimiter consumers. `prompt.txt` is consumed as prompt input before annotation matching.
 
 ## Not Doing
 
-- **Structured file objects** (`list[str | {path, description}]`) — breaking change that
-  disrupts dedup/memory/expansion.
-- **Descriptions for `images`.**
-- **`clink` support** — references, not embedded content; a parallel render in
-  `_format_file_references` is a deferred follow-up.
-- **Persisting descriptions in conversation memory across continuation turns** — so
-  history-sourced files in a continued workflow stay unannotated, and descriptions can't
-  be updated after first embed. Larger change to `utils/conversation_memory.py`; deferred.
-- **"Describe a directory as a unit"** (single annotation at the directory boundary) — the
-  issue's open-question #1 alternative; deferred in favour of per-child propagation.
-- **Annotating error / not-found / too-large file headers.**
+- Structured path objects would change existing callers and file identity. Files and directories remain strings.
+- Images, CLI path references, reference-only `files_checked`, and diagnostic headers have no successful text-file block to label.
+- General cross-tool label reuse, file snapshots, a version log, and a new transcript format are outside the feature. Workflow replay uses the existing state lifecycle. A directory-as-unit display would separate intent from each embedded file.
 
-## Resolved design decisions
+## Rejected alternatives
 
-- **D1 Schema surface:** mirror the path field per family (not on `ToolRequest`).
-- **D2 Directory keys:** propagate to expanded children; child key beats inherited dir key.
-- **D3 Key matching:** normalize keys identically to file paths, then match resolved.
-- **D4 Scope (C3):** every workflow tool that embeds `relevant_files` is in scope;
-  `planner` is the sole exclusion and is handled via its `excluded_workflow_fields`.
-- **D5 `SIMPLE_FIELD_SCHEMAS` is forward-looking:** currently inert (no simple tool uses
-  `build_schema`); added for consistency/future simple tools. `chat`'s field is surfaced
-  by its hand-built schema. Could be omitted with no behavioural change.
-- **D6 Sanitization (C6/C7):** descriptions are normalized to a single, delimiter-safe,
-  length-capped line at the render point; empty-after-strip → no annotation.
-- **D7 Value coercion (C12):** non-string dict values are `str()`-coerced and `None`
-  dropped in the before-validator, consistent with graceful degradation.
+Resolving directory keys after combining file histories can label a historical sibling. Binding the map
+while the originating request is known preserves file ownership. A separate read to estimate annotation
+cost would duplicate file I/O and could measure different bytes if a file changed between reads. The
+existing report already measures the rendered blocks.
 
-## Revision notes (post-review)
+## Revision notes and verification
 
-**2026-10-12 coordination:** Server-reliability Task 41 evaluated file ordering,
-provenance placement and compaction without changing runtime file headers. Its
-[recorded decision](../../../adr/0001-retain-conversation-history-layout.md)
-retains this design's unchanged-header and fixed-at-first-embed requirements.
-Any future snapshot/version or provenance format needs an explicit coordinated
-revision here; the test-only candidates do not add annotation persistence.
+The June draft established the path-keyed map, sanitized file headers, directory inheritance, and
+coverage of expert and participant prompts. The October decision retained the existing file layout and
+first-embed convention. The November recheck corrected the continuation route, storage boundaries, and
+actionable tool list. The [review record](./review-design.md) traces all seven findings to the revised
+tasks. [History layout decision](../../../adr/0001-retain-conversation-history-layout.md)
 
-This revision incorporates four design reviews. Material corrections from the original
-draft: (a) **C5** — the original threaded only `_embed_workflow_files`, missing the
-expert-analysis (paths 3-4) and consensus (path 5) feed paths and the cross-step
-persistence they require; (b) **C2/C3** — scope widened to all embedding workflow tools
-with an explicit `planner` exclusion; (c) **C6/C7** — added description sanitization;
-(d) **C1/C12** — explicit field default and value coercion. Lower-severity doc fixes
-(C4/C8/C9/C10/C11) folded into the relevant sections above.
-
-## Testing strategy
-
-- **Unit (primary):** `read_file_content` (render with/without description; byte-for-byte
-  unchanged when absent; **sanitization** of newline, `--- END FILE:`/`]`/`---`,
-  whitespace-only, and overlong inputs); `read_files` (map application, key normalization
-  incl. `~`/`..`, directory propagation + precedence, token-count increase);
-  `_prepare_file_content_for_prompt` pass-through. Per-family request/schema tests:
-  `chat`, a representative generic workflow tool, `debug` (consolidated path), `consensus`
-  (request path), and `planner` (asserts `file_descriptions` is **absent** from its
-  schema). Validator tests: non-dict → `{}`, non-string values coerced, `None` dropped.
-- **Cross-step:** a multi-step workflow test asserting a description from step 1 appears in
-  the step-N expert-analysis embedding (consolidated map).
-- **End-to-end (optional, deferred):** a simulator test asserting an annotated header
-  reaches the model. Deferred (needs live API keys; excluded from `code_quality_checks.sh`).
+Use offline captured provider requests to verify first and continued chat, a multi-step expert workflow,
+debug and two blinded consensus participants. Pair the annotated cases with byte-identical
+no-description rendering, an allowance-boundary case, inspection of stored state and an opt-in
+transcript, and the repository's exact tool-surface regression.
+[Implementation checks](./implementation.md)

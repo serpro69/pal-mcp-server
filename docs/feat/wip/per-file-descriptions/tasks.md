@@ -1,105 +1,89 @@
 # Tasks: Per-file descriptions / annotations
 
-> Design: [./design.md](./design.md)
-> Implementation: [./implementation.md](./implementation.md)
+> Design: [design.md](./design.md)
+> Implementation: [implementation.md](./implementation.md)
 > Status: pending
-> Created: 2026-06-06 · Revised after design review
-> Not Doing: structured file objects, image descriptions, clink support, cross-continuation/conversation-memory description persistence, describe-as-unit, error-header annotation
+> Created: 2026-06-06 · Revised: 2026-11-23
+> Not Doing: structured path objects, images, CLI references, provider-free workflow output, general annotation history, file snapshots, error-header annotations, directory-as-unit display
 
-## Task 1: Shared pipeline — render, sanitize, thread
+The November review revised the plan before implementation. Every checkbox below tracks implementation work. [Review dispositions](./review-design.md)
+
+## Task 1 — Bind and render eligible attachments
+
 - **Status:** pending
 - **Depends on:** —
 - **Size:** M
-- **Slicing:** Risk-First (shared, most-reused core)
+- **Slicing:** Contract-first. Establish one renderer and the real model admission boundary for all tool paths.
 - **Can run in parallel with:** —
-- **Docs:** [implementation.md#task-1-shared-pipeline](./implementation.md#task-1-shared-pipeline)
+- **Docs:** [Binding, rendering and admission](./implementation.md#task-1--bind-descriptions-and-admit-the-rendered-files)
 
-### Subtasks
-- [ ] 1.1 `utils/file_utils.py`: add `_sanitize_file_description(text)` + `MAX_FILE_DESCRIPTION_LEN` — strip, collapse whitespace/control chars to single spaces, neutralize `]`/`---`/`--- BEGIN FILE:`/`--- END FILE:`, cap length, return `""` if empty after strip.
-- [ ] 1.2 Tests: newline/tab/CR → one line; `]` and `--- END FILE:` neutralized; overlong truncated; whitespace-only → `""`.
-- [ ] 1.3 `utils/file_utils.py` `read_file_content` (~L421): add keyword-only `description: Optional[str] = None`; sanitize; if non-empty append ` [{sanitized}]` to the successful BEGIN-FILE header (L506-510); leave END and error/not-found/too-large headers unchanged. Pure renderer.
-- [ ] 1.4 Tests: with description → single-line `[...]`; with `None`/whitespace-only → bytes equal pre-change output; embedded `--- END FILE:` cannot create a second boundary.
-- [ ] 1.5 `utils/file_utils.py` `read_files` (~L523): add keyword-only `descriptions: Optional[dict[str, str]] = None`; before the loop (L586) build `resolved_key -> text` via `os.path.expanduser` + `resolve_and_validate_path` (drop unresolvable); in the loop resolve each file's description (direct hit, else deepest ancestor-dir key with separator-boundary test) and pass `description=` into `read_file_content` (L594).
-- [ ] 1.6 Tests: per-file map annotates only the match; directory key annotates every child; child key overrides inherited dir key; `~`/`..` keys match resolved targets.
-- [ ] 1.7 Test: token count for a file with a long description > same file with `None`.
-- [ ] 1.8 `tools/shared/base_tool.py` `_prepare_file_content_for_prompt` (L999): add keyword-only `descriptions: Optional[dict[str, str]] = None`; forward into `read_files(...)` (L1108). Pass-through test.
-- [ ] 1.9 `tools/shared/base_models.py`: add `COMMON_FIELD_DESCRIPTIONS["file_descriptions"]` blurb (absolute-path→intent; embedded files only).
+- [ ] 1.1 In `utils/file_utils.py`, bind direct and deepest-directory keys to the current attachment set, returning sanitized exact canonical file keys. Cover aliases, component boundaries, conflicts, empty/unmatched keys and directory inheritance.
+- [ ] 1.2 Add the optional successful-header annotation to `read_file_content` and exact lookups in `read_files`. Verify delimiter safety, the 200-character cap, byte-identical absent/empty output and plain diagnostic headers.
+- [ ] 1.3 Pass the optional map through `BaseTool._prepare_file_content_for_prompt` and align its workflow mixin signature. Exercise `FileReadReport` with the chosen model estimator at the fit/overage boundary in `tests/test_file_size_gate.py`.
 
-## Task 2: Chat (simple-tool) request surface
+## Task 2 — Ship chat on initial and continued requests
+
 - **Status:** pending
 - **Depends on:** Task 1
 - **Size:** M
-- **Can run in parallel with:** Task 3
-- **Docs:** [implementation.md#task-2-chat-surface](./implementation.md#task-2-chat-surface)
-
-### Subtasks
-- [ ] 2.1 `tools/shared/schema_builders.py` `SIMPLE_FIELD_SCHEMAS` (L47): add `file_descriptions` (`object`, `additionalProperties:{type:string}`, shared blurb). Inert today (no simple tool uses `build_schema`); forward-looking — see design D5.
-- [ ] 2.2 `tools/chat.py` `ChatRequest` (L42): add `file_descriptions: Optional[dict[str, str]] = Field(default_factory=dict, ...)` (explicit default required — Pydantic 2). Add a **separate** `@field_validator("file_descriptions", mode="before")`: non-dict → `{}`; within a dict, `str()`-coerce values and drop `None`. Do **not** touch any list validator. Test all paths.
-- [ ] 2.3 `tools/chat.py`: add `file_descriptions` to **both** `get_input_schema` (L117, beside `absolute_file_paths`) and `get_tool_fields` (L164). Assert it appears in `get_input_schema()["properties"]`.
-- [ ] 2.4 `tools/simple/base.py`: add `get_request_file_descriptions(request) -> dict[str, str]` beside `get_request_files` (L232).
-- [ ] 2.5 `tools/simple/base.py` `build_standard_prompt` (L780): pass `descriptions=self.get_request_file_descriptions(request)` into `_prepare_file_content_for_prompt` (L808).
-- [ ] 2.6 Test: `chat` with `file_descriptions` → annotated BEGIN-FILE header; without → unchanged.
-
-## Task 3: Workflow request surface + final-step embed
-- **Status:** pending
-- **Depends on:** Task 1
-- **Size:** M
-- **Can run in parallel with:** Task 2
-- **Docs:** [implementation.md#task-3-workflow-surface](./implementation.md#task-3-workflow-surface)
-
-### Subtasks
-- [ ] 3.1 `tools/shared/base_models.py` `WorkflowRequest` (L96): add `file_descriptions: Optional[dict[str, str]] = Field(default_factory=dict, ...)` + a **separate** `@field_validator("file_descriptions", mode="before")` (coercion as 2.2). Do **not** append the field to `convert_string_to_list` (L126). Test paths.
-- [ ] 3.2 `tools/workflow/schema_builders.py` `WORKFLOW_FIELD_SCHEMAS` (L23): add `file_descriptions` (same shape as 2.1); auto-merged by `build_schema` (L111). Confirm it appears on a normal workflow tool's schema.
-- [ ] 3.3 `tools/planner.py` (L205): add `"file_descriptions"` to `excluded_workflow_fields`. Test: `PlannerTool().get_input_schema()["properties"]` does **not** contain `file_descriptions`.
-- [ ] 3.4 `tools/workflow/workflow_mixin.py`: add `get_request_file_descriptions(request) -> dict[str, str]` beside `get_request_relevant_files` (L969).
-- [ ] 3.5 `tools/workflow/workflow_mixin.py` `_embed_workflow_files` (L511): pass `descriptions=self.get_request_file_descriptions(request)` into `_prepare_file_content_for_prompt` (L544).
-- [ ] 3.6 Test: final step (`next_step_required=False`) with `file_descriptions` → annotated embedded headers; intermediate steps / absent map unchanged. (Descriptions apply to embedded `relevant_files` only — `files_checked` is reference-only.)
-
-## Task 4: Cross-step persistence + generic expert-analysis embedding
-- **Status:** pending
-- **Depends on:** Task 1, Task 3
-- **Size:** M
-- **Slicing:** Risk-First (the prompt the assistant/expert model actually receives)
 - **Can run in parallel with:** —
-- **Docs:** [implementation.md#task-4-expert-analysis](./implementation.md#task-4-expert-analysis)
+- **Docs:** [Chat delivery and first-embed eligibility](./implementation.md#task-2--deliver-chat-annotations-on-the-first-request-and-on-continuations)
 
-### Subtasks
-- [ ] 4.1 `tools/shared/base_models.py` `ConsolidatedFindings` (L136): add `file_descriptions: dict[str, str] = Field(default_factory=dict)`.
-- [ ] 4.2 `tools/workflow/workflow_mixin.py` `execute_workflow` (L705): immediately after `step_data = self.prepare_step_data(request)` (before `work_history.append`), inject `step_data["file_descriptions"] = self.get_request_file_descriptions(request)`. Then in `_update_consolidated_findings` (L1369) add `self.consolidated_findings.file_descriptions.update(step_data.get("file_descriptions", {}))`. **Do NOT edit `prepare_step_data` or its 11 per-tool overrides** — the call-site injection covers all and persists in `work_history` (rebuilt on continuation by `_reprocess_consolidated_findings`, L1391).
-- [ ] 4.3 Test: after a 2-step **continuation** run where step 1 supplies a description, it is present in `consolidated_findings.file_descriptions` on step 2 (survived the `work_history` rebuild); a later step overrides an earlier value for the same path.
-- [ ] 4.4 `tools/workflow/workflow_mixin.py` `_force_embed_files_for_expert_analysis` (L375): add keyword-only `descriptions=None`; pass into `read_files(...)` (L409). `_prepare_files_for_expert_analysis` (L312): pass `descriptions=self.consolidated_findings.file_descriptions`.
-- [ ] 4.5 Test: a multi-step workflow whose relevant_files carry descriptions → annotated headers in the expert-analysis file content. Assert history-only files (added at L345) are not annotated (documented limitation).
+- [ ] 2.1 Add the optional string-map request field and both chat schema definitions. Verify valid and malformed inputs through MCP and Pydantic. Update the chat expectation in `tests/test_tool_surface.py` in this commit.
+- [ ] 2.2 Exclude the incoming map from initial thread context in `conversation_request`. Wire first-call `build_standard_prompt` and continuation `invocation_history` → `build_conversation_history` → `read_files`. Use the current attachment candidates after prompt-file extraction.
+- [ ] 2.3 Record the final model prompt's included paths on the existing successful turn writes for simple tools and workflows. Exclude preflight, reference-only and failed operations. Derive eligibility from prior committed inclusions across the chain. Distinguish explicit empty evidence and legacy replies. Preserve existing attachment tracking.
+- [ ] 2.4 Capture a turn-two request combining a repeated alias and a new file. Check annotations, order, counts, no duplicated contents and no replay of stored chat labels. Cover prior unavailable/reference-only files, legacy fallback and the no-provider-call overage boundary.
 
-## Task 5: Custom expert paths — debug + consensus
+## Task 3 — Ship the generic expert workflows
+
 - **Status:** pending
-- **Depends on:** Task 1, Task 3, Task 4
+- **Depends on:** Task 2
 - **Size:** M
 - **Can run in parallel with:** —
-- **Docs:** [implementation.md#task-5-custom-paths](./implementation.md#task-5-custom-paths)
+- **Docs:** [Generic expert delivery and replay](./implementation.md#task-3--deliver-descriptions-to-generic-workflow-experts)
 
-### Subtasks
-- [ ] 5.1 `tools/debug.py` `_prepare_expert_analysis_context` (L316): pass `descriptions=consolidated_findings.file_descriptions` into `_prepare_file_content_for_prompt` (L317).
-- [ ] 5.2 Test: debug workflow with described `relevant_files` annotates the `=== ESSENTIAL FILES FOR DEBUGGING ===` block.
-- [ ] 5.3 `tools/consensus.py` `_consult_model` (L574): pass `descriptions=self.get_request_file_descriptions(request)` into `_prepare_file_content_for_prompt` (L594). (Request-level, not consolidated.)
-- [ ] 5.4 Test: consensus request with described `relevant_files` annotates the context files sent to each model.
+- [ ] 3.1 Opt the seven generic expert requests and schemas into the shared property. Add the corresponding seven expected properties in `tests/test_tool_surface.py`.
+- [ ] 3.2 Bind each step's map to its expanded `relevant_files` in `execute_workflow` before saving step data. Merge effective canonical entries in `_update_consolidated_findings`, freeze delivered labels and replay older steps with an empty default.
+- [ ] 3.3 Pass the consolidated map to final-step preparation and to the expert delegate through `_prepare_files_for_expert_analysis` and `_force_embed_files_for_expert_analysis`. Preserve the shared gate, ordering and diagnostics.
+- [ ] 3.4 Capture a multi-step expert prompt with inherited, overridden and history-only sibling files. Check canonical ordering of three alias updates, same-tool replay, cross-tool isolation, boundedness and absence of raw/unmatched data in initial context, saved state and opt-in transcripts. Exercise the existing failed-state branch.
 
-## Task 6: Final verification
+## Task 4 — Ship debug's custom expert path
+
 - **Status:** pending
-- **Depends on:** Task 1, Task 2, Task 3, Task 4, Task 5
+- **Depends on:** Task 3
+- **Size:** S
+- **Can run in parallel with:** Task 5
+- **Docs:** [Debug expert block](./implementation.md#task-4--deliver-descriptions-in-debugs-custom-expert-block)
+
+- [ ] 4.1 Opt in `DebugInvestigationRequest` and the debug schema. Use the consolidated exact map in `DebugIssueTool.prepare_expert_analysis_context`. Update the debug tool-surface expectation.
+- [ ] 4.2 Capture a continued debug call and assert one annotated essential-files block in the expert prompt, plus the existing no-description output and coverage counts.
+
+## Task 5 — Ship blinded consensus participant annotations
+
+- **Status:** pending
+- **Depends on:** Task 3
+- **Size:** S
+- **Can run in parallel with:** Task 4
+- **Docs:** [Consensus consultation](./implementation.md#task-5--deliver-request-local-descriptions-to-consensus-participants)
+
+- [ ] 5.1 Opt in `ConsensusRequest` and its schema, updating the consensus tool-surface expectation. Pass that participant request's effective map to `_consult_model`'s existing blinded preparation call. Exclude consensus maps from generic replay.
+- [ ] 5.2 Capture two participants with the same attachment, distinct inputs and separate budgets. Verify participant-local labels, omission on the second request, exclusion of hidden history and the existing per-participant failure when the annotated input exceeds its allowance.
+
+## Task 6 — Verify and document
+
+- **Status:** pending
+- **Depends on:** Tasks 1–5
 - **Size:** S
 - **Can run in parallel with:** —
+- **Docs:** [Final verification](./implementation.md#task-6--verify-the-public-surface-and-document-usage)
 
-### Subtasks
-- [ ] 6.1 Run `/kk:test` — full unit suite (`pytest -m "not integration"`) + `./code_quality_checks.sh`; verify the byte-for-byte-unchanged guarantee for the no-description path and the sanitization tests pass.
-- [ ] 6.2 Run `/kk:document` — surface the new field in `docs/adding_tools.md` / tool docs if needed; move this feature dir from `docs/feat/wip` to `docs/feat/done` when complete.
-- [ ] 6.3 Run `/kk:review-code` with `python` as the language input.
-- [ ] 6.4 Run `/kk:review-spec` to confirm implementation matches design + implementation docs.
+- [ ] 6.1 Run `$kk:test` and the repository quality suite. Check the exact set of ten advertised tools, exclusions, byte ceilings, existing file-count contracts and captured provider prompts. Keep the historical schema baseline intact.
+- [ ] 6.2 Use `$kk:document` for a multi-file usage example, scope, precedence, continuation and retention behavior.
+- [ ] 6.3 Run `$kk:review-code` for Python and `$kk:review-spec` against these documents. Move the completed feature to `docs/feat/done` after closing the implementation tasks and update incoming links.
 
 ## Dependency Graph
 
-```
-Task 1 ─┬─→ Task 2 ─────────────────────────────→ Task 6
-        └─→ Task 3 ─┬─→ Task 4 ─→ Task 5 ───────→ Task 6
-                    └─────────────→ Task 5
-Task 2 ∥ Task 3
+```text
+Task 1 → Task 2 → Task 3 ┬→ Task 4 ─┬→ Task 6
+                         └→ Task 5 ─┘
 ```
