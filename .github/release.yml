@@ -1,0 +1,13 @@
+changelog:
+  exclude:
+    authors:
+      - 'dependabot[bot]'
+    labels:
+      - dependencies
+  categories:
+    - title: Fixed
+      labels: [bug]
+    - title: Added
+      labels: [enhancement]
+    - title: Other changes
+      labels: ['*']
