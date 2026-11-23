@@ -62,8 +62,8 @@ class GenericAgent(BaseCLIAgent):
         allow_edits: bool = False,
         editable_paths: Sequence[str] = (),
     ) -> list[str]:
-        if self.protocol.workspace != "any":
-            raise CLIAgentError("The project workspace policy is unsupported")
+        if self.protocol.workspace == "project" and self.client.working_dir is None:
+            raise CLIAgentError("This CLI requires a project directory")
         if self.protocol.log_stderr_on_failure:
             raise CLIAgentError("Private stderr logging (log_stderr_on_failure) is unsupported")
         if editable_paths:

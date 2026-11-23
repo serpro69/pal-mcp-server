@@ -73,14 +73,22 @@
 
 ## Task 4 — Apply directory requirements to a call
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 2
 - **Size:** M
 - **Can run in parallel with:** Task 3
 - **Docs:** [Workspace enforcement](./implementation.md#enforce-the-selected-workspace)
 
-- [ ] In `CLinkTool._execute_coordinated`, apply `any` or `project` immediately after directory selection. Distinguish new scratch from inherited scratch in the caller's recovery message. Native CLIs handle repository access failures through their normal exit path.
-- [ ] Verify rejection before launch, explicit promotion of saved scratch on the same thread, acceptance of an ordinary directory, and recovery from a native failure in a bound project. A failed call must preserve the saved binding and history.
+- [x] In `CLinkTool._execute_coordinated`, apply `any` or `project` immediately after directory selection. Distinguish new scratch from inherited scratch in the caller's recovery message. Native CLIs handle repository access failures through their normal exit path.
+- [x] Verify rejection before launch, explicit promotion of saved scratch on the same thread, acceptance of an ordinary directory, and recovery from a native failure in a bound project. A failed call must preserve the saved binding and history.
+
+**Execution context**
+
+- 2026-11-23, observed at `a278aa2`. The directory resolver already returns the selection source and preserves saved scratch over manifest defaults. The generic runner rejects every project workspace. This task applies the policy to the selected binding and leaves persistence with the existing success-only conversation commit.
+- 2026-11-23, verified on macOS with Python 3.11. The generic-client and working-directory suites passed 484 tests with 3 skips. A fixture subprocess launched in an ordinary directory, exited with code 7 on a failed promotion and a bound-project follow-up, and succeeded on retry. The tests checked the stored conversation after each refusal or failure. The repository quality checks passed with 3,722 tests passed, 19 skipped and 26 integration tests deselected.
+- 2026-11-23, integration. With provider credentials excluded, 4 integration tests passed and 22 skipped. The local stub simulator passed. The quick simulator passed 2 of 6 scenarios. The other four require a configured model provider. Task 6 owns the live rerun.
+- 2026-11-23, review follow-up for Task 5. The stdio missing-executable test verifies discovery, but its project client requests private stderr and supplies no directory. Once the private stderr option works, pass an explicit project in that test and assert the call fails at `lookup` before launch.
+- 2026-11-23, review. The independent Codex and Claude reviewers approved the Task 4 source. Claude reviewed the captured focused and full-suite results and identified the existing stdio coverage gap above.
 
 ## Task 5 — Deliver opt-in private stderr diagnostics
 

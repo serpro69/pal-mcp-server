@@ -311,6 +311,23 @@ class CLinkTool(SimpleTool):
                 },
             )
 
+        if (
+            client_config.custom is not None
+            and client_config.custom.workspace == "project"
+            and working_directory.binding.mode == "scratch"
+        ):
+            recovery = (
+                "Supply working_directory_absolute_path on this follow-up with the same continuation ID."
+                if working_directory.source == "conversation"
+                else "Supply working_directory_absolute_path now, or set working_dir in the CLI manifest "
+                "and restart PAL for future calls."
+            )
+            self._raise_client_error(
+                client_config,
+                f"This CLI requires a project directory. {recovery}",
+                {"working_directory": working_directory.to_metadata()},
+            )
+
         launch_path = working_directory.binding.launch_path
         client_config = client_config.model_copy(
             deep=True,
