@@ -101,19 +101,13 @@ OPENAI_ALLOWED_MODELS=o3,o4-mini
 
 ## Thinking Modes
 
-**Claude automatically manages thinking modes based on task complexity**, but you can also manually control Gemini's reasoning depth to balance between response quality and token consumption. Each thinking mode uses a different amount of tokens, directly affecting API costs and response time.
+Set `thinking_mode` to control reasoning depth on supported native Gemini and OpenRouter models. A higher effort can increase output token usage and response time.
+
+For OpenRouter models with `supports_extended_thinking: true` in the catalog, PAL sends the tool's selected mode as `reasoning.effort` on both Chat Completions and Responses. When the provider receives no mode, Chat Completions leaves effort to OpenRouter and Responses uses the catalog default (or `medium`). PAL returns the final answer text and records `reasoning_tokens` in usage when OpenRouter supplies the count. These tokens are already included in output tokens. [OpenRouter reasoning guide](https://openrouter.ai/docs/guides/best-practices/reasoning-tokens)
 
 ### Thinking Modes & Token Budgets
 
-These only apply to models that support customizing token usage for extended thinking, such as Gemini 3.0 Pro.
-
-| Mode | Token Budget | Use Case | Cost Impact |
-|------|-------------|----------|-------------|
-| `minimal` | 128 tokens | Simple, straightforward tasks | Lowest cost |
-| `low` | 2,048 tokens | Basic reasoning tasks | 16x more than minimal |
-| `medium` | 8,192 tokens | **Default** - Most development tasks | 64x more than minimal |
-| `high` | 16,384 tokens | Complex problems requiring thorough analysis (default for `thinkdeep`) | 128x more than minimal |
-| `max` | 32,768 tokens | Exhaustive reasoning | 256x more than minimal |
+The token budget for a given mode depends on the model. Native Gemini models use a budget or a supported thinking level. OpenRouter translates effort for the selected model. [Gemini thinking controls](configuration.md#gemini-thinking-controls)
 
 ### How to Use Thinking Modes
 
@@ -136,11 +130,6 @@ These only apply to models that support customizing token usage for extended thi
 - Analyzing system architecture (comprehensive analysis saves development time)
 - Finding subtle bugs or edge cases
 - Working on performance optimizations
-
-**Token Cost Examples:**
-- `minimal` (128 tokens) vs `max` (32,768 tokens) = 256x difference in thinking tokens
-- For a simple formatting check, using `minimal` instead of the default `medium` saves ~8,000 thinking tokens
-- For critical security reviews, the extra tokens in `high` or `max` mode are a worthwhile investment
 
 **Examples by scenario:**
 ```
@@ -169,7 +158,7 @@ All tools that work with files support **both individual files and entire direct
 - `model`: auto|pro|flash|flash-2.0|flashlite|o3|o3-mini|o4-mini|gpt4.1|gpt5.2|gpt5.1-codex|gpt5.1-codex-mini|gpt5|gpt5-mini|gpt5-nano (default: server default)
 - `analysis_type`: architecture|performance|security|quality|general
 - `output_format`: summary|detailed|actionable
-- `thinking_mode`: minimal|low|medium|high|max (default: medium, Gemini only)
+- `thinking_mode` accepts minimal, low, medium, high, or max on supported Gemini and OpenRouter models (default high).
 - **Web search capability**: The assistant now automatically requests web searches when it needs current documentation or best practices—no parameter required
 
 ```
@@ -186,7 +175,7 @@ All tools that work with files support **both individual files and entire direct
 - `focus_on`: Specific aspects to focus on
 - `standards`: Coding standards to enforce
 - `severity_filter`: critical|high|medium|all
-- `thinking_mode`: minimal|low|medium|high|max (default: medium, Gemini only)
+- `thinking_mode` accepts minimal, low, medium, high, or max on supported Gemini and OpenRouter models (default high).
 
 ```
 "Review the entire api/ directory for security issues" (auto mode picks best model)
@@ -202,7 +191,7 @@ All tools that work with files support **both individual files and entire direct
 - `files`: Files or directories related to the issue
 - `runtime_info`: Environment details
 - `previous_attempts`: What you've tried
-- `thinking_mode`: minimal|low|medium|high|max (default: medium, Gemini only)
+- `thinking_mode` accepts minimal, low, medium, high, or max on supported Gemini and OpenRouter models (default high).
 - **Web search capability**: Automatically initiates searches for relevant error messages or recent fixes when needed
 
 ```
@@ -217,7 +206,7 @@ All tools that work with files support **both individual files and entire direct
 - `problem_context`: Additional context
 - `focus_areas`: Specific aspects to focus on
 - `files`: Files or directories for context
-- `thinking_mode`: minimal|low|medium|high|max (default: max, Gemini only)
+- `thinking_mode` accepts minimal, low, medium, high, or max on supported Gemini and OpenRouter models (default high).
 - **Web search capability**: Automatically calls for research when architecture references or external insights are required
 
 ```
@@ -231,7 +220,7 @@ All tools that work with files support **both individual files and entire direct
 - `prompt`: Description of what to test, testing objectives, and scope (required)
 - `model`: auto|pro|flash|flash-2.0|flashlite|o3|o3-mini|o4-mini|gpt4.1|gpt5.2|gpt5.1-codex|gpt5.1-codex-mini|gpt5|gpt5-mini|gpt5-nano (default: server default)
 - `test_examples`: Optional existing test files as style/pattern reference
-- `thinking_mode`: minimal|low|medium|high|max (default: medium, Gemini only)
+- `thinking_mode` accepts minimal, low, medium, high, or max on supported Gemini and OpenRouter models (default high).
 
 ```
 "Generate tests for User.login() method with edge cases" (auto mode picks best model)
@@ -247,7 +236,7 @@ All tools that work with files support **both individual files and entire direct
 - `model`: auto|pro|flash|flash-2.0|flashlite|o3|o3-mini|o4-mini|gpt4.1|gpt5.2|gpt5.1-codex|gpt5.1-codex-mini|gpt5|gpt5-mini|gpt5-nano (default: server default)
 - `focus_areas`: Specific areas to focus on (e.g., 'performance', 'readability', 'maintainability', 'security')
 - `style_guide_examples`: Optional existing code files to use as style/pattern reference
-- `thinking_mode`: minimal|low|medium|high|max (default: medium, Gemini only)
+- `thinking_mode` accepts minimal, low, medium, high, or max on supported Gemini and OpenRouter models (default high).
 - `continuation_id`: Thread continuation ID for multi-turn conversations
 
 ```

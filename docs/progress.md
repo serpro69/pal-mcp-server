@@ -36,9 +36,10 @@ MCP-dispatched PAL JSON responses, including `isError` tool errors, add
   `usage` for each provider or CLI operation performed during this invocation.
 - `progress_warnings`: delivery diagnostics, with exception type only.
 
-Operation `usage` is null when unknown; valid zero counts remain zero. Only
-nonnegative integer `input_tokens`, `output_tokens` and `total_tokens` fields are
-copied. Recovery calls are separate operations. Resumed workflow/consensus calls
+Operation `usage` is null when unknown. PAL preserves nonnegative integer counts
+for input, output, total, cached input and cache writes, including zero. For OpenRouter,
+`reasoning_tokens` gives the reported portion of output tokens spent on reasoning.
+Recovery calls are separate operations. Resumed workflow/consensus calls
 report only the current invocation, without re-counting earlier participants or
 synthesizing a cumulative total. CLI parsers with canonical `usage` fields (Claude
 and Codex) contribute available counts. Gemini CLI's vendor-specific `token_usage`

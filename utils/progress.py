@@ -4,7 +4,7 @@ import asyncio
 import json
 import logging
 import time
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
@@ -13,18 +13,12 @@ from typing import Any
 from mcp.server import ServerRequestContext
 from mcp.types import TextContent
 
+from utils.usage import known_usage
+
 logger = logging.getLogger(__name__)
 HEARTBEAT_SECONDS = 10.0
 NOTIFICATION_TIMEOUT_SECONDS = 1.0
-_USAGE_FIELDS = ("input_tokens", "output_tokens", "total_tokens", "cached_input_tokens", "cache_write_tokens")
 _current: ContextVar["RequestProgress | None"] = ContextVar("pal_progress", default=None)
-
-
-def _usage(value: Any) -> dict[str, int] | None:
-    if not isinstance(value, Mapping):
-        return None
-    counts = {key: value[key] for key in _USAGE_FIELDS if type(value.get(key)) is int and value[key] >= 0}
-    return counts or None
 
 
 @dataclass
@@ -61,8 +55,8 @@ class RequestProgress:
                 return
             self.counter += 1
             message = {"stage": stage, "elapsed_seconds": round(time.monotonic() - self.started, 3)}
-            counts = _usage(usage)
-            if counts is not None:
+            counts = known_usage(usage)
+            if counts:
                 message["usage"] = counts
             try:
                 await asyncio.wait_for(
@@ -88,7 +82,7 @@ class RequestProgress:
                     "stage": op.stage,
                     "status": op.status,
                     "duration_seconds": op.duration_seconds,
-                    "usage": _usage(op.usage),
+                    "usage": known_usage(op.usage) or None,
                 }
                 for op in self.operations
             ],

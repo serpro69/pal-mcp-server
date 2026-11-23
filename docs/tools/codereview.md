@@ -6,7 +6,7 @@ The `codereview` tool provides professional code review capabilities with action
 
 ## Thinking Mode
 
-**Default is `medium` (8,192 tokens).** Use `high` for security-critical code (worth the extra tokens) or `low` for quick style checks (saves ~6k tokens).
+Expert review defaults to `high`. Use `low` for a quick style check.
 
 ## How the Workflow Works
 
@@ -85,7 +85,7 @@ The above prompt will simultaneously run two separate `codereview` tools with tw
 - `standards`: Coding standards to enforce (e.g., "PEP8", "ESLint", "Google Style Guide")
 - `severity_filter`: critical|high|medium|low|all (default: all)
 - `temperature`: Temperature for consistency (0-1, default 0.2)
-- `thinking_mode`: minimal|low|medium|high|max (default: medium, Gemini only)
+- `thinking_mode` accepts minimal, low, medium, high, or max on supported Gemini and OpenRouter models (default high).
 - `use_assistant_model`: Whether to use expert analysis phase (default: true, set to false to use Claude only)
 - `continuation_id`: Continue previous review discussions
 

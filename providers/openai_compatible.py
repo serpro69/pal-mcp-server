@@ -412,16 +412,10 @@ class OpenAICompatibleProvider(ModelProvider):
             elif role == "assistant":
                 input_messages.append({"role": "assistant", "content": [{"type": "output_text", "text": content}]})
 
-        # Prepare completion parameters for responses endpoint
-        # Based on OpenAI documentation, use nested reasoning object for responses endpoint
-        effort = "medium"
-        if capabilities and capabilities.default_reasoning_effort:
-            effort = capabilities.default_reasoning_effort
-
         completion_params = {
             "model": model_name,
             "input": input_messages,
-            "reasoning": {"effort": effort},
+            **self._reasoning_params(capabilities, kwargs.get("thinking_mode"), responses_api=True),
         }
 
         # Only include store parameter for providers that support it.
@@ -627,6 +621,7 @@ class OpenAICompatibleProvider(ModelProvider):
                 **kwargs,
             )
 
+        completion_params.update(self._reasoning_params(capabilities, kwargs.get("thinking_mode"), responses_api=False))
         completion_params = self._prepare_request_params(completion_params, capabilities)
 
         # Retry logic with progressive delays
@@ -671,6 +666,15 @@ class OpenAICompatibleProvider(ModelProvider):
             )
             logging.error(error_msg)
             raise RuntimeError(error_msg) from exc
+
+    def _reasoning_params(
+        self, capabilities: ModelCapabilities | None, thinking_mode: str | None, *, responses_api: bool
+    ) -> dict:
+        """The compatible Responses endpoint uses its catalog effort or medium by default."""
+        if responses_api:
+            effort = capabilities.default_reasoning_effort if capabilities else None
+            return {"reasoning": {"effort": effort or "medium"}}
+        return {}
 
     def _prepare_request_params(self, params: dict, capabilities: ModelCapabilities) -> dict:
         """Finalize request-local SDK options without modifying a shared client."""

@@ -73,6 +73,28 @@ class OpenRouterProvider(OpenAICompatibleProvider):
             aliases = self._registry.list_aliases()
             logging.info(f"OpenRouter loaded {len(models)} models with {len(aliases)} aliases")
 
+    def _reasoning_params(
+        self, capabilities: ModelCapabilities | None, thinking_mode: str | None, *, responses_api: bool
+    ) -> dict:
+        if thinking_mode is None or capabilities is None or not capabilities.supports_extended_thinking:
+            return super()._reasoning_params(capabilities, thinking_mode, responses_api=responses_api)
+        if thinking_mode not in ("minimal", "low", "medium", "high", "max"):
+            raise ValueError(
+                f"Invalid OpenRouter thinking_mode {thinking_mode!r}: expected minimal, low, medium, high, or max"
+            )
+        reasoning = {"reasoning": {"effort": thinking_mode}}
+        # OpenAI's Chat Completions SDK accepts OpenRouter's nested field via extra_body.
+        return reasoning if responses_api else {"extra_body": reasoning}
+
+    def _extract_usage(self, response, *, responses_api: bool = False) -> dict[str, int]:
+        usage = super()._extract_usage(response, responses_api=responses_api)
+        metadata = getattr(response, "usage", None)
+        details = getattr(metadata, "output_tokens_details" if responses_api else "completion_tokens_details", None)
+        count = getattr(details, "reasoning_tokens", None)
+        if type(count) is int and count >= 0:
+            usage["reasoning_tokens"] = count
+        return usage
+
     # ------------------------------------------------------------------
     # Capability surface
     # ------------------------------------------------------------------

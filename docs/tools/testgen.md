@@ -6,7 +6,7 @@ The `testgen` tool creates comprehensive test suites by analyzing your code path
 
 ## Thinking Mode
 
-**Default is `medium` (8,192 tokens) for extended thinking models.** Use `high` for complex systems with many interactions or `max` for critical systems requiring exhaustive test coverage.
+Test generation defaults to `high`. Use `max` for complex interactions that need deeper analysis.
 
 ## How the Workflow Works
 
@@ -71,7 +71,7 @@ Test generation excels with extended reasoning models like Gemini Pro or O3, whi
 - `prompt`: Description of what to test, testing objectives, and specific scope/focus areas (required)
 - `model`: auto|pro|flash|flash-2.0|flashlite|o3|o3-mini|o4-mini|gpt4.1|gpt5.2|gpt5.1-codex|gpt5.1-codex-mini|gpt5|gpt5-mini|gpt5-nano (default: server default)
 - `test_examples`: Optional existing test files or directories to use as style/pattern reference (absolute paths)
-- `thinking_mode`: minimal|low|medium|high|max (default: medium, Gemini only)
+- `thinking_mode` accepts minimal, low, medium, high, or max on supported Gemini and OpenRouter models (default high).
 - `use_assistant_model`: Whether to use expert test generation phase (default: true, set to false to use Claude only)
 
 ## Usage Examples
