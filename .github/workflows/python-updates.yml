@@ -59,6 +59,6 @@ jobs:
           add-paths: |
             requirements.txt
             requirements-dev.txt
-          title: 'chore: Update Python dependency locks'
-          commit-message: 'chore: Update Python dependency locks'
+          title: 'Bump weekly python dependency locks'
+          commit-message: 'Bump weekly python dependency locks'
           body: 'Weekly minor and patch releases resolved from pyproject.toml and requirements-dev.in on Python 3.11.'
