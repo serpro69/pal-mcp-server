@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
 from config import TEMPERATURE_ANALYTICAL
 from systemprompts import PRECOMMIT_PROMPT
-from tools.shared.base_models import WorkflowRequest
+from tools.shared.base_models import FILE_DESCRIPTIONS_SCHEMA, FileAwareWorkflowRequest
 
 from .workflow.base import WorkflowTool
 
@@ -61,7 +61,7 @@ PRECOMMIT_WORKFLOW_FIELD_DESCRIPTIONS = {
 }
 
 
-class PrecommitRequest(WorkflowRequest):
+class PrecommitRequest(FileAwareWorkflowRequest):
     """Request model for precommit workflow investigation steps"""
 
     # Required fields for each investigation step
@@ -165,6 +165,7 @@ class PrecommitTool(WorkflowTool):
 
         # Precommit workflow-specific field overrides
         precommit_field_overrides = {
+            "file_descriptions": FILE_DESCRIPTIONS_SCHEMA,
             "step": {
                 "type": "string",
                 "description": PRECOMMIT_WORKFLOW_FIELD_DESCRIPTIONS["step"],

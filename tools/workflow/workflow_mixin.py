@@ -34,6 +34,7 @@ from config import MCP_PROMPT_SIZE_LIMIT
 from utils.conversation_context import (
     continuation_offer,
     current_invocation,
+    first_file_deliveries,
     invocation_attachments,
     invocation_history,
     record_provider_usage,
@@ -45,10 +46,11 @@ from utils.conversation_memory import (
     memory_persistence_warning,
     save_failed_workflow_state,
 )
+from utils.file_utils import bind_file_descriptions
 from utils.model_context import get_request_budget
 from utils.progress import progress_operation
 
-from ..shared.base_models import ConsolidatedFindings
+from ..shared.base_models import ConsolidatedFindings, FileAwareWorkflowRequest
 from ..shared.exceptions import ToolExecutionError
 
 logger = logging.getLogger(__name__)
@@ -185,6 +187,9 @@ class BaseWorkflowMixin(ABC):
         remaining_budget: Optional[int] = None,
         arguments: Optional[dict[str, Any]] = None,
         model_context: Optional[Any] = None,
+        *,
+        blinded: bool = False,
+        file_descriptions: Optional[dict[str, str]] = None,
     ) -> tuple[str, list[str]]:
         """Prepare file content for prompts. Usually provided by BaseTool."""
         pass
@@ -462,6 +467,7 @@ class BaseWorkflowMixin(ABC):
             None,
             "Expert analysis files",
             model_context=self.get_current_model_context(),
+            file_descriptions=self.consolidated_findings.file_descriptions,
         )
         self._embedded_file_content = content
         self._actually_processed_files = included
@@ -592,6 +598,7 @@ class BaseWorkflowMixin(ABC):
                 remaining_budget=remaining_tokens,
                 arguments=arguments,
                 model_context=self._model_context,
+                file_descriptions=self.consolidated_findings.file_descriptions,
             )
 
             # Store for use in expert analysis
@@ -726,6 +733,8 @@ class BaseWorkflowMixin(ABC):
             # Process work step - allow tools to customize field mapping
             step_data = self.prepare_step_data(request)
             step_data["caller_confidence"] = self.get_caller_confidence(request)
+            if isinstance(request, FileAwareWorkflowRequest):
+                self._bind_step_file_descriptions(request, step_data)
 
             # Store in history
             self.work_history.append(step_data)
@@ -1185,6 +1194,11 @@ class BaseWorkflowMixin(ABC):
                 save_failed_workflow_state(continuation_id, self.get_name(), workflow_state)
                 response_data["continuation_offer"] = continuation_offer(continuation_id)
                 return
+            if invocation and invocation.provider_calls:
+                # A structured expert error can still carry a nonempty provider reply.
+                workflow_state["included_files"] = (
+                    [] if response_data.get("status") == "error" else self.get_actually_processed_files()
+                )
             add_turn(
                 thread_id=continuation_id,
                 role="assistant",
@@ -1397,8 +1411,21 @@ class BaseWorkflowMixin(ABC):
 
         return response_data
 
+    def _bind_step_file_descriptions(self, request: FileAwareWorkflowRequest, step_data: dict) -> None:
+        labels = bind_file_descriptions(request.relevant_files, request.file_descriptions)
+        restored = self.consolidated_findings.file_descriptions
+        owners = first_file_deliveries(self, restored.keys() | labels.keys())
+        for path, owner in owners.items():
+            labels.pop(path, None)
+            if owner != self.get_name():
+                # Another tool delivered this file before our pending label reached an expert.
+                restored.pop(path, None)
+        if labels:
+            step_data["file_descriptions"] = labels
+
     def _update_consolidated_findings(self, step_data: dict):
         """Update consolidated findings with new step data"""
+        self.consolidated_findings.file_descriptions.update(step_data.get("file_descriptions", {}))
         self.consolidated_findings.files_checked.update(step_data.get("files_checked", []))
         self.consolidated_findings.relevant_files.update(step_data.get("relevant_files", []))
         self.consolidated_findings.relevant_context.update(step_data.get("relevant_context", []))

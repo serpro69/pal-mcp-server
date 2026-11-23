@@ -698,7 +698,13 @@ def _plan_file_inclusion_by_size(all_files: list[str], max_file_tokens: int) -> 
 
 
 def build_conversation_history(
-    context: ThreadContext, model_context=None, read_files_func=None, *, file_report=None, file_budget=None
+    context: ThreadContext,
+    model_context=None,
+    read_files_func=None,
+    *,
+    file_report=None,
+    file_budget=None,
+    file_descriptions=None,
 ) -> tuple[str, int]:
     """
     Build formatted conversation history for tool prompts with embedded file contents.
@@ -882,6 +888,7 @@ def build_conversation_history(
                 include_line_numbers=None,
                 report=report,
                 token_estimator=model_context.estimate_tokens,
+                file_descriptions=file_descriptions,
             )
         else:
             # Compatibility hook for injected readers; unverified reader output

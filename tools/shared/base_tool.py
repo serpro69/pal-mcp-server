@@ -827,7 +827,9 @@ class BaseTool(ABC):
 
         return parts
 
-    def handle_prompt_file(self, files: Optional[list[str]]) -> tuple[Optional[str], Optional[list[str]]]:
+    def handle_prompt_file(
+        self, files: Optional[list[str]], *, consumed_files: Optional[list[str]] = None
+    ) -> tuple[Optional[str], Optional[list[str]]]:
         """
         Check for and handle prompt.txt in the absolute file paths list.
 
@@ -840,6 +842,7 @@ class BaseTool(ABC):
 
         Args:
             files: List of absolute file paths (will be translated for current environment)
+            consumed_files: Optional collector for the canonical paths read as prompt input
 
         Returns:
             tuple: (prompt_content, updated_files_list)
@@ -857,7 +860,7 @@ class BaseTool(ABC):
             if os.path.basename(file_path) == "prompt.txt":
                 try:
                     # Read prompt.txt content and extract just the text
-                    content, _ = read_file_content(file_path)
+                    content, _ = read_file_content(file_path, included_files=consumed_files)
                     # Extract the content between the file markers
                     if "--- BEGIN FILE:" in content and "--- END FILE:" in content:
                         lines = content.split("\n")
@@ -952,6 +955,7 @@ class BaseTool(ABC):
         model_context: Optional[Any] = None,
         *,
         blinded: bool = False,
+        file_descriptions: Optional[dict[str, str]] = None,
     ) -> tuple[str, list[str]]:
         """Admit and render files once, recording only successfully included content."""
         if not request_files:
@@ -985,6 +989,7 @@ class BaseTool(ABC):
             reserve_tokens=0,
             include_line_numbers=self.wants_line_numbers_by_default(),
             report=report,
+            file_descriptions=file_descriptions,
             token_estimator=model_context.estimate_tokens,
         )
         self._file_context_report = {

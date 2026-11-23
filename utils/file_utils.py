@@ -40,6 +40,8 @@ multi-turn file handling:
 import json
 import logging
 import os
+import re
+import unicodedata
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -419,12 +421,61 @@ def expand_paths(paths: list[str], extensions: Optional[set[str]] = None) -> lis
     return expanded_files
 
 
+MAX_FILE_DESCRIPTION_LENGTH = 200
+
+
+def _clean_file_description(value: str) -> str:
+    """Keep a description on one safe header line, including after repeated cleaning."""
+    value = "".join(" " if unicodedata.category(char) in {"Cc", "Cf", "Cs"} else char for char in value)
+    value = re.sub(r"-{3,}", "—", " ".join(value.split()).replace("]", ")"))
+    if len(value) > MAX_FILE_DESCRIPTION_LENGTH:
+        return value[: MAX_FILE_DESCRIPTION_LENGTH - 1] + "…"
+    return value
+
+
+def bind_file_descriptions(paths: list[str], descriptions: Optional[dict[str, str]]) -> dict[str, str]:
+    """Resolve annotations only against files from this attachment set."""
+    if not paths or not descriptions:
+        return {}
+
+    by_path: dict[Path, str] = {}
+    for spelling in sorted(descriptions):
+        try:
+            key = resolve_and_validate_path(str(Path(spelling).expanduser()))
+            if not os.access(key, os.R_OK):
+                continue
+        except (OSError, RuntimeError, ValueError):
+            continue
+        # Sorted aliases give a stable first choice; a canonical spelling always wins.
+        if key not in by_path or spelling == str(key):
+            by_path[key] = descriptions[spelling]
+
+    cleaned: dict[Path, str] = {}
+    result = {}
+    for candidate in expand_paths(paths):
+        try:
+            path = resolve_and_validate_path(candidate)
+            if not path.is_file() or not os.access(path, os.R_OK):
+                continue
+        except (OSError, RuntimeError, ValueError):
+            continue
+        for key in (path, *path.parents):
+            if key in by_path:
+                if key not in cleaned:
+                    cleaned[key] = _clean_file_description(by_path[key])
+                if cleaned[key]:
+                    result[str(path)] = cleaned[key]
+                break
+    return result
+
+
 def read_file_content(
     file_path: str,
     max_size: int = 1_000_000,
     *,
     include_line_numbers: Optional[bool] = None,
     included_files: Optional[list[str]] = None,
+    description: Optional[str] = None,
 ) -> tuple[str, int]:
     """
     Read a single file and format it for inclusion in AI prompts.
@@ -509,8 +560,10 @@ def read_file_content(
         # ("--- BEGIN DIFF: ... ---") to allow AI to distinguish between complete file content
         # vs. partial diff content when files appear in both sections
         modified_at = datetime.fromtimestamp(stat_result.st_mtime, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S %Z")
+        label = _clean_file_description(description) if description else ""
+        annotation = f" [{label}]" if label else ""
         formatted = (
-            f"\n--- BEGIN FILE: {file_path} (Last modified: {modified_at}) ---\n"
+            f"\n--- BEGIN FILE: {file_path} (Last modified: {modified_at}){annotation} ---\n"
             f"{file_content}\n"
             f"--- END FILE: {file_path} ---\n"
         )
@@ -565,6 +618,7 @@ def read_files(
     include_line_numbers: bool = False,
     report: Optional[FileReadReport] = None,
     token_estimator: Callable[[str], int] = estimate_tokens,
+    file_descriptions: Optional[dict[str, str]] = None,
 ) -> str:
     """
     Read multiple files and optional direct code with smart token management.
@@ -599,7 +653,12 @@ def read_files(
             yield f"\n--- BEGIN DIRECT CODE ---\n{code}\n--- END DIRECT CODE ---\n", []
         for path in expand_file_inputs(file_paths):
             included: list[str] = []
-            content, _ = read_file_content(path, include_line_numbers=include_line_numbers, included_files=included)
+            content, _ = read_file_content(
+                path,
+                include_line_numbers=include_line_numbers,
+                included_files=included,
+                description=file_descriptions.get(path) if file_descriptions else None,
+            )
             report.file_tokens[path] = token_estimator(content)
             if not included:
                 report.unavailable.append(path)

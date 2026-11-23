@@ -23,14 +23,14 @@ if TYPE_CHECKING:
 
 from config import TEMPERATURE_CREATIVE
 from systemprompts import THINKDEEP_PROMPT
-from tools.shared.base_models import WorkflowRequest
+from tools.shared.base_models import FILE_DESCRIPTIONS_SCHEMA, FileAwareWorkflowRequest
 
 from .workflow.base import WorkflowTool
 
 logger = logging.getLogger(__name__)
 
 
-class ThinkDeepWorkflowRequest(WorkflowRequest):
+class ThinkDeepWorkflowRequest(FileAwareWorkflowRequest):
     """Request model for thinkdeep workflow tool with comprehensive investigation capabilities"""
 
     # Core workflow parameters
@@ -141,6 +141,7 @@ class ThinkDeepTool(WorkflowTool):
 
         # ThinkDeep workflow-specific field overrides
         thinkdeep_field_overrides = {
+            "file_descriptions": FILE_DESCRIPTIONS_SCHEMA,
             "problem_context": {
                 "type": "string",
                 "description": "Additional context about problem/goal. Be expressive.",

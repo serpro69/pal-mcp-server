@@ -8,6 +8,7 @@ The context is reset on every exit, including cancellation and provider failure.
 import json
 from contextvars import ContextVar
 from functools import wraps
+from pathlib import Path
 from typing import Any
 
 from tools.models import ToolOutput
@@ -110,6 +111,65 @@ def invocation_thread(tool):
     return thread
 
 
+def _legacy_file_inclusions(reply, previous, candidates: set[str]) -> set[str]:
+    """Use paths saved at delivery time, even if a symlink has since changed."""
+    references = {Path(path) for path in reply.files or []}
+    if not references:
+        return set()
+    if previous and previous.role == "user" and previous.tool_name == reply.tool_name and previous.files is not None:
+        # The input recorded expanded paths, while the reply could retain a directory or alias.
+        unmatched = references.copy()
+        included = set()
+        for filename in previous.files:
+            path = Path(filename)
+            matches = references.intersection((path, *path.parents))
+            if matches:
+                unmatched.difference_update(matches)
+                included.add(filename)
+        # An old alias has no saved mapping to its target. Its possible targets are
+        # bounded by the paired input snapshot, regardless of where the alias points today.
+        return candidates.intersection(previous.files if unmatched else included)
+
+    # Without a paired snapshot, a recorded directory conservatively covers its descendants.
+    return {path for path in candidates if references.intersection((Path(path), *Path(path).parents))}
+
+
+def first_file_deliveries(tool, candidates: set[str]) -> dict[str, str | None]:
+    """Identify the first committed model turn to include each candidate in the chain."""
+    invocation = current_invocation(tool)
+    if not candidates or invocation is None or invocation.is_new:
+        return {}
+
+    owners = {}
+    turns = invocation_thread(tool).turns
+    for index, turn in enumerate(turns):
+        if turn.role != "assistant":
+            continue
+        metadata = turn.model_metadata or {}
+        if "included_files" in metadata:
+            delivered = metadata["included_files"]
+        elif turn.model_name and turn.tool_name != "clink":
+            previous = turns[index - 1] if index else None
+            delivered = _legacy_file_inclusions(turn, previous, candidates)
+        else:
+            continue
+        for path in candidates.intersection(delivered):
+            owners.setdefault(path, turn.tool_name)
+        if len(owners) == len(candidates):
+            break
+    return owners
+
+
+def new_file_descriptions(tool, paths: list[str], descriptions: dict[str, str] | None) -> dict[str, str]:
+    """Bind current labels, keeping only files without a prior committed embedding."""
+    from utils.file_utils import bind_file_descriptions
+
+    labels = bind_file_descriptions(paths, descriptions)
+    for path in first_file_deliveries(tool, set(labels)):
+        del labels[path]
+    return labels
+
+
 def invocation_attachments(tool) -> tuple[list[str], list[str]]:
     thread = invocation_thread(tool)
     if thread is None:
@@ -138,7 +198,9 @@ def remaining_input_budget(tool, model_context) -> int:
     return max(0, allocation.content_tokens - used)
 
 
-def invocation_history(tool, model_context=None, *, text_only=False, expert=False, represented_context="") -> str:
+def invocation_history(
+    tool, model_context=None, *, text_only=False, expert=False, represented_context="", file_descriptions=None
+) -> str:
     """Budget older history while keeping the admitted current input exactly once."""
     context = current_invocation(tool)
     thread = invocation_thread(tool)
@@ -173,7 +235,9 @@ def invocation_history(tool, model_context=None, *, text_only=False, expert=Fals
     budget = None
     if not text_only and not expert:
         budget = model_context.file_budget(remaining_input_budget(tool, model_context))
-    history, _ = memory.build_conversation_history(thread, model_context, file_report=report, file_budget=budget)
+    history, _ = memory.build_conversation_history(
+        thread, model_context, file_report=report, file_budget=budget, file_descriptions=file_descriptions
+    )
     if not text_only and not expert and report.omitted:
         from utils.file_utils import check_total_file_size, expand_file_inputs
 
@@ -237,7 +301,15 @@ def conversation_request(*, workflow=False):
                 else:
                     # Load prompt files once before the raw input is persisted.
                     files = tool.get_request_files(request)
-                    prompt_file, updated_files = tool.handle_prompt_file(files) if files else (None, None)
+                    if files and getattr(request, "file_descriptions", None):
+                        consumed = []
+                        prompt_file, updated_files = tool.handle_prompt_file(files, consumed_files=consumed)
+                        if prompt_file:
+                            # A blank canonical file entry overrides both aliases and directory
+                            # labels if attachment expansion includes a consumed prompt again.
+                            request.file_descriptions.update(dict.fromkeys(consumed, ""))
+                    else:
+                        prompt_file, updated_files = tool.handle_prompt_file(files) if files else (None, None)
                     if prompt_file:
                         raw = prompt_file
                     if updated_files is not None:
@@ -266,7 +338,9 @@ def conversation_request(*, workflow=False):
                             args["model"] = turn.model_name
                             break
                 if is_new:
-                    thread_id = memory.create_thread(tool.get_name(), request.model_dump(exclude_none=True))
+                    thread_id = memory.create_thread(
+                        tool.get_name(), request.model_dump(exclude_none=True, exclude={"file_descriptions"})
+                    )
                 memory.add_turn(
                     thread_id,
                     "user",

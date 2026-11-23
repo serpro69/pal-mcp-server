@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 
 from config import TEMPERATURE_ANALYTICAL
 from systemprompts import SECAUDIT_PROMPT
-from tools.shared.base_models import WorkflowRequest
+from tools.shared.base_models import FILE_DESCRIPTIONS_SCHEMA, FileAwareWorkflowRequest
 
 from .workflow.base import WorkflowTool
 
@@ -56,7 +56,7 @@ SECAUDIT_WORKFLOW_FIELD_DESCRIPTIONS = {
 }
 
 
-class SecauditRequest(WorkflowRequest):
+class SecauditRequest(FileAwareWorkflowRequest):
     """Request model for security audit workflow investigation steps"""
 
     # Required fields for each investigation step
@@ -357,6 +357,7 @@ class SecauditTool(WorkflowTool):
 
         # Security audit workflow-specific field overrides
         secaudit_field_overrides = {
+            "file_descriptions": FILE_DESCRIPTIONS_SCHEMA,
             "step": {
                 "type": "string",
                 "description": SECAUDIT_WORKFLOW_FIELD_DESCRIPTIONS["step"],
