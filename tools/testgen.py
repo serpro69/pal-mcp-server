@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
 from config import TEMPERATURE_ANALYTICAL
 from systemprompts import TESTGEN_PROMPT
-from tools.shared.base_models import WorkflowRequest
+from tools.shared.base_models import FILE_DESCRIPTIONS_SCHEMA, FileAwareWorkflowRequest
 
 from .workflow.base import WorkflowTool
 
@@ -55,7 +55,7 @@ TESTGEN_WORKFLOW_FIELD_DESCRIPTIONS = {
 }
 
 
-class TestGenRequest(WorkflowRequest):
+class TestGenRequest(FileAwareWorkflowRequest):
     """Request model for test generation workflow investigation steps"""
 
     # Required fields for each investigation step
@@ -140,6 +140,7 @@ class TestGenTool(WorkflowTool):
 
         # Test generation workflow-specific field overrides
         testgen_field_overrides = {
+            "file_descriptions": FILE_DESCRIPTIONS_SCHEMA,
             "step": {
                 "type": "string",
                 "description": TESTGEN_WORKFLOW_FIELD_DESCRIPTIONS["step"],

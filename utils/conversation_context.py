@@ -8,6 +8,7 @@ The context is reset on every exit, including cancellation and provider failure.
 import json
 from contextvars import ContextVar
 from functools import wraps
+from pathlib import Path
 from typing import Any
 
 from tools.models import ToolOutput
@@ -110,30 +111,66 @@ def invocation_thread(tool):
     return thread
 
 
-def new_file_descriptions(tool, paths: list[str], descriptions: dict[str, str] | None) -> dict[str, str]:
-    """Bind current labels, keeping only files without a prior committed embedding."""
-    from utils.file_utils import bind_file_descriptions, expand_file_inputs
+def _legacy_file_inclusions(reply, previous, candidates: set[str]) -> set[str]:
+    """Match recorded reply references without enumerating a historical directory today."""
+    from utils.file_utils import resolve_and_validate_path
 
-    labels = bind_file_descriptions(paths, descriptions)
+    def resolved(paths):
+        result = set()
+        for path in paths or []:
+            try:
+                result.add(resolve_and_validate_path(path))
+            except (OSError, RuntimeError, ValueError):
+                continue
+        return result
+
+    requested = resolved(reply.files)
+    # Old workflow replies can name directories. Their paired input recorded the children.
+    # Without that snapshot, conservatively treat a recorded directory as covering its subtree.
+    children = None
+    if previous and previous.role == "user" and previous.tool_name == reply.tool_name and previous.files is not None:
+        children = resolved(previous.files)
+    included = set()
+    for candidate in candidates:
+        path = Path(candidate)
+        if path in requested or ((children is None or path in children) and requested.intersection(path.parents)):
+            included.add(candidate)
+    return included
+
+
+def first_file_deliveries(tool, candidates: set[str]) -> dict[str, str | None]:
+    """Identify the first committed model turn to include each candidate in the chain."""
     invocation = current_invocation(tool)
-    if not labels or invocation is None or invocation.is_new:
-        return labels
+    if not candidates or invocation is None or invocation.is_new:
+        return {}
 
-    for turn in invocation_thread(tool).turns:
+    owners = {}
+    turns = invocation_thread(tool).turns
+    for index, turn in enumerate(turns):
         if turn.role != "assistant":
             continue
         metadata = turn.model_metadata or {}
         if "included_files" in metadata:
             delivered = metadata["included_files"]
         elif turn.model_name and turn.tool_name != "clink":
-            # Legacy model replies stored attachment references, even on omissions.
-            delivered = expand_file_inputs(turn.files or [])
+            previous = turns[index - 1] if index else None
+            delivered = _legacy_file_inclusions(turn, previous, candidates)
         else:
             continue
-        for path in delivered:
-            labels.pop(path, None)
-        if not labels:
+        for path in candidates.intersection(delivered):
+            owners.setdefault(path, turn.tool_name)
+        if len(owners) == len(candidates):
             break
+    return owners
+
+
+def new_file_descriptions(tool, paths: list[str], descriptions: dict[str, str] | None) -> dict[str, str]:
+    """Bind current labels, keeping only files without a prior committed embedding."""
+    from utils.file_utils import bind_file_descriptions
+
+    labels = bind_file_descriptions(paths, descriptions)
+    for path in first_file_deliveries(tool, set(labels)):
+        del labels[path]
     return labels
 
 
@@ -271,6 +308,10 @@ def conversation_request(*, workflow=False):
                     prompt_file, updated_files = tool.handle_prompt_file(files) if files else (None, None)
                     if prompt_file:
                         raw = prompt_file
+                        if updated_files is None and getattr(request, "file_descriptions", None):
+                            # A sole prompt.txt is retained in legacy attachment tracking.
+                            # It supplied the prompt, so it has no labelable attachment role.
+                            request.file_descriptions = {}
                     if updated_files is not None:
                         tool.set_request_files(request, updated_files)
                     request.prompt = raw

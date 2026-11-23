@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
 from config import TEMPERATURE_ANALYTICAL
 from systemprompts import REFACTOR_PROMPT
-from tools.shared.base_models import WorkflowRequest
+from tools.shared.base_models import FILE_DESCRIPTIONS_SCHEMA, FileAwareWorkflowRequest
 
 from .workflow.base import WorkflowTool
 
@@ -91,7 +91,7 @@ REFACTOR_FIELD_DESCRIPTIONS = {
 }
 
 
-class RefactorRequest(WorkflowRequest):
+class RefactorRequest(FileAwareWorkflowRequest):
     """Request model for refactor workflow investigation steps"""
 
     # Required fields for each investigation step
@@ -188,6 +188,7 @@ class RefactorTool(WorkflowTool):
 
         # Refactor workflow-specific field overrides
         refactor_field_overrides = {
+            "file_descriptions": FILE_DESCRIPTIONS_SCHEMA,
             "step": {
                 "type": "string",
                 "description": REFACTOR_FIELD_DESCRIPTIONS["step"],
