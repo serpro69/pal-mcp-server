@@ -10,7 +10,7 @@ import shlex
 import stat
 import tempfile
 import time
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from contextlib import AsyncExitStack, nullcontext
 from dataclasses import dataclass
 from pathlib import Path
@@ -209,6 +209,13 @@ class BaseCLIAgent:
             if cwd:
                 self._logger.debug("Working directory: %s", cwd)
 
+            record_stderr = None
+            if self.client.custom and self.client.custom.log_stderr_on_failure:
+                record_stderr = await resources.enter_async_context(
+                    private_stderr_on_failure(
+                        self.client.name, prompt, env, flag_prompt=self.client.custom.prompt.mode == "flag"
+                    )
+                )
             try:
                 process = await asyncio.create_subprocess_exec(
                     *launch.argv,
@@ -242,7 +249,10 @@ class BaseCLIAgent:
             try:
                 stdout_bytes, stderr_bytes = await asyncio.wait_for(
                     self._communicate(
-                        process, launch.stdin if launch.stdin is not None else self._encode_stdin(prompt), limit
+                        process,
+                        launch.stdin if launch.stdin is not None else self._encode_stdin(prompt),
+                        limit,
+                        record_stderr,
                     ),
                     timeout=self.client.timeout_seconds,
                 )
@@ -262,16 +272,6 @@ class BaseCLIAgent:
 
             duration = time.monotonic() - start_time
             return_code = process.returncode
-            if self.client.custom and self.client.custom.log_stderr_on_failure and stderr_bytes:
-                await resources.enter_async_context(
-                    private_stderr_on_failure(
-                        self.client.name,
-                        stderr_bytes,
-                        prompt,
-                        env,
-                        flag_prompt=self.client.custom.prompt.mode == "flag",
-                    )
-                )
             stdout_text, stderr_text = self._decode_output(stdout_bytes, stderr_bytes, return_code)
 
             if output_file_path and output_file_path.exists():
@@ -341,7 +341,13 @@ class BaseCLIAgent:
         description = "Executable not found" if isinstance(exc, FileNotFoundError) else "Could not launch executable"
         return CLIAgentError(f"{description} for CLI '{self.client.name}': {exc}", stage="launch")
 
-    async def _communicate(self, process: asyncio.subprocess.Process, data: bytes, limit: int) -> tuple[bytes, bytes]:
+    async def _communicate(
+        self,
+        process: asyncio.subprocess.Process,
+        data: bytes,
+        limit: int,
+        record_stderr: Callable[[bytes], None] | None,
+    ) -> tuple[bytes, bytes]:
         return await process.communicate(data)
 
     def _decode_output(self, stdout: bytes, stderr: bytes, returncode: int) -> tuple[str, str]:

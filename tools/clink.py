@@ -396,7 +396,7 @@ class CLinkTool(SimpleTool):
             if isinstance(exc, WorkingDirectoryLaunchError):
                 metadata.update(error_type="WorkingDirectoryLaunchError", stage="spawn", execution_started=False)
             if client_config.custom is not None:
-                metadata["stage"] = exc.stage
+                metadata.setdefault("stage", exc.stage)
                 self._raise_client_error(client_config, str(exc), metadata)
             self._raise_cli_error(
                 client_config,

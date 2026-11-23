@@ -105,6 +105,10 @@ DEFAULT_MODEL=llama3.2                              # Registered model or alias
 - Use standard localhost URLs since the server runs natively
 - Example: `http://localhost:11434/v1` for Ollama
 
+### Config-only CLI clients
+
+Register a noninteractive CLI with a complete JSON manifest in `~/.pal/cli_clients/` or at the file or directory named by `CLI_CLIENTS_CONFIG_PATH`. Restart PAL, then check the new name with `listmodels`. A malformed manifest prevents the entire server from starting. The clink guide includes two complete examples and explains how to diagnose startup and call failures. [Register a config-only client](tools/clink.md#register-a-config-only-client)
+
 ### CLI conversation history budgets
 
 Each [clink](tools/clink.md) client can set `history_token_budget` in its JSON

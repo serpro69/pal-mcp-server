@@ -9,6 +9,7 @@ import shlex
 import sys
 import tempfile
 from pathlib import Path
+from threading import Event
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -16,6 +17,7 @@ import pytest
 
 from clink import availability, diagnostics
 from clink.agents import create_agent
+from clink.agents import generic as generic_runner
 from clink.agents.base import CLIAgentError
 from clink.constants import DEFAULT_STREAM_LIMIT
 from clink.registry import ClinkRegistry, RegistryLoadError
@@ -164,6 +166,15 @@ async def test_empty_edit_bucket_scope_missing_role_and_executable(cli, tmp_path
     assert (await failure(cli))["stage"] == "lookup"
     details = await failure(cli, working_directory_absolute_path=str(tmp_path / "missing-dir"))
     assert details["error_type"] == "InvalidWorkingDirectoryError" and not details["execution_started"]
+    assert not cli.launches
+
+
+async def test_generic_scratch_allocation_failure_preserves_spawn_stage(cli, monkeypatch):
+    monkeypatch.setattr(tempfile, "TemporaryDirectory", Mock(side_effect=PermissionError(errno.EACCES, "denied")))
+    meta = await failure(cli)
+    assert meta["error_type"] == "WorkingDirectoryLaunchError"
+    assert meta["stage"] == "spawn" and not meta["execution_started"]
+    assert meta["working_directory"]["source"] == "scratch"
     assert not cli.launches
 
 
@@ -644,15 +655,38 @@ async def test_real_stream_limits_and_reaping(cli, mode):
 
 
 @pytest.mark.parametrize("cancel", [True, False], ids=["cancel", "timeout"])
-async def test_interrupted_generic_child_is_reaped_before_scratch_cleanup(cli, cancel, monkeypatch):
+@pytest.mark.parametrize("closed_stderr", [False, True], ids=["open-stderr", "complete-stderr"])
+async def test_interrupted_generic_child_is_reaped_before_scratch_cleanup(cli, cancel, closed_stderr, monkeypatch):
+    stderr_eof = asyncio.Event()
+    read_limited = generic_runner._read_limited
+
+    async def observe_eof(stream, name, limit):
+        data = await read_limited(stream, name, limit)
+        if name == "stderr":
+            stderr_eof.set()
+        return data
+
+    monkeypatch.setattr(generic_runner, "_read_limited", observe_eof)
     async with child_gate() as gate:
         cli.configure(
             custom={**cli.manifest["custom"], "log_stderr_on_failure": True},
-            env={**cli.manifest["env"], "FIXTURE_MODE": "hold", "FIXTURE_PORT": str(gate.port)},
+            env={
+                **cli.manifest["env"],
+                "FIXTURE_MODE": "hold-closed-stderr" if closed_stderr else "hold",
+                "FIXTURE_PORT": str(gate.port),
+            },
             timeout_seconds=10 if cancel else 1,
         )
-        write_stderr = Mock()
+        release_sink = Event()
+        sink_wait_expired = Event()
+
+        def stalled_write(*args):
+            if not release_sink.wait(timeout=5):
+                sink_wait_expired.set()
+
+        write_stderr = Mock(side_effect=stalled_write)
         monkeypatch.setattr(diagnostics, "_write_stderr", write_stderr)
+        monkeypatch.setattr(diagnostics, "DEFAULT_CLEANUP_TIMEOUT_SECONDS", 0.1)
         cleanup = tempfile.TemporaryDirectory.cleanup
 
         def check_cleanup(directory):
@@ -664,15 +698,26 @@ async def test_interrupted_generic_child_is_reaped_before_scratch_cleanup(cli, c
         task = asyncio.create_task(invoke(cli) if cancel else failure(cli))
         reader, _ = await asyncio.wait_for(gate.connections.get(), 5)
         assert await reader.readexactly(1) == b"R"
-        if cancel:
-            task.cancel()
-            with pytest.raises(asyncio.CancelledError):
-                await task
-        else:
-            assert (await task)["stage"] == "timeout"
+        if closed_stderr:
+            await asyncio.wait_for(stderr_eof.wait(), 5)
+        try:
+            if cancel:
+                task.cancel()
+                with pytest.raises(asyncio.CancelledError):
+                    await task
+            else:
+                assert (await task)["stage"] == "timeout"
+            assert not sink_wait_expired.is_set()
+            assert not cli.launches[0][1].exists()
+        finally:
+            release_sink.set()
         assert await asyncio.wait_for(reader.read(), 5) == b""
-        write_stderr.assert_not_called()
-        assert not cli.launches[0][1].exists() and not cli.storage._store
+        if closed_stderr:
+            write_stderr.assert_called_once()
+            assert write_stderr.call_args.args[1].splitlines() == [b"HELD_DIAGNOSTIC"]
+        else:
+            write_stderr.assert_not_called()
+        assert not cli.storage._store
 
 
 async def test_persistence_failure_after_success_keeps_reply(cli, monkeypatch):

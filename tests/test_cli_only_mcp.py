@@ -4,6 +4,8 @@ import asyncio
 import json
 import os
 import shlex
+import shutil
+import subprocess
 import sys
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
@@ -50,7 +52,7 @@ class CLIOnlyServer:
         return {path.stem for path in (self.root / "captures" / self.vendor).glob("*.json")}
 
     @asynccontextmanager
-    async def connect(self, *, gate_port=0, mode="legacy"):
+    async def connect(self, *, gate_port=0, mode="legacy", extra_manifests=()):
         manifests = self.root / "clients"
         manifests.mkdir()
         for vendor in self.vendors:
@@ -70,6 +72,9 @@ class CLIOnlyServer:
             agy = json.loads((REPO / "conf" / "cli_clients" / "agy.json").read_text(encoding="utf-8"))
             agy["command"] = shlex.quote(str(self.root / "missing-agy"))
             (manifests / "agy.json").write_text(json.dumps(agy), encoding="utf-8")
+
+        for source in extra_manifests:
+            shutil.copyfile(source, manifests / source.name)
 
         # Do not copy os.environ: pytest and the developer's shell contain keys,
         # model overrides and paths that can silently turn this into an API test.
@@ -124,6 +129,62 @@ def cli_server(tmp_path, monkeypatch, vendor):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "PARENT_CHILD_KEY_MUST_NOT_LEAK")
     monkeypatch.setenv("GOOGLE_API_KEY", "PARENT_CHILD_KEY_MUST_NOT_LEAK")
     return CLIOnlyServer(tmp_path, vendor, settings | {"ANTHROPIC_API_KEY", "GOOGLE_API_KEY"})
+
+
+@pytest.mark.skipif(os.name == "nt", reason="The named example executables use POSIX shebangs")
+@pytest.mark.parametrize("vendor", ["codex"])
+async def test_published_config_only_clients_through_stdio(cli_server, monkeypatch):
+    names = ("team-ask", "team-review")
+    manifests = [FIXTURES / "clink_generic" / f"{name}.json" for name in names]
+    guide = (REPO / "docs/tools/clink.md").read_text(encoding="utf-8")
+    for manifest in manifests:
+        assert f"```json\n{manifest.read_text(encoding='utf-8')}```" in guide, manifest.name
+
+    # Keep host executables out of the example clients' PATH.
+    bin_dir = cli_server.root / "bin"
+    bin_dir.mkdir()
+    git_path = shutil.which("git")
+    assert git_path, "The published team-review example requires Git"
+    git = Path(git_path).absolute()
+    (bin_dir / "git").symlink_to(git)
+    (bin_dir / "python3").symlink_to(sys.executable)
+    for name in names:
+        command = bin_dir / name
+        shutil.copyfile(FIXTURES / "published_clink_client.py", command)
+        command.chmod(0o755)
+    project = cli_server.root / "worktree"
+    subprocess.run(
+        [git, "init", "--quiet", "--template=", str(project)],
+        env={"PATH": str(bin_dir), "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull},
+        check=True,
+    )
+    decision = project / "decision.txt"
+    decision.write_text("Ready", encoding="utf-8")
+    monkeypatch.setenv("PATH", str(bin_dir))
+
+    async with cli_server.connect(extra_manifests=manifests) as (session, _):
+        schema = next(tool.input_schema for tool in (await session.list_tools()).tools if tool.name == "clink")
+        assert set(names) <= set(schema["properties"]["cli_name"]["enum"])
+        discovery = payload(await session.call_tool("listmodels", {}))["metadata"]
+        assert discovery["mode"] == "provider-free"
+        found = {item["name"] for item in discovery["cli_clients"] if item["executable_found"]}
+        assert set(names) <= found
+
+        ask = payload(await session.call_tool("clink", {"cli_name": "team-ask", "prompt": "Read the sample."}))
+        assert ask["content"] == "Sample received."
+        review = payload(
+            await session.call_tool(
+                "clink",
+                {"cli_name": "team-review", "working_directory_absolute_path": str(project), "prompt": "Review ALPHA."},
+            )
+        )
+        assert review["content"] == "Ready"
+        decision.unlink()  # The follow-up must use the saved reply.
+        thread = review["continuation_offer"]["continuation_id"]
+        followup = payload(
+            await session.call_tool("clink", {"continuation_id": thread, "prompt": "Recall the review."})
+        )
+        assert followup["content"] == "ALPHA was Ready."
 
 
 @pytest.mark.parametrize("vendor", ["codex"])
@@ -190,7 +251,7 @@ async def test_generic_conversation_and_private_exit_through_stdio(
         assert (
             "First question" in prompt and first["content"].strip() in prompt and "PRIVATE_STDIO_REQUEST" not in prompt
         )
-        mode.write_text("stderr")
+        mode.write_text("stdout" if private_log else "stderr")
         overflow = payload(
             await session.call_tool("clink", {"prompt": "Overflow", "continuation_id": thread}), error=True
         )
@@ -215,6 +276,7 @@ async def test_generic_conversation_and_private_exit_through_stdio(
             "PRIVATE_STDIO_TOKEN",
             "PRIVATE_PROXY",
             "PLAUSIBLE_PRIVATE_ANSWER",
+            "PRIVATE_OVERFLOW_DETAIL",
         ):
             assert marker not in diagnostic
 

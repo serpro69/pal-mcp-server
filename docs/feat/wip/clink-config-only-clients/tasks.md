@@ -2,7 +2,7 @@
 
 > [Design](./design.md) · [Implementation plan](./implementation.md) · [Issue #33](https://github.com/serpro69/pal-mcp-server/issues/33)
 >
-> **Status:** in-progress. **Created:** 2026-11-23.
+> **Status:** done. **Created:** 2026-11-23.
 >
 > **Not Doing:** executable parser plugins, interactive or event-stream protocols, vendor presets, per-path enforcement.
 
@@ -113,18 +113,30 @@
 
 ## Task 6 — Document and verify the feature
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 5
 - **Size:** S
 - **Can run in parallel with:** —
 - **Docs:** [Documentation and release checks](./implementation.md#operator-documentation-and-release-checks)
 
-- [ ] Use `$kk:document` to publish both manifests and their troubleshooting rules. Cover startup stderr, hidden `*.json` entries and UTF-8 byte-order marks, optional local failure details, executable and script path bases, argv-preserving launchers, platform size limits, smaller history budgets, restart effects and directory recovery.
-- [ ] Use `$kk:test` to run the **exact published manifests** through the local stdio MCP harness. Supply named executable fixtures on an isolated PATH and a Git worktree for `team-review`. Verify registration in the schema and provider-free discovery, both replies and a dependent follow-up. Check the installed distribution can resolve the bundled neutral prompt.
-- [ ] Run the focused subprocess, directory, environment, parser and history checks plus the repository quality, integration and quick simulator commands. Record live prerequisites or skips. The installed-vendor simulator needs a new case only if a shipped adapter changes in a way the existing checks cannot verify.
-- [ ] On a native Windows runner, verify relative executable launch, effective PATH and PATHEXT, batch launcher handling, literal flag argv, command-length recovery, and generic stdin, timeout and cancellation. Record the result or unavailable runner. Tasks 2 and 3 exercised Windows lookup and launch errors on macOS.
-- [ ] Verify the four shipped clients and stock schema against the existing baseline. Exercise a native adapter directly if its invocation behavior changed or its regression tests leave an unresolved risk.
-- [ ] Run `$kk:review-code` with Python and `$kk:review-spec` against this design. Verify the accepted empty-list behavior and the separation between caller-visible diagnostics and the opt-in operator log.
+- [x] Use `$kk:document` to publish both manifests and their troubleshooting rules. Cover startup stderr, hidden `*.json` entries and UTF-8 byte-order marks, optional local failure details, executable and script path bases, argv-preserving launchers, platform size limits, smaller history budgets, restart effects and directory recovery.
+- [x] Use `$kk:test` to run the **exact published manifests** through the local stdio MCP harness. Supply named executable fixtures on an isolated PATH and a Git worktree for `team-review`. Verify registration in the schema and provider-free discovery, both replies and a dependent follow-up. Check the installed distribution can resolve the bundled neutral prompt.
+- [x] Run the focused subprocess, directory, environment, parser and history checks plus the repository quality, integration and quick simulator commands. Record live prerequisites or skips. The installed-vendor simulator needs a new case only if a shipped adapter changes in a way the existing checks cannot verify.
+- [x] On a native Windows runner, verify relative executable launch, effective PATH and PATHEXT, batch launcher handling, literal flag argv, command-length recovery, and generic stdin, timeout and cancellation. Record the result or unavailable runner. Tasks 2 and 3 exercised Windows lookup and launch errors on macOS.
+- [x] Verify the four shipped clients and stock schema against the existing baseline. Exercise a native adapter directly if its invocation behavior changed or its regression tests leave an unresolved risk.
+- [x] Run `$kk:review-code` with Python and `$kk:review-spec` against this design. Verify the accepted empty-list behavior and the separation between caller-visible diagnostics and the opt-in operator log.
+
+**Execution context**
+
+- 2026-11-23, baseline at `724b936`. The Python 3.11 quality checks passed. Existing stdio tests change the example commands and workspace policy. The installed-server check lists tools without invoking clink. Task 6 exercises the published files and installed neutral role through MCP.
+- 2026-11-23, verified on macOS. The provider-free stdio server advertised both published manifests and ran the named fixtures on an isolated PATH. The project fixture returned a decision read from its Git worktree, then recalled the original request and decision after the file was removed. An MCP 1.30.0 client started the wheel-installed PAL 1.4.2 outside the checkout and received the bundled neutral prompt through clink. The installed Claude CLI also passed the shipped adapter's first-request and dependent-follow-up test.
+- 2026-11-23, review corrections. Generic directory preparation failures now retain the established `spawn` stage and configured hint. A timeout or cancellation after stderr reaches EOF can write an opted-in private excerpt. Open stderr and overflow on either stream suppress it. Regression tests cover both interruption paths, output overflow after stderr closes, and the caller-visible directory error. The example fixture isolates Git configuration during setup and execution.
+- 2026-11-23, platform coverage. No native Windows runner was available. The named-example fixture uses POSIX executable scripts. Windows PATH/PATHEXT, batch and command-length simulations exercise policy on macOS. Native lookup, literal argv, size errors, stdin, timeout and cancellation still need a Windows run before claiming platform verification. The release verifier can run the generic subprocess tests there and record the outcomes.
+- 2026-11-23, repository verification. `./code_quality_checks.sh` passed on Python 3.11 with 3,735 unit tests passed, 19 skipped and 26 integration tests deselected. The Python 3.12 clink, stdio, startup and tool-surface suites passed 1,655 tests with three skips. These include the four shipped clients and the committed schema and prompt baseline. An earlier Python 3.12 run exited nonzero with incomplete capture. Its rerun and the final candidate reported zero failures.
+- 2026-11-23, integration. Without PAL provider credentials, `./run_integration_tests.sh` passed 4 tests and skipped 22. The loopback stub simulator passed. The quick simulator passed 2 of 6 scenarios. Cross-tool continuation, basic conversation, content validation and per-tool deduplication require a PAL model provider. No local Ollama service was listening. The release verifier can rerun `python communication_simulator_test.py --quick` in a provider-configured environment and record all six outcomes.
+- 2026-11-23, specification review. The independent reviewer confirmed the directory error and private stderr corrections and reported conformance across all six tasks.
+- 2026-11-23, logging review. Private stderr collection uses the cleanup deadline. The interruption tests hold the diagnostic worker until scratch cleanup finishes and verify the original cancellation or timeout. The standard rotating handler still writes synchronously for ordinary records. If a private write stalls while holding its lock, a later ordinary warning can delay an MCP timeout response. The PAL logging maintainer can verify a fix by stalling the main handler inside `emit` during rollover and checking that the requesting and concurrent MCP sessions stay responsive. Raised write and rotation errors are covered by the current tests. [Follow-up issue #68](https://github.com/serpro69/pal-mcp-server/issues/68)
+- 2026-11-23, final checks. All four Python 3.12 interruption cases passed with the stalled writer, the final Python 3.11 quality run passed with 3,735 unit tests, and the rebuilt wheel passed the installed-server check. The spec reviewer confirmed conformance. The Codex code reviewer recorded the shared-handler limitation above as P2. Claude approved the final source and also noted that a stalled worker can delay shutdown.
 
 ## Dependency Graph
 
