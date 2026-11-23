@@ -92,15 +92,24 @@
 
 ## Task 5 — Deliver opt-in private stderr diagnostics
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Tasks 3 and 4
 - **Size:** M
 - **Can run in parallel with:** —
 - **Docs:** [Private failure diagnostics](./implementation.md#private-failure-diagnostics)
 
-- [ ] Pass complete, size-limited stderr from a failed generic call to the opted-in local filter. Use the request's actual prompt and effective child environment. Apply redaction before tail selection and cap the rendered record.
-- [ ] Route excerpt records only to the main rotating log. Suppress the handler's stderr fallback for those records on write or rotation failure. Preserve the original CLI error and normal logging for other records.
-- [ ] Check the main file, activity file, host stderr and MCP response on opt-in, default-off, success, overflow and file-sink failure. Include overlapping sensitive values and an echo crossing the truncation boundary.
+- [x] Pass complete, size-limited stderr from a failed generic call to the opted-in local filter. Use the request's actual prompt and effective child environment. Apply redaction before tail selection and cap the rendered record.
+- [x] Route excerpt records only to the main rotating log. Suppress the handler's stderr fallback for those records on write or rotation failure. Preserve the original CLI error and normal logging for other records.
+- [x] Check the main file, activity file, host stderr and MCP response on opt-in, default-off, success, overflow and file-sink failure. Include overlapping sensitive values and an echo crossing the truncation boundary.
+
+**Execution context**
+
+- 2026-11-23, observed at `ae1595a`. The generic runner rejects the opt-in setting before spawn. Completed process I/O provides the bounded stderr, prepared prompt and effective environment in the same call. PAL's main rotating handler shares the root logger with host stderr, and its standard error handler can print failed records there.
+- 2026-11-23, verified on macOS. Real stdio calls checked the reply, host stderr, activity file and main file, including a forced rotation failure. The missing-executable test now reaches `lookup` in an explicit project. Tests also covered write and filter faults, invalid UTF-8, overlapping values, prompts spanning the tail boundary and incomplete stderr on interruption.
+- 2026-11-23, verification. The generic, stdio and log-directory suites passed 105 tests on Python 3.11 with 14 skips. All 22 selected diagnostics and interruption cases passed on Python 3.12. The full quality run passed linting and formatting with 3,731 unit tests passed, 19 skipped and 26 integration tests deselected.
+- 2026-11-23, integration. With provider credentials excluded, 4 integration tests passed and 22 skipped. The stub simulator passed. The quick simulator passed 2 of 6 scenarios. Task 6 owns the rerun of the four scenarios that require a configured model provider.
+- 2026-11-23, operator documentation for Task 6. The per-client opt-in writes the excerpt directly to the main file even when `LOG_LEVEL` filters ordinary warnings. All nonempty child environment values are masked, so a short value such as `LANG=C` can hide individual letters. Explain both behaviors in the clink troubleshooting guide.
+- 2026-11-23, review. The independent Codex and Claude reviewers approved the final source. Regression tests cover exact native POSIX byte echoes that overlap a UTF-8 character and truncation without splitting an escape sequence. The final renderer matched a full-stream reference in 900 generated cases, including 300 with ill-formed UTF-8.
 
 ## Task 6 — Document and verify the feature
 

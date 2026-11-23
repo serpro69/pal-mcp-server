@@ -14,7 +14,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from clink import availability
+from clink import availability, diagnostics
 from clink.agents import create_agent
 from clink.agents.base import CLIAgentError
 from clink.constants import DEFAULT_STREAM_LIMIT
@@ -167,12 +167,82 @@ async def test_empty_edit_bucket_scope_missing_role_and_executable(cli, tmp_path
     assert not cli.launches
 
 
-async def test_private_stderr_option_rejected_before_launch(cli):
-    cli.configure(custom={**cli.manifest["custom"], "log_stderr_on_failure": True})
-    details = await failure(cli)
-    assert details["stage"] == "validation" and not details["execution_started"]
-    assert "log_stderr_on_failure" in details["reason"]
-    assert not cli.launches
+def test_stderr_redacts_overlapping_literals_and_escapes_controls():
+    text = "start ABCDE ababa\n\r\t\x00\x1b\x7f\x85\u2028 end"
+    excerpt = diagnostics._stderr_excerpt(text.encode(), "ABC", {"TOKEN": "CDE", "PROXY": "aba", "EMPTY": ""})
+    assert excerpt == r"start ***** *****\n\r\t\u0000\u001b\u007f\u0085\u2028 end"
+
+
+def test_stderr_masks_the_whole_prompt_across_the_tail_boundary():
+    prompt = "long prompt " * 400 + "PRIVATE_SUFFIX"
+    excerpt = diagnostics._stderr_excerpt(("head " + prompt + " Remaining detail").encode(), prompt, {})
+    assert excerpt.startswith("[truncated] ") and excerpt.endswith(" Remaining detail")
+    assert set(excerpt.removeprefix("[truncated] ").removesuffix(" Remaining detail")) == {"*"}
+    assert len(excerpt) == 2048
+
+    expanded = diagnostics._stderr_excerpt(b"\x00" * 1024 + b" END", "", {})
+    assert expanded == "[truncated] " + r"\u0000" * 338 + " END"
+    assert len(expanded) <= 2048
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX uses native bytes for argv and the environment")
+def test_private_stderr_masks_native_bytes_before_decoding(monkeypatch):
+    prompt = "café question"
+    native = prompt.encode("latin-1")
+    original = os.fsencode
+    monkeypatch.setattr(os, "fsencode", lambda value: native if value == prompt else original(value))
+    # The inherited value begins inside what the complete stderr decodes as ©.
+    env = {"TOKEN": os.fsdecode(b"\xa9secret")}
+    stderr = b"DETAIL " + native + b" " + prompt.encode() + b" \xc2\xa9secret"
+    excerpt = diagnostics._stderr_excerpt(stderr, prompt, env, flag_prompt=True)
+    assert excerpt.startswith("DETAIL ") and set(excerpt[7:]) == {"*", " "}
+
+
+@pytest.fixture
+def main_log(tmp_path, monkeypatch, capsys):
+    handler = diagnostics.MainLogHandler(tmp_path / "main.log", maxBytes=4096, backupCount=1, encoding="utf-8")
+    monkeypatch.setattr(logging.getLogger(), "handlers", [handler, logging.StreamHandler()])
+    try:
+        yield handler
+    finally:
+        handler.close()
+
+
+@pytest.mark.parametrize("mode,detail", [("bad-utf8", "NATIVE_ENCODING_DETAIL"), ("blank", "NATIVE_PARSE_DETAIL")])
+async def test_complete_stderr_available_on_parse_failure(cli, main_log, capsys, mode, detail):
+    cli.configure(
+        custom={**cli.manifest["custom"], "log_stderr_on_failure": True},
+        env={**cli.manifest["env"], "FIXTURE_MODE": mode},
+    )
+    meta = await failure(cli)
+    assert meta["stage"] == "parse" and meta["return_code"] == 0
+    assert detail in Path(main_log.baseFilename).read_text()
+    assert detail not in json.dumps(meta) + capsys.readouterr().err
+
+
+@pytest.mark.parametrize("fault", ["write", "rollover", "filter"])
+async def test_private_diagnostic_failure_preserves_cli_error(cli, main_log, monkeypatch, capsys, fault):
+    cli.configure(
+        custom={**cli.manifest["custom"], "log_stderr_on_failure": True},
+        env={**cli.manifest["env"], "FIXTURE_MODE": "failure"},
+    )
+    error = OSError("injected sink failure")
+    if fault == "write":
+        monkeypatch.setattr(main_log.stream, "write", Mock(side_effect=error))
+    elif fault == "rollover":
+        main_log.maxBytes = 1
+        monkeypatch.setattr(main_log, "doRollover", Mock(side_effect=error))
+    else:
+        monkeypatch.setattr(diagnostics, "_stderr_excerpt", Mock(side_effect=error))
+    monkeypatch.setattr(logging, "raiseExceptions", True)
+    meta = await failure(cli)
+    assert meta["stage"] == "exit" and meta["return_code"] == 7
+    host = capsys.readouterr().err
+    assert "NATIVE_FAILURE_DETAIL" not in host + json.dumps(meta) + Path(main_log.baseFilename).read_text()
+    if fault != "filter":
+        # The ordinary CLI failure log still uses logging's standard error path.
+        assert "--- Logging error ---" in host
+        assert "failure stderr:" not in host
 
 
 async def test_project_requires_directory_on_new_call(cli, tmp_path):
@@ -577,9 +647,12 @@ async def test_real_stream_limits_and_reaping(cli, mode):
 async def test_interrupted_generic_child_is_reaped_before_scratch_cleanup(cli, cancel, monkeypatch):
     async with child_gate() as gate:
         cli.configure(
+            custom={**cli.manifest["custom"], "log_stderr_on_failure": True},
             env={**cli.manifest["env"], "FIXTURE_MODE": "hold", "FIXTURE_PORT": str(gate.port)},
             timeout_seconds=10 if cancel else 1,
         )
+        write_stderr = Mock()
+        monkeypatch.setattr(diagnostics, "_write_stderr", write_stderr)
         cleanup = tempfile.TemporaryDirectory.cleanup
 
         def check_cleanup(directory):
@@ -598,6 +671,7 @@ async def test_interrupted_generic_child_is_reaped_before_scratch_cleanup(cli, c
         else:
             assert (await task)["stage"] == "timeout"
         assert await asyncio.wait_for(reader.read(), 5) == b""
+        write_stderr.assert_not_called()
         assert not cli.launches[0][1].exists() and not cli.storage._store
 
 

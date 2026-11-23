@@ -38,16 +38,20 @@ def main():
     }
     Path(os.environ["FIXTURE_CAPTURE"]).write_text(json.dumps(capture), encoding="utf-8")
     if mode == "hold":
+        print("INCOMPLETE_STDERR", file=sys.stderr, flush=True)
         with socket.create_connection(("127.0.0.1", int(os.environ["FIXTURE_PORT"]))) as gate:
             gate.sendall(b"R")
             gate.recv(1)
     elif mode == "failure":
         print("PLAUSIBLE_PRIVATE_ANSWER")
-        print(prompt, os.environ.get("TEST_CLI_TOKEN"), file=sys.stderr)
+        details = f"{prompt} {os.environ.get('TEST_CLI_TOKEN', '')} {os.environ.get('HTTPS_PROXY', '')}"
+        sys.stderr.buffer.write(f"{details}\nNATIVE_FAILURE_DETAIL\n".encode())
         sys.exit(7)
     elif mode == "bad-utf8":
+        print("NATIVE_ENCODING_DETAIL", file=sys.stderr)
         sys.stdout.buffer.write(b"\xff")
     elif mode == "blank":
+        print("NATIVE_PARSE_DETAIL", file=sys.stderr)
         print(" ")
     elif mode == "json":
         reply = {"reply": {"text": "  Fixture answer ✓  \n"}}
