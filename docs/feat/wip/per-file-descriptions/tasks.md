@@ -29,16 +29,22 @@ The November review revised the plan before implementation. Every checkbox below
 
 ## Task 2 — Ship chat on initial and continued requests
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 1
 - **Size:** M
 - **Can run in parallel with:** —
 - **Docs:** [Chat delivery and first-embed eligibility](./implementation.md#task-2--deliver-chat-annotations-on-the-first-request-and-on-continuations)
 
-- [ ] 2.1 Add the optional string-map request field and both chat schema definitions. Verify valid and malformed inputs through MCP and Pydantic. Update the chat expectation in `tests/test_tool_surface.py` in this commit.
-- [ ] 2.2 Exclude the incoming map from initial thread context in `conversation_request`. Wire first-call `build_standard_prompt` and continuation `invocation_history` → `build_conversation_history` → `read_files`. Use the current attachment candidates after prompt-file extraction.
-- [ ] 2.3 Record the final model prompt's included paths on the existing successful turn writes for simple tools and workflows. Exclude preflight, reference-only and failed operations. Derive eligibility from prior committed inclusions across the chain. Distinguish explicit empty evidence and legacy replies. Preserve existing attachment tracking.
-- [ ] 2.4 Capture a turn-two request combining a repeated alias and a new file. Check annotations, order, counts, no duplicated contents and no replay of stored chat labels. Cover prior unavailable/reference-only files, legacy fallback and the no-provider-call overage boundary.
+- [x] 2.1 Add the optional string-map request field and both chat schema definitions. Verify valid and malformed inputs through MCP and Pydantic. Update the chat expectation in `tests/test_tool_surface.py` in this commit.
+- [x] 2.2 Exclude the incoming map from initial thread context in `conversation_request`. Wire first-call `build_standard_prompt` and continuation `invocation_history` → `build_conversation_history` → `read_files`. Use the current attachment candidates after prompt-file extraction.
+- [x] 2.3 Record the final model prompt's included paths on the existing successful turn writes for simple tools and workflows. Exclude preflight, reference-only and failed operations. Derive eligibility from prior committed inclusions across the chain. Distinguish explicit empty evidence and legacy replies. Preserve existing attachment tracking.
+- [x] 2.4 Capture a turn-two request combining a repeated alias and a new file. Check annotations, order, counts, no duplicated contents and no replay of stored chat labels. Cover prior unavailable/reference-only files, legacy fallback and the no-provider-call overage boundary.
+
+**Execution context**
+
+- 2026-11-23, observed at `fe0715a`. Continuations render the newly saved input alongside historical attachments. Only a committed model reply establishes prior inclusion.
+
+- 2026-11-23, verified. The quality suite passed (3,753 unit tests), as did 36 focused checks after the structured-error fix and all three stub simulations. The live integration suite passed four and skipped 22. The quick simulator passed four of six with no live model configured. Independent re-review approved the corrected inclusion evidence.
 
 ## Task 3 — Ship the generic expert workflows
 

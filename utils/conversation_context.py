@@ -110,6 +110,33 @@ def invocation_thread(tool):
     return thread
 
 
+def new_file_descriptions(tool, paths: list[str], descriptions: dict[str, str] | None) -> dict[str, str]:
+    """Bind current labels, keeping only files without a prior committed embedding."""
+    from utils.file_utils import bind_file_descriptions, expand_file_inputs
+
+    labels = bind_file_descriptions(paths, descriptions)
+    invocation = current_invocation(tool)
+    if not labels or invocation is None or invocation.is_new:
+        return labels
+
+    for turn in invocation_thread(tool).turns:
+        if turn.role != "assistant":
+            continue
+        metadata = turn.model_metadata or {}
+        if "included_files" in metadata:
+            delivered = metadata["included_files"]
+        elif turn.model_name and turn.tool_name != "clink":
+            # Legacy model replies stored attachment references, even on omissions.
+            delivered = expand_file_inputs(turn.files or [])
+        else:
+            continue
+        for path in delivered:
+            labels.pop(path, None)
+        if not labels:
+            break
+    return labels
+
+
 def invocation_attachments(tool) -> tuple[list[str], list[str]]:
     thread = invocation_thread(tool)
     if thread is None:
@@ -138,7 +165,9 @@ def remaining_input_budget(tool, model_context) -> int:
     return max(0, allocation.content_tokens - used)
 
 
-def invocation_history(tool, model_context=None, *, text_only=False, expert=False, represented_context="") -> str:
+def invocation_history(
+    tool, model_context=None, *, text_only=False, expert=False, represented_context="", file_descriptions=None
+) -> str:
     """Budget older history while keeping the admitted current input exactly once."""
     context = current_invocation(tool)
     thread = invocation_thread(tool)
@@ -173,7 +202,9 @@ def invocation_history(tool, model_context=None, *, text_only=False, expert=Fals
     budget = None
     if not text_only and not expert:
         budget = model_context.file_budget(remaining_input_budget(tool, model_context))
-    history, _ = memory.build_conversation_history(thread, model_context, file_report=report, file_budget=budget)
+    history, _ = memory.build_conversation_history(
+        thread, model_context, file_report=report, file_budget=budget, file_descriptions=file_descriptions
+    )
     if not text_only and not expert and report.omitted:
         from utils.file_utils import check_total_file_size, expand_file_inputs
 
@@ -266,7 +297,9 @@ def conversation_request(*, workflow=False):
                             args["model"] = turn.model_name
                             break
                 if is_new:
-                    thread_id = memory.create_thread(tool.get_name(), request.model_dump(exclude_none=True))
+                    thread_id = memory.create_thread(
+                        tool.get_name(), request.model_dump(exclude_none=True, exclude={"file_descriptions"})
+                    )
                 memory.add_turn(
                     thread_id,
                     "user",

@@ -1188,6 +1188,11 @@ class BaseWorkflowMixin(ABC):
                 save_failed_workflow_state(continuation_id, self.get_name(), workflow_state)
                 response_data["continuation_offer"] = continuation_offer(continuation_id)
                 return
+            if invocation and invocation.provider_calls:
+                # A structured expert error can still carry a nonempty provider reply.
+                workflow_state["included_files"] = (
+                    [] if response_data.get("status") == "error" else self.get_actually_processed_files()
+                )
             add_turn(
                 thread_id=continuation_id,
                 role="assistant",

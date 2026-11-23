@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 from config import TEMPERATURE_BALANCED
 from systemprompts import CHAT_PROMPT, GENERATE_CODE_PROMPT
-from tools.shared.base_models import COMMON_FIELD_DESCRIPTIONS, ToolRequest
+from tools.shared.base_models import COMMON_FIELD_DESCRIPTIONS, FILE_DESCRIPTIONS_SCHEMA, ToolRequest
 
 from .simple.base import SimpleTool
 
@@ -50,6 +50,7 @@ class ChatRequest(ToolRequest):
         default_factory=list,
         description=CHAT_FIELD_DESCRIPTIONS["absolute_file_paths"],
     )
+    file_descriptions: dict[str, str] = Field(default_factory=dict, description=FILE_DESCRIPTIONS_SCHEMA["description"])
     images: Optional[list[str]] = Field(default_factory=list, description=CHAT_FIELD_DESCRIPTIONS["images"])
     working_directory_absolute_path: str = Field(
         ...,
@@ -127,6 +128,7 @@ class ChatTool(SimpleTool):
                     "type": "string",
                     "description": CHAT_FIELD_DESCRIPTIONS["prompt"],
                 },
+                "file_descriptions": FILE_DESCRIPTIONS_SCHEMA,
                 "absolute_file_paths": {
                     "type": "array",
                     "items": {"type": "string"},
@@ -172,6 +174,7 @@ class ChatTool(SimpleTool):
                 "type": "string",
                 "description": CHAT_FIELD_DESCRIPTIONS["prompt"],
             },
+            "file_descriptions": FILE_DESCRIPTIONS_SCHEMA,
             "absolute_file_paths": {
                 "type": "array",
                 "items": {"type": "string"},
