@@ -25,6 +25,7 @@ from utils.conversation_context import (
     current_invocation,
     invocation_attachments,
     invocation_history,
+    new_file_descriptions,
     record_provider_usage,
 )
 from utils.conversation_memory import ConversationMemoryError, memory_persistence_warning
@@ -352,7 +353,10 @@ class SimpleTool(BaseTool):
 
             invocation = current_invocation(self)
             if invocation and not invocation.is_new:
-                prompt = invocation_history(self, self._model_context)
+                labels = new_file_descriptions(
+                    self, self.get_request_files(request), getattr(request, "file_descriptions", None)
+                )
+                prompt = invocation_history(self, self._model_context, file_descriptions=labels)
             else:
                 prompt = await self.prepare_prompt(request)
             thread = get_thread(invocation.thread_id)
@@ -728,6 +732,10 @@ class SimpleTool(BaseTool):
 
         if invocation:
             model_metadata = {**(model_metadata or {}), "provider_calls": invocation.provider_calls}
+            if invocation.provider_calls:
+                model_metadata["included_files"] = list(
+                    dict.fromkeys(invocation.history_files + self.get_actually_processed_files())
+                )
 
         add_turn(
             continuation_id,
@@ -780,6 +788,7 @@ class SimpleTool(BaseTool):
                 self.get_request_continuation_id(request),
                 "Context files",
                 model_context=getattr(self, "_model_context", None),
+                file_descriptions=new_file_descriptions(self, files, getattr(request, "file_descriptions", None)),
             )
             self._actually_processed_files = processed_files
             if file_content:

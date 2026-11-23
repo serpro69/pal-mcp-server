@@ -30,6 +30,13 @@ COMMON_FIELD_DESCRIPTIONS = {
     "absolute_file_paths": "Full paths to relevant code",
 }
 
+FILE_DESCRIPTIONS_SCHEMA = {
+    "type": "object",
+    "additionalProperties": {"type": "string"},
+    "description": "Short labels for attached files, keyed by absolute file or directory path.",
+}
+
+
 # Workflow-specific field descriptions
 WORKFLOW_FIELD_DESCRIPTIONS = {
     "step": "Current work step content and findings from your overall work",
