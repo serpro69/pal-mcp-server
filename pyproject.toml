@@ -1,6 +1,6 @@
 [project]
 name = "pal-mcp-server"
-version = "1.4.2"
+version = "1.5.0"
 description = "AI-powered MCP server with multiple model providers"
 license = "Apache-2.0"
 license-files = [ "LICENSE", "NOTICE",]
@@ -32,13 +32,11 @@ use_parentheses = true
 ensure_newline_before_comments = true
 line_length = 120
 skip_glob = [ "venv/*", ".venv/*", ".pal_venv/*",]
-# extend_skip_glob survives code_quality_checks.sh passing its own --skip-glob.
 extend_skip_glob = [ ".codex/*",]
 
 [tool.ruff]
 target-version = "py39"
 line-length = 120
-# .codex/ is vendored by claude-toolbox syncs; local edits would be overwritten.
 extend-exclude = [ ".codex",]
 
 [tool.setuptools.package-data]
