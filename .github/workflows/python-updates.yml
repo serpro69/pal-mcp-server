@@ -20,7 +20,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
-          python-version: '3.11'
+          python-version: '3.10'
       - name: Install the locked compiler and update both locks
         run: |
           python -m pip install -r requirements-dev.txt
@@ -61,4 +61,4 @@ jobs:
             requirements-dev.txt
           title: 'Bump weekly python dependency locks'
           commit-message: 'Bump weekly python dependency locks'
-          body: 'Weekly minor and patch releases resolved from pyproject.toml and requirements-dev.in on Python 3.11.'
+          body: 'Weekly minor and patch releases resolved from pyproject.toml and requirements-dev.in on Python 3.10.'

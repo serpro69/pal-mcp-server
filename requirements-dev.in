@@ -5,6 +5,8 @@ anyio>=4.0.0
 pip-tools>=7.6.1
 pytest>=7.4.0
 pytest-asyncio>=0.21.0
+# Keep pytest-asyncio's Python 3.10 backport conditional in the shared lock.
+backports-asyncio-runner; python_version < "3.11"
 pytest-mock>=3.11.0
 black>=26.10.1
 ruff>=0.1.0
