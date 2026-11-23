@@ -28,7 +28,7 @@ from mcp.types import TextContent
 
 from config import TEMPERATURE_ANALYTICAL
 from systemprompts import CONSENSUS_PROMPT
-from tools.shared.base_models import ConsolidatedFindings, WorkflowRequest
+from tools.shared.base_models import FILE_DESCRIPTIONS_SCHEMA, ConsolidatedFindings, WorkflowRequest
 from tools.shared.exceptions import ToolExecutionError
 from utils.conversation_context import continuation_offer, current_invocation, record_provider_usage
 from utils.conversation_memory import (
@@ -37,6 +37,7 @@ from utils.conversation_memory import (
     get_thread,
     memory_persistence_warning,
 )
+from utils.file_utils import bind_file_descriptions
 from utils.model_context import get_request_budget
 from utils.progress import progress_operation
 
@@ -76,7 +77,7 @@ DEFAULT_THINKING_MODE = "medium"
 
 
 class ConsensusRequest(WorkflowRequest):
-    """Request model for consensus workflow steps"""
+    """Participant descriptions are request-local, including when the workflow continues to synthesis."""
 
     # Required fields for each step
     step: str = Field(..., description=CONSENSUS_WORKFLOW_FIELD_DESCRIPTIONS["step"])
@@ -94,6 +95,7 @@ class ConsensusRequest(WorkflowRequest):
         default_factory=list,
         description=CONSENSUS_WORKFLOW_FIELD_DESCRIPTIONS["relevant_files"],
     )
+    file_descriptions: dict[str, str] = Field(default_factory=dict, description=FILE_DESCRIPTIONS_SCHEMA["description"])
 
     # Internal tracking fields
     current_model_index: int | None = Field(
@@ -224,6 +226,7 @@ of the evidence, even when it strongly points in one direction.""",
 
         # Consensus tool-specific field definitions
         consensus_field_overrides = {
+            "file_descriptions": FILE_DESCRIPTIONS_SCHEMA,
             # Override standard workflow fields that need consensus-specific descriptions
             "step": {
                 "type": "string",
@@ -663,6 +666,7 @@ of the evidence, even when it strongly points in one direction.""",
                     model_context=model_context,
                     remaining_budget=remaining_input,
                     blinded=True,
+                    file_descriptions=bind_file_descriptions(request.relevant_files, request.file_descriptions),
                 )
                 if file_content:
                     prompt = f"{prompt}\n\n=== CONTEXT FILES ===\n{file_content}\n=== END CONTEXT ==="

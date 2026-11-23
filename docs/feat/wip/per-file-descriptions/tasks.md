@@ -87,14 +87,20 @@ The November review revised the plan before implementation. Every checkbox below
 
 ## Task 5 — Ship blinded consensus participant annotations
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 3
 - **Size:** S
 - **Can run in parallel with:** Task 4
 - **Docs:** [Consensus consultation](./implementation.md#task-5--deliver-request-local-descriptions-to-consensus-participants)
 
-- [ ] 5.1 Opt in `ConsensusRequest` and its schema, updating the consensus tool-surface expectation. Pass that participant request's effective map to `_consult_model`'s existing blinded preparation call. Exclude consensus maps from generic replay.
-- [ ] 5.2 Capture two participants with the same attachment, distinct inputs and separate budgets. Verify participant-local labels, omission on the second request, exclusion of hidden history and the existing per-participant failure when the annotated input exceeds its allowance.
+- [x] 5.1 Opt in `ConsensusRequest` and its schema, updating the consensus tool-surface expectation. Pass that participant request's effective map to `_consult_model`'s existing blinded preparation call. Exclude consensus maps from generic replay.
+- [x] 5.2 Capture two participants with the same attachment, distinct inputs and separate budgets. Verify participant-local labels, omission on the second request, exclusion of hidden history and the existing per-participant failure when the annotated input exceeds its allowance.
+
+**Execution context**
+
+- 2026-11-23, observed at `e5997a9`. Consensus consults each participant with its own model context and an explicit attachment list. Synthesis can fall back to the shared workflow executor.
+
+- 2026-11-23, verified with 83 focused tests and independent code review. Captured requests cover distinct and omitted labels, a rejected over-budget participant, and synthesis without label replay. The quality suite passed 3,771 unit tests. Integration passed four and skipped 22, all three stub simulations passed, and the quick simulator passed four of six with no live provider configured.
 
 ## Task 6 — Verify and document
 

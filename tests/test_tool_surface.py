@@ -73,6 +73,7 @@ def test_surface_preserves_names_parameters_types_defaults_and_safety(surface):
             "chat",
             "analyze",
             "codereview",
+            "consensus",
             "debug",
             "precommit",
             "refactor",
