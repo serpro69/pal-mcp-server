@@ -346,18 +346,21 @@ class TestConsensusTool:
         - Method expected model_context parameter but got None (default value)
         - Runtime validation in base_tool.py threw RuntimeError
         """
-        from unittest.mock import AsyncMock, Mock, patch
+        from unittest.mock import AsyncMock, patch
 
         from providers.shared import ModelResponse, ProviderType
         from utils.model_context import ModelContext
 
         tool = ConsensusTool()
 
-        # Create a mock request with relevant_files (the trigger condition)
-        mock_request = Mock()
-        mock_request.relevant_files = ["/test/file1.py", "/test/file2.js"]
-        mock_request.continuation_id = None
-        mock_request.images = None
+        request = ConsensusRequest(
+            step="Inspect the files",
+            findings="Review pending",
+            step_number=2,
+            total_steps=2,
+            next_step_required=False,
+            relevant_files=["/test/file1.py", "/test/file2.js"],
+        )
 
         # Mock model configuration
         model_config = {"model": "flash", "stance": "neutral"}
@@ -386,7 +389,7 @@ class TestConsensusTool:
             try:
                 # This should not raise RuntimeError after the fix
                 # The method should create ModelContext and pass it to _prepare_file_content_for_prompt
-                result = await tool._consult_model(model_config, mock_request)
+                result = await tool._consult_model(model_config, request)
                 assert result["status"] == "success"
                 assert result["verdict"] == "test response"
                 mock_provider.generate_content.assert_awaited_once()

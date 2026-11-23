@@ -158,13 +158,34 @@ def test_history_omission_does_not_claim_embedded_content(captures, tmp_path):
     assert ChatTool().get_conversation_embedded_files(thread) == []
 
 
-async def test_consensus_never_charges_or_deduplicates_hidden_history(captures, tmp_path, monkeypatch):
+@pytest.mark.parametrize(
+    ("second_label", "expected_status"),
+    [(None, "success"), ("second perspective", "success"), ("over budget " * 15, "error")],
+    ids=["plain-second", "different-labels", "second-over-budget"],
+)
+async def test_consensus_never_charges_or_deduplicates_hidden_history(
+    captures, tmp_path, monkeypatch, second_label, expected_status
+):
+    from utils.model_context import ModelContext
+
     def forbidden(*args):
         raise AssertionError("Blinded participant must not inspect generic history budget")
 
     monkeypatch.setattr("utils.conversation_context.remaining_input_budget", forbidden)
     attachment = tmp_path / "participant.py"
     attachment.write_text("PARTICIPANT_FILE")
+    plain, _ = read_file_content(str(attachment), include_line_numbers=True)
+    # Give the second participant room for the plain block and a short label.
+    second_limit = model_context().estimate_tokens(plain) + 8
+    file_budget = ModelContext.file_budget
+
+    def participant_budget(context, remaining_tokens=None, reserve_tokens=1000):
+        budget = file_budget(context, remaining_tokens, reserve_tokens)
+        if context.model_name == "gpt-5":
+            return replace(budget, limit=min(budget.limit, second_limit))
+        return budget
+
+    monkeypatch.setattr(ModelContext, "file_budget", participant_budget)
     first = json.loads(
         (
             await server.handle_call_tool(
@@ -176,33 +197,83 @@ async def test_consensus_never_charges_or_deduplicates_hidden_history(captures, 
                     "total_steps": 2,
                     "next_step_required": True,
                     "relevant_files": [str(attachment)],
+                    "file_descriptions": {str(tmp_path): "first perspective"},
                     "models": [{"model": "gemini-2.5-flash"}, {"model": "gpt-5"}],
                 },
             )
         )[0].text
     )
+    thread = first["continuation_offer"]["continuation_id"]
+    second_labels = {"file_descriptions": {str(attachment): second_label}} if second_label is not None else {}
     second_result = await server.handle_call_tool(
         "consensus",
         {
-            "continuation_id": first["continuation_offer"]["continuation_id"],
+            "continuation_id": thread,
             "step": "HIDDEN_SUMMARY " * 1000,
             "findings": "HIDDEN_VERDICT",
             "step_number": 2,
             "total_steps": 2,
             "next_step_required": False,
+            **second_labels,
             "relevant_files": [str(attachment)],
         },
     )
     second = json.loads(second_result[0].text)
-    for response in (first, second):
-        coverage = response["model_response"]["metadata"]["file_context"]
-        assert coverage["files_embedded"] == 1
-        assert coverage["files_in_history"] == 0
+    first_model = first["model_response"]
+    second_model = second["model_response"]
+    assert first_model["status"] == "success"
+    first_coverage = first_model["metadata"]["file_context"]
+    assert first_coverage["budget"] > second_limit
+    assert (first_coverage["files_embedded"], first_coverage["files_in_history"]) == (1, 0)
+    assert captures[0]["prompt"].count(" [first perspective] ---") == 1
+    if second_label:
+        assert second_label not in captures[0]["prompt"]
+
+    assert second_model["status"] == expected_status
+    saved = memory.get_thread(thread)
+    assert saved.turns[1].model_metadata["included_files"] == [str(attachment)]
+    stored = saved.model_dump_json()
+    assert "file_descriptions" not in stored and "first perspective" not in stored
+    if second_label:
+        assert second_label.strip() not in stored
+    if expected_status == "error":
+        assert len(captures) == 1
+        assert second["complete_consensus"]["status"] == "partial"
+        error = json.loads(second_model["error"])
+        assert error["status"] == "code_too_large"
+        assert error["metadata"]["limit"] == second_limit
+        assert error["metadata"]["overage"] > 0
+        return
+
     assert len(captures) == 2
+    coverage = second_model["metadata"]["file_context"]
+    assert (coverage["files_embedded"], coverage["files_in_history"], coverage["budget"]) == (1, 0, second_limit)
     for call in captures:
         assert "ORIGINAL_PROPOSAL" in call["prompt"]
         assert call["prompt"].count("PARTICIPANT_FILE") == 1
         assert "HIDDEN_" not in call["prompt"]
+    expected = plain.replace(") ---\n", f") [{second_label}] ---\n", 1) if second_label else plain
+    assert expected in captures[1]["prompt"]
+    assert "first perspective" not in captures[1]["prompt"]
+
+    # Synthesis uses the shared workflow executor and records no participant labels.
+    await server.handle_call_tool(
+        "consensus",
+        {
+            "continuation_id": thread,
+            "step": "synthesize",
+            "findings": "compare verdicts",
+            "step_number": 3,
+            "total_steps": 3,
+            "next_step_required": False,
+            "relevant_files": [str(attachment)],
+            "file_descriptions": {str(attachment): "synthesis-only label"},
+        },
+    )
+    assert len(captures) == 2
+    saved = memory.get_thread(thread)
+    assert saved.turns[-1].model_metadata["work_history"][-1]["step_number"] == 3
+    assert "file_descriptions" not in saved.model_dump_json()
 
 
 @pytest.mark.parametrize("invalid", [None, [], "label", {"path": None}, {"path": 4}])
