@@ -165,8 +165,11 @@ async def test_actual_sdk_wire_images_thinking_timeout_and_cleanup(monkeypatch):
         assert request.url.path == "/v1beta/models/gemini-2.5-flash:generateContent"
         assert request.headers["x-goog-api-key"] == "synthetic"
         payload = json.loads(request.content)
+        # GenAI SDK releases use both valid ProtoJSON spellings of Blob.mime_type.
+        blob = payload["contents"][0]["parts"][1]["inlineData"]
+        mime_key = "mime_type" if "mime_type" in blob else "mimeType"
         assert payload["contents"] == [
-            {"parts": [{"text": "system\n\nhéllo"}, {"inlineData": {"mimeType": "image/png", "data": "aGVsbG8="}}]}
+            {"parts": [{"text": "system\n\nhéllo"}, {"inlineData": {mime_key: "image/png", "data": "aGVsbG8="}}]}
         ]
         assert payload["generationConfig"] == {
             "temperature": 0.4,
