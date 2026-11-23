@@ -167,19 +167,93 @@ async def test_empty_edit_bucket_scope_missing_role_and_executable(cli, tmp_path
     assert not cli.launches
 
 
-@pytest.mark.parametrize(
-    "setting,reason",
-    [
-        ({"workspace": "project"}, "project workspace"),
-        ({"log_stderr_on_failure": True}, "log_stderr_on_failure"),
-    ],
-)
-async def test_unimplemented_options_rejected_independently_before_launch(cli, setting, reason):
-    cli.configure(custom={**cli.manifest["custom"], **setting})
+async def test_private_stderr_option_rejected_before_launch(cli):
+    cli.configure(custom={**cli.manifest["custom"], "log_stderr_on_failure": True})
     details = await failure(cli)
     assert details["stage"] == "validation" and not details["execution_started"]
-    assert reason in details["reason"]
+    assert "log_stderr_on_failure" in details["reason"]
     assert not cli.launches
+
+
+async def test_project_requires_directory_on_new_call(cli, tmp_path):
+    cfg = cli.configure(custom={**cli.manifest["custom"], "workspace": "project"})
+    meta = await failure(cli)
+    assert meta["stage"] == "validation" and not meta["execution_started"]
+    assert meta["working_directory"]["source"] == "scratch"
+    assert "working_directory_absolute_path" in meta["reason"]
+    assert "working_dir in the CLI manifest" in meta["reason"] and "restart PAL" in meta["reason"]
+    with pytest.raises(CLIAgentError, match="project directory"):
+        await create_agent(cfg).run(role=cfg.get_role(None), prompt="direct", files=[], images=[])
+    assert not cli.launches and not cli.storage._store
+
+    cli.configure(working_dir=str(tmp_path))
+    result = await invoke(cli)
+    assert result["metadata"]["working_directory"]["source"] == "configuration"
+    assert Path(cli.capture()["cwd"]).samefile(tmp_path)
+
+
+async def test_project_promotes_saved_scratch_only_after_success(cli, tmp_path):
+    thread = memory.create_thread("clink", {"clink_working_directory": {"mode": "scratch"}})
+    memory.add_turn(thread, "user", "Original scratch question")
+    memory.add_turn(thread, "assistant", "Original scratch answer")
+    snapshot = cli.storage._store.copy()
+    cli.configure(custom={**cli.manifest["custom"], "workspace": "project"}, working_dir=str(tmp_path))
+    meta = await failure(cli, continuation_id=thread)
+    assert meta["stage"] == "validation" and not meta["execution_started"]
+    assert meta["working_directory"]["source"] == "conversation"
+    assert "working_directory_absolute_path" in meta["reason"] and "same continuation ID" in meta["reason"]
+    assert "restart" not in meta["reason"]
+    assert not cli.launches and cli.storage._store == snapshot
+
+    project = tmp_path / "ordinary directory"
+    project.mkdir()
+    args = {"continuation_id": thread, "working_directory_absolute_path": str(project)}
+    cli.configure(env={**cli.manifest["env"], "FIXTURE_MODE": "failure"})
+    failed = await failure(cli, prompt="Failed promotion", **args)
+    assert failed["stage"] == "exit" and failed["return_code"] == 7
+    assert Path(cli.capture()["cwd"]).samefile(project) and cli.storage._store == snapshot
+
+    cli.configure(env={**cli.manifest["env"], "FIXTURE_MODE": "reply"})
+    promoted = await invoke(cli, prompt="Successful promotion", **args)
+    assert promoted["continuation_offer"]["continuation_id"] == thread
+    assert promoted["metadata"]["working_directory"]["source"] == "request"
+    assert memory.get_thread(thread).initial_context["clink_working_directory"] == {
+        "mode": "directory",
+        "launch_path": str(project),
+        "canonical_path": str(project.resolve()),
+    }
+    prompt = cli.capture()["prompt"]
+    assert "Original scratch answer" in prompt and "Failed promotion" not in prompt
+
+
+async def test_project_native_exit_preserves_bound_directory_for_retry(cli, tmp_path):
+    mode = tmp_path / "fixture-mode"
+    mode.write_text("reply")
+    cli.configure(
+        custom={**cli.manifest["custom"], "workspace": "project", "failure_hint": "Check project access."},
+        env={**cli.manifest["env"], "FIXTURE_MODE_FILE": str(mode)},
+    )
+    first = await invoke(cli, working_directory_absolute_path=str(tmp_path))
+    thread = first["continuation_offer"]["continuation_id"]
+    snapshot = cli.storage._store.copy()
+    mode.write_text("failure")
+    meta = await failure(cli, continuation_id=thread, prompt="Denied follow-up")
+    assert meta["stage"] == "exit" and meta["return_code"] == 7 and meta["execution_started"]
+    assert meta["working_directory"]["source"] == "conversation" and Path(cli.capture()["cwd"]).samefile(tmp_path)
+    assert cli.storage._store == snapshot
+
+    other = tmp_path / "other project"
+    other.mkdir()
+    conflict = await failure(cli, continuation_id=thread, working_directory_absolute_path=str(other))
+    assert conflict["new_conversation_required"] and not conflict["execution_started"]
+    assert len(cli.launches) == 2 and cli.storage._store == snapshot
+
+    mode.write_text("reply")
+    retry = await invoke(cli, continuation_id=thread)
+    assert retry["continuation_offer"]["continuation_id"] == thread
+    assert retry["metadata"]["history"]["retained_messages"] == 2
+    assert Path(cli.capture()["cwd"]).samefile(tmp_path)
+    assert "Denied follow-up" not in cli.capture()["prompt"]
 
 
 async def test_runtime_rechecks_assembled_safe_arguments(cli):
