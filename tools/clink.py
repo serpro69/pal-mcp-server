@@ -10,7 +10,7 @@ import re
 from contextvars import ContextVar
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 from mcp.types import TextContent
 from pydantic import BaseModel, Field, field_validator
@@ -281,19 +281,12 @@ class CLinkTool(SimpleTool):
         except KeyError as exc:
             self._raise_tool_error(str(exc))
 
-        # Narrow this guard as each transport, parser, workspace policy and stderr sink becomes available.
-        if client_config.custom is not None:
-            self._raise_tool_error(
-                f"CLI '{client_config.name}' is registered, but generic execution is not yet supported. "
-                f"{client_config.custom.failure_hint}",
-                metadata={"tool_name": "clink", "stage": "validation", "execution_started": False},
-            )
-
         if selected_model is not None and not client_config.model_args:
-            self._raise_tool_error(
+            self._raise_client_error(
+                client_config,
                 f"CLI '{client_config.name}' has no model_args template; model selection is unsupported. "
                 "Configure model_args in its complete CLI manifest and restart PAL. "
-                "If the model was inherited, start a new conversation without model to use the configured default."
+                "If the model was inherited, start a new conversation without model to use the configured default.",
             )
 
         try:
@@ -306,7 +299,8 @@ class CLinkTool(SimpleTool):
                 saved_binding=conversation.thread.initial_context.get("clink_working_directory", MISSING_BINDING),
             )
         except WorkingDirectoryError as exc:
-            self._raise_tool_error(
+            self._raise_client_error(
+                client_config,
                 str(exc),
                 metadata={
                     **exc.to_details(),
@@ -329,20 +323,23 @@ class CLinkTool(SimpleTool):
         try:
             role_config = client_config.get_role(selected_role)
         except KeyError as exc:
-            self._raise_tool_error(f"{exc}. Specify a valid role for CLI '{client_config.name}'.")
+            self._raise_client_error(client_config, f"{exc}. Specify a valid role for CLI '{client_config.name}'.")
 
         if request.editable_paths and not get_agent_class(client_config).supports_path_restrictions:
-            self._raise_tool_error(
+            self._raise_client_error(
+                client_config,
                 f"CLI '{client_config.name}' does not support editable_paths; "
-                "only 'claude' supports scoped edit allow-listing."
+                "only 'claude' supports scoped edit allow-listing.",
             )
 
         try:
             conversation.prepare_history(token_budget=client_config.history_token_budget)
         except (memory.ConversationMemoryError, ValueError) as exc:
-            self._raise_tool_error(str(exc), metadata={"tool_name": "clink", "error_type": type(exc).__name__})
+            self._raise_client_error(
+                client_config, str(exc), metadata={"tool_name": "clink", "error_type": type(exc).__name__}
+            )
 
-        system_prompt_text = role_config.prompt_path.read_text(encoding="utf-8")
+        system_prompt_text = await self._read_role_prompt(client_config, role_config)
         include_system_prompt = not self._use_external_system_prompt(client_config)
 
         try:
@@ -352,11 +349,16 @@ class CLinkTool(SimpleTool):
                 system_prompt=system_prompt_text,
                 include_system_prompt=include_system_prompt,
                 cli_name=client_config.name,
+                generic=client_config.custom is not None,
                 user_content=conversation.user_content,
                 # Historical references are already inside the measured block.
                 files=request.absolute_file_paths,
             )
         except Exception as exc:
+            if client_config.custom is not None:
+                self._raise_client_error(
+                    client_config, "Failed to prepare the CLI prompt", {"error_type": type(exc).__name__}
+                )
             logger.exception("Failed to prepare clink prompt")
             self._raise_tool_error(f"Failed to prepare prompt: {exc}")
 
@@ -376,6 +378,9 @@ class CLinkTool(SimpleTool):
             metadata.update(tool_name="clink", working_directory=working_directory.to_metadata())
             if isinstance(exc, WorkingDirectoryLaunchError):
                 metadata.update(error_type="WorkingDirectoryLaunchError", stage="spawn", execution_started=False)
+            if client_config.custom is not None:
+                metadata["stage"] = exc.stage
+                self._raise_client_error(client_config, str(exc), metadata)
             self._raise_cli_error(
                 client_config,
                 f"CLI '{client_config.name}' execution failed: {exc}",
@@ -389,6 +394,10 @@ class CLinkTool(SimpleTool):
         if selected_model is not None:
             metadata["model_requested"] = selected_model
         if result.returncode != 0 or result.parsed.is_error:
+            if client_config.custom is not None:
+                self._raise_client_error(
+                    client_config, "The CLI did not return a successful reply", {**metadata, "stage": "exit"}
+                )
             if result.stdout.strip() and not self._uses_agy_runner(client_config):
                 metadata["stdout"] = result.stdout.strip()
             self._raise_cli_error(
@@ -444,7 +453,7 @@ class CLinkTool(SimpleTool):
     async def prepare_prompt(self, request) -> str:
         client_config = self._registry.get_client(request.cli_name)
         role_config = client_config.get_role(request.role)
-        system_prompt_text = role_config.prompt_path.read_text(encoding="utf-8")
+        system_prompt_text = await self._read_role_prompt(client_config, role_config)
         include_system_prompt = not self._use_external_system_prompt(client_config)
         return await self._prepare_prompt_for_role(
             request,
@@ -452,7 +461,16 @@ class CLinkTool(SimpleTool):
             system_prompt=system_prompt_text,
             include_system_prompt=include_system_prompt,
             cli_name=client_config.name,
+            generic=client_config.custom is not None,
         )
+
+    async def _read_role_prompt(self, client: ResolvedCLIClient, role: ResolvedCLIRole) -> str:
+        try:
+            return await asyncio.to_thread(role.prompt_path.read_text, encoding="utf-8")
+        except (OSError, UnicodeError):
+            if client.custom is None:
+                raise
+            self._raise_client_error(client, f"Cannot read the UTF-8 prompt file for role '{role.name}'")
 
     async def _prepare_prompt_for_role(
         self,
@@ -462,6 +480,7 @@ class CLinkTool(SimpleTool):
         system_prompt: str,
         include_system_prompt: bool,
         cli_name: str,
+        generic: bool = False,
         user_content: str | None = None,
         files: list[str] | None = None,
     ) -> str:
@@ -470,7 +489,11 @@ class CLinkTool(SimpleTool):
         try:
             if user_content is None:
                 user_content = self.handle_prompt_file_with_fallback(request).strip()
-            guidance = self._agent_capabilities_guidance(cli_name)
+            guidance = (
+                "File references identify paths and metadata. Ask for any file contents you need to answer the request."
+                if generic
+                else self._agent_capabilities_guidance(cli_name)
+            )
             file_section = self._format_file_references(self.get_request_files(request) if files is None else files)
 
             sections: list[str] = []
@@ -488,7 +511,11 @@ class CLinkTool(SimpleTool):
                 )
             if file_section:
                 sections.append("=== FILE REFERENCES ===\n" + file_section)
-            sections.append("Provide your response below using your own CLI tools as needed:")
+            sections.append(
+                "Provide your response below:"
+                if generic
+                else "Provide your response below using your own CLI tools as needed:"
+            )
             return "\n\n".join(sections)
         finally:
             _active_system_prompt.reset(token)
@@ -512,8 +539,9 @@ class CLinkTool(SimpleTool):
             "parser": result.parser_name,
             "return_code": result.returncode,
         }
+        if client.custom is not None:
+            return metadata
         metadata.update(result.parsed.metadata)
-
         if result.stderr.strip():
             if self._uses_agy_runner(client):
                 metadata["stderr"] = self._bound_agy_diagnostic(result.stderr.strip(), metadata, "stderr")
@@ -653,6 +681,8 @@ class CLinkTool(SimpleTool):
             "cli_name": client.name,
             "return_code": exc.returncode,
         }
+        if client.custom is not None:
+            return metadata
         if exc.stdout and not self._uses_agy_runner(client):
             metadata["stdout"] = exc.stdout.strip()
         if exc.stderr:
@@ -690,7 +720,33 @@ class CLinkTool(SimpleTool):
             message = self._bound_agy_diagnostic(message, metadata, "error")
         self._raise_tool_error(message, metadata)
 
-    def _raise_tool_error(self, message: str, metadata: dict[str, Any] | None = None) -> None:
+    def _raise_client_error(
+        self, client: ResolvedCLIClient, reason: str, metadata: dict[str, Any] | None = None
+    ) -> NoReturn:
+        if client.custom is None:
+            self._raise_tool_error(reason, metadata)
+        details = dict(metadata or {})
+        stage = details.get("stage", "validation")
+        details.update(
+            tool_name="clink",
+            cli_name=client.name,
+            stage=stage,
+            reason=reason,
+            failure_hint=client.custom.failure_hint,
+        )
+        details.setdefault("execution_started", stage not in {"validation", "lookup", "launch"})
+        logger.warning(
+            "CLI %s failed at %s (exit code %s)%s",
+            client.name,
+            stage,
+            details.get("return_code"),
+            f" [{details['error_type']}]" if "error_type" in details else "",
+        )
+        self._raise_tool_error(
+            f"CLI '{client.name}' ({stage}): {reason.rstrip('.')}. {client.custom.failure_hint}", details
+        )
+
+    def _raise_tool_error(self, message: str, metadata: dict[str, Any] | None = None) -> NoReturn:
         error_output = ToolOutput(status="error", content=message, content_type="text", metadata=metadata)
         raise ToolExecutionError(error_output.model_dump_json())
 

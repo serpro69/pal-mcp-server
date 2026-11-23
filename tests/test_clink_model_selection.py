@@ -197,6 +197,7 @@ async def test_model_value_reaches_a_real_child_as_one_argument(tmp_path, regist
         ("nt", "C:/tools/cli.cmd", "model & argument", True),
         ("nt", "C:/tools/cli.CMD", "model", True),
         ("nt", "C:/tools/cli.bat", "model", True),
+        ("nt", "C:/tools/cli.cmd. ", "model", True),
         ("nt", "C:/tools/cli.exe", "model & argument", False),
         ("nt", "C:/tools/cli.cmd", None, False),
         ("posix", "/tools/cli.cmd", "model", False),

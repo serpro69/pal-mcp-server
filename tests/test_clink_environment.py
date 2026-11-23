@@ -289,13 +289,13 @@ async def test_missing_configured_directory_never_spawns(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_executable_lookup_uses_configured_child_path(monkeypatch):
-    cfg = client(env={"PATH": "/synthetic/operator/bin"})
-    lookup = Mock(return_value=None)
-    monkeypatch.setattr("clink.availability.shutil.which", lookup)
+async def test_executable_lookup_uses_configured_child_path(tmp_path, monkeypatch):
+    monkeypatch.setenv("PATH", str(Path(sys.executable).parent))
+    cfg = client(
+        executable=[Path(sys.executable).name], env={"PATH": str(tmp_path), "NoDefaultCurrentDirectoryInExePath": "1"}
+    )
     with pytest.raises(CLIAgentError, match="not found in PATH") as error:
         await BaseCLIAgent(cfg).run(role=cfg.get_role(None), prompt="x", files=[], images=[])
-    lookup.assert_called_once_with(sys.executable, path="/synthetic/operator/bin")
     assert "CLI_CLIENTS_CONFIG_PATH" in str(error.value)
     assert "env.PATH" in str(error.value)
     assert "node" in str(error.value)

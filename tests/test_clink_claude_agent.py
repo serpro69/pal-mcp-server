@@ -1,6 +1,6 @@
 import asyncio
 import json
-import shutil
+import sys
 from pathlib import Path
 
 import pytest
@@ -28,7 +28,7 @@ def claude_agent():
     role = ResolvedCLIRole(name="default", prompt_path=prompt_path, role_args=[])
     client = ResolvedCLIClient(
         name="claude",
-        executable=["claude"],
+        executable=[sys.executable],
         internal_args=["--print", "--output-format", "json"],
         config_args=["--permission-mode", "acceptEdits"],
         env={},
@@ -46,11 +46,7 @@ async def _run_agent_with_process(monkeypatch, agent, role, process, *, system_p
     async def fake_create_subprocess_exec(*_args, **_kwargs):
         return process
 
-    def fake_which(executable_name, **_kwargs):
-        return f"/usr/bin/{executable_name}"
-
     monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_create_subprocess_exec)
-    monkeypatch.setattr(shutil, "which", fake_which)
 
     return await agent.run(
         role=role,

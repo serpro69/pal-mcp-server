@@ -415,14 +415,21 @@ async def test_api_mode_still_dispatches_api_tools(isolated_startup, monkeypatch
     dispatch.assert_awaited_once_with("chat", {"prompt": "request"})
 
 
-@pytest.mark.parametrize("configured_path", [None, "", "/operator/bin"])
-def test_shared_resolver_matches_runner_path_environment(monkeypatch, configured_path):
+@pytest.mark.parametrize("configured_path", [None, "", "operator"])
+def test_shared_resolver_matches_runner_path_environment(monkeypatch, tmp_path, configured_path):
     monkeypatch.delenv("PATH", raising=False)
-    cfg = client(env={} if configured_path is None else {"PATH": configured_path})
-    lookup = Mock(return_value="/resolved/python")
-    monkeypatch.setattr("clink.availability.shutil.which", lookup)
-    assert resolve_executable(cfg) == "/resolved/python"
-    lookup.assert_called_once_with(sys.executable, path=os.defpath if configured_path is None else configured_path)
+    for directory in ("default", "operator"):
+        parent = tmp_path / directory
+        parent.mkdir()
+        executable = parent / "fixture.EXE"
+        executable.touch()
+        executable.chmod(0o700)
+    monkeypatch.setattr(os, "defpath", str(tmp_path / "default"))
+    monkeypatch.setattr("clink.availability.ntpath.defpath", str(tmp_path / "default"))
+    monkeypatch.setattr("clink.availability.STARTUP_DIRECTORY", str(tmp_path))
+    cfg = client(executable=["fixture.EXE"], env={} if configured_path is None else {"PATH": configured_path})
+    expected = str(tmp_path / (configured_path or "default") / "fixture.EXE") if configured_path != "" else None
+    assert resolve_executable(cfg) == expected
     assert build_cli_environment(cfg) == BaseCLIAgent(cfg)._build_environment()
 
 
@@ -447,14 +454,16 @@ async def test_empty_executable_is_configuration_error_in_discovery_and_runner(e
 
 
 @pytest.mark.asyncio
-async def test_invocation_rechecks_executable_removed_after_discovery(isolated_startup, monkeypatch):
+async def test_invocation_rechecks_executable_removed_after_discovery(isolated_startup, monkeypatch, tmp_path):
     registry = get_registry()
-    lookup = Mock(side_effect=lambda name, **kwargs: "/resolved/cli")
-    monkeypatch.setattr("clink.availability.shutil.which", lookup)
+    executable = tmp_path / "observed.exe"
+    executable.touch()
+    executable.chmod(0o700)
+    for name in registry.list_clients():
+        registry.get_client(name).executable = [str(executable)]
     snapshot = server.initialize_runtime()
     assert all(status.executable_found for status in snapshot.cli_statuses)
-    lookup.side_effect = None
-    lookup.return_value = None
+    executable.unlink()
     spawn = AsyncMock(side_effect=AssertionError("Missing executable cannot be launched"))
     monkeypatch.setattr(asyncio, "create_subprocess_exec", spawn)
     with pytest.raises(ToolExecutionError, match="not found in PATH"):
