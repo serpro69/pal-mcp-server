@@ -2,22 +2,32 @@
 
 > [Design](./design.md) · [Implementation plan](./implementation.md) · [Issue #33](https://github.com/serpro69/pal-mcp-server/issues/33)
 >
-> **Status:** pending. **Created:** 2026-11-23.
+> **Status:** in-progress. **Created:** 2026-11-23.
 >
 > **Not Doing:** executable parser plugins, interactive or event-stream protocols, vendor presets, per-path enforcement.
 
 ## Task 1 — Validate the manifest contract
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** —
 - **Size:** M
 - **Can run in parallel with:** —
 - **Strategy:** Contract-first
 - **Docs:** [Manifest resolution](./implementation.md#resolve-a-custom-manifest)
 
-- [ ] In `clink/models.py`, validate custom input before coercion. Cover unknown fields, empty versus missing `safe_args`, process-safe argv and environment strings, whole-name prompt flag conflicts, output, workspace, hint and the optional stderr switch.
-- [ ] In `clink/registry.py`, validate the selected source and every discovered file, then publish the complete registry. Preserve valid shipped overrides. Add the bundled `generic_default.txt` and its single baseline digest. Resolve generic fallback roles directly against that resource.
-- [ ] Exercise a missing explicit source, absent optional personal directory, malformed JSON, duplicate permission keys, empty and field-invalid later overrides. Check startup exit before handshake, safe diagnostics in both sinks, valid replacement, and successful registration with a missing executable.
+- [x] In `clink/models.py`, validate custom input before coercion. Cover unknown fields, empty versus missing `safe_args`, process-safe argv and environment strings, whole-name prompt flag conflicts, output, workspace, hint and the optional stderr switch.
+- [x] In `clink/registry.py`, validate the selected source and every discovered file, then publish the complete registry. Preserve valid shipped overrides. Add the bundled `generic_default.txt` and its single baseline digest. Resolve generic fallback roles directly against that resource.
+- [x] Exercise a missing explicit source, absent optional personal directory, malformed JSON, duplicate permission keys, empty and field-invalid later overrides. Check startup exit before handshake, safe diagnostics in both sinks, valid replacement, and successful registration with a missing executable.
+
+**Execution context**
+
+- 2026-11-23, observed at `2b00f454`. The registry skipped empty or unreadable manifests and updated its live dictionary while loading. Task 1 covers registration, startup and discovery. Generic execution starts in Task 2.
+- 2026-11-23, baseline. The repository quality checks passed using the existing Python 3.11 feature environment with MCP 2.3.0. The virtualenvwrapper `pal` environment failed during collection because its MCP package lacks `ServerRequestContext`.
+- 2026-11-23, verified on the final candidate. All 220 focused checks passed, including real stdio discovery and startup failures on both diagnostic sinks. The repository quality script passed with 3,669 tests passed, 17 skipped and 26 integration tests deselected. The credential-free integration simulator (`./run_integration_tests.sh --stub`) passed.
+- 2026-11-23, review. The independent Codex reviewer approved the corrections for Unicode name replacement, non-finite JSON coordinates and per-file access errors. Regression cases are in `tests/test_clink_manifests.py`.
+- 2026-11-23, review follow-up. Claude identified that an invalid environment key could contain a credential assignment. Startup tests now check both sinks for generic and shipped environment errors and nested role errors. The registry groups missing fields and records the source of each valid override. Hidden `*.json` entries follow the same validation rules as other discovered manifests. Codex and Claude approved the final Task 1 source.
+- 2026-11-23, subsequent tasks. Task 2 can enable stdin/text with workspace `any`. The pre-launch guard still applies to flag or JSON clients until Task 3, project workspaces until Task 4, and opt-in failure logging until Task 5.
+- 2026-11-23, verification limit. Automatic approval review blocked the live integration and quick simulator commands because they may transmit test data to external model providers. The Task 6 owner can run both in an authorized provider environment and record passes or unavailable prerequisites there.
 
 ## Task 2 — Run the stdin and text example
 
@@ -77,7 +87,7 @@
 - **Can run in parallel with:** —
 - **Docs:** [Documentation and release checks](./implementation.md#operator-documentation-and-release-checks)
 
-- [ ] Use `$kk:document` to publish both manifests and their troubleshooting rules. Cover startup stderr, optional local failure details, executable and script path bases, argv-preserving launchers, platform size limits, smaller history budgets, restart effects and directory recovery.
+- [ ] Use `$kk:document` to publish both manifests and their troubleshooting rules. Cover startup stderr, hidden `*.json` entries and UTF-8 byte-order marks, optional local failure details, executable and script path bases, argv-preserving launchers, platform size limits, smaller history budgets, restart effects and directory recovery.
 - [ ] Use `$kk:test` to run the **exact published manifests** through the local stdio MCP harness. Supply named executable fixtures on an isolated PATH and a Git worktree for `team-review`. Verify registration in the schema and provider-free discovery, both replies and a dependent follow-up. Check the installed distribution can resolve the bundled neutral prompt.
 - [ ] Run the focused subprocess, directory, environment, parser and history checks plus the repository quality, integration and quick simulator commands. Record live prerequisites or skips. The installed-vendor simulator needs a new case only if a shipped adapter changes in a way the existing checks cannot verify.
 - [ ] Verify the four shipped clients and stock schema against the existing baseline. Exercise a native adapter directly if its invocation behavior changed or its regression tests leave an unresolved risk.

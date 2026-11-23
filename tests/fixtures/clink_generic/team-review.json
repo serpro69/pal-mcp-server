@@ -1,0 +1,13 @@
+{
+  "name": "team-review",
+  "command": "team-review",
+  "safe_args": ["--read-only"],
+  "edit_args": ["--apply"],
+  "env_passthrough": ["TEAM_REVIEW_TOKEN"],
+  "custom": {
+    "prompt": {"mode": "flag", "flag": "--question"},
+    "output": {"format": "json", "path": ["reply", "text"]},
+    "workspace": "project",
+    "failure_hint": "Check the team-review login and that it can access a Git worktree in the selected directory."
+  }
+}

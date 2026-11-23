@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import shlex
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, Field, PositiveInt, field_validator, model_validator
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, PositiveInt, field_validator, model_validator
 
 from clink.constants import DEFAULT_HISTORY_TOKEN_BUDGET
 
@@ -46,7 +47,7 @@ class OutputCaptureConfig(BaseModel):
     )
 
 
-class CLIRoleConfig(BaseModel):
+class _RoleFields(BaseModel):
     """Role-specific configuration loaded from JSON manifests."""
 
     prompt_path: str | None = Field(
@@ -55,6 +56,10 @@ class CLIRoleConfig(BaseModel):
     )
     role_args: list[str] = Field(default_factory=list)
     description: str | None = Field(default=None)
+
+
+class CLIRoleConfig(_RoleFields):
+    """Shipped clients accept the historical role argument shorthand."""
 
     @field_validator("role_args", mode="before")
     @classmethod
@@ -65,11 +70,11 @@ class CLIRoleConfig(BaseModel):
             return [str(item) for item in value]
         if isinstance(value, str):
             return [value]
-        raise TypeError("role_args must be a list of strings or a single string")
+        raise ValueError("role_args must be a list of strings or a single string")
 
 
-class CLIClientConfig(BaseModel):
-    """Raw CLI client configuration before internal defaults are applied."""
+class _ClientFields(BaseModel):
+    """Fields and permission invariants shared by native and generic clients."""
 
     name: str
     command: str | None = None
@@ -97,8 +102,6 @@ class CLIClientConfig(BaseModel):
         gt=0,
         description="Estimated-token limit for rendered CLI conversation history, excluding the current request.",
     )
-    roles: dict[str, CLIRoleConfig] = Field(default_factory=dict)
-    output_to_file: OutputCaptureConfig | None = None
 
     @field_validator("model_args")
     @classmethod
@@ -124,19 +127,8 @@ class CLIClientConfig(BaseModel):
         }
     )
 
-    @field_validator("additional_args", "safe_args", "edit_args", mode="before")
-    @classmethod
-    def _ensure_args_list(cls, value: Any) -> list[str]:
-        if value is None:
-            return []
-        if isinstance(value, list):
-            return [str(item) for item in value]
-        if isinstance(value, str):
-            return [value]
-        raise TypeError("arg list fields must be a list of strings or a single string")
-
     @model_validator(mode="after")
-    def _enforce_arg_bucket_invariants(self) -> CLIClientConfig:
+    def _enforce_arg_bucket_invariants(self) -> _ClientFields:
         """Enforce structural invariants on the arg buckets.
 
         - `safe_args` and `edit_args` must differ — otherwise `allow_edits=true`
@@ -174,6 +166,118 @@ class CLIClientConfig(BaseModel):
                 )
         return self
 
+    def executable_tokens(self) -> list[str]:
+        try:
+            tokens = shlex.split(self.command or "")
+        except ValueError:
+            raise ValueError("command has invalid quoting or escaping") from None
+        if not tokens or not tokens[0]:
+            raise ValueError("command must specify an executable")
+        return tokens
+
+
+class CLIClientConfig(_ClientFields):
+    """Raw configuration for a client with a shipped adapter."""
+
+    roles: dict[str, CLIRoleConfig] = Field(default_factory=dict)
+    output_to_file: OutputCaptureConfig | None = None
+
+    @field_validator("additional_args", "safe_args", "edit_args", mode="before")
+    @classmethod
+    def _ensure_args_list(cls, value: Any) -> list[str]:
+        if value is None:
+            return []
+        if isinstance(value, list):
+            return [str(item) for item in value]
+        if isinstance(value, str):
+            return [value]
+        raise ValueError("arg list fields must be a list of strings or a single string")
+
+
+def _nonblank(value: str) -> str:
+    if not value.strip():
+        raise ValueError("must contain non-whitespace text")
+    return value
+
+
+# Validate individual JSON values before they can reach a subprocess or a diagnostic.
+ProcessString = Annotated[str, Field(pattern=r"^[^\x00]*$")]
+EnvironmentName = Annotated[str, Field(pattern=r"^[^=\x00]+$")]
+ManifestName = Annotated[str, Field(pattern=r"^[^\p{Cc}]*$"), AfterValidator(_nonblank)]
+
+
+class GenericRoleConfig(_RoleFields):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    prompt_path: Annotated[ProcessString, Field(min_length=1)] | None = None
+    role_args: list[ProcessString] = Field(default_factory=list)
+
+
+class _ProtocolObject(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+
+class StdinPrompt(_ProtocolObject):
+    mode: Literal["stdin"]
+
+
+class FlagPrompt(_ProtocolObject):
+    mode: Literal["flag"]
+    flag: str = Field(pattern=r"^-{1,2}[A-Za-z][A-Za-z0-9_-]*$")
+
+
+class TextOutput(_ProtocolObject):
+    format: Literal["text"]
+
+
+class JSONOutput(_ProtocolObject):
+    format: Literal["json"]
+    path: list[Annotated[str, Field(min_length=1)]] = Field(min_length=1)
+
+
+class GenericProtocol(_ProtocolObject):
+    prompt: StdinPrompt | FlagPrompt = Field(discriminator="mode")
+    output: TextOutput | JSONOutput = Field(discriminator="format")
+    workspace: Literal["any", "project"]
+    failure_hint: Annotated[str, Field(max_length=240, pattern=r"^[^\p{Cc}\p{Zl}\p{Zp}]*$"), AfterValidator(_nonblank)]
+    log_stderr_on_failure: bool = False
+
+
+class GenericCLIClientConfig(_ClientFields):
+    """Complete operator manifest, with no native runner or parser hooks."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    name: ManifestName
+    command: ProcessString
+    safe_args: list[ProcessString]
+    edit_args: list[ProcessString]
+    env_passthrough: list[EnvironmentName]
+    custom: GenericProtocol
+    env: dict[EnvironmentName, ProcessString] = Field(default_factory=dict)
+    working_dir: ProcessString | None = None
+    additional_args: list[ProcessString] = Field(default_factory=list)
+    roles: dict[ManifestName, GenericRoleConfig] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def _check_prompt_arguments(self) -> GenericCLIClientConfig:
+        prefix = self.executable_tokens()[1:]
+        if isinstance(self.custom.prompt, FlagPrompt):
+            name = self.custom.prompt.flag.lstrip("-")
+            reserved = {f"-{name}", f"--{name}"}
+            buckets = [
+                ("command", prefix),
+                ("additional_args", self.additional_args),
+                ("safe_args", self.safe_args),
+                ("edit_args", self.edit_args),
+                ("model_args", self.model_args),
+                *(("roles.role_args", role.role_args) for role in self.roles.values()),
+            ]
+            for field, tokens in buckets:
+                if any(token == "--" or token.partition("=")[0] in reserved for token in tokens):
+                    raise ValueError(f"{field} conflicts with custom.prompt.flag")
+        return self
+
 
 class ResolvedCLIRole(BaseModel):
     """Runtime representation of a CLI role with resolved prompt path."""
@@ -202,6 +306,7 @@ class ResolvedCLIClient(BaseModel):
     timeout_seconds: int
     history_token_budget: int = Field(default=DEFAULT_HISTORY_TOKEN_BUDGET, strict=True, gt=0)
     parser: str
+    custom: GenericProtocol | None = None
     runner: str | None = None
     roles: dict[str, ResolvedCLIRole]
     output_to_file: OutputCaptureConfig | None = None

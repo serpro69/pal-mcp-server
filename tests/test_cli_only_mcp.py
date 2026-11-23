@@ -125,6 +125,26 @@ def cli_server(tmp_path, monkeypatch, vendor):
 
 
 @pytest.mark.parametrize("vendor", ["codex"])
+async def test_generic_manifest_advertised_with_missing_executable(cli_server):
+    personal = cli_server.root / "user-cli-config"
+    personal.mkdir()
+    manifest = json.loads((FIXTURES / "clink_generic" / "team-review.json").read_text(encoding="utf-8"))
+    manifest["command"] = shlex.quote(str(cli_server.root / "absent"))
+    manifest["custom"]["log_stderr_on_failure"] = True
+    (personal / "team-review.json").write_text(json.dumps(manifest), encoding="utf-8")
+    async with cli_server.connect() as (session, _):
+        schema = next(tool.input_schema for tool in (await session.list_tools()).tools if tool.name == "clink")
+        assert "team-review" in schema["properties"]["cli_name"]["enum"]
+        metadata = payload(await session.call_tool("listmodels", {}))["metadata"]
+        assert metadata["mode"] == "provider-free"
+        record = next(info for info in metadata["cli_clients"] if info["name"] == "team-review")
+        assert record["executable_found"] is False
+        error = payload(await session.call_tool("clink", {"cli_name": "team-review", "prompt": "test"}), error=True)
+        assert error["metadata"]["execution_started"] is False
+        assert manifest["custom"]["failure_hint"] in error["content"]
+
+
+@pytest.mark.parametrize("vendor", ["codex"])
 @pytest.mark.parametrize("mode", ["legacy", "auto"])
 async def test_client_cancellation_stops_cli_and_preserves_stdio_session(cli_server, vendor, mode):
     cli_server.client_overrides[vendor] = {"env": {"CLINK_TEST_SCENARIO": "directory"}}
