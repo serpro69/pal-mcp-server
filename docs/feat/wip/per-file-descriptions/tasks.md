@@ -70,14 +70,20 @@ The November review revised the plan before implementation. Every checkbox below
 
 ## Task 4 — Ship debug's custom expert path
 
-- **Status:** pending
+- **Status:** done
 - **Depends on:** Task 3
 - **Size:** S
 - **Can run in parallel with:** Task 5
 - **Docs:** [Debug expert block](./implementation.md#task-4--deliver-descriptions-in-debugs-custom-expert-block)
 
-- [ ] 4.1 Opt in `DebugInvestigationRequest` and the debug schema. Use the consolidated exact map in `DebugIssueTool.prepare_expert_analysis_context`. Update the debug tool-surface expectation.
-- [ ] 4.2 Capture a continued debug call and assert one annotated essential-files block in the expert prompt, plus the existing no-description output and coverage counts.
+- [x] 4.1 Opt in `DebugInvestigationRequest` and the debug schema. Use the consolidated exact map in `DebugIssueTool.prepare_expert_analysis_context`. Update the debug tool-surface expectation.
+- [x] 4.2 Capture a continued debug call and assert one annotated essential-files block in the expert prompt, plus the existing no-description output and coverage counts.
+
+**Execution context**
+
+- 2026-11-23, observed at `77ec40a`. Debug builds its own essential-files section from sorted consolidated paths. That call supplies the expert prompt and its inclusion report.
+
+- 2026-11-23, verified with 56 focused tests and independent code review. The quality suite passed 3,769 unit tests. Integration passed four and skipped 22, and all three stub simulations passed. With no live provider configured, the quick simulator passed four of six.
 
 ## Task 5 — Ship blinded consensus participant annotations
 

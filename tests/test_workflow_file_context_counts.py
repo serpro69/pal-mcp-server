@@ -16,7 +16,7 @@ from tests.test_file_size_gate import model_context
 from tools.chat import ChatRequest, ChatTool
 from tools.shared.exceptions import ToolExecutionError
 from utils import conversation_memory as memory
-from utils.file_utils import FileReadReport
+from utils.file_utils import FileReadReport, read_file_content
 
 
 @pytest.fixture
@@ -314,7 +314,6 @@ async def test_chat_checks_committed_parent_evidence(captures, tmp_path, prior_t
 
 
 async def test_continued_chat_annotation_can_exceed_file_allowance(captures, tmp_path, monkeypatch):
-    from utils.file_utils import read_file_content
     from utils.model_context import ModelContext
 
     path = str(tmp_path / "file.py")
@@ -388,6 +387,35 @@ async def workflow_step(name, number, *, more=False, **kwargs):
         **kwargs,
     }
     return json.loads((await server.handle_call_tool(name, args))[0].text)
+
+
+@pytest.mark.parametrize("annotated", [False, True], ids=["plain", "annotated"])
+async def test_continued_debug_renders_one_essential_files_block(captures, tmp_path, annotated):
+    source = tmp_path / "a.py"
+    reference = tmp_path / "b.py"
+    source.write_text("start()\nstop()")
+    reference.write_text("helper()")
+    labels = {"file_descriptions": {str(source): "suspected cause"}} if annotated else {}
+    first = await workflow_step("debug", 1, more=True, relevant_files=[str(reference), str(source)], **labels)
+    assert not captures
+    thread = first["continuation_id"]
+    second = await workflow_step("debug", 2, continuation_id=thread)
+
+    assert len(captures) == 1
+    prompt = captures[0]["prompt"]
+    source_block, _ = read_file_content(str(source), include_line_numbers=True)
+    if annotated:
+        source_block = source_block.replace(") ---\n", ") [suspected cause] ---\n", 1)
+    reference_block, _ = read_file_content(str(reference), include_line_numbers=True)
+    assert (
+        f"=== ESSENTIAL FILES FOR DEBUGGING ===\n{source_block}\n\n{reference_block}\n=== END ESSENTIAL FILES ==="
+        in prompt
+    )
+    assert prompt.count("=== ESSENTIAL FILES FOR DEBUGGING ===") == 1
+    assert prompt.count("--- BEGIN FILE:") == 2
+    assert second["file_context"]["files_embedded"] == 2
+    assert second["file_context"]["files_in_history"] == 0
+    assert memory.get_thread(thread).turns[-1].model_metadata["included_files"] == [str(source), str(reference)]
 
 
 async def test_workflow_labels_follow_their_step_and_freeze_on_expert_delivery(captures, tmp_path, monkeypatch):

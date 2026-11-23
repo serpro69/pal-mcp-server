@@ -69,7 +69,17 @@ def test_surface_preserves_names_parameters_types_defaults_and_safety(surface):
                 "type": ["string", "null"],
                 "default": None,
             }
-        if name in {"chat", "analyze", "codereview", "precommit", "refactor", "secaudit", "testgen", "thinkdeep"}:
+        if name in {
+            "chat",
+            "analyze",
+            "codereview",
+            "debug",
+            "precommit",
+            "refactor",
+            "secaudit",
+            "testgen",
+            "thinkdeep",
+        }:
             expected["properties"]["file_descriptions"] = {"type": "object", "additionalProperties": {"type": "string"}}
         if name == "consensus":
             # Issue #30: consensus accepts thinking_mode at step 1 and reuses it for every participant.
