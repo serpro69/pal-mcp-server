@@ -97,7 +97,9 @@ Dependencies are pinned with `pip-compile` ([pip-tools](https://pip-tools.readth
 
 Dependabot checks GitHub Actions and the Docker base image weekly, grouping minor and patch releases by ecosystem. The **Update Python dependencies** workflow opens or refreshes one weekly PR for direct and transitive pins within their current major versions. Python major upgrades are reviewed manually. The constraints in `pyproject.toml` and `requirements-dev.in` also apply to every refresh.
 
-To run the Python refresh locally, use Python 3.11, install `requirements-dev.txt`, and run `python scripts/update_python_locks.py` from the repository root. To trigger the same workflow on GitHub, select **Run workflow** on the default branch. The repository's Actions settings must allow GitHub Actions to create pull requests. If GitHub requests approval to run CI on the generated PR, select **Approve workflows to run**.
+Generate both locks on Python 3.10, the oldest supported version. CI checks freshness on 3.10 and installs the same locks on 3.10, 3.11, and 3.12.
+
+To run the weekly refresh locally, activate a Python 3.10 environment, install `requirements-dev.txt`, and run `python scripts/update_python_locks.py` from the repository root. To trigger the same workflow on GitHub, select **Run workflow** on the default branch. The repository's Actions settings must allow GitHub Actions to create pull requests. If GitHub requests approval to run CI on the generated PR, select **Approve workflows to run**.
 
 **To add or update a runtime dependency:**
 1. Edit `pyproject.toml` under `[project] dependencies`
