@@ -4,6 +4,8 @@
 
 ## Unreleased
 
+- Deprecate the Gemini CLI client in `clink`. Existing `gemini` requests and continuations still work with a compatible installation. Discovery and response metadata now identify the deprecation. [Migration guide](docs/tools/clink.md#migrating-from-gemini-cli)
+
 - Support the 2026-07-28 MCP protocol over stdio using Python SDK 2.x. Existing
   clients can continue using the initialization handshake. For `prompts/get`,
   read the standard `description` and `messages` fields. The SDK omits the

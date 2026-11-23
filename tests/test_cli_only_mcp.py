@@ -433,11 +433,18 @@ async def test_stdio_cli_conversation_discovery_history_and_permissions(cli_serv
             )
             assert followup["content"] == f"CONTEXT_OK_{vendor}_followup"
             assert followup["metadata"]["cli_name"] == vendor and followup["metadata"]["role"] == "planner"
+            for reply in (first, followup):
+                if vendor == "gemini":
+                    assert "deprecated" in reply["metadata"]["deprecation_notice"]
+                    assert "'agy'" in reply["metadata"]["deprecation_notice"]
+                else:
+                    assert "deprecation_notice" not in reply["metadata"]
             assert followup["metadata"]["history"]["retained_messages"] == 2
             assert followup["continuation_offer"]["continuation_id"] == thread_id
             assert followup["continuation_offer"]["remaining_turns"] == 46
             first_capture, second_capture = cli_server.capture("first"), cli_server.capture("followup")
             history = second_capture["prompt"]
+            assert "clink client is deprecated" not in history
             markers = [f"FIRST_USER_MARKER_{vendor}", first["content"], "SECOND_USER_MARKER"]
             assert all(history.count(marker) == 1 for marker in markers)
             assert [history.index(marker) for marker in markers] == sorted(history.index(marker) for marker in markers)

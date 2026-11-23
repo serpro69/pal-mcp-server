@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field, field_validator
 from clink import get_registry
 from clink.agents import AgentOutput, CLIAgentError, create_agent, get_agent_class
 from clink.agents.base import WorkingDirectoryLaunchError
+from clink.constants import cli_deprecation_notice
 from clink.conversation import CLIConversation, canonical_continuation_id, prepare_request
 from clink.models import MAX_CLI_MODEL_CHARS, ResolvedCLIClient, ResolvedCLIRole, validate_cli_model
 from clink.working_directory import MISSING_BINDING, WorkingDirectoryError, resolve_working_directory
@@ -132,10 +133,7 @@ class CLinkTool(SimpleTool):
         return "clink"
 
     def get_description(self) -> str:
-        return (
-            "Link a request to an external AI CLI (Gemini CLI, Qwen CLI, etc.) through PAL MCP to reuse "
-            "their capabilities inside existing workflows."
-        )
+        return "Send a request to a configured external AI CLI and return its reply."
 
     def get_annotations(self) -> dict[str, Any]:
         # Opt-in edits via `allow_edits=true` + `editable_paths` mean this tool
@@ -185,6 +183,9 @@ class CLinkTool(SimpleTool):
                 + default_text
                 + selection_rule
             )
+            for name in self._cli_names:
+                if notice := cli_deprecation_notice(name):
+                    cli_description += f" {notice}"
             role_description = (
                 "Role preset for the selected CLI. Reuses the last successful role on continuation, "
                 "otherwise defaults to 'default'. Roles per CLI: " + "; ".join(role_descriptions)
@@ -377,7 +378,7 @@ class CLinkTool(SimpleTool):
                     client_config, "Failed to prepare the CLI prompt", {"error_type": type(exc).__name__}
                 )
             logger.exception("Failed to prepare clink prompt")
-            self._raise_tool_error(f"Failed to prepare prompt: {exc}")
+            self._raise_client_error(client_config, f"Failed to prepare prompt: {exc}")
 
         agent = create_agent(client_config)
         try:
@@ -465,6 +466,8 @@ class CLinkTool(SimpleTool):
                 )
 
         tool_output.metadata = self._bound_success_metadata(metadata)
+        if notice := cli_deprecation_notice(client_config.name):
+            tool_output.metadata["deprecation_notice"] = notice
         return [TextContent(type="text", text=tool_output.model_dump_json())]
 
     async def prepare_prompt(self, request) -> str:
@@ -735,12 +738,14 @@ class CLinkTool(SimpleTool):
             if metadata.get("stderr"):
                 message += f"\n{metadata['stderr']}"
             message = self._bound_agy_diagnostic(message, metadata, "error")
-        self._raise_tool_error(message, metadata)
+        self._raise_client_error(client, message, metadata)
 
     def _raise_client_error(
         self, client: ResolvedCLIClient, reason: str, metadata: dict[str, Any] | None = None
     ) -> NoReturn:
         if client.custom is None:
+            if notice := cli_deprecation_notice(client.name):
+                metadata = {**(metadata or {}), "deprecation_notice": notice}
             self._raise_tool_error(reason, metadata)
         details = dict(metadata or {})
         stage = details.get("stage", "validation")

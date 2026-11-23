@@ -76,6 +76,12 @@ SHARED_ENV_PASSTHROUGH = frozenset(
 )
 
 
+def cli_deprecation_notice(name: str) -> str | None:
+    if name.casefold() == "gemini":
+        return "The 'gemini' clink client is deprecated. For new conversations, configure 'agy', 'claude', or 'codex'."
+    return None
+
+
 @dataclass(frozen=True)
 class CLIInternalDefaults:
     """Internal defaults applied to a CLI client during registry load."""

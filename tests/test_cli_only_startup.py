@@ -183,10 +183,17 @@ async def test_listmodels_exposes_cli_observations_in_every_mode(
     assert response["metadata"]["cli_clients"] == [
         {"name": "claude", "executable_found": True, "authentication": "unverified"},
         {"name": "codex", "executable_found": False, "authentication": "unverified"},
-        {"name": "gemini", "executable_found": False, "authentication": "unverified"},
+        {
+            "name": "gemini",
+            "executable_found": False,
+            "authentication": "unverified",
+            "deprecation_notice": "The 'gemini' clink client is deprecated. "
+            "For new conversations, configure 'agy', 'claude', or 'codex'.",
+        },
     ]
     assert response["metadata"]["cli_clients_observed_at"] == "startup"
     if catalog_state == "provider-free":
+        assert "The 'gemini' clink client is deprecated" in response["content"]
         assert response["metadata"]["mode"] == "provider-free"
         assert response["metadata"]["observed_at"] == "startup"
         assert response["metadata"]["configured_providers"] == 0

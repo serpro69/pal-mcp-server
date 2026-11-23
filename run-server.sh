@@ -1110,7 +1110,7 @@ migrate_env_file() {
 # Explain setup choices; Python startup owns provider classification and validation.
 display_setup_paths() {
     print_info "Choose how PAL will run requests:"
-    echo "  CLI conversations: use clink with an installed, authenticated Codex, Claude Code, or Gemini CLI."
+    echo "  CLI conversations: use clink with an installed, authenticated CLI such as Codex or Claude Code."
     echo "  No PAL model-provider API key is required for clink or the available independent tools."
     echo "  Install and sign in to the selected CLI yourself, using the same OS account that runs PAL."
     echo "  API-backed tools (chat, consensus, etc.): configure a provider in .env or the launch environment."

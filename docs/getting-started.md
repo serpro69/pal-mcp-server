@@ -15,7 +15,7 @@ PAL can start without a model provider. Choose an installed, authenticated CLI f
 
 ### CLI conversations without PAL provider keys
 
-1. Install Codex, Claude Code, or Gemini CLI separately and sign in as the OS user who will run PAL. Follow the [vendor authentication guidance](tools/clink.md#authentication-and-version-assumptions); PAL does not install or log in to these CLIs.
+1. Install Codex, Claude Code, or Antigravity (`agy`) separately and sign in as the OS user who will run PAL. Follow the [vendor authentication guidance](tools/clink.md#authentication-and-version-assumptions); PAL does not install or log in to these CLIs. Existing Gemini CLI users can follow the [clink migration guide](tools/clink.md#migrating-from-gemini-cli).
 2. Install PAL using either method in Step 2. For a clone, `./run-server.sh` sets up the Python environment and MCP integration. Your MCP client launches the server; the setup script does not run a CLI login check.
 3. Leave PAL model-provider credentials and endpoints absent or empty in the launch environment, MCP configuration, and `.env`. Remove the API-key entries from the example MCP configurations below. A configured custom/local endpoint also enables a PAL provider, even if it needs no key. Shipped placeholders count as absent; do not add a dummy key to enable startup.
 4. Make the selected executable available on the **MCP server's** `PATH` or set its explicit command path in a [CLI manifest](tools/clink.md#configuration). Preserve access to the same home/authentication location used when signing in. Use actual absolute directories in client `PATH` settings; literal `~` or `$HOME` values in JSON/TOML environment fields may not be expanded by the client.

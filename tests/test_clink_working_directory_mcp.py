@@ -160,6 +160,7 @@ async def test_mcp_schema_projects_aliases_conflicts_and_validation_boundaries(c
         assert_directory_error(
             conflict,
             validation_metadata(
+                vendor,
                 "WorkingDirectoryConflictError",
                 bound=binding(projects.alias),
                 requested=requested,
@@ -194,6 +195,7 @@ async def test_mcp_schema_projects_aliases_conflicts_and_validation_boundaries(c
             assert_directory_error(
                 rejected,
                 validation_metadata(
+                    vendor,
                     "InvalidWorkingDirectoryError",
                     bound=binding(projects.alias),
                     requested=value,
@@ -279,7 +281,7 @@ async def test_mcp_legacy_and_api_origin_threads_bind_only_after_success(cli_ser
             context = thread_after(cli_server, name, ids[name])["initial_context"]
             assert all(context[key] == value for key, value in definitions[name]["context"].items())
         corrupt = await call(session, vendor, "corrupt", error=True, continuation_id=ids["corrupt"])
-        assert_directory_error(corrupt, validation_metadata("InvalidWorkingDirectoryBindingError", new=True))
+        assert_directory_error(corrupt, validation_metadata(vendor, "InvalidWorkingDirectoryBindingError", new=True))
         assert_unchanged(cli_server, "corrupt")
 
 
