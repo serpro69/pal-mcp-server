@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
 from config import TEMPERATURE_ANALYTICAL
 from systemprompts import DEBUG_ISSUE_PROMPT
-from tools.shared.base_models import WorkflowRequest
+from tools.shared.base_models import FILE_DESCRIPTIONS_SCHEMA, FileAwareWorkflowRequest
 
 from .workflow.base import WorkflowTool
 
@@ -69,7 +69,7 @@ DEBUG_INVESTIGATION_FIELD_DESCRIPTIONS = {
 }
 
 
-class DebugInvestigationRequest(WorkflowRequest):
+class DebugInvestigationRequest(FileAwareWorkflowRequest):
     """Request model for debug investigation steps matching original debug tool exactly"""
 
     # Required fields for each investigation step
@@ -146,6 +146,7 @@ class DebugIssueTool(WorkflowTool):
 
         # Debug-specific field overrides
         debug_field_overrides = {
+            "file_descriptions": FILE_DESCRIPTIONS_SCHEMA,
             "step": {
                 "type": "string",
                 "description": DEBUG_INVESTIGATION_FIELD_DESCRIPTIONS["step"],
@@ -315,7 +316,10 @@ class DebugIssueTool(WorkflowTool):
         # Add file content if we have relevant files
         if consolidated_findings.relevant_files:
             file_content, _ = self._prepare_file_content_for_prompt(
-                sorted(consolidated_findings.relevant_files), None, "Essential debugging files"
+                sorted(consolidated_findings.relevant_files),
+                None,
+                "Essential debugging files",
+                file_descriptions=consolidated_findings.file_descriptions,
             )
             if file_content:
                 context_parts.append(
