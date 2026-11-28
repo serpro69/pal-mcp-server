@@ -1,7 +1,7 @@
 # ===========================================
 # STAGE 1: Build dependencies
 # ===========================================
-FROM python:3.11.18-slim-trixie@sha256:07d4824036af339fa1b6ef769cc99d9c10a141769538b52b3b597c84f7a7b535 AS builder
+FROM python:3.11.18-slim-trixie@sha256:61e01f72680f86a5279ad510818ab7b2ee9f049822589d4e34e33e044360356c AS builder
 
 # Install system dependencies for building
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
@@ -29,7 +29,7 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
 # ===========================================
 # STAGE 2: Runtime image
 # ===========================================
-FROM python:3.11.18-slim-trixie@sha256:07d4824036af339fa1b6ef769cc99d9c10a141769538b52b3b597c84f7a7b535 AS runtime
+FROM python:3.11.18-slim-trixie@sha256:61e01f72680f86a5279ad510818ab7b2ee9f049822589d4e34e33e044360356c AS runtime
 
 # Add metadata labels for traceability
 LABEL maintainer="PAL MCP Server Team"
